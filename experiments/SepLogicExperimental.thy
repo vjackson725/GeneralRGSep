@@ -125,6 +125,28 @@ lemma core_rel_additive:
 
 end
 
+context perm_alg
+begin
+
+definition \<open>grunit_rel a ua \<equiv>
+  ua \<preceq> a \<and> sepadd_unit ua \<and> (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_unit y \<longrightarrow> y \<preceq> ua)\<close>
+
+abbreviation \<open>has_grunit a \<equiv> Ex (grunit_rel a)\<close>
+abbreviation \<open>grunit a \<equiv> The (grunit_rel a)\<close>
+
+(* simp doesn't like rewriting grunit_rel under an Ex in goal position. *)
+lemma has_grunit_def:
+  \<open>has_grunit a \<longleftrightarrow> (\<exists>ca.
+    ca \<preceq> a \<and> sepadd_unit ca \<and> (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_unit y \<longrightarrow> y \<preceq> ca))\<close>
+  using grunit_rel_def
+  by presburger
+
+lemma has_unit_mono:
+  \<open>a \<preceq> b \<Longrightarrow> has_grunit a \<Longrightarrow> has_grunit b\<close>
+  by (clarsimp simp add: has_grunit_def)
+    (metis resource_ordering.trans step_compatible_units_identical trans_ge_ge_is_compatible)
+
+end
 
 context dupcl_perm_alg
 begin
