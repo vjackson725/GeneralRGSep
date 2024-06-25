@@ -1548,11 +1548,18 @@ lemma punit_impl_wunit:
 
 end
 
+context strong_sep_perm_alg
+begin
+
+sublocale strong_sep_wunit: wunit_perm_alg
+  by standard (metis disjoint_add_rightL selfsep_iff sepadd_unit_left)
+
+end
 
 context cancel_perm_alg
 begin
 
-subclass wunit_perm_alg
+sublocale cancel_wunit: wunit_perm_alg
   by standard (blast dest: cancel_right_to_unit)
 
 end
@@ -1565,7 +1572,7 @@ lemma
   nitpick
   oops
 
-lemma sepadd_unit_finite_set_contains_unit:
+lemma finset_sepadd_unit_set_contains_unit:
   fixes A :: \<open>('a::perm_alg) set\<close>
   assumes
     \<open>A + C = A\<close>
@@ -1586,7 +1593,6 @@ proof clarsimp
   have Crel_transcl_less:
     \<open>\<And>x y. Crel\<^sup>+\<^sup>+ x y \<Longrightarrow> x \<prec> y\<close>
     by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_ordering.strict_trans)
-
 
   have assum1': \<open>(\<Union>a\<in>A. {a} + C) = A\<close>
     using assms
@@ -1623,6 +1629,72 @@ proof clarsimp
   then have \<open>\<And>x. x \<in> A \<Longrightarrow> \<exists>w\<in>?minimalCrelA. w \<preceq> x\<close>
     using minA_subseteq_minCrelA
     by fast
+  then obtain mina where mina_conds: \<open>mina \<in> ?minimalCrelA\<close> \<open>mina \<preceq> a\<close>
+    by (meson a_mem_A)
+
+  {
+    fix x
+    assume assmsB: \<open>x \<in> ?minimalCrelA\<close>
+
+    have \<open>\<forall>w\<in>A. \<not> Crel w x\<close>
+      using assmsB Crel_less by force
+    then have \<open>x \<in> {x} + C\<close>
+      using assms(1) assmsB
+      unfolding Crel_def
+      by (clarsimp, metis (no_types, lifting) UN_iff plus_set_eq_plus_left_members)
+  }
+  then show \<open>\<exists>c\<in>C. a ## c \<and> a + c = a\<close>
+    using mina_conds
+    apply clarsimp
+    apply (metis plus_set_singleton_left_self_mem_then_some_unit pseudo_units_monotone)
+    done
+qed
+
+
+
+lemma minset_sepadd_unit_set_contains_unit:
+  fixes A :: \<open>('a::perm_alg) set\<close>
+  assumes Cpunit: \<open>A + C = A\<close>
+    and minAs:\<open>\<forall>a\<in>A. \<exists>la\<in>A. la \<preceq> a \<and> (\<forall>a'\<in>A. \<not> a' \<prec> la)\<close>
+  shows \<open>\<forall>a\<in>A. \<exists>c\<in>C. a ## c \<and> a + c = a\<close>
+proof clarsimp
+  fix a
+  assume a_mem_A: \<open>a \<in> A\<close>
+
+  define Crel :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> where
+    \<open>Crel = (\<lambda>x y. y \<in> {x} + C \<and> x \<noteq> y)\<close>
+
+  have Crel_less:
+    \<open>\<And>x y. Crel x y \<Longrightarrow> x \<prec> y\<close>
+    unfolding Crel_def
+    by (metis plus_set_singleton_left_leq resource_ordering.not_eq_order_implies_strict)
+  
+  have Crel_transcl_less:
+    \<open>\<And>x y. Crel\<^sup>+\<^sup>+ x y \<Longrightarrow> x \<prec> y\<close>
+    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_ordering.strict_trans)
+
+  have assum1': \<open>(\<Union>a\<in>A. {a} + C) = A\<close>
+    using assms
+    by (metis plus_set_eq_plus_left_members)
+
+  have downwards_not_selfC:
+    \<open>\<And>x y . x \<notin> {x} + C \<Longrightarrow> Crel y x \<Longrightarrow> y \<notin> {y} + C\<close>
+    unfolding Crel_def
+    apply (clarsimp simp add: singleton_plus_set_eq)
+    apply (metis disjoint_add_left_commute2 partial_add_right_commute unit_disjoint_inherit)
+    done
+
+  let ?minimalA = \<open>{a\<in>A. \<forall>x\<in>A. \<not> x \<prec> a}\<close>
+
+  let ?minimalCrelA = \<open>{a\<in>A. \<forall>x\<in>A. x = a \<or> \<not> Crel x a}\<close>
+
+  have minA_subseteq_minCrelA: \<open>?minimalA \<subseteq> ?minimalCrelA\<close>
+    using Crel_def plus_set_singleton_left_leq Crel_less
+    by blast
+
+  have \<open>\<And>x. x \<in> A \<Longrightarrow> \<exists>w\<in>?minimalCrelA. w \<preceq> x\<close>
+    using minA_subseteq_minCrelA assms(2)
+    by (clarsimp simp add: Ball_def Bex_def) fast
   then obtain mina where mina_conds: \<open>mina \<in> ?minimalCrelA\<close> \<open>mina \<preceq> a\<close>
     by (meson a_mem_A)
 
@@ -1737,13 +1809,45 @@ proof (clarsimp)
     done
 qed
 
-lemma set_positivity_sep_alg:
+
+lemma all_eqD1:
+  fixes f g :: \<open>'a \<Rightarrow> 'b::order\<close>
+  shows \<open>\<forall>x. f x = g x \<Longrightarrow> \<forall>x. f x \<le> g x\<close>
+  by simp
+
+lemma all_eqD2:
+  fixes f g :: \<open>'a \<Rightarrow> 'b::order\<close>
+  shows \<open>\<forall>x. f x = g x \<Longrightarrow> \<forall>x. g x \<le> f x\<close>
+  by simp
+
+lemma minset_positivity_sep_alg:
   fixes A :: \<open>('a::sep_alg) set\<close>
-  assumes \<open>A + (C1 + C2) = A\<close>
+  assumes split_punit_add: \<open>A + (C1 + C2) = A\<close>
+    and minAs:\<open>\<forall>a\<in>A. \<exists>la\<in>A. la \<preceq> a \<and> (\<forall>a'\<in>A. \<not> a' \<prec> la)\<close>
   shows \<open>A + C1 = A\<close>
-  using assms
-  apply (simp add: set_eq_iff plus_set_def)
-  oops
+  using assms(1)
+    minset_sepadd_unit_set_contains_unit[OF split_punit_add minAs]
+  apply (clarsimp simp add: set_eq_iff plus_set_def Ball_def Bex_def)
+  apply (rule iffI)
+    (* \<Rightarrow> *)
+   apply clarsimp
+   apply (rename_tac a c1)
+   apply (drule spec, drule mp, assumption)
+   apply (elim exE conjE)
+   apply clarsimp
+   apply (rename_tac c1' c2')
+   apply (subgoal_tac \<open>a + c1' = a\<close>)
+    prefer 2
+    apply (metis disjoint_add_rightL disjoint_add_swap_rl unit_sub_closure2)
+   apply (subgoal_tac \<open>a + (c1 + c2') \<in> A\<close>)
+    prefer 2
+    apply (metis disjoint_add_rightR disjoint_add_swap_lr2 disjoint_sym_iff partial_add_assoc3)
+   apply (drule_tac x=\<open>a\<close> in spec)
+   apply clarsimp
+   apply (metis disjoint_add_rightR disjoint_sym partial_add_assoc3 partial_add_assoc_commute_right)
+    (* \<Leftarrow> *)
+  apply (metis disjoint_add_rightL disjoint_add_swap_rl unit_sub_closure2)
+  done
 
 lemma set_positivity:
   fixes A :: \<open>('a::perm_alg) set\<close>
