@@ -173,6 +173,8 @@ lemma pottier2_collapse:
 end
 
 
+section \<open> Algebras with greatest lower bound / least upper bound\<close>
+
 subsection \<open> weak glb / lub \<close>
 
 context perm_alg
@@ -301,7 +303,7 @@ paragraph \<open> with addition \<close>
 lemma \<open>a ## b \<Longrightarrow> lub_exists a b \<Longrightarrow> lub a b \<preceq> a + b\<close>
   by (clarsimp simp add: lub_rel_def partial_le_plus partial_le_plus2)
 
-lemma \<open>a ## b \<Longrightarrow> lub_exists a b \<Longrightarrow> lub a b \<ge> a + b\<close>
+lemma \<open>a ## b \<Longrightarrow> lub_exists a b \<Longrightarrow> lub a b \<succeq> a + b\<close>
   text \<open> not true! \<close>
   oops
 
@@ -582,6 +584,11 @@ class distrib_sep_alg = sep_alg + distrib_perm_alg
 
 section \<open> Permission algebra without disjoint-associativity \<close>
 
+text \<open>
+  Trying to allow for a true error; doesn't work because it breaks assoc.
+  See Callum's paper on why this is impossible.
+\<close>
+
 class weak_perm_alg = disjoint + plus +
   (* partial commutative monoid *)
   assumes partial_add_assoc: \<open>a ## b \<Longrightarrow> b ## c \<Longrightarrow> a ## c \<Longrightarrow> (a + b) + c = a + (b + c)\<close>
@@ -609,55 +616,8 @@ lemma \<open>p \<^emph>\<^sub>2 (q \<^emph>\<^sub>2 r) = (p \<^emph>\<^sub>2 q) 
 
 end
 
-section \<open> Multiple unit sep-algebra alternate \<close>
 
-text \<open>
-  A different multi_sep_algebra; trying to find the minimal conditions that imply the order is the
-  resource order.
-\<close>
-class multi_sep_alg2 = perm_alg + order +
-  fixes unitof :: \<open>'a \<Rightarrow> 'a\<close>
-  assumes unitof_disjoint[simp]: \<open>unitof a ## a\<close>
-  assumes unitof_is_unit[simp]: \<open>\<And>a b. unitof a ## b \<Longrightarrow> unitof a + b = b\<close>
-  assumes le_add_monoR:
-    \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> a \<preceq> b \<Longrightarrow> a + c \<preceq> b + c\<close>
-  assumes unitof_least[simp]: \<open>compatible a b \<Longrightarrow> unitof a \<preceq> b\<close>
-  assumes le_then_compatible: \<open>a \<preceq> b \<Longrightarrow> compatible a b\<close>
-begin
-
-lemma leq_sepadd_impl_leq: \<open>a \<preceq> b \<Longrightarrow> a \<preceq> b\<close>
-  apply (cases \<open>a = b\<close>)
-   apply force
-  oops
-
-lemma leq_impl_leq_sepadd: \<open>a \<preceq> b \<Longrightarrow> a \<preceq> b\<close>
-  apply (cases \<open>a = b\<close>)
-   apply force
-  apply (simp add: less_eq_sepadd_def')
-  nitpick
-  oops
-
-lemma disjoint_unit_is_same: \<open>a ## b \<Longrightarrow> unitof a = unitof b\<close>
-  by (metis disjoint_add_rightL disjoint_sym partial_add_commute unitof_disjoint unitof_is_unit)
-
-lemma le_sepadd1: \<open>a ## b \<Longrightarrow> a \<preceq> a + b\<close>
-  using le_add_monoR[of \<open>unitof a\<close> a b, simplified]
-  by (simp add: disjoint_unit_is_same disjoint_sym_iff partial_add_commute)
-
-lemma add_to_unit_is_unit:
-  \<open>a ## b \<Longrightarrow> a + b = c \<Longrightarrow> unitof c = unitof a\<close>
-  by (metis disjoint_add_rightL partial_add_commute unitof_disjoint unitof_is_unit)
-
-lemma le_sepadd2: \<open>a ## b \<Longrightarrow> b \<preceq> a + b\<close>
-  by (metis disjoint_sym le_sepadd1 partial_add_commute)
-
-lemma leq_iff_sepadd: \<open>\<And>a b. a \<preceq> b \<longleftrightarrow> (\<exists>c. a ## c \<and> b = a + c)\<close>
-  oops
-
-end
-
-
-section \<open> Old things \<close>
+section \<open> Heap-like algebra exploration \<close>
 
 context order
 begin
@@ -680,7 +640,8 @@ definition \<open>foundation a \<equiv> {j. j \<preceq> a \<and> sepadd_irr j}\<
 
 end
 
-section \<open> Labelled Permission algebra \<close>
+
+subsection \<open> Labelled Permission algebra \<close>
 
 text \<open>
   This subclass is supposed to be the algebraic version of a heap.
@@ -746,7 +707,7 @@ lemma same_labels_as_unit_is_unit:
       sepadd_unit_def preordering.strict_iff_not)
 
 
-subsection  \<open> Label overlap \<close>
+subsubsection  \<open> Label overlap \<close>
 
 definition \<open>label_overlap a b \<equiv> \<exists>c. c \<le>\<^sub>l a \<and> c \<le>\<^sub>l b \<and> \<not> sepadd_unit c\<close>
 
@@ -779,7 +740,7 @@ lemma half_has_same_labels: \<open>half a =\<^sub>l a\<close>
 
 end
 
-
+(* irreducibility should allow us to define some notion of 'atomic' resources. *)
 
 context sep_alg
 begin
@@ -798,147 +759,62 @@ lemma sepadd_irr_eq2:
 end
 
 
-class big_sep_alg = distrib_sep_alg + cancel_perm_alg
-begin
+section \<open> Unit exploration \<close>
 
-(*
-definition
-  \<open>good_prog b \<equiv>
-      (\<forall>j. sepadd_irr j \<longrightarrow>
-        ((\<exists>x y. b x y \<and> j \<preceq> x \<and> \<not> j \<preceq> y) \<longrightarrow> (\<forall>x' y'. b x' y' \<longrightarrow> j \<preceq> x' \<and> \<not> j \<preceq> y')) \<and>
-        ((\<exists>x y. b x y \<and> \<not> j \<preceq> x \<and> j \<preceq> y) \<longrightarrow> (\<forall>x' y'. b x' y' \<longrightarrow> \<not> j \<preceq> x' \<and> j \<preceq> y'))
-      ) \<and> frame_closed b\<close>
+(* units *)
 
-definition
-  \<open>rgsep_rely S \<equiv> (\<lambda>a b. \<exists>x y. (x, y) \<in> S \<and> framed_subresource_rel \<top> x y a b)\<^sup>*\<^sup>*\<close>
-
-definition
-  \<open>good_rely b \<equiv>
-      (\<forall>j. sepadd_irr j \<longrightarrow>
-        ((\<exists>x y. b x y \<and> j \<preceq> x \<and> \<not> j \<preceq> y) \<longrightarrow> (\<forall>x' y'. b x' y' \<longrightarrow> j \<preceq> x' \<and> \<not> j \<preceq> y')) \<and>
-        ((\<exists>x y. b x y \<and> \<not> j \<preceq> x \<and> j \<preceq> y) \<longrightarrow> (\<forall>x' y'. b x' y' \<longrightarrow> \<not> j \<preceq> x' \<and> j \<preceq> y'))
-      ) \<and>
-      (\<forall>x y f. b x y \<longrightarrow> x ## f \<longrightarrow> y ## f \<longrightarrow> b (x + f) (y + f))\<close>
-
-lemma wsstable_sepconj_semidistrib_backwards:
-  \<open>r = rgsep_rely S \<Longrightarrow>
-    S = {a} \<Longrightarrow>
-    deterministic (r - (=)) \<Longrightarrow>
-    Ex1 P \<Longrightarrow> Ex1 Q \<Longrightarrow>
-    X = \<lceil> P \<^emph> Q \<rceil>\<^bsub>r\<^esub> \<Longrightarrow>
-    Y = \<lceil> P \<rceil>\<^bsub>r\<^esub> \<Longrightarrow>
-    Z = \<lceil> Q \<rceil>\<^bsub>r\<^esub> \<Longrightarrow>
-    X \<preceq> Y \<^emph> Z\<close>
+lemma (in perm_alg) (* pseudo-units are not antimonotone *)
+  \<open>x \<preceq> y \<Longrightarrow> y ## u \<Longrightarrow> y + u = y \<Longrightarrow> x + u = x\<close>
   nitpick
   oops
 
-end
+(* quasi-units *)
+definition (in perm_alg) \<open>sepadd_qunit u \<equiv> (\<exists>x. u ## x) \<and> (\<forall>a. a ## u \<longrightarrow> a + u = u \<or> a + u = a)\<close>
 
-lemma (in perm_alg) wsstable_semidistrib_disjoint_pre_state_strong:
-  \<open>\<forall>a. (P \<^emph> Q) a \<longrightarrow> changedom r\<^sup>*\<^sup>* a \<longrightarrow> sepadd_unit a \<Longrightarrow>
-    changes r\<^sup>*\<^sup>* \<sqinter> rel_liftL (P \<^emph> Q) \<preceq> compatible \<Longrightarrow>
-    \<lceil> P \<^emph> Q \<rceil>\<^bsub>r\<^esub> \<preceq> \<lceil> P \<rceil>\<^bsub>r\<^esub> \<^emph> \<lceil> Q \<rceil>\<^bsub>r\<^esub>\<close>
-  apply (clarsimp simp add: changedom_def rel_liftL_def)
-  apply (clarsimp simp add: wsstable_def sepconj_def pre_state_def le_fun_def
-      fun_eq_iff imp_ex imp_conjL simp del: all_simps(5))
-  apply (drule spec2, drule mp, assumption, drule mp, assumption, drule mp, assumption)
-  apply (drule spec, drule mp, assumption)
-  apply (case_tac \<open>x = h1 + h2\<close>, blast)
-  apply clarsimp
-  apply (frule(2) disjoint_units_identical)
-  apply (clarsimp simp add: sepadd_unit_left)
-  apply (metis compatible_to_unit_is_unit_right compatible_unit_disjoint sepadd_unit_idem_add
-      sepadd_unit_selfsep rtranclp.rtrancl_refl)
-(*
-  apply (rule_tac x=x in exI)
-  apply (rule_tac x=h2 in exI)
-  apply (rule conjI)
-   apply (metis compatible_unit_disjoint)
-  apply (rule conjI)
-   apply (metis compatible_to_unit_is_unit_right)
-  apply force
-*)
-  done
+lemma (in cancel_perm_alg) cancel_punit_iff_unit:
+  \<open>(\<exists>x. sepadd_punit_of u x) \<longleftrightarrow> sepadd_unit u\<close>
+  using cancel_right_to_unit
+  unfolding sepadd_unit_def sepadd_punit_of_def
+  by blast
 
-lemma (in perm_alg) wsstable_semidistrib_no_pre_state:
-  \<open>\<forall>h1. (P \<^emph> Q) h1 \<longrightarrow> pre_state r h1 \<longrightarrow> False \<Longrightarrow>
-    \<lceil> P \<^emph> Q \<rceil>\<^bsub>r\<^esub> \<preceq> \<lceil> P \<rceil>\<^bsub>r\<^esub> \<^emph> \<lceil> Q \<rceil>\<^bsub>r\<^esub>\<close>
-  apply (insert wsstable_semidistrib_disjoint_pre_state_strong[of P Q r])
-  apply (drule meta_mp)
-   apply (metis changes_def converse_rtranclpE pre_state_def)
-  apply (drule meta_mp)
-   apply (clarsimp simp add: rel_liftL_def changes_def pre_state_def)
-   apply (metis converse_rtranclpE)
-  apply assumption
-  done
-
-lemma (in inf_sep_alg) wsstable_semidistrib_disjoint_pre_state:
-  \<open>\<forall>h1 h2. (P \<^emph> Q) h1 \<longrightarrow> changedom r h2 \<longrightarrow> h1 \<sqinter> h2 = 0 \<Longrightarrow>
-    \<lceil> P \<^emph> Q \<rceil>\<^bsub>r\<^esub> \<preceq> \<lceil> P \<rceil>\<^bsub>r\<^esub> \<^emph> \<lceil> Q \<rceil>\<^bsub>r\<^esub>\<close>
-  apply (insert wsstable_semidistrib_disjoint_pre_state_strong[of P Q r])
-  apply (drule meta_mp)
-   apply (metis changedom_rtranclp sepinf_idem zero_only_unit)
-  apply (drule meta_mp)
-   apply (force simp add: rel_liftL_def changes_def pre_state_def all_compatible)
-  apply assumption
-  done
-
-lemma (in inf_perm_alg) wsstable_semidistrib_disjoint_pre_state_strong2:
-  \<open>\<forall>h1 h2. (P \<^emph> Q) h1 \<longrightarrow> changedom r h2 \<longrightarrow> compatible h1 h2 \<longrightarrow> sepadd_unit (h1 \<sqinter> h2) \<Longrightarrow>
-    changes r\<^sup>*\<^sup>* \<sqinter> rel_liftL (P \<^emph> Q) \<preceq> compatible \<Longrightarrow>
-    \<lceil> P \<^emph> Q \<rceil>\<^bsub>r\<^esub> \<preceq> \<lceil> P \<rceil>\<^bsub>r\<^esub> \<^emph> \<lceil> Q \<rceil>\<^bsub>r\<^esub>\<close>
-  apply (insert wsstable_semidistrib_disjoint_pre_state_strong[of P Q r])
-  apply (metis changedom_rtranclp compatible_refl sepinf_idem)
-  done
-*)
-
-(* The situation that we want to prove is
-   { pa \<^emph> pb \<^emph> pc              }
-   { pa \<^emph> pb  }         \<parallel> { pc }
-    skip                \<parallel>
-    { sp c\<^sup>\<star> (pa \<^emph> pb) } \<parallel>
-     a       \<parallel>  b       \<parallel>  c
-    { qa   } \<parallel> { qb   } \<parallel> { qc }
-    { qa \<^emph> qb \<^emph> qc             }
-*)
-
-lemma (in perm_alg) wsstable_semidistrib_realistic:
-  \<open>r = c\<^sup>*\<^sup>* \<Longrightarrow>
-    \<forall>r\<in>{a,b,c}.
-      (\<forall>x. \<not> r x x) \<and>
-      (\<forall>x y z. r x y \<longrightarrow> r y z \<longrightarrow> \<not> r x z) \<and>
-      frame_closed r \<and>
-      Ex (pre_state r) \<and>
-      deterministic r \<Longrightarrow>
-    Ex1 pa \<Longrightarrow>
-    Ex1 pb \<Longrightarrow>
-    Ex1 pc \<Longrightarrow>
-    \<comment> \<open> stability \<close>
-    sp ((a \<squnion> b)\<^sup>*\<^sup>*) pc = pc \<Longrightarrow>
-    sp ((a \<squnion> c)\<^sup>*\<^sup>*) pb' = pb' \<Longrightarrow>
-    sp ((b \<squnion> c)\<^sup>*\<^sup>*) pa' = pa' \<Longrightarrow>
-    sp ((a \<squnion> c)\<^sup>*\<^sup>*) pb = pb \<Longrightarrow>
-    sp ((b \<squnion> c)\<^sup>*\<^sup>*) pa = pa \<Longrightarrow>
-    sp (c\<^sup>*\<^sup>*) (pa \<^emph> pb) = pa' \<^emph> pb' \<Longrightarrow>
-    \<comment> \<open> the goal \<close>
-    pa' \<^emph> pb' \<^emph> pc \<preceq> sp (c\<^sup>*\<^sup>*) pa \<^emph> sp (c\<^sup>*\<^sup>*) pb \<^emph> pc\<close>
+lemma (in sep_alg)
+  \<open>(u ## u \<longrightarrow> u+u = u) \<Longrightarrow> sepadd_punit_of u x \<Longrightarrow> sepadd_qunit u\<close>
   nitpick
   oops
 
-(*
-class finite_sep_alg = distrib_sep_alg +
-  assumes finite_univ: \<open>finite (UNIV :: 'a set)\<close>
-  fixes \<II> :: \<open>'a set\<close>
-  assumes \<open>\<II> = Collect sepadd_irr\<close>
+class unit_perm_alg = perm_alg +
+  (* all pseudounits are units *)
+  assumes punit_collapse: \<open>\<And>u x. u ## x \<Longrightarrow> u + x = x \<Longrightarrow> sepadd_unit u\<close>
 begin
 
-lemma \<open>sepadd_irr a \<Longrightarrow> sepadd_irr b \<Longrightarrow> a \<noteq> b \<Longrightarrow> a \<preceq> c \<Longrightarrow> b \<preceq> c \<Longrightarrow> a ## b\<close>
-  apply (clarsimp simp add: sepadd_irr_distrib_eq)
-  by (metis disjoint_preservation disjoint_sym dual_order.antisym le_iff_sepadd)
+lemma punit_impl_wunit:
+  \<open>sepadd_punit_of u x \<Longrightarrow> sepadd_unit u\<close>
+  by (meson punit_collapse sepadd_punit_of_def sepadd_unit_def)
 
 end
-*)
 
+context strong_sep_perm_alg
+begin
+
+sublocale strong_sep_wunit: unit_perm_alg
+  by standard (metis disjoint_add_rightL selfsep_iff)
+
+end
+
+context cancel_perm_alg
+begin
+
+sublocale cancel_wunit: unit_perm_alg
+  by standard (blast dest: cancel_right_to_unit)
+
+end
+
+lemma
+  \<open>(\<And>u::'a::sep_alg. \<exists>x. sepadd_punit_of u x \<Longrightarrow> sepadd_unit u) \<Longrightarrow>
+    (\<And>a b c::'a. a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b))\<close>
+  apply (simp add: sepadd_punit_of_def sepadd_unit_def)
+  nitpick
+  oops
 
 
 end
