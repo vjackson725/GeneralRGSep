@@ -584,6 +584,8 @@ class distrib_sep_alg = sep_alg + distrib_perm_alg
 
 section \<open> Permission algebra without disjoint-associativity \<close>
 
+setup \<open>Sign.mandatory_path "weak_perm_alg"\<close>
+
 text \<open>
   Trying to allow for a true error; doesn't work because it breaks assoc.
   See Callum's paper on why this is impossible.
@@ -615,6 +617,8 @@ lemma \<open>p \<^emph>\<^sub>2 (q \<^emph>\<^sub>2 r) = (p \<^emph>\<^sub>2 q) 
   oops
 
 end
+
+setup \<open>Sign.parent_path\<close>
 
 
 section \<open> Heap-like algebra exploration \<close>

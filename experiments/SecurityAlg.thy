@@ -1,5 +1,5 @@
 theory SecurityAlg
-  imports "../RGLogic" "HOL-Library.FSet"
+  imports "../RGLogic" "HOL-Library.FSet" SepLogicExperimental
 begin
 
 section \<open> Util (to move) \<close>
@@ -225,12 +225,12 @@ instance
   apply standard
        apply (transfer, force)
       apply (transfer, simp split: prod.splits)
-      apply (metis inf_mono inf_sup_aci(5) map_add_comm order_bot_class.bot.extremum_uniqueI)
+      apply (metis map_add_comm order_bot_class.bot.extremum_uniqueI semilattice_inf_class.inf_mono sup.commute)
      apply (transfer, force)
     apply (transfer, fastforce)
    apply (transfer, fastforce)
   apply (transfer, clarsimp split: prod.splits)
-  apply (metis Un_Int_assoc_eq Un_Int_eq(1) Un_Int_eq(3) empty_iff map_add_subsumed2 map_le_def sup_bot_left)
+  apply (metis Un_Int_assoc_eq Un_Int_eq(1,3) empty_iff map_add_subsumed2 map_le_def sup_bot_left)
   done
 
 end
@@ -319,12 +319,19 @@ lemma level_eval_reflp:
 
 lemma secrel_sepconj_quasireflp:
   \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry q) \<Longrightarrow> quasireflp (curry (p \<^emph> q))\<close>
-  by (clarsimp simp add: reflp_on_def symp_def prepost_state_def' sepconj_def,
-      intro conjI; clarsimp; blast)
+  apply (clarsimp simp add: reflp_on_def symp_def prepost_state_def' sepconj_def)
+  apply (intro conjI; clarsimp)
+   apply (metis (no_types, opaque_lifting) curry_conv disjoint_prod_def plus_prod_def
+      prod_eq_decompose(2) sepconjI)
+  apply (metis (no_types, opaque_lifting) curry_conv disjoint_prod_def plus_prod_def
+      prod_eq_decompose(2) sepconjI)
+  done
 
 lemma secrel_sepconj_transp:
   \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<^emph> q))\<close>
-  by (clarsimp simp add: symp_def prepost_state_def' sepconj_def, blast)
+  apply (clarsimp simp add: symp_def prepost_state_def' sepconj_def)
+  apply (metis (no_types, opaque_lifting) disjoint_prod_def plus_prod_def prod_eq_decompose(2) sepconjI)
+  done
 
 lemma
   \<open>reflp (curry p) \<Longrightarrow> reflp (curry q) \<Longrightarrow> reflp (curry (p \<leadsto> q))\<close>
@@ -1064,9 +1071,7 @@ proof -
       apply (simp add: less_eq_sepadd_def')
       apply (erule disjE)
        apply simp
-      
-    sorry
-qed
+    oops
 
 
 definition
@@ -1077,7 +1082,7 @@ lemma seple_rel_prec:
   shows \<open>(x,y) \<in> seple_rel\<^sup>+ \<Longrightarrow> x \<prec> y\<close>
   apply (induct rule: trancl.induct)
    apply (clarsimp simp add: seple_rel_def less_sepadd_def')+
-  apply (metis positivity trans_helper)
+  apply (metis perm_alg_class.positivity trans_helper)
   done
 
 lemma
@@ -1415,6 +1420,7 @@ lemma set_positivity:
   apply clarsimp
   oops
 
+(*
 lemma bij_betw_empty_eq[simp]:
   \<open>bij_betw f {} X \<longleftrightarrow> X = {}\<close>
   using bij_betw_def by auto
@@ -1441,6 +1447,7 @@ lemma bij_betw_insertL:
 lemma un_eq_insert_avoiding_iff:
   \<open>x \<notin> B \<Longrightarrow> A \<union> B = insert x B \<longleftrightarrow> (x \<in> A \<and> A \<subseteq> insert x B)\<close>
   by blast
+*)
 
 lemma insert_plus_set_eqL:
   \<open>insert a A + B = {a+b|b. b\<in>B \<and> a ## b} \<union> (A + B)\<close>
@@ -1449,7 +1456,6 @@ lemma insert_plus_set_eqL:
 lemma insert_plus_set_eqR:
   \<open>A + insert b B = {a+b|a. a\<in>A \<and> a ## b} \<union> (A + B)\<close>
   by (simp add: plus_set_def conj_disj_distribL conj_disj_distribR ex_disj_distrib Collect_disj_eq)
-
 
 lemma plus_set_singleton_left_leq:
   \<open>ab \<in> {a} + B \<Longrightarrow> a \<preceq> ab\<close>
@@ -1463,194 +1469,14 @@ lemma plus_set_singleton_left_self_mem_then_some_unit:
   \<open>a \<in> {a} + B \<Longrightarrow> \<exists>b\<in>B. a ## b \<and> a + b = a\<close>
   by (force simp add: Ball_def less_sepadd_def' plus_set_def)
 
+
 lemma singleton_plus_set_eq:
   \<open>{a} + B = {a+b|b. b\<in>B \<and> a ## b}\<close>
   by (simp add: plus_set_def conj_disj_distribL conj_disj_distribR ex_disj_distrib Collect_disj_eq)
 
-
 lemma plus_set_eq_plus_left_members:
   \<open>A + B = (\<Union>a\<in>A. {a} + B)\<close>
   by (force simp add: Ball_def less_eq_sepadd_def' plus_set_def)
-
-
-
-(* units *)
-
-lemma (in perm_alg) pseudo_units_monotone:
-  \<open>x \<preceq> y \<Longrightarrow> x ## u \<Longrightarrow> x + u = x \<Longrightarrow> y ## u \<and> y + u = y\<close>
-  by (metis disjoint_add_left_commute2 disjoint_sym_iff less_eq_sepadd_def' partial_add_assoc2
-      partial_add_commute)
-
-lemma (in perm_alg) (* pseudo-units are not antimonotone *)
-  \<open>x \<preceq> y \<Longrightarrow> y ## u \<Longrightarrow> y + u = y \<Longrightarrow> x + u = x\<close>
-  nitpick
-  oops
-
-(* quasi-units *)
-definition (in perm_alg) \<open>sepadd_qunit u \<equiv> (\<exists>x. u ## x) \<and> (\<forall>a. a ## u \<longrightarrow> a + u = u \<or> a + u = a)\<close>
-
-(* weak units *)
-definition (in perm_alg) \<open>sepadd_wunit u \<equiv> (\<exists>x. u ## x) \<and> (\<forall>b. u ## b \<longrightarrow> u + b = b)\<close>
-
-(* pseudo-units *)
-definition (in perm_alg) \<open>sepadd_punit_of u x \<equiv> u ## x \<and> u + x = x\<close>
-
-
-lemma (in perm_alg) wunit_impl_punit[intro]:
-  \<open>sepadd_wunit u \<Longrightarrow> \<exists>x. sepadd_punit_of u x\<close>
-  by (force simp add: sepadd_punit_of_def sepadd_wunit_def)
-
-lemma (in perm_alg) wunit_impl_vwunit[intro]:
-  \<open>sepadd_wunit u \<Longrightarrow> sepadd_qunit u\<close>
-  by (simp add: disjoint_sym_iff partial_add_commute sepadd_qunit_def sepadd_wunit_def)
-
-lemma (in perm_alg) unit_impl_wunit[intro]:
-  \<open>sepadd_unit u \<Longrightarrow> sepadd_wunit u\<close>
-  by (force simp add: sepadd_unit_def sepadd_wunit_def)
-
-
-lemma (in cancel_perm_alg) cancel_punit_iff_unit:
-  \<open>(\<exists>x. sepadd_punit_of u x) \<longleftrightarrow> sepadd_unit u\<close>
-  using cancel_right_to_unit
-  unfolding sepadd_unit_def sepadd_punit_of_def
-  by blast
-
-lemma (in cancel_perm_alg) cancel_wunit_iff_unit:
-  \<open>sepadd_wunit u \<longleftrightarrow> sepadd_unit u\<close>
-  using cancel_punit_iff_unit by blast
-
-
-
-lemma (in perm_alg) (* weak_units are monotone *)
-  \<open>x \<preceq> y \<Longrightarrow> sepadd_wunit u \<Longrightarrow> y ## u \<Longrightarrow> x + u = x\<close>
-  by (metis disjoint_preservation2 disjoint_sym partial_add_commute sepadd_wunit_def)
-
-lemma (in perm_alg)
-  \<open>\<not> u ## u \<Longrightarrow> sepadd_punit_of u x \<Longrightarrow> sepadd_wunit u\<close>
-  using sepadd_punit_of_def unit_disjoint_inherit
-  by (metis disjoint_add_rightL)
-
-lemma (in sep_alg)
-  \<open>(u ## u \<longrightarrow> u+u = u) \<Longrightarrow> sepadd_punit_of u x \<Longrightarrow> sepadd_qunit u\<close>
-  nitpick
-  oops
-
-
-class wunit_perm_alg = perm_alg +
-  (* all pseudounits are weak units *)
-  assumes punit_collapse:
-    \<open>\<And>u x. u ## x \<Longrightarrow> u + x = x \<Longrightarrow> (\<forall>b. u ## b \<longrightarrow> u + b = b)\<close>
-begin
-
-lemma punit_impl_wunit:
-  \<open>sepadd_punit_of u x \<Longrightarrow> sepadd_wunit u\<close>
-  by (meson punit_collapse sepadd_punit_of_def sepadd_wunit_def)
-
-end
-
-context strong_sep_perm_alg
-begin
-
-sublocale strong_sep_wunit: wunit_perm_alg
-  by standard (metis disjoint_add_rightL selfsep_iff sepadd_unit_left)
-
-end
-
-context cancel_perm_alg
-begin
-
-sublocale cancel_wunit: wunit_perm_alg
-  by standard (blast dest: cancel_right_to_unit)
-
-end
-
-
-lemma
-  \<open>(\<And>u::'a::sep_alg. \<exists>x. sepadd_punit_of u x \<Longrightarrow> sepadd_wunit u) \<Longrightarrow>
-    (\<And>a b c::'a. a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b))\<close>
-  apply (simp add: sepadd_punit_of_def sepadd_wunit_def)
-  nitpick
-  oops
-
-lemma finset_sepadd_unit_set_contains_unit:
-  fixes A :: \<open>('a::perm_alg) set\<close>
-  assumes
-    \<open>A + C = A\<close>
-    \<open>finite A\<close>
-  shows \<open>\<forall>a\<in>A. \<exists>c\<in>C. a ## c \<and> a + c = a\<close>
-proof clarsimp
-  fix a
-  assume a_mem_A: \<open>a \<in> A\<close>
-
-  define Crel :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> where
-    \<open>Crel = (\<lambda>x y. y \<in> {x} + C \<and> x \<noteq> y)\<close>
-
-  have Crel_less:
-    \<open>\<And>x y. Crel x y \<Longrightarrow> x \<prec> y\<close>
-    unfolding Crel_def
-    by (metis plus_set_singleton_left_leq resource_ordering.not_eq_order_implies_strict)
-  
-  have Crel_transcl_less:
-    \<open>\<And>x y. Crel\<^sup>+\<^sup>+ x y \<Longrightarrow> x \<prec> y\<close>
-    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_ordering.strict_trans)
-
-  have assum1': \<open>(\<Union>a\<in>A. {a} + C) = A\<close>
-    using assms
-    by (metis plus_set_eq_plus_left_members)
-
-  have downwards_not_selfC:
-    \<open>\<And>x y . x \<notin> {x} + C \<Longrightarrow> Crel y x \<Longrightarrow> y \<notin> {y} + C\<close>
-    unfolding Crel_def
-    apply (clarsimp simp add: singleton_plus_set_eq)
-    apply (metis disjoint_add_left_commute2 partial_add_right_commute unit_disjoint_inherit)
-    done
-
-  let ?minimalA = \<open>{a\<in>A. \<forall>x\<in>A. x = a \<or> \<not> x \<preceq> a}\<close>
-
-  let ?minimalCrelA = \<open>{a\<in>A. \<forall>x\<in>A. x = a \<or> \<not> Crel x a}\<close>
-
-  have minA_subseteq_minCrelA: \<open>?minimalA \<subseteq> ?minimalCrelA\<close>
-    using Crel_def plus_set_singleton_left_leq
-    by blast
-
-  have \<open>\<And>x. x \<in> A \<Longrightarrow> \<exists>w\<in>?minimalA. w \<preceq> x\<close>
-    using assms(2)
-    apply (induct rule: finite.induct)
-     apply force
-    apply (clarsimp simp add: Bex_def Ball_def)
-    apply (clarsimp simp add: conj_disj_distribL conj_disj_distribR ex_disj_distrib)
-    apply (erule disjE)
-     apply fastforce
-    apply (rule conjI)
-     apply clarsimp
-     apply (metis less_eq_sepadd_def' partial_le_part_left resource_ordering.antisym)
-    apply (metis resource_ordering.trans)
-    done
-  then have \<open>\<And>x. x \<in> A \<Longrightarrow> \<exists>w\<in>?minimalCrelA. w \<preceq> x\<close>
-    using minA_subseteq_minCrelA
-    by fast
-  then obtain mina where mina_conds: \<open>mina \<in> ?minimalCrelA\<close> \<open>mina \<preceq> a\<close>
-    by (meson a_mem_A)
-
-  {
-    fix x
-    assume assmsB: \<open>x \<in> ?minimalCrelA\<close>
-
-    have \<open>\<forall>w\<in>A. \<not> Crel w x\<close>
-      using assmsB Crel_less by force
-    then have \<open>x \<in> {x} + C\<close>
-      using assms(1) assmsB
-      unfolding Crel_def
-      by (clarsimp, metis (no_types, lifting) UN_iff plus_set_eq_plus_left_members)
-  }
-  then show \<open>\<exists>c\<in>C. a ## c \<and> a + c = a\<close>
-    using mina_conds
-    apply clarsimp
-    apply (metis plus_set_singleton_left_self_mem_then_some_unit pseudo_units_monotone)
-    done
-qed
-
-
 
 lemma minset_sepadd_unit_set_contains_unit:
   fixes A :: \<open>('a::perm_alg) set\<close>
@@ -1708,19 +1534,19 @@ proof clarsimp
       using assms(1) assmsB
       unfolding Crel_def
       by (clarsimp, metis (no_types, lifting) UN_iff plus_set_eq_plus_left_members)
-  }
-  then show \<open>\<exists>c\<in>C. a ## c \<and> a + c = a\<close>
-    using mina_conds
-    apply clarsimp
-    apply (metis plus_set_singleton_left_self_mem_then_some_unit pseudo_units_monotone)
+  } note H2 = this
+  
+  show \<open>\<exists>c\<in>C. a ## c \<and> a + c = a\<close>
+    using H2[OF mina_conds(1)] mina_conds(2)
+    apply (metis disjoint_sym partial_add_commute plus_set_singleton_left_self_mem_then_some_unit
+        sepadd_punit_of_unit_res_mono')
     done
 qed
 
 
 lemma (* C is not too small *)
-  fixes A :: \<open>('a::wunit_perm_alg) set\<close>
-  assumes
-    \<open>A + C = A\<close>
+  fixes A :: \<open>('a::unit_perm_alg) set\<close>
+  assumes \<open>A + C = A\<close>
   shows \<open>\<forall>a\<in>A. \<exists>c\<in>C. a ## c \<and> a + c = a\<close>
 proof (clarsimp)
   fix a
