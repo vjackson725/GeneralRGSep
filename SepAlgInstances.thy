@@ -712,7 +712,7 @@ end
 
 lemma fun_all_unit_elems_then_unit:
   \<open>\<forall>x. sepadd_unit (f x) \<Longrightarrow> sepadd_unit f\<close>
-  by (simp add: disjoint_fun_def plus_fun_def sepadd_unit_def)
+  by (simp add: disjoint_fun_def plus_fun_def sepadd_unit_def_strong)
 
 instantiation "fun" :: (type, multiunit_sep_alg) multiunit_sep_alg
 begin

@@ -227,18 +227,18 @@ lemma sepadd_right_mono: \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow
 
 subsection \<open> sepadd_unit \<close>
 
-definition \<open>sepadd_unit a \<equiv> a ## a \<and> (\<forall>b. a ## b \<longrightarrow> a + b = b)\<close>
+definition \<open>sepadd_unit a \<equiv> (\<exists>b. a ## b) \<and> (\<forall>b. a ## b \<longrightarrow> a + b = b)\<close>
 
 lemma sepadd_unitI[intro]:
-  \<open>a ## a \<Longrightarrow> (\<And>b. a ## b \<Longrightarrow> a + b = b) \<Longrightarrow> sepadd_unit a\<close>
+  \<open>a ## b \<Longrightarrow> (\<And>b. a ## b \<Longrightarrow> a + b = b) \<Longrightarrow> sepadd_unit a\<close>
   using sepadd_unit_def by blast
 
 lemma sepadd_unitE[elim]:
-  \<open>sepadd_unit a \<Longrightarrow> (a ## a \<Longrightarrow> (\<And>b. a ## b \<Longrightarrow> a + b = b) \<Longrightarrow> P) \<Longrightarrow> P\<close>
+  \<open>sepadd_unit a \<Longrightarrow> (\<And>b. a ## b \<Longrightarrow> (\<And>b. a ## b \<Longrightarrow> a + b = b) \<Longrightarrow> P) \<Longrightarrow> P\<close>
   using sepadd_unit_def by blast
 
 lemma sepadd_unitD:
-  \<open>sepadd_unit a \<Longrightarrow> a ## a\<close>
+  \<open>sepadd_unit a \<Longrightarrow> \<exists>b. a ## b\<close>
   \<open>sepadd_unit a \<Longrightarrow> a ## b \<Longrightarrow> a + b = b\<close>
   by blast+
 
@@ -261,21 +261,26 @@ lemma le_unit_iff_eq:
 lemma units_least: \<open>sepadd_unit x \<Longrightarrow> x ## y \<Longrightarrow> x \<preceq> y\<close>
   by (metis partial_le_plus sepadd_unit_def)
 
-lemma almost_units_are_units:
+lemma units_are_selfdisjoint:
   \<open>(\<forall>b. a ## b \<longrightarrow> a + b = b) \<Longrightarrow> a ## b \<Longrightarrow> a ## a\<close>
   by (metis disjoint_add_rightL)
 
-lemma sepadd_unit_idem_add[simp]: \<open>sepadd_unit u \<Longrightarrow> u + u = u\<close>
-  using sepadd_unit_def by auto
+lemma sepadd_unit_selfsep[dest]:
+  \<open>sepadd_unit a \<Longrightarrow> a ## a\<close>
+  using units_are_selfdisjoint sepadd_unit_def
+  by blast
 
-lemma sepadd_unit_left: \<open>sepadd_unit u \<Longrightarrow> u ## a \<Longrightarrow> u + a = a\<close>
-  using sepadd_unit_def by auto
+lemma sepadd_unit_def_strong:
+  \<open>sepadd_unit a \<longleftrightarrow> a ## a \<and> (\<forall>b. a ## b \<longrightarrow> a + b = b)\<close>
+  by blast
+
+lemma sepadd_unit_idem_add[simp]: \<open>sepadd_unit u \<Longrightarrow> u + u = u\<close>
+  using sepadd_unit_def units_are_selfdisjoint by auto
+
+lemmas sepadd_unit_left = sepadd_unitD(2)
 
 lemma sepadd_unit_right: \<open>sepadd_unit u \<Longrightarrow> a ## u \<Longrightarrow> a + u = a\<close>
   by (metis disjoint_sym partial_add_commute sepadd_unit_left)
-
-lemma sepadd_unit_selfsep[dest, simp]: \<open>sepadd_unit u \<Longrightarrow> u ## u\<close>
-  by (simp add: sepadd_unit_def)
 
 lemma add_sepadd_unit_add_iff_parts_sepadd_unit[simp]:
   \<open>x ## y \<Longrightarrow> sepadd_unit (x + y) \<longleftrightarrow> sepadd_unit x \<and> sepadd_unit y\<close>
@@ -310,6 +315,29 @@ lemma unit_sub_closure2':
   by (simp add: positivity partial_add_assoc2)
 
 
+subsection \<open> Pseudo-units \<close>
+
+text \<open> Pseudo-units: 'units' for certain resources. Can be non-unital for other resources. \<close>
+definition (in perm_alg) \<open>sepadd_punit_of u x \<equiv> u ## x \<and> u + x = x\<close>
+
+lemma wunit_is_punit: \<open>sepadd_unit u \<Longrightarrow> Ex (sepadd_punit_of u)\<close>
+  using sepadd_punit_of_def sepadd_unit_def by blast
+
+lemma sepadd_punit_of_unit_antimono:
+  \<open>a \<preceq> b \<Longrightarrow> sepadd_punit_of b x \<Longrightarrow> sepadd_punit_of a x\<close>
+  by (metis disjoint_preservation partial_le_plus2 resource_order.dual_order.eq_iff
+      sepadd_punit_of_def sepadd_right_mono)
+
+lemma sepadd_punit_of_unit_res_mono:
+  \<open>x \<preceq> y \<Longrightarrow> sepadd_punit_of a x \<Longrightarrow> sepadd_punit_of a y\<close>
+  by (metis disjoint_add_swap_lr less_eq_sepadd_def' partial_add_assoc3 sepadd_punit_of_def)
+
+lemma sepadd_punit_of_unit_res_mono':
+  \<open>x \<preceq> y \<Longrightarrow> a ## x \<Longrightarrow> a + x = x \<Longrightarrow> a ## y \<and> a + y = y\<close>
+  using sepadd_punit_of_unit_res_mono
+  by (simp add: sepadd_punit_of_def)
+
+
 subsection \<open> zero_sepadd \<close>
 
 definition \<open>sepadd_zero a \<equiv> a ## a \<and> (\<forall>b. a ## b \<longrightarrow> a + b = a)\<close>
@@ -334,7 +362,7 @@ lemma add_to_selfsep_preserves_selfsepR: \<open>a ## b \<Longrightarrow> a + b =
 definition \<open>sepadd_dup a \<equiv> a ## a \<and> a + a = a\<close>
 
 lemma units_are_dup: \<open>sepadd_unit a \<Longrightarrow> sepadd_dup a\<close>
-  by (simp add: sepadd_dup_def)
+  by (simp add: sepadd_unit_selfsep sepadd_dup_def)
 
 lemma zeros_are_dup: \<open>sepadd_zero a \<Longrightarrow> sepadd_dup a\<close>
   by (simp add: sepadd_dup_def sepadd_zero_def)
@@ -715,7 +743,8 @@ lemma unitof_idem[simp]: \<open>unitof (unitof a) = unitof a\<close>
   by (metis unitof_disjoint unitof_is_unit unitof_is_unitR2)
 
 lemma unitof_is_sepadd_unit: \<open>sepadd_unit (unitof a)\<close>
-  by (simp add: sepadd_unit_def unitof_inherits_disjointness)
+  by fastforce
+
 
 subsection \<open>partial canonically_ordered_monoid_add lemmas\<close>
 
@@ -1257,7 +1286,7 @@ lemma cancel_right_to_unit:
     \<open>a ## b\<close>
     \<open>a + b = b\<close>
   shows \<open>sepadd_unit a\<close>
-  unfolding sepadd_unit_def
+  unfolding sepadd_unit_def_strong
 proof (intro conjI allI impI)
   show Daa: \<open>a ## a\<close>
     using assms
