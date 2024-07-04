@@ -209,7 +209,7 @@ lemma opstep_WhileLoop_iff[opstep_iff]:
 section \<open> Safe \<close>
 
 inductive safe
-  :: \<open>nat \<Rightarrow> ('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
+  :: \<open>nat \<Rightarrow> ('l::pre_perm_alg \<times> 's::pre_perm_alg) comm \<Rightarrow>
       'l \<Rightarrow> 's \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
       ('l \<Rightarrow> bool) \<Rightarrow>
       bool\<close>

@@ -20,19 +20,23 @@ declare disjoint_prod_def[simp]
 
 instance
   apply standard
-       apply (force simp add: partial_add_assoc)
-      apply (force dest: partial_add_commute)
-     apply (force simp add: disjoint_sym_iff)
-    apply (force dest: disjoint_add_rightL)
-   apply (force dest: disjoint_add_right_commute)
-  apply (force dest: positivity)
+        apply (force simp add: partial_add_assoc)
+       apply (force dest: partial_add_commute)
+      apply (force simp add: disjoint_sym_iff)
+     apply (force dest: disjoint_add_rightL)
+    apply (force dest: disjoint_add_right_commute)
+   apply (force dest: positivity)
   done
-
-end
 
 lemma less_sepadd_prod_eq:
   \<open>a \<prec> b \<longleftrightarrow> (fst a \<noteq> fst b \<or> snd a \<noteq> snd b) \<and> fst a \<lesssim> fst b \<and> snd a \<lesssim> snd b\<close>
-  by (cases a; cases b; force simp add: less_sepadd_def part_of_def)
+  apply (cases a; cases b)
+  apply clarsimp
+  apply (simp add: less_sepadd_def part_of_def)
+  oops
+
+end
+
 
 lemma less_eq_sepadd_prod_eq:
   \<open>a \<preceq> b \<longleftrightarrow> fst a = fst b \<and> snd a = snd b \<or> fst a \<lesssim> fst b \<and> snd a \<lesssim> snd b\<close>
@@ -50,13 +54,13 @@ begin
 lemma less_sepadd_prod_eq2[simp]:
   fixes a :: \<open>'a \<times> 'b\<close>
   shows \<open>a \<prec> b \<longleftrightarrow> (fst a \<prec> fst b \<and> snd a \<preceq> snd b \<or> fst a \<preceq> fst b \<and> snd a \<prec> snd b)\<close>
-  by (cases a, cases b, clarsimp simp add: less_sepadd_def' less_eq_sepadd_def',
+  by (cases a, cases b, clarsimp simp add: less_sepadd_def' less_eq_sepadd_def,
       metis unitof_disjoint2 unitof_is_unitR2)
 
 lemma less_eq_sepadd_prod_eq2[simp]:
   fixes a :: \<open>'a \<times> 'b\<close>
   shows \<open>a \<preceq> b \<longleftrightarrow> fst a \<preceq> fst b \<and> snd a \<preceq> snd b\<close>
-  by (cases a, cases b, clarsimp simp add: less_eq_sepadd_def',
+  by (cases a, cases b, clarsimp simp add: less_eq_sepadd_def,
       metis unitof_disjoint2 unitof_is_unitR2)
 
 definition unitof_prod :: \<open>'a \<times> 'b \<Rightarrow> 'a \<times> 'b\<close> where
@@ -389,14 +393,22 @@ lemma less_eq_sepadd_sum_simps[simp]:
   \<open>\<And>x y. Inr x \<preceq> Inr y \<longleftrightarrow> x \<preceq> y\<close>
   \<open>\<And>x y. Inl x \<preceq> Inr y \<longleftrightarrow> False\<close>
   \<open>\<And>x y. Inr x \<preceq> Inl y \<longleftrightarrow> False\<close>
-  by (simp add: less_eq_sepadd_def)+
+  apply -
+     apply (simp add: less_eq_sepadd_def plus_sum_def split: sum.splits)
+     apply (metis sum.distinct(1) sum.inject(1) sumE)
+    apply (simp add: less_eq_sepadd_def plus_sum_def split: sum.splits)
+    apply (metis Inr_inject obj_sumE sum.distinct(1))
+   apply (simp add: less_eq_sepadd_def plus_sum_def split: sum.splits)
+  apply (simp add: less_eq_sepadd_def plus_sum_def split: sum.splits)
+  done
 
 lemma less_sepadd_sum_simps[simp]:
   \<open>\<And>x y. Inl x \<prec> Inl y \<longleftrightarrow> x \<prec> y\<close>
   \<open>\<And>x y. Inr x \<prec> Inr y \<longleftrightarrow> x \<prec> y\<close>
   \<open>\<And>x y. Inl x \<prec> Inr y \<longleftrightarrow> False\<close>
   \<open>\<And>x y. Inr x \<prec> Inl y \<longleftrightarrow> False\<close>
-  by (simp add: less_sepadd_def)+
+  by (simp add: le_res_less_le_not_le)+
+
 
 subsection \<open> mu_sep_alg \<close>
 
@@ -564,7 +576,7 @@ lemma less_eq_sepadd_option_simps[simp]:
   \<open>None \<preceq> a\<close>
   \<open>Some x \<preceq> None \<longleftrightarrow> False\<close>
   \<open>Some x \<preceq> Some y \<longleftrightarrow> x \<preceq> y\<close>
-  by (force simp add: less_eq_sepadd_def' disjoint_option_iff)+
+  by (force simp add: less_eq_sepadd_def disjoint_option_iff)+
 
 lemma less_sepadd_option_simps[simp]:
   \<open>a \<prec> None \<longleftrightarrow> False\<close>
@@ -705,7 +717,7 @@ lemma less_sepadd_fun_eq:
 lemma less_eq_sepadd_fun_eq:
   fixes f g :: \<open>'a \<Rightarrow> 'b::perm_alg\<close>
   shows \<open>f \<preceq> g \<longleftrightarrow> (\<forall>x. f x = g x) \<or> (\<forall>x. f x \<lesssim> g x)\<close>
-  by (simp add: part_of_def less_eq_sepadd_def' disjoint_fun_def fun_eq_iff,
+  by (simp add: part_of_def less_eq_sepadd_def disjoint_fun_def fun_eq_iff,
       metis)
 
 end
@@ -728,12 +740,12 @@ instance
 lemma less_sepadd_fun_eq2:
   fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
   shows \<open>f \<prec> g \<longleftrightarrow> (\<exists>x. f x \<prec> g x) \<and> (\<forall>x. f x \<preceq> g x)\<close>
-  by (metis le_iff_part_of less_sepadd_def less_sepadd_fun_eq)
+  by (metis le_iff_part_of less_sepadd_fun_eq resource_order.less_le)
 
 lemma less_eq_sepadd_fun_eq2:
   fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
   shows \<open>f \<preceq> g \<longleftrightarrow> (\<forall>x. f x \<preceq> g x)\<close>
-  by (metis le_iff_part_of less_eq_sepadd_def' less_eq_sepadd_fun_eq)
+  by (metis less_sepadd_fun_eq2 less_eq_sepadd_fun_eq resource_order.le_less)
 
 end
 
@@ -863,7 +875,7 @@ end
 
 lemma less_eq_discr_iff[simp]:
   \<open>Discr x \<preceq> Discr y \<longleftrightarrow> x = y\<close>
-  by (simp add: less_eq_sepadd_def')
+  by (simp add: less_eq_sepadd_def)
 
 instantiation discr :: (type) multiunit_sep_alg
 begin
@@ -1017,7 +1029,7 @@ end
 lemma fperm_one_greatest:
   fixes a :: \<open>'a::linordered_semidom fperm\<close>
   shows \<open>a \<preceq> 1\<close>
-  unfolding less_eq_sepadd_def'
+  unfolding less_eq_sepadd_def
   by (transfer, clarsimp,
       metis add_le_same_cancel2 less_add_same_cancel1 add_diff_inverse nle_le
       order_less_imp_not_less order_neq_less_conv(2))
@@ -1184,7 +1196,7 @@ end
 lemma zoint_one_greatest:
   fixes a :: \<open>'a::linordered_semidom zoint\<close>
   shows \<open>a \<preceq> 1\<close>
-  unfolding less_eq_sepadd_def'
+  unfolding less_eq_sepadd_def
   apply (transfer, clarsimp)
   apply (metis add_diff_cancel_left' le_add_diff_inverse2 le_numeral_extra(4)
       linordered_semidom_ge0_le_iff_add)
@@ -1484,28 +1496,32 @@ lemma less_eq_dlat_sep_eq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<preceq> b \<longleftrightarrow> Rep_dlat_sep a = Rep_dlat_sep b \<or>
                     (\<exists>c. Rep_dlat_sep a \<sqinter> c = \<bottom> \<and> Rep_dlat_sep b = Rep_dlat_sep a \<squnion> c)\<close>
-  by (simp add: less_eq_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2)
+  oops
+    (* by (simp add: less_eq_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2) *)
 
 lemma less_dlat_sep_eq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<prec> b \<longleftrightarrow> Rep_dlat_sep a \<noteq> Rep_dlat_sep b \<and>
                     (\<exists>c. Rep_dlat_sep a \<sqinter> c = \<bottom> \<and> Rep_dlat_sep b = Rep_dlat_sep a \<squnion> c)\<close>
-  by (simp add: less_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2)
+  oops
+    (* by (simp add: less_eq_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2) *)
 
 lemma sepadd_bot_least[intro]:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>\<bottom> \<preceq> a\<close>
-  by (simp add: less_eq_dlat_sep_eq, transfer, force)
+  by (metis disjoint_dlat_sep_simps inf_sup_absorb inf_sup_aci(5) less_eq_sepadd_def
+      plus_dlat_sep_def sup_bot.right_neutral sup_dlat_sep_def)
 
 lemma leq_sepadd_then_leq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<preceq> b \<Longrightarrow> a \<le> b\<close>
-  by (simp add: less_eq_dlat_sep_eq, transfer, force)
+  by (metis inf.absorb_iff1 inf_sup_absorb le_disj_eq_absorb less_eq_sepadd_def plus_dlat_sep_def
+      sup_dlat_sep_def)
 
 lemma less_sepadd_then_less:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<prec> b \<Longrightarrow> a < b\<close>
-  by (simp add: less_dlat_sep_eq inf.strict_order_iff, transfer, force)
+  by (simp add: leq_sepadd_then_leq order_le_neq_trans)
 
 end
 
