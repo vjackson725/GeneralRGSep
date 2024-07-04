@@ -13,24 +13,22 @@ section \<open> Common Notions \<close>
 class disjoint =
   fixes disjoint :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>##\<close> 60)
 
-section \<open> Permission Algebras \<close>
+section \<open> Pre-permission algebras \<close>
 
-class perm_alg = disjoint + plus +
+class pre_perm_alg = disjoint + plus +
   (* partial commutative monoid *)
   assumes partial_add_assoc: \<open>a ## b \<Longrightarrow> b ## c \<Longrightarrow> a ## c \<Longrightarrow> (a + b) + c = a + (b + c)\<close>
   assumes partial_add_commute: \<open>a ## b \<Longrightarrow> a + b = b + a\<close>
   assumes disjoint_sym: \<open>a ## b \<Longrightarrow> b ## a\<close>
   assumes disjoint_add_rightL: \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a ## b\<close>
   assumes disjoint_add_right_commute: \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> b ## a + c\<close>
-  (* separation laws *)
-  assumes positivity:
-    \<open>a ## c1 \<Longrightarrow> a + c1 = b \<Longrightarrow> b ## c2 \<Longrightarrow> b + c2 = a \<Longrightarrow> a = b\<close>
+  (*
+  (* non-negative *)
+  assumes non_negative:
+    \<open>a ## b \<Longrightarrow> (\<And>x. x ## a + b \<Longrightarrow> x + (a + b) = x) \<Longrightarrow>
+      x ## a \<Longrightarrow> x + a = x\<close>
+  *)
 begin
-
-lemma trans_helper:
-  \<open>a ## b \<Longrightarrow> a + b ## c \<Longrightarrow> \<exists>d. a ## d \<and> a + b + c = a + d\<close>
-  by (metis disjoint_add_rightL disjoint_add_right_commute disjoint_sym partial_add_assoc
-      partial_add_commute)
 
 lemma disjoint_sym_iff: \<open>a ## b \<longleftrightarrow> b ## a\<close>
   using disjoint_sym by blast
@@ -115,6 +113,12 @@ lemma partial_add_double_assoc:
   by (metis disjoint_add_rightR disjoint_add_rightL disjoint_add_right_commute partial_add_assoc
       partial_add_left_commute)
 
+lemma partial_add_assoc_rev:
+  \<open>a ## b \<Longrightarrow> a + b ## c \<Longrightarrow> a ## b + c \<and> a + b + c = a + (b + c)\<close>
+  by (metis disjoint_add_rightL disjoint_add_right_commute disjoint_sym partial_add_assoc
+      partial_add_commute)
+
+
 subsection \<open> order \<close>
 
 text \<open>
@@ -126,27 +130,14 @@ text \<open>
   The 'part_of' relation is almost an order, except that it doesn't satisfy reflexivity.
 \<close>
 
-definition (in perm_alg) part_of :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>\<lesssim>\<close> 50) where
+definition part_of :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>\<lesssim>\<close> 50) where
   \<open>a \<lesssim> b \<equiv> \<exists>c. a ## c \<and> a + c = b\<close>
 
-lemma part_of_trans[trans]:
-  \<open>a \<lesssim> b \<Longrightarrow> b \<lesssim> c \<Longrightarrow> a \<lesssim> c\<close>
-  by (fastforce dest: trans_helper simp add: part_of_def)
-
-text \<open> This lemma is just positivity stated another way. \<close>
-lemma part_of_antisym:
-  \<open>a \<lesssim> b \<Longrightarrow> b \<lesssim> a \<Longrightarrow> a = b\<close>
-  using part_of_def positivity by auto
-
 definition less_eq_sepadd :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<close> 50) where
-  \<open>(\<preceq>) \<equiv> \<lambda>a b. a = b \<or> a \<lesssim> b\<close>
-
-lemmas less_eq_sepadd_def' = less_eq_sepadd_def[simplified part_of_def]
+  \<open>(\<preceq>) \<equiv> \<lambda>a b. a = b \<or> (\<exists>c. a ## c \<and> a + c = b)\<close>
 
 definition less_sepadd :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>\<prec>\<close> 50) where
-  \<open>(\<prec>) \<equiv> \<lambda>a b. a \<noteq> b \<and> a \<lesssim> b\<close>
-
-lemmas less_sepadd_def' = less_sepadd_def[simplified part_of_def]
+  \<open>(\<prec>) \<equiv> \<lambda>a b. a \<noteq> b \<and> (\<exists>c. a ## c \<and> a + c = b) \<and> \<not> (\<exists>c. b ## c \<and> b + c = a)\<close>
 
 abbreviation (input) greater_eq_sepadd  (infix \<open>\<succeq>\<close> 50)
   where \<open>(\<succeq>) \<equiv> \<lambda>x y. (\<preceq>) y x\<close>
@@ -154,40 +145,22 @@ abbreviation (input) greater_eq_sepadd  (infix \<open>\<succeq>\<close> 50)
 abbreviation (input) greater_sepadd (infix \<open>\<succ>\<close> 50)
   where \<open>(\<succ>) \<equiv> \<lambda>x y. (\<prec>) y x\<close>
 
+lemma part_of_trans[trans]:
+  \<open>a \<lesssim> b \<Longrightarrow> b \<lesssim> c \<Longrightarrow> a \<lesssim> c\<close>
+  by (fastforce dest: partial_add_assoc_rev simp add: part_of_def)
 
-sublocale resource_ordering: ordering \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+sublocale resource_preordering: preordering \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
   apply standard
-     apply (metis less_eq_sepadd_def)
-    apply (metis less_eq_sepadd_def part_of_trans)
-   apply (force dest: part_of_antisym simp add: less_sepadd_def less_eq_sepadd_def)
-  apply (metis less_eq_sepadd_def part_of_antisym)
+    apply (force simp add: less_eq_sepadd_def)
+   apply (fastforce dest: partial_add_assoc_rev simp add: less_eq_sepadd_def)
+  apply (force simp add: less_eq_sepadd_def less_sepadd_def)
   done
 
-sublocale resource_order: order \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
-  apply standard
-     apply (force dest: part_of_antisym simp add: less_sepadd_def less_eq_sepadd_def)
-    apply (metis resource_ordering.refl)
-   apply (metis resource_ordering.trans)
-  apply (metis resource_ordering.antisym)
-  done
-
-text \<open> Set up the isabelle machinery to treat this like an order. \<close>
-
-local_setup \<open>
-  HOL_Order_Tac.declare_order {
-    ops = {eq = @{term \<open>(=) :: 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>}, le = @{term \<open>(\<preceq>)\<close>}, lt = @{term \<open>(\<prec>)\<close>}},
-    thms = {trans = @{thm resource_ordering.trans},
-            refl = @{thm resource_ordering.refl},
-            eqD1 = @{thm eq_refl}, eqD2 = @{thm eq_refl[OF sym]},
-            antisym = @{thm resource_ordering.antisym}, contr = @{thm notE}},
-    conv_thms = {less_le = @{thm eq_reflection[OF resource_order.less_le]},
-                 nless_le = @{thm eq_reflection[OF resource_order.nless_le]}}
-  }
-\<close>
-
-lemma le_res_less_le_not_le:
-  \<open>a \<prec> b \<longleftrightarrow> a \<lesssim> b \<and> \<not> b \<lesssim> a\<close>
-  by (metis part_of_def less_sepadd_def positivity)
+sublocale resource_preorder: preorder \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+  by standard
+    (force dest: resource_preordering.trans
+      simp add: resource_preordering.strict_iff_not
+                resource_preordering.refl)+
 
 lemma partial_le_plus: \<open>a ## b \<Longrightarrow> a \<preceq> a + b\<close>
   by (meson less_eq_sepadd_def part_of_def)
@@ -196,14 +169,14 @@ lemma partial_le_plus2: \<open>a ## b \<Longrightarrow> b \<preceq> a + b\<close
   by (metis partial_le_plus disjoint_sym partial_add_commute)
 
 lemma partial_le_part_left: \<open>a ## b \<Longrightarrow> a + b \<preceq> c \<Longrightarrow> a \<preceq> c\<close>
-  using resource_ordering.trans partial_le_plus by blast
+  using resource_preordering.trans partial_le_plus by blast
 
 lemma partial_le_part_right: \<open>a ## b \<Longrightarrow> a + b \<preceq> c \<Longrightarrow> b \<preceq> c\<close>
-  using resource_ordering.trans partial_le_plus2 by blast
+  using resource_preordering.trans partial_le_plus2 by blast
 
 lemma common_subresource_selfsep:
   \<open>a ## b \<Longrightarrow> ab \<preceq> a \<Longrightarrow> ab \<preceq> b \<Longrightarrow> ab ## ab\<close>
-  by (metis disjoint_add_rightL disjoint_sym less_eq_sepadd_def part_of_def)
+  by (metis disjoint_add_rightL disjoint_sym less_eq_sepadd_def)
 
 lemma selfdisjoint_over_selfdisjoint:
   \<open>a ## a \<Longrightarrow> \<forall>x. x \<preceq> a \<longrightarrow> x ## x\<close>
@@ -211,7 +184,7 @@ lemma selfdisjoint_over_selfdisjoint:
 
 lemma disjoint_preservation:
   \<open>a' \<preceq> a \<Longrightarrow> a ## b \<Longrightarrow> a' ## b\<close>
-  by (metis disjoint_add_rightL disjoint_sym less_eq_sepadd_def part_of_def)
+  by (metis disjoint_add_rightL disjoint_sym less_eq_sepadd_def)
 
 lemma disjoint_preservation2:
   \<open>b' \<preceq> b \<Longrightarrow> a ## b \<Longrightarrow> a ## b'\<close>
@@ -219,9 +192,10 @@ lemma disjoint_preservation2:
 
 lemma sepadd_left_mono:
   \<open>a ## b \<Longrightarrow> a ## c \<Longrightarrow> b \<preceq> c \<Longrightarrow> a + b \<preceq> a + c\<close>
-  by (metis disjoint_add_swap_rl less_eq_sepadd_def part_of_def partial_add_assoc3)
+  by (metis disjoint_add_swap_rl less_eq_sepadd_def partial_add_assoc3)
 
-lemma sepadd_right_mono: \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> a \<preceq> b \<Longrightarrow> a + c \<preceq> b + c\<close>
+lemma sepadd_right_mono:
+  \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> a \<preceq> b \<Longrightarrow> a + c \<preceq> b + c\<close>
   by (metis disjoint_sym_iff partial_add_commute sepadd_left_mono)
 
 
@@ -244,23 +218,6 @@ lemma sepadd_unitD:
 
 abbreviation \<open>sepadd_units \<equiv> Collect sepadd_unit\<close>
 
-text \<open> sepadd_unit is antimono; positivity said a different way \<close>
-lemma below_unit_impl_unit:
-  \<open>a \<preceq> b \<Longrightarrow> sepadd_unit b \<Longrightarrow> sepadd_unit a\<close>
-  unfolding sepadd_unit_def less_eq_sepadd_def part_of_def
-  by (metis disjoint_add_rightL positivity)
-
-lemma units_separate_to_units:
-  \<open>x ## y \<Longrightarrow> sepadd_unit (x + y) \<Longrightarrow> sepadd_unit x\<close>
-  using below_unit_impl_unit partial_le_plus by blast
-
-lemma le_unit_iff_eq:
-  \<open>sepadd_unit b \<Longrightarrow> a \<preceq> b \<longleftrightarrow> b = a\<close>
-  by (metis disjoint_preservation2 partial_le_plus resource_ordering.eq_iff sepadd_unit_def)
-
-lemma units_least: \<open>sepadd_unit x \<Longrightarrow> x ## y \<Longrightarrow> x \<preceq> y\<close>
-  by (metis partial_le_plus sepadd_unit_def)
-
 lemma units_are_selfdisjoint:
   \<open>(\<forall>b. a ## b \<longrightarrow> a + b = b) \<Longrightarrow> a ## b \<Longrightarrow> a ## a\<close>
   by (metis disjoint_add_rightL)
@@ -282,10 +239,6 @@ lemmas sepadd_unit_left = sepadd_unitD(2)
 lemma sepadd_unit_right: \<open>sepadd_unit u \<Longrightarrow> a ## u \<Longrightarrow> a + u = a\<close>
   by (metis disjoint_sym partial_add_commute sepadd_unit_left)
 
-lemma add_sepadd_unit_add_iff_parts_sepadd_unit[simp]:
-  \<open>x ## y \<Longrightarrow> sepadd_unit (x + y) \<longleftrightarrow> sepadd_unit x \<and> sepadd_unit y\<close>
-  by (metis sepadd_unit_def units_separate_to_units)
-
 lemma disjoint_units_identical:
   \<open>a ## b \<Longrightarrow> sepadd_unit a \<Longrightarrow> sepadd_unit b \<Longrightarrow> a = b\<close>
   by (metis disjoint_sym partial_add_commute sepadd_unit_def)
@@ -302,35 +255,18 @@ lemma trans_disjoint_units_identical:
   \<open>a ## b \<Longrightarrow> b ## c \<Longrightarrow> sepadd_unit a \<Longrightarrow> sepadd_unit c \<Longrightarrow> a = c\<close>
   by (metis disjoint_sym related_units_identical)
 
-lemma sepadd_unit_disjoint_trans:
-  \<open>sepadd_unit a \<Longrightarrow> a ## b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
-  using disjoint_preservation units_least by blast
-
-lemma unit_sub_closure2:
-  \<open>a ## x \<Longrightarrow> a + x ## y \<Longrightarrow> a + (x + y) = a \<Longrightarrow> a + x = a\<close>
-  by (simp add: positivity partial_add_assoc2)
-
-lemma unit_sub_closure2':
-  \<open>a ## x \<Longrightarrow> a + x ## y \<Longrightarrow> a + x + y = a \<Longrightarrow> a + x = a\<close>
-  by (simp add: positivity partial_add_assoc2)
-
 
 subsection \<open> Pseudo-units \<close>
 
 text \<open> Pseudo-units: 'units' for certain resources. Can be non-unital for other resources. \<close>
-definition (in perm_alg) \<open>sepadd_punit_of u x \<equiv> u ## x \<and> u + x = x\<close>
+definition \<open>sepadd_punit_of u x \<equiv> u ## x \<and> u + x = x\<close>
 
 lemma wunit_is_punit: \<open>sepadd_unit u \<Longrightarrow> Ex (sepadd_punit_of u)\<close>
   using sepadd_punit_of_def sepadd_unit_def by blast
 
-lemma sepadd_punit_of_unit_antimono:
-  \<open>a \<preceq> b \<Longrightarrow> sepadd_punit_of b x \<Longrightarrow> sepadd_punit_of a x\<close>
-  by (metis disjoint_preservation partial_le_plus2 resource_order.dual_order.eq_iff
-      sepadd_punit_of_def sepadd_right_mono)
-
 lemma sepadd_punit_of_unit_res_mono:
   \<open>x \<preceq> y \<Longrightarrow> sepadd_punit_of a x \<Longrightarrow> sepadd_punit_of a y\<close>
-  by (metis disjoint_add_swap_lr less_eq_sepadd_def' partial_add_assoc3 sepadd_punit_of_def)
+  by (metis disjoint_add_swap_lr less_eq_sepadd_def partial_add_assoc3 sepadd_punit_of_def)
 
 lemma sepadd_punit_of_unit_res_mono':
   \<open>x \<preceq> y \<Longrightarrow> a ## x \<Longrightarrow> a + x = x \<Longrightarrow> a ## y \<and> a + y = y\<close>
@@ -345,7 +281,7 @@ definition \<open>sepadd_zero a \<equiv> a ## a \<and> (\<forall>b. a ## b \<lon
 text \<open> sepadd_zero is antimono \<close>
 lemma above_zero_impl_zero:
   \<open>a \<preceq> b \<Longrightarrow> sepadd_zero a \<Longrightarrow> sepadd_zero b\<close>
-  by (metis less_eq_sepadd_def part_of_def sepadd_zero_def)
+  by (metis less_eq_sepadd_def sepadd_zero_def)
 
 lemma zeros_add_to_zero: \<open>x ## y \<Longrightarrow> sepadd_zero x \<Longrightarrow> sepadd_zero (x + y)\<close>
   by (simp add: sepadd_zero_def)
@@ -684,7 +620,7 @@ definition intuitionistic :: \<open>('a \<Rightarrow> bool) \<Rightarrow> bool\<
 lemma precise_to_intuitionistic:
   \<open>precise P \<Longrightarrow> intuitionistic (P \<^emph> \<top>)\<close>
   unfolding sepconj_def precise_def intuitionistic_def
-  by (metis less_eq_sepadd_def' partial_le_part_left resource_ordering.antisym top_conj(1))
+  by (metis disjoint_add_swap_lr less_eq_sepadd_def partial_add_assoc2 top1I)
 
 lemma strong_sepcoimp_imp_sepconj:
   \<open>(P \<^emph> \<top>) \<sqinter> (P \<sim>\<^emph> Q) \<le> P \<^emph> Q\<close>
@@ -704,7 +640,91 @@ definition supported :: \<open>('a \<Rightarrow> bool) \<Rightarrow> bool\<close
 
 lemma precise_to_supported:
   \<open>precise P \<Longrightarrow> supported (P \<^emph> \<top>)\<close>
-  using resource_ordering.eq_iff supported_def by auto
+  by (metis intuitionistic_def less_eq_sepadd_def precise_to_intuitionistic supported_def)
+
+end
+
+
+section \<open> Permission Algebras \<close>
+
+class perm_alg = pre_perm_alg +
+  assumes positivity:
+    \<open>a ## c1 \<Longrightarrow> a + c1 = b \<Longrightarrow> b ## c2 \<Longrightarrow> b + c2 = a \<Longrightarrow> a = b\<close>
+begin
+
+text \<open> This lemma is just positivity stated another way. \<close>
+lemma part_of_antisym:
+  \<open>a \<lesssim> b \<Longrightarrow> b \<lesssim> a \<Longrightarrow> a = b\<close>
+  using positivity part_of_def by auto
+
+lemma less_sepadd_def':
+  \<open>a \<prec> b \<longleftrightarrow> a \<noteq> b \<and> (\<exists>c. a ## c \<and> a + c = b)\<close>
+  using less_sepadd_def positivity by auto
+
+sublocale resource_ordering: ordering \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+  apply standard
+   apply (metis less_sepadd_def' less_eq_sepadd_def)
+  apply (metis less_eq_sepadd_def positivity)
+  done
+
+sublocale resource_order: order \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+  by standard (metis resource_ordering.antisym)
+
+text \<open> Set up the isabelle machinery to treat this like an order. \<close>
+
+local_setup \<open>
+  HOL_Order_Tac.declare_order {
+    ops = {eq = @{term \<open>(=) :: 'a \<Rightarrow> 'a \<Rightarrow> bool\<close>}, le = @{term \<open>(\<preceq>)\<close>}, lt = @{term \<open>(\<prec>)\<close>}},
+    thms = {trans = @{thm resource_preordering.trans},
+            refl = @{thm resource_preordering.refl},
+            eqD1 = @{thm eq_refl}, eqD2 = @{thm eq_refl[OF sym]},
+            antisym = @{thm resource_ordering.antisym}, contr = @{thm notE}},
+    conv_thms = {less_le = @{thm eq_reflection[OF resource_order.less_le]},
+                 nless_le = @{thm eq_reflection[OF resource_order.nless_le]}}
+  }
+\<close>
+
+lemma le_res_less_le_not_le:
+  \<open>a \<prec> b \<longleftrightarrow> a \<lesssim> b \<and> \<not> b \<lesssim> a\<close>
+  by (metis part_of_def less_sepadd_def positivity)
+
+text \<open> sepadd_unit is antimono \<close>
+lemma below_unit_impl_unit:
+  \<open>a \<preceq> b \<Longrightarrow> sepadd_unit b \<Longrightarrow> sepadd_unit a\<close>
+  unfolding sepadd_unit_def less_eq_sepadd_def part_of_def
+  by (metis disjoint_add_rightL positivity)
+
+lemma units_separate_to_units:
+  \<open>x ## y \<Longrightarrow> sepadd_unit (x + y) \<Longrightarrow> sepadd_unit x\<close>
+  using below_unit_impl_unit partial_le_plus by blast
+
+lemma le_unit_iff_eq:
+  \<open>sepadd_unit b \<Longrightarrow> a \<preceq> b \<longleftrightarrow> b = a\<close>
+  by (metis disjoint_preservation2 partial_le_plus resource_ordering.eq_iff sepadd_unit_def)
+
+lemma units_least: \<open>sepadd_unit x \<Longrightarrow> x ## y \<Longrightarrow> x \<preceq> y\<close>
+  by (metis partial_le_plus sepadd_unit_def)
+
+lemma add_sepadd_unit_add_iff_parts_sepadd_unit[simp]:
+  \<open>x ## y \<Longrightarrow> sepadd_unit (x + y) \<longleftrightarrow> sepadd_unit x \<and> sepadd_unit y\<close>
+  by (metis sepadd_unit_def units_separate_to_units)
+
+lemma sepadd_unit_disjoint_trans:
+  \<open>sepadd_unit a \<Longrightarrow> a ## b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
+  using disjoint_preservation units_least by blast
+
+lemma unit_sub_closure2:
+  \<open>a ## x \<Longrightarrow> a + x ## y \<Longrightarrow> a + (x + y) = a \<Longrightarrow> a + x = a\<close>
+  by (simp add: positivity partial_add_assoc2)
+
+lemma unit_sub_closure2':
+  \<open>a ## x \<Longrightarrow> a + x ## y \<Longrightarrow> a + x + y = a \<Longrightarrow> a + x = a\<close>
+  by (simp add: positivity partial_add_assoc2)
+
+lemma sepadd_punit_of_unit_antimono:
+  \<open>a \<preceq> b \<Longrightarrow> sepadd_punit_of b x \<Longrightarrow> sepadd_punit_of a x\<close>
+  by (metis disjoint_preservation partial_le_plus2 resource_order.dual_order.eq_iff
+      sepadd_punit_of_def sepadd_right_mono)
 
 end
 
@@ -718,10 +738,10 @@ class multiunit_sep_alg = perm_alg +
 begin
 
 lemma le_iff_sepadd: \<open>a \<preceq> b \<longleftrightarrow> (\<exists>c. a ## c \<and> b = a + c)\<close>
-  by (metis disjoint_sym less_eq_sepadd_def' partial_add_commute unitof_disjoint unitof_is_unit)
+  by (metis disjoint_sym less_eq_sepadd_def partial_add_commute unitof_disjoint unitof_is_unit)
 
 lemma le_iff_part_of: \<open>a \<preceq> b \<longleftrightarrow> a \<lesssim> b\<close>
-  unfolding part_of_def le_iff_sepadd
+  unfolding le_iff_sepadd part_of_def
   by blast
 
 lemma unitof_disjoint2[simp,intro!]: \<open>a ## unitof a\<close>
@@ -768,7 +788,7 @@ lemma not_gr_unitof[simp]: "\<not> unitof x \<prec> x \<longleftrightarrow> x = 
   by (simp add: unitof_less_iff_neq_unitof)
 
 lemma gr_implies_not_unitof: "z \<prec> x \<Longrightarrow> x \<noteq> unitof x"
-  by (metis le_unit_iff_eq resource_order.dual_order.strict_iff_not unitof_is_sepadd_unit)
+  by (metis le_unit_iff_eq resource_preordering.strict_iff_not unitof_is_sepadd_unit)
 
 lemma unitof_sepadd_unit:
   \<open>sepadd_unit x \<Longrightarrow> unitof x = x\<close>
@@ -839,7 +859,7 @@ lemma zero_unitR[simp]: \<open>a + 0 = a\<close>
   by presburger
 
 lemma zero_least[iff]: \<open>0 \<preceq> b\<close>
-  using less_eq_sepadd_def'
+  using less_eq_sepadd_def
   by simp
 
 sublocale order_bot \<open>0\<close> \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
@@ -914,7 +934,7 @@ lemma sepadd_dup_antimono:
   apply (clarsimp simp add: sepadd_dup_def)
   apply (rule conjI)
    apply (force dest: common_subresource_selfsep)
-  apply (metis less_eq_sepadd_def part_of_def dup_sub_closure)
+  apply (metis less_eq_sepadd_def dup_sub_closure)
   done
 
 lemma sepadd_dup_plus_dupL:
@@ -1004,8 +1024,11 @@ lemma compatible_eq_strict_compatible:
   \<open>(compatible :: 'a \<Rightarrow> 'a \<Rightarrow> bool) = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
 proof -
   have \<open>compatible = ((=) \<squnion> (\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
-    by (force intro: arg_cong[of _ _ rtranclp]
-        simp add: compatible_def less_sepadd_def less_eq_sepadd_def)
+    unfolding compatible_def
+    apply (rule arg_cong[of _ _ rtranclp])
+    apply (simp add: less_sepadd_def less_eq_sepadd_def fun_eq_iff)
+    apply (metis positivity)
+    done
   also have \<open>... = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
     by (metis inf_sup_aci(5) rtranclp_reflclp rtranclp_sup_rtranclp)
   finally show ?thesis .
@@ -1030,8 +1053,8 @@ lemma step_compatible_units_identical:
   apply (induct rule: converse_compatible_induct)
    apply (force simp add: le_unit_iff_eq)
   apply (simp add: le_unit_iff_eq)
-  apply (metis disjoint_preservation2 le_unit_iff_eq less_eq_sepadd_def' sepadd_unit_left
-      resource_ordering.trans)
+  apply (metis disjoint_preservation2 le_unit_iff_eq less_eq_sepadd_def sepadd_unit_left
+      resource_preordering.trans)
   done
 
 lemma compatible_units_identical:
@@ -1042,21 +1065,21 @@ lemma compatible_unit_disjoint[dest]:
   \<open>compatible u a \<Longrightarrow> sepadd_unit u \<Longrightarrow> a ## u\<close>
   apply (induct rule: compatible_induct)
    apply force
-  apply (metis disjoint_add_leftL disjoint_add_left_commute2 less_eq_sepadd_def' sepadd_unit_right)
+  apply (metis disjoint_add_leftL disjoint_add_left_commute2 less_eq_sepadd_def sepadd_unit_right)
   done
 
 lemma compatible_unit_disjoint2[dest]:
   \<open>compatible a u \<Longrightarrow> sepadd_unit u \<Longrightarrow> a ## u\<close>
   apply (induct rule: converse_compatible_induct)
    apply force
-  apply (metis disjoint_add_leftL disjoint_add_left_commute2 less_eq_sepadd_def' sepadd_unit_right)
+  apply (metis disjoint_add_leftL disjoint_add_left_commute2 less_eq_sepadd_def sepadd_unit_right)
   done
 
 lemma compatible_to_unit_is_unit_left:
   \<open>compatible u a \<Longrightarrow> sepadd_unit u \<Longrightarrow> u + a = a\<close>
   apply (induct rule: compatible_induct)
    apply force
-  apply (simp add: less_eq_sepadd_def')
+  apply (simp add: less_eq_sepadd_def)
   apply (elim disjE; clarsimp) (* 1 \<rightarrow> 2 *)
    apply (metis compatible_unit_disjoint disjoint_sym partial_add_assoc2)
   apply (metis compatible_unit_disjoint disjoint_add_leftL partial_add_commute sepadd_unit_right)
@@ -1343,7 +1366,7 @@ lemma sepconj_conj_distrib_then_precise:
   assumes P_has_units: \<open>\<And>x. P x \<Longrightarrow> \<exists>u. x ## u \<and> sepadd_unit u\<close>
   shows \<open>sepconj_conj_distrib P \<Longrightarrow> precise P\<close>
   apply (clarsimp simp add: precise_def sepconj_conj_distrib_def sepconj_def le_fun_def
-      imp_ex_conjL imp_conjL less_eq_sepadd_def')
+      imp_ex_conjL imp_conjL less_eq_sepadd_def)
   apply (intro conjI impI allI)
     apply clarsimp
     apply (frule_tac ?x1=\<open>h2 + _\<close> in P_has_units)
