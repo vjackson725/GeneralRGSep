@@ -143,7 +143,7 @@ lift_definition empty :: \<open>'a \<rightharpoonup>\<^sub>l 'b\<close> is \<ope
   by force
 
 lift_definition comp :: "('b \<rightharpoonup>\<^sub>l 'c) \<Rightarrow> ('a \<rightharpoonup>\<^sub>l 'b) \<Rightarrow> ('a \<rightharpoonup>\<^sub>l 'c)" (infixl "\<circ>\<^sub>l" 55) is
-  \<open>\<lambda>(B::'b set, g::'b \<rightharpoonup> 'c) (A::'a set, f::'a \<rightharpoonup> 'b). ({a. \<exists>b. f a = Some b \<and> b \<in> dom g}, g \<circ>\<^sub>m f)\<close>
+  \<open>\<lambda>(B ::'b set, g::'b \<rightharpoonup> 'c) (A::'a set, f::'a \<rightharpoonup> 'b). ({a. \<exists>b. f a = Some b \<and> b \<in> dom g}, g \<circ>\<^sub>m f)\<close>
   by (simp split: prod.splits)
 
 lift_definition restrict :: "('a \<rightharpoonup>\<^sub>l 'b) \<Rightarrow> 'a set \<Rightarrow> ('a \<rightharpoonup>\<^sub>l 'b)" (infixl \<open>|`\<^sub>l\<close> 110) is
@@ -943,6 +943,7 @@ proof -
     by force
 qed
 
+(*
 lemma perm_alg_set_add_trans_plotkin:
   fixes X :: \<open>('a::{perm_alg,order}) set\<close>
   assumes
@@ -955,12 +956,12 @@ lemma perm_alg_set_add_trans_plotkin:
 proof -
   have \<open>X \<le>\<^sub>S {x + a|x a. x \<in> X \<and> a \<in> A \<and> x ## a}\<close>
     using assms(2-)
-    apply (clarsimp simp add: leq_smyth_def assms(1) less_eq_sepadd_def')
+    apply (clarsimp simp add: leq_smyth_def assms(1) less_eq_sepadd_def)
     apply blast
     done
   moreover have \<open>... \<le>\<^sub>S {(x + a) + b|x a b. x \<in> X \<and> a \<in> A \<and> b \<in> B \<and> x ## a \<and> x + a ## b}\<close>
     using assms(2-)
-    apply (clarsimp simp add: leq_smyth_def assms(1) less_eq_sepadd_def'
+    apply (clarsimp simp add: leq_smyth_def assms(1) less_eq_sepadd_def
         conj_disj_distribL ex_disj_distrib)
     apply (drule iffD1[OF set_eq_iff])
     apply simp
@@ -970,6 +971,7 @@ proof -
     using assms eq_smyth_def
     by force
 qed
+*)
 
 lemma
   fixes A B :: \<open>('a::canonically_ordered_monoid_add) set\<close>
@@ -1051,7 +1053,9 @@ proof -
 
   have \<open>\<forall>a\<in>A. fa a \<preceq> a\<close>
     using triple_choice
-    by (metis less_eq_sepadd_def' trans_helper)
+    sorry
+  (* oops
+    by (metis less_eq_sepadd_def) *)
 
   show ?thesis
     using assms(3)
@@ -1068,7 +1072,7 @@ proof -
       apply clarsimp
       apply (drule unit_sub_closure2'[rotated 2], blast, blast)
       apply simp
-      apply (simp add: less_eq_sepadd_def')
+      apply (simp add: less_eq_sepadd_def)
       apply (erule disjE)
        apply simp
     oops
@@ -1076,6 +1080,8 @@ proof -
 
 definition
   \<open>seple_rel = {(a,b). a \<noteq> b \<and> (\<exists>c::'a::perm_alg. a ## c \<and> a + c = b)}\<close>
+
+(*
 
 lemma seple_rel_prec:
   fixes x :: \<open>'a :: perm_alg\<close>
@@ -1098,6 +1104,10 @@ lemma
 typedef inat = \<open>UNIV :: nat set\<close>
   by blast
 setup_lifting type_definition_inat
+*)
+
+
+
 
 
 instantiation set :: (perm_alg) plus
@@ -1459,7 +1469,7 @@ lemma insert_plus_set_eqR:
 
 lemma plus_set_singleton_left_leq:
   \<open>ab \<in> {a} + B \<Longrightarrow> a \<preceq> ab\<close>
-  by (force simp add: less_eq_sepadd_def' plus_set_def)
+  by (force simp add: less_eq_sepadd_def plus_set_def)
 
 lemma plus_set_singleton_left_no_unit_less:
   \<open>ab \<in> {a} + B \<Longrightarrow> \<forall>b\<in>B. a ## b \<longrightarrow> a + b \<noteq> a \<Longrightarrow> a \<prec> ab\<close>
@@ -1476,7 +1486,7 @@ lemma singleton_plus_set_eq:
 
 lemma plus_set_eq_plus_left_members:
   \<open>A + B = (\<Union>a\<in>A. {a} + B)\<close>
-  by (force simp add: Ball_def less_eq_sepadd_def' plus_set_def)
+  by (force simp add: Ball_def less_eq_sepadd_def plus_set_def)
 
 lemma minset_sepadd_unit_set_contains_unit:
   fixes A :: \<open>('a::perm_alg) set\<close>
@@ -1497,7 +1507,7 @@ proof clarsimp
   
   have Crel_transcl_less:
     \<open>\<And>x y. Crel\<^sup>+\<^sup>+ x y \<Longrightarrow> x \<prec> y\<close>
-    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_ordering.strict_trans)
+    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_preordering.strict_trans)
 
   have assum1': \<open>(\<Union>a\<in>A. {a} + C) = A\<close>
     using assms
@@ -1565,7 +1575,7 @@ proof clarsimp
   
   have Crel_transcl_less:
     \<open>\<And>x y. Crel\<^sup>+\<^sup>+ x y \<Longrightarrow> x \<prec> y\<close>
-    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_ordering.strict_trans)
+    by (erule tranclp_induct, metis Crel_less, metis Crel_less resource_preordering.strict_trans)
 
   have assum1': \<open>(\<Union>a\<in>A. {a} + C) = A\<close>
     using assms
@@ -1626,7 +1636,12 @@ lemma minset_positivity_sep_alg:
 
 section \<open> minsets \<close>
 
-typedef(overloaded) ('a::perm_alg) mset = \<open>{A::'a set. \<forall>x\<in>A. \<exists>y\<in>A. y \<preceq> x \<and> (\<forall>z\<in>A. \<not> z \<prec> y)}\<close>
+abbreviation (in perm_alg) \<open>min_of A y \<equiv> \<forall>z\<in>A. \<not> z \<prec> y\<close>
+abbreviation (in perm_alg) "has_min_elems A \<equiv> \<forall>x\<in>A. \<exists>y\<in>A. y \<preceq> x \<and> min_of A y"
+
+typedef(overloaded) ('a::perm_alg) 
+  mset = 
+  \<open>{ A::'a set. has_min_elems A}\<close>
   using sepequivs_def by auto
 
 print_theorems
@@ -1675,10 +1690,8 @@ lemma (in perm_alg) resource_order_parts_leq_then_add_leq:
   shows
     \<open>a' + b' \<preceq> a + b\<close>
   using assms
-  by (meson disjoint_preservation disjoint_preservation2 resource_order.order_trans
+  by (meson disjoint_preservation disjoint_preservation2 resource_preordering.trans
       sepadd_left_mono sepadd_right_mono)
-
-abbreviation (in perm_alg) \<open>min_of A y \<equiv> \<forall>z\<in>A. \<not> z \<prec> y\<close>
 
 context perm_alg
 begin
@@ -1688,6 +1701,7 @@ definition res_step :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> whe
 
 end
 
+(*
 lemma (in perm_alg) countable_resource_leq_induct:
   fixes a b :: 'a
   assumes countable: \<open>\<And>a b::'a. a \<preceq> b \<Longrightarrow> res_step\<^sup>*\<^sup>* a b\<close>
@@ -1697,6 +1711,7 @@ lemma (in perm_alg) countable_resource_leq_induct:
   shows \<open>P b\<close>
   using assms rtranclp_induct[OF countable, of a b]
   by (meson res_step_def resource_ordering.refl resource_order.less_imp_le)
+*)
 
 lemma (in perm_alg)
   assumes countable: \<open>\<And>a b::'a. a \<preceq> b \<Longrightarrow> res_step\<^sup>*\<^sup>* a b\<close>
@@ -1716,14 +1731,6 @@ lemma (in perm_alg)
   apply (rename_tac ma mb)
   apply (rule ccontr)
   apply clarsimp
-  thm countable_resource_leq_induct[OF countable, simplified]
-  apply (insert countable_resource_leq_induct[OF countable, simplified])
-  oops
-  apply (drule_tac x=ma in spec, drule mp, assumption, drule make_pos_rule', blast)
-  apply (drule_tac x=mb in spec, drule mp, assumption, drule mp, assumption, drule make_pos_rule', blast)
-  apply clarsimp
-  apply (rename_tac ma' mb')
-  nitpick
   oops
 
 
@@ -1743,8 +1750,6 @@ lemma
     \<forall>x\<in>MAB. \<exists>y\<in>MAB. y \<preceq> x \<and> (\<forall>z\<in>MAB. \<not> z \<prec> y)\<close>
   apply (clarsimp simp add: plus_set_def Bex_def Ball_def)
   apply (rename_tac ma mb)
-  apply (subgoal_tac \<open>\<exists>ma2 mb2. (\<forall>ya\<in>A. (\<forall>z\<in>A. \<not> z \<prec> ya) \<longrightarrow> (\<forall>yb\<in>B. (\<forall>z\<in>B. \<not> z \<prec> yb) \<longrightarrow>
-                                   ma1 + ma2 \<preceq> ya + yb)))\<close>)
   oops
 
 lemma (in perm_alg) min_sepadd_preservation:
@@ -1761,6 +1766,141 @@ lemma (in perm_alg) min_sepadd_preservation:
   
   oops
 
+
+lemma (in perm_alg)
+  \<open>L = {(a,b). a \<prec> b} \<Longrightarrow>
+    (##) = (\<lambda>_ _. True) \<Longrightarrow>
+    min_of A a \<Longrightarrow> min_of A b \<Longrightarrow> min_of A c \<Longrightarrow>
+      a ## c \<Longrightarrow> b ## c \<Longrightarrow> a + c \<preceq> b + c \<or> b + c \<preceq> a + c\<close>
+  nitpick
+  oops
+
+lemma (in cancel_perm_alg) cancel_lessL:
+  \<open>a ## b \<Longrightarrow> a ## c \<Longrightarrow> a + b \<prec> a + c \<Longrightarrow> b \<prec> c\<close>
+  apply (clarsimp simp add: less_sepadd_def')
+  apply (metis disjoint_add_leftR partial_add_assoc_rev partial_left_cancel2D)
+  done
+
+
+lemma helper00:
+  fixes A :: \<open>('a::cancel_perm_alg) set\<close>
+  shows
+  \<open>\<forall>x\<in>A. min_of A x \<Longrightarrow>
+   a \<in> A \<Longrightarrow>
+   a ## x \<Longrightarrow>
+   \<exists>b. b \<in> A \<and> x ## b \<and> (\<forall>b'. b' \<in> A \<longrightarrow> x ## b' \<longrightarrow> \<not> x + b' \<prec> x + b)\<close>
+  by (meson cancel_lessL disjoint_sym)
+
+lemma helper0:
+  fixes A :: \<open>('a::cancel_perm_alg) set\<close>
+  assumes
+    \<open>\<forall>x\<in>A. min_of A x\<close>
+    (* \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x)\<close> *)
+    \<open>a \<in> A\<close>
+    \<open>a ## x\<close>
+  shows \<open>\<exists>z. z \<in> {x} + A \<and> min_of ({x} + A) z\<close>
+  using assms
+  by (clarsimp simp add: plus_set_def)
+    (metis cancel_lessL disjoint_sym)
+
+lemma disj_imp_rev:
+  \<open>P \<or> Q \<longleftrightarrow> \<not> Q \<longrightarrow> P\<close>
+  by blast
+
+lemma ball_imp_bex_compose_helper:
+  \<open>(\<And>a b c. P a b \<Longrightarrow> P b c \<Longrightarrow> P a c) \<Longrightarrow>
+    \<forall>x\<in>A. P x w \<longrightarrow> Q x \<longrightarrow> (\<exists>y\<in>B. P y x \<and> Q y) \<Longrightarrow>
+    (\<forall>x\<in>B. P x w \<longrightarrow> Q x \<longrightarrow> (\<exists>y\<in>C. P y x \<and> Q y)) \<Longrightarrow>
+    \<forall>x\<in>A. P x w \<longrightarrow> Q x \<longrightarrow> (\<exists>y\<in>C. P y x \<and> Q y)\<close>
+  by blast
+
+
+lemma minset_un:
+  fixes A B :: \<open>('a::perm_alg) set\<close>
+  assumes
+    \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x)\<close>
+    \<open>(\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x)\<close>
+    \<open>x \<in> A \<union> B\<close>
+  shows \<open>\<exists>y\<in>A\<union>B. y \<preceq> x \<and> min_of (A \<union> B) y\<close>
+  using assms(3)
+  apply -
+  apply (rule ccontr)
+  apply (clarsimp simp add: ball_Un)
+  apply (subgoal_tac \<open>\<forall>y\<in>A. y \<preceq> x \<longrightarrow> min_of A y \<longrightarrow> (\<exists>z\<in>B. z \<prec> y \<and> min_of B z)\<close>)
+   prefer 2
+   apply (metis assms(1-2) resource_order.le_less resource_preordering.strict_trans1)
+  apply (thin_tac \<open>\<forall>x\<in>_. _ x\<close>)
+  apply (subgoal_tac \<open>\<forall>y\<in>B. y \<preceq> x \<longrightarrow> min_of B y \<longrightarrow> (\<exists>z\<in>A. z \<prec> y \<and> min_of A z)\<close>)
+   prefer 2
+   apply (metis assms(1-2) resource_order.le_less resource_preordering.strict_trans1)
+  apply (thin_tac \<open>\<forall>x\<in>_. _ x\<close>)
+  apply (subgoal_tac \<open>\<forall>y\<in>B. y \<preceq> x \<longrightarrow> min_of B y \<longrightarrow> (\<exists>z\<in>B. z \<prec> y \<and> min_of B z)\<close>)
+   prefer 2
+   apply clarsimp
+   apply (drule bspec, assumption, metis resource_order.le_less resource_preordering.strict_trans)
+  apply (subgoal_tac \<open>\<forall>y\<in>A. y \<preceq> x \<longrightarrow> min_of A y \<longrightarrow> (\<exists>z\<in>A. z \<prec> y \<and> min_of A z)\<close>)
+   prefer 2
+   apply clarsimp
+   apply (drule bspec, assumption, metis resource_order.le_less resource_preordering.strict_trans)
+  apply (metis assms(1-2))
+  done
+
+lemma no_minset_rat_fperm:
+  fixes x :: \<open>rat fperm\<close>
+  shows \<open>\<not> min_of UNIV x\<close>
+  apply (clarsimp simp add: Bex_def less_sepadd_def)
+  apply transfer
+  apply clarsimp
+  apply (rule_tac x=\<open>x/2\<close> in exI)
+  apply clarsimp
+  apply (rule_tac x=\<open>x/2\<close> in exI)
+  apply clarsimp
+  done
+
+lemma minset_Un:
+  fixes A B :: \<open>('a::perm_alg) set\<close>
+  assumes
+    \<open>(\<And>A a. A \<in> \<AA> \<Longrightarrow> a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x)\<close>
+    \<open>x \<in> \<Union>\<AA>\<close>
+  shows \<open>\<exists>y\<in>\<Union>\<AA>. y \<preceq> x \<and> min_of (\<Union>\<AA>) y\<close>
+  oops (* counterexample above *)
+
+
+
+lemma thegoal:
+  fixes A B :: \<open>('a::cancel_perm_alg) set\<close>
+  shows
+    \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x) \<Longrightarrow>
+      (\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x) \<Longrightarrow>
+      a \<in> A \<Longrightarrow>
+      b \<in> B \<Longrightarrow>
+      a ## b \<Longrightarrow>
+      \<exists>x. (\<exists>a b. x = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<and>
+             x \<preceq> a + b \<and> (\<forall>z. (\<exists>a b. z = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<longrightarrow> \<not> z \<prec> x)\<close>
+  oops
+
+lemma helper2:
+  fixes A B :: \<open>('a::perm_alg) set\<close>
+  shows
+  \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x) \<Longrightarrow>
+   (\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x) \<Longrightarrow>
+    c \<in> A + B \<Longrightarrow>
+    min_of (A + B) c \<Longrightarrow> (\<exists>a\<in>A. \<exists>b\<in>B. min_of A a \<and> min_of B b \<and> a ## b \<and> c = a + b)\<close>
+  sorry
+
+lemma thegoal:
+  fixes A B :: \<open>('a::perm_alg) set\<close>
+  shows
+    \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x) \<Longrightarrow>
+      (\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x) \<Longrightarrow>
+      a \<in> A \<Longrightarrow>
+      b \<in> B \<Longrightarrow>
+      a ## b \<Longrightarrow>
+      \<exists>x. (\<exists>a b. x = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<and>
+             x \<preceq> a + b \<and> (\<forall>z. (\<exists>a b. z = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<longrightarrow> \<not> z \<prec> x)\<close>
+  sorry
+
+(*
 instantiation mset :: (multiunit_sep_alg) perm_alg
 begin
 
@@ -1772,15 +1912,13 @@ lift_definition plus_mset :: \<open>('a::multiunit_sep_alg) mset \<Rightarrow> '
   apply (drule_tac x=b in meta_spec)
   apply clarsimp
   apply (rename_tac am bm)
-  apply (rule_tac x=\<open>am + bm\<close> in exI)
-  apply (rule conjI)
-   apply (metis disjoint_preservation disjoint_sym)
-  apply (rule conjI)
-   apply (metis resource_order_parts_leq_then_add_leq)
+  apply(cut_tac a=am and b=bm and c=a and d=b in sepadd_mono, simp_all) 
+   apply (meson disjoint_preservation disjoint_preservation2)
+  apply (rule_tac x=\<open>am + bm\<close> in exI) 
+  apply (rule conjI) 
+   apply (metis disjoint_preservation disjoint_preservation2)
   apply clarsimp
-  apply (rename_tac x y a' b')
-  nitpick
-  sorry
+  oops
 
 lift_definition disjoint_mset :: \<open>('a::multiunit_sep_alg) mset \<Rightarrow> 'a mset \<Rightarrow> bool\<close> is
   \<open>\<lambda>A B. True\<close> .
@@ -1799,5 +1937,34 @@ instance
   done
 
 end
+*)
+
+
+instantiation set :: (pre_perm_alg) pre_perm_alg
+begin
+
+(* Already defined
+definition plus_set :: \<open>('a::pre_perm_alg) set \<Rightarrow> 'a set \<Rightarrow> 'a set\<close> where
+  \<open>plus_set A B \<equiv> {a + b|a b. a \<in> A \<and> b \<in> B \<and> a ## b}\<close>
+*)
+
+definition disjoint_set :: \<open>('a::pre_perm_alg) set \<Rightarrow> 'a set \<Rightarrow> bool\<close> where
+  \<open>disjoint_set A B \<equiv> True\<close>
+declare disjoint_set_def[simp]
+
+instance
+  apply standard
+      apply (clarsimp simp add: plus_set_def set_eq_iff, rule iffI)
+       apply (metis disjoint_add_leftR disjoint_add_swap_lr partial_add_assoc2)
+      apply (metis disjoint_add_rightL disjoint_add_swap_rl partial_add_assoc3)
+     apply (clarsimp simp add: plus_set_def set_eq_iff)
+     apply (meson disjoint_sym partial_add_commute)
+    apply (simp; fail)
+   apply (simp; fail)
+  apply (simp; fail)
+  done
+
+end
+
 
 end

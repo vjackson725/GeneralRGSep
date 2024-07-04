@@ -95,7 +95,7 @@ lemma core_plus_sameR[simp]:
 
 lemma the_core_le_impl:
   \<open>has_core a \<Longrightarrow> has_core b \<Longrightarrow> a \<preceq> b \<Longrightarrow> the_core a \<preceq> the_core b\<close>
-  by (metis core_rel_def resource_ordering.trans the_core_core_rel_eq)
+  by (metis core_rel_def resource_preordering.trans the_core_core_rel_eq)
 
   
 text \<open>
@@ -109,7 +109,7 @@ lemma has_core_mono_iff:
   unfolding sepadd_dup_def has_core_def
   apply (rule iffI)
    apply (blast intro: resource_preordering.refl)
-  apply (blast intro: resource_ordering.trans)
+  apply (blast intro: resource_preordering.trans)
   done
 
 lemma core_rel_additive:
@@ -144,7 +144,7 @@ lemma has_grunit_def:
 lemma has_unit_mono:
   \<open>a \<preceq> b \<Longrightarrow> has_grunit a \<Longrightarrow> has_grunit b\<close>
   by (clarsimp simp add: has_grunit_def)
-    (metis resource_ordering.trans step_compatible_units_identical trans_ge_ge_is_compatible)
+    (metis resource_preordering.trans step_compatible_units_identical trans_ge_ge_is_compatible)
 
 end
 
@@ -167,7 +167,7 @@ lemma pottier2_collapse:
   \<open>(\<And>a b c c' a'.
     a ## b \<Longrightarrow> a + b = c \<Longrightarrow> core_rel c c' \<Longrightarrow> core_rel a a' \<Longrightarrow> c' = a') \<Longrightarrow>
     a \<preceq> b \<Longrightarrow> sepadd_dup b \<Longrightarrow> a = b\<close>
-  by (metis core_dup_is_self dup_has_core less_eq_sepadd_def' sepadd_dup_antimono
+  by (metis core_dup_is_self dup_has_core less_eq_sepadd_def sepadd_dup_antimono
       the_core_core_rel_eq)
 
 end
@@ -234,7 +234,7 @@ lemma Lub_exists_Lub_eq:
   \<open>Lub_exists A \<Longrightarrow> P (Lub A) \<longleftrightarrow> (\<forall>x. Lub_rel A x \<longrightarrow> P x)\<close>
   using Lub_Lub_rel_eq by blast
 
-
+(*
 lemma Glb_rel_in_Least_equality:
   \<open>Glb_rel (Collect P) x \<Longrightarrow> P x \<Longrightarrow> resource_order.Least P = x\<close>
   apply (clarsimp simp add: Glb_rel_def)
@@ -246,6 +246,7 @@ lemma Lub_rel_in_Greatest_equality:
   apply (clarsimp simp add: Lub_rel_def)
   apply (subst resource_order.Greatest_equality; force)
   done
+*)
 
 subsection \<open> lub glb interchange properties \<close>
 
@@ -385,7 +386,7 @@ lemma sepinf_assoc[simp]:
     glb_exists a (glb b c) \<Longrightarrow>
     glb_exists (glb a b) c \<Longrightarrow>
     glb a (glb b c) = glb (glb a b) c\<close>
-  by (clarsimp, meson glb_rel_def resource_ordering.antisym resource_ordering.trans)
+  by (clarsimp, meson glb_rel_def resource_ordering.antisym resource_preordering.trans)
 
 end
 
@@ -496,7 +497,7 @@ lemma sepinf_assoc[simp]:
   apply (subgoal_tac \<open>compatible a (b \<sqinter> c)\<close>)
    prefer 2
    apply (metis sepinf_preserves_compatibleR)
-  apply (meson resource_ordering.antisym resource_ordering.trans sepinf_least sepinf_leqL sepinf_leqR; fail)
+  apply (meson resource_ordering.antisym resource_preordering.trans sepinf_least sepinf_leqL sepinf_leqR; fail)
   done
 
 lemma disjoint_sepinf_of_add_impl_disjoint_sepinf_part:
@@ -505,7 +506,7 @@ lemma disjoint_sepinf_of_add_impl_disjoint_sepinf_part:
     compatible (a + b) c \<Longrightarrow>
     (a + b) \<sqinter> c ## y \<Longrightarrow>
     a \<sqinter> c ## y\<close>
-  by (meson disjoint_preservation resource_ordering.trans partial_le_plus sepinf_least sepinf_leqL sepinf_leqR)
+  by (meson disjoint_preservation resource_preordering.trans partial_le_plus sepinf_least sepinf_leqL sepinf_leqR)
 
 lemma sepinf_of_unit_is_unit:
   \<open>compatible a b \<Longrightarrow> sepadd_unit a \<Longrightarrow> sepadd_unit (a \<sqinter> b)\<close>
@@ -699,6 +700,7 @@ lemma disjoint_units_have_same_labels:
   using assms
   by (metis labels_eq_def labels_leq_add disjoint_sym sepadd_unit_def)
 
+(*
 lemma same_labels_as_unit_is_unit:
   assumes
     \<open>a ## b\<close>
@@ -709,7 +711,7 @@ lemma same_labels_as_unit_is_unit:
   using assms
   by (metis labels_eq_def labels_leq_less_preorder labels_less_embeds less_sepadd_def part_of_def
       sepadd_unit_def preordering.strict_iff_not)
-
+*)
 
 subsubsection  \<open> Label overlap \<close>
 

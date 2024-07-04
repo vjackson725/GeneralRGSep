@@ -113,11 +113,6 @@ lemma partial_add_double_assoc:
   by (metis disjoint_add_rightR disjoint_add_rightL disjoint_add_right_commute partial_add_assoc
       partial_add_left_commute)
 
-lemma partial_add_assoc_rev:
-  \<open>a ## b \<Longrightarrow> a + b ## c \<Longrightarrow> a ## b + c \<and> a + b + c = a + (b + c)\<close>
-  by (metis disjoint_add_rightL disjoint_add_right_commute disjoint_sym partial_add_assoc
-      partial_add_commute)
-
 
 subsection \<open> order \<close>
 
@@ -147,12 +142,12 @@ abbreviation (input) greater_sepadd (infix \<open>\<succ>\<close> 50)
 
 lemma part_of_trans[trans]:
   \<open>a \<lesssim> b \<Longrightarrow> b \<lesssim> c \<Longrightarrow> a \<lesssim> c\<close>
-  by (fastforce dest: partial_add_assoc_rev simp add: part_of_def)
+  by (fastforce dest: disjoint_add_swap_lr simp add: part_of_def partial_add_assoc2)
 
 sublocale resource_preordering: preordering \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
   apply standard
     apply (force simp add: less_eq_sepadd_def)
-   apply (fastforce dest: partial_add_assoc_rev simp add: less_eq_sepadd_def)
+   apply (fastforce dest: disjoint_add_swap_lr partial_add_assoc2 simp add: less_eq_sepadd_def)
   apply (force simp add: less_eq_sepadd_def less_sepadd_def)
   done
 
@@ -198,6 +193,9 @@ lemma sepadd_right_mono:
   \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> a \<preceq> b \<Longrightarrow> a + c \<preceq> b + c\<close>
   by (metis disjoint_sym_iff partial_add_commute sepadd_left_mono)
 
+lemma sepadd_mono:
+  \<open>a ## b \<Longrightarrow> c ## d \<Longrightarrow> a \<preceq> c \<Longrightarrow> b \<preceq> d  \<Longrightarrow> a + b \<preceq> c + d\<close> 
+  by (meson disjoint_preservation resource_preorder.order_trans sepadd_left_mono sepadd_right_mono)
 
 subsection \<open> sepadd_unit \<close>
 
