@@ -54,11 +54,11 @@ lemma has_core_the_core_eq:
 
 lemma dup_has_core[dest]:
   \<open>sepadd_dup a \<Longrightarrow> has_core a\<close>
-  using core_rel_def resource_ordering.refl by auto
+  using core_rel_def resource_preordering.refl by auto
 
 lemma core_dup_is_self[simp]:
   \<open>sepadd_dup a \<Longrightarrow> the_core a = a\<close>
-  by (simp add: core_rel_def resource_ordering.refl)
+  by (simp add: core_rel_def resource_preordering.refl)
 
 lemma core_is_dup:
   \<open>has_core a \<Longrightarrow> sepadd_dup (the_core a)\<close>
@@ -108,7 +108,7 @@ lemma has_core_mono_iff:
     (\<forall>x. sepadd_dup x \<longrightarrow> (\<forall>a. x \<preceq> a \<longrightarrow> has_core a))\<close>
   unfolding sepadd_dup_def has_core_def
   apply (rule iffI)
-   apply (blast intro: resource_ordering.refl)
+   apply (blast intro: resource_preordering.refl)
   apply (blast intro: resource_ordering.trans)
   done
 
