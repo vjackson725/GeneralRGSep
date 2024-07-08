@@ -22,12 +22,14 @@ class pre_perm_alg = disjoint + plus +
   assumes disjoint_sym: \<open>a ## b \<Longrightarrow> b ## a\<close>
   assumes disjoint_add_rightL: \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a ## b\<close>
   assumes disjoint_add_right_commute: \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> b ## a + c\<close>
-  (*
   (* non-negative *)
+(*
   assumes non_negative:
-    \<open>a ## b \<Longrightarrow> (\<And>x. x ## a + b \<Longrightarrow> x + (a + b) = x) \<Longrightarrow>
-      x ## a \<Longrightarrow> x + a = x\<close>
-  *)
+    \<open>w ## z \<Longrightarrow>
+      \<exists>x. w + z ## x \<Longrightarrow>
+      (\<forall>x. w + z ## x \<longrightarrow> w + z + x = x) \<Longrightarrow>
+      w ## x \<Longrightarrow> w + x = x\<close>
+*)
 begin
 
 lemma disjoint_sym_iff: \<open>a ## b \<longleftrightarrow> b ## a\<close>
@@ -147,7 +149,7 @@ lemma part_of_trans[trans]:
 sublocale resource_preordering: preordering \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
   apply standard
     apply (force simp add: less_eq_sepadd_def)
-   apply (fastforce dest: disjoint_add_swap_lr partial_add_assoc2 simp add: less_eq_sepadd_def)
+   apply (fastforce dest: disjoint_add_swap_lr simp add: less_eq_sepadd_def partial_add_assoc2)
   apply (force simp add: less_eq_sepadd_def less_sepadd_def)
   done
 
@@ -711,6 +713,11 @@ lemma sepadd_unit_disjoint_trans:
   \<open>sepadd_unit a \<Longrightarrow> a ## b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
   using disjoint_preservation units_least by blast
 
+lemma positivity_alt:
+  \<open>x ## u \<Longrightarrow> x + u ## w \<Longrightarrow> x + u + w = x \<Longrightarrow> u + x = x\<close>
+  using positivity[of x u \<open>x + u\<close> w]
+  by (simp add: partial_add_commute)
+
 lemma unit_sub_closure2:
   \<open>a ## x \<Longrightarrow> a + x ## y \<Longrightarrow> a + (x + y) = a \<Longrightarrow> a + x = a\<close>
   by (simp add: positivity partial_add_assoc2)
@@ -729,7 +736,7 @@ end
 
 section \<open> Multi-unit Separation Algebra \<close>
 
-class multiunit_sep_alg = perm_alg +
+class pre_multiunit_sep_alg = pre_perm_alg +
   fixes unitof :: \<open>'a \<Rightarrow> 'a\<close>
   assumes unitof_disjoint[simp]: \<open>unitof a ## a\<close>
   assumes unitof_is_unit[simp]: \<open>\<And>a b. unitof a ## b \<Longrightarrow> unitof a + b = b\<close>
@@ -770,35 +777,8 @@ lemma unitof_le[simp]: \<open>unitof x \<preceq> x\<close>
   using partial_le_plus unitof_disjoint
   by fastforce
 
-lemma le_unitof_eq[simp]: \<open>x \<preceq> unitof x \<longleftrightarrow> x = unitof x\<close>
-  by (auto intro: resource_ordering.antisym)
-
 lemma not_less_unitof[simp]: \<open>\<not> x \<prec> unitof x\<close>
-  by (simp add: resource_order.leD)
-
-lemma unitof_less_iff_neq_unitof: \<open>unitof x \<prec> x \<longleftrightarrow> x \<noteq> unitof x\<close>
-  by (metis resource_order.antisym_conv2 unitof_le)
-
-lemma gr_unitofI: "(x = unitof x \<Longrightarrow> False) \<Longrightarrow> unitof x \<prec> x"
-  using unitof_less_iff_neq_unitof by blast
-
-lemma not_gr_unitof[simp]: "\<not> unitof x \<prec> x \<longleftrightarrow> x = unitof x"
-  by (simp add: unitof_less_iff_neq_unitof)
-
-lemma gr_implies_not_unitof: "z \<prec> x \<Longrightarrow> x \<noteq> unitof x"
-  by (metis le_unit_iff_eq resource_preordering.strict_iff_not unitof_is_sepadd_unit)
-
-lemma unitof_sepadd_unit:
-  \<open>sepadd_unit x \<Longrightarrow> unitof x = x\<close>
-  by (metis sepadd_unit_def unitof_disjoint2 unitof_is_unitR2)
-
-lemma sepadd_eq_unitof_iff_both_eq_unitof[simp]:
-  \<open>x ## y \<Longrightarrow> x + y = unitof (x + y) \<longleftrightarrow> x = unitof x \<and> y = unitof y\<close>
-  by (metis add_sepadd_unit_add_iff_parts_sepadd_unit unitof_is_sepadd_unit unitof_sepadd_unit)
-
-lemma unitof_eq_sepadd_iff_both_eq_unitof[simp]:
-  \<open>x ## y \<Longrightarrow> unitof (x + y) = x + y \<longleftrightarrow> x = unitof x \<and> y = unitof y\<close>
-  by (metis sepadd_eq_unitof_iff_both_eq_unitof)
+  by (simp add: resource_preordering.strict_iff_not)
 
 lemma disjoint_same_unit:
   \<open>a ## b \<Longrightarrow> unitof a = unitof b\<close>
@@ -807,8 +787,6 @@ lemma disjoint_same_unit:
 lemma common_disjoint_same_unit:
   \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> unitof a = unitof b\<close>
   by (metis disjoint_sym_iff unitof_inherits_disjointness unitof_is_unit2 unitof_is_unitR2)
-
-lemmas unitof_order = unitof_le le_unitof_eq not_less_unitof unitof_less_iff_neq_unitof not_gr_unitof
 
 
 subsection \<open> emp \<close>
@@ -841,10 +819,51 @@ lemma supported_intuitionistic_to_precise:
 
 end
 
+class multiunit_sep_alg = pre_multiunit_sep_alg + perm_alg
+begin
+
+
+lemma le_unitof_then_eq[simp]: \<open>x \<preceq> unitof x \<Longrightarrow> x = unitof x\<close>
+  using less_eq_sepadd_def positivity
+  by fastforce
+
+lemma le_unitof_eq[simp]: \<open>x \<preceq> unitof x \<longleftrightarrow> x = unitof x\<close>
+  using le_unitof_then_eq
+  by force
+
+lemma unitof_less_iff_neq_unitof: \<open>unitof x \<prec> x \<longleftrightarrow> x \<noteq> unitof x\<close>
+  by (simp add: resource_preorder.less_le_not_le)
+
+lemma gr_unitofI: "(x = unitof x \<Longrightarrow> False) \<Longrightarrow> unitof x \<prec> x"
+  using unitof_less_iff_neq_unitof by blast
+
+lemma not_gr_unitof[simp]: "\<not> unitof x \<prec> x \<longleftrightarrow> x = unitof x"
+  by (simp add: unitof_less_iff_neq_unitof)
+
+lemma gr_implies_not_unitof: "z \<prec> x \<Longrightarrow> x \<noteq> unitof x"
+  by (metis disjoint_add_rightL less_sepadd_def sepadd_unitE unitof_is_sepadd_unit)
+
+lemma unitof_sepadd_unit:
+  \<open>sepadd_unit x \<Longrightarrow> unitof x = x\<close>
+  by (metis sepadd_unit_def unitof_disjoint2 unitof_is_unitR2)
+
+lemma sepadd_eq_unitof_iff_both_eq_unitof[simp]:
+  \<open>x ## y \<Longrightarrow> x + y = unitof (x + y) \<longleftrightarrow> x = unitof x \<and> y = unitof y\<close>
+  by (metis (full_types) le_unitof_eq disjoint_add_swap_rl2 partial_le_plus unitof_is_unit
+      unitof_inherits_disjointness unitof_is_unitR2)
+
+lemma unitof_eq_sepadd_iff_both_eq_unitof[simp]:
+  \<open>x ## y \<Longrightarrow> unitof (x + y) = x + y \<longleftrightarrow> x = unitof x \<and> y = unitof y\<close>
+  by (metis sepadd_eq_unitof_iff_both_eq_unitof)
+
+lemmas unitof_order = unitof_le le_unitof_eq not_less_unitof unitof_less_iff_neq_unitof not_gr_unitof
+
+end
+
 
 section \<open> (Single Unit) Separation Algebra\<close>
 
-class sep_alg = multiunit_sep_alg + zero +
+class pre_sep_alg = pre_multiunit_sep_alg + zero +
   assumes zero_disjoint[simp]: \<open>0 ## a\<close>
   assumes zero_unit[simp]: \<open>0 + a = a\<close>
 begin
@@ -856,43 +875,20 @@ lemma zero_unitR[simp]: \<open>a + 0 = a\<close>
   using partial_add_commute zero_disjoint zero_unit
   by presburger
 
-lemma zero_least[iff]: \<open>0 \<preceq> b\<close>
+lemma zero_least: \<open>0 \<preceq> b\<close>
   using less_eq_sepadd_def
   by simp
 
-sublocale order_bot \<open>0\<close> \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
-  by standard
-    (metis zero_least)
-
-lemma unitof_eq_zero[simp]: \<open>unitof x = 0\<close>
-  by (metis common_disjoint_same_unit disjoint_preservation le_unitof_eq unitof_disjoint
-      unitof_is_sepadd_unit unitof_sepadd_unit zero_least)
+lemma not_less_zero:
+  "\<not> a \<prec> 0"
+  using less_sepadd_def by auto
 
 lemma zero_only_unit[simp]:
   \<open>sepadd_unit x \<longleftrightarrow> x = 0\<close>
-  by (metis unitof_is_sepadd_unit unitof_sepadd_unit unitof_eq_zero)
+  by (metis partial_add_commute sepadd_unit_def_strong zero_disjointR zero_unitR)
 
-subsection \<open>partial canonically_ordered_monoid_add lemmas\<close>
-
-lemma zero_less_iff_neq_zero: "0 \<prec> n \<longleftrightarrow> n \<noteq> 0"
-  using bot_less by auto
-
-lemma gr_zeroI: "(n = 0 \<Longrightarrow> False) \<Longrightarrow> 0 \<prec> n"
-  using zero_less_iff_neq_zero by auto
-
-lemma not_gr_zero[simp]: "\<not> 0 \<prec> n \<longleftrightarrow> n = 0"
-  by (simp add: zero_less_iff_neq_zero)
-
-lemma gr_implies_not_zero: \<open>m \<prec> n \<Longrightarrow> n \<noteq> 0\<close>
-  using not_less_bot by auto
-
-lemma sepadd_eq_0_iff_both_eq_0[simp]: \<open>x ## y \<Longrightarrow> x + y = 0 \<longleftrightarrow> x = 0 \<and> y = 0\<close>
-  using sepadd_eq_unitof_iff_both_eq_unitof by auto
-
-lemma zero_eq_sepadd_iff_both_eq_0[simp]: \<open>x ## y \<Longrightarrow> 0 = x + y \<longleftrightarrow> x = 0 \<and> y = 0\<close>
-  using sepadd_eq_0_iff_both_eq_0 by fastforce
-
-lemmas zero_order = zero_le le_zero_eq not_less_zero zero_less_iff_neq_zero not_gr_zero
+lemma unitof_eq_zero[simp]: \<open>unitof x = 0\<close>
+  using unitof_is_sepadd_unit by auto
 
 
 paragraph \<open> Separation Logic \<close>
@@ -906,6 +902,42 @@ lemma not_coimp_emp0:
   apply (clarsimp simp add: sepcoimp_def emp_def)
   apply (rule_tac x=0 in exI, force)
   done
+
+end
+
+class sep_alg = pre_sep_alg + perm_alg
+begin
+
+sublocale order_bot \<open>0\<close> \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+  by standard
+    (metis zero_least)
+
+
+lemma gr_implies_not_zero: \<open>m \<prec> n \<Longrightarrow> n \<noteq> 0\<close>
+  using not_less_zero by auto
+
+subsection \<open>partial canonically_ordered_monoid_add lemmas\<close>
+
+lemmas le_zero = le_bot
+lemmas zero_unique = bot_unique
+lemmas zero_less = bot_less
+lemmas zero_less_iff_neq_zero = sym[OF zero_less]
+
+lemma gr_zeroI: "(n = 0 \<Longrightarrow> False) \<Longrightarrow> 0 \<prec> n"
+  using zero_less_iff_neq_zero by auto
+
+lemma not_gr_zero[simp]: "\<not> 0 \<prec> n \<longleftrightarrow> n = 0"
+  by (simp add: zero_less_iff_neq_zero)
+
+lemma sepadd_eq_0_iff_both_eq_0[simp]:
+  \<open>x ## y \<Longrightarrow> x + y = 0 \<longleftrightarrow> x = 0 \<and> y = 0\<close>
+  by (metis less_sepadd_def zero_less_iff_neq_zero zero_unit)
+
+lemma zero_eq_sepadd_iff_both_eq_0[simp]:
+  \<open>x ## y \<Longrightarrow> 0 = x + y \<longleftrightarrow> x = 0 \<and> y = 0\<close>
+  using sepadd_eq_0_iff_both_eq_0 by fastforce
+
+lemmas zero_order = zero_le le_zero_eq not_less_zero zero_less_iff_neq_zero not_gr_zero
 
 end
 
@@ -948,7 +980,7 @@ end
 
 section \<open> Compatibility \<close>
 
-context perm_alg
+context pre_perm_alg
 begin
 
 definition compatible :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> where
@@ -995,11 +1027,13 @@ lemma ge_is_compatible[intro]:
 
 lemma trans_le_le_is_compatible[intro]:
   \<open>a \<preceq> b \<Longrightarrow> b \<preceq> c \<Longrightarrow> compatible a c\<close>
-  using le_is_compatible by force
+  using le_is_compatible
+  by (meson compatible_trans)
 
 lemma trans_ge_ge_is_compatible[intro]:
   \<open>b \<preceq> a \<Longrightarrow> c \<preceq> b \<Longrightarrow> compatible a c\<close>
-  using ge_is_compatible by force
+  using ge_is_compatible
+  by (meson compatible_trans)
 
 lemma trans_ge_le_is_compatible[intro]:
   \<open>b \<preceq> a \<Longrightarrow> b \<preceq> c \<Longrightarrow> compatible a c\<close>
@@ -1018,20 +1052,6 @@ lemma disjoint_rtrancl_implies_compatible:
   apply (metis compatible_trans partial_le_plus partial_le_plus2 trans_le_ge_is_compatible)
   done
 
-lemma compatible_eq_strict_compatible:
-  \<open>(compatible :: 'a \<Rightarrow> 'a \<Rightarrow> bool) = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
-proof -
-  have \<open>compatible = ((=) \<squnion> (\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
-    unfolding compatible_def
-    apply (rule arg_cong[of _ _ rtranclp])
-    apply (simp add: less_sepadd_def less_eq_sepadd_def fun_eq_iff)
-    apply (metis positivity)
-    done
-  also have \<open>... = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
-    by (metis inf_sup_aci(5) rtranclp_reflclp rtranclp_sup_rtranclp)
-  finally show ?thesis .
-qed
-
 lemma implies_compatible_then_rtranscl_implies_compatible:
   \<open>\<forall>x y. r x y \<longrightarrow> compatible x y \<Longrightarrow> r\<^sup>*\<^sup>* x y \<Longrightarrow> compatible x y\<close>
   using implies_rel_then_rtranscl_implies_rel[of r _ _ compatible]
@@ -1043,16 +1063,15 @@ lemma implies_compatible_then_rtranscl_implies_compatible2:
   using implies_compatible_then_rtranscl_implies_compatible
   by (simp add: le_fun_def)
 
-
 subsection \<open> Relation to units \<close>
 
 lemma step_compatible_units_identical:
   \<open>compatible b z \<Longrightarrow> a \<preceq> b \<or> b \<preceq> a \<Longrightarrow> sepadd_unit a \<Longrightarrow> sepadd_unit z \<Longrightarrow> a = z\<close>
   apply (induct rule: converse_compatible_induct)
-   apply (force simp add: le_unit_iff_eq)
+   apply (metis disjoint_preservation2 disjoint_units_identical sepadd_unit_selfsep)
   apply (simp add: le_unit_iff_eq)
-  apply (metis disjoint_preservation2 le_unit_iff_eq less_eq_sepadd_def sepadd_unit_left
-      resource_preordering.trans)
+  apply (metis disjoint_preservation2 less_eq_sepadd_def sepadd_punit_of_unit_res_mono'
+      sepadd_unit_def_strong)
   done
 
 lemma compatible_units_identical:
@@ -1089,17 +1108,36 @@ lemma compatible_to_unit_is_unit_right:
 
 end
 
-context multiunit_sep_alg
+context perm_alg
+begin
+
+lemma compatible_eq_strict_compatible:
+  \<open>(compatible :: 'a \<Rightarrow> 'a \<Rightarrow> bool) = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
+proof -
+  have \<open>compatible = ((=) \<squnion> (\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
+    unfolding compatible_def
+    apply (rule arg_cong[of _ _ rtranclp])
+    apply (simp add: less_sepadd_def less_eq_sepadd_def fun_eq_iff)
+    apply (metis positivity)
+    done
+  also have \<open>... = ((\<prec>) \<squnion> (\<succ>))\<^sup>*\<^sup>*\<close>
+    by (metis inf_sup_aci(5) rtranclp_reflclp rtranclp_sup_rtranclp)
+  finally show ?thesis .
+qed
+
+end
+
+context pre_multiunit_sep_alg
 begin
 
 lemma same_unit_compatible:
   \<open>unitof a = unitof b \<Longrightarrow> compatible a b\<close>
-  by (metis trans_ge_le_is_compatible unitof_le)
+  by (metis unitof_le trans_ge_le_is_compatible)
 
 lemma compatible_then_same_unit:
   \<open>compatible a b \<Longrightarrow> unitof a = unitof b\<close>
-  by (metis compatible_trans compatible_unit_disjoint2 disjoint_same_unit unitof_idem
-      unitof_is_sepadd_unit same_unit_compatible)
+  by (meson compatible_trans compatible_unit_disjoint2 ge_is_compatible common_disjoint_same_unit
+      unitof_is_sepadd_unit unitof_le)
 
 end
 
@@ -1107,7 +1145,7 @@ end
 subsection \<open> All-compatible Resource Algebras \<close>
 
 (* almost a sep_alg, in that if there was a unit, it would be a sep-algebra *)
-class allcompatible_perm_alg = perm_alg +
+class allcompatible_perm_alg = pre_perm_alg +
   assumes all_compatible: \<open>compatible a b\<close>
 begin
 
@@ -1117,8 +1155,8 @@ lemma all_units_eq:
 
 end
 
-(* allcompatible multiunit sep algebras collapse *)
-class allcompatible_multiunit_sep_alg = allcompatible_perm_alg + multiunit_sep_alg
+(* allcompatible multiunit sep algebra collapses to a sep algebra *)
+class allcompatible_sep_alg = allcompatible_perm_alg + multiunit_sep_alg
 begin
 
 lemma exactly_one_unit: \<open>\<exists>!u. sepadd_unit u\<close>
@@ -1131,7 +1169,7 @@ lemma the_unit_is_a_unit:
   unfolding the_unit_def
   by (rule theI', simp add: exactly_one_unit)
 
-sublocale is_sep_alg: sep_alg the_unit \<open>(+)\<close> \<open>(##)\<close> \<open>(\<lambda>_. the_unit)\<close>
+sublocale is_sep_alg: sep_alg \<open>(+)\<close> \<open>(##)\<close> the_unit \<open>(\<lambda>_. the_unit)\<close>
   apply standard
     apply (metis exactly_one_unit unitof_disjoint unitof_is_sepadd_unit the_unit_is_a_unit)
    apply (metis exactly_one_unit unitof_disjoint2 unitof_is_unit2 unitof_is_sepadd_unit
@@ -1148,6 +1186,7 @@ begin
 subclass allcompatible_perm_alg
   by standard
     (simp add: same_unit_compatible)
+thm same_unit_compatible
 
 end
 

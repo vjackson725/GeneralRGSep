@@ -28,7 +28,7 @@ fun head_atoms :: \<open>'a comm \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow
 | \<open>head_atoms (\<mu> c) = head_atoms c\<close>
 | \<open>head_atoms (FixVar x) = \<bottom>\<close>
 
-inductive opstep :: \<open>act \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) comm \<Rightarrow> (('l \<times> 's) \<times> ('l \<times> 's) comm) \<Rightarrow> bool\<close> where
+inductive opstep :: \<open>act \<Rightarrow> 's \<times> 's comm \<Rightarrow> 's \<times> 's comm \<Rightarrow> bool\<close> where
   seq_left[intro!]: \<open>opstep a (h, c1) (h', c1') \<Longrightarrow> opstep a (h, c1 ;; c2) (h', c1' ;; c2)\<close>
 | seq_right[intro!]: \<open>opstep Tau (h, Skip ;; c2) (h, c2)\<close>
 | indet_left[intro]:  \<open>opstep a (h, c1) s' \<Longrightarrow> opstep a (h, c1 \<^bold>+ c2) s'\<close>
@@ -223,24 +223,25 @@ inductive safe
     \<comment> \<open> rely steps are safe \<close>
     (\<And>hs'. r hs hs' \<Longrightarrow> safe n c hl hs' r g q F) \<Longrightarrow>
     \<comment> \<open> non-\<tau> opsteps establish the guarantee \<close>
-    (\<And>a c' hlx hx'.
+    (\<And>a c' hlx hlx' hs'.
         hl \<preceq> hlx \<Longrightarrow>
-        ((hlx, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
+        ((hlx, hs), c) \<midarrow>a\<rightarrow> ((hlx', hs'), c') \<Longrightarrow>
         a \<noteq> Tau \<Longrightarrow>
-        g hs (snd hx')) \<Longrightarrow>
+        g hs hs') \<Longrightarrow>
     \<comment> \<open> opsteps are safe \<close>
-    (\<And>a c' hx'.
-        ((hl, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
-        safe n c' (fst hx') (snd hx') r g q F) \<Longrightarrow>
+    (\<And>a c' hl' hs'.
+        ((hl,hs), c) \<midarrow>a\<rightarrow> ((hl',hs'), c') \<Longrightarrow>
+        safe n c' hl' hs' r g q F) \<Longrightarrow>
     \<comment> \<open> opsteps are frame closed \<close>
-    (\<And>a c' hlf hx'.
-        ((hl + hlf, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
+    (\<And>a c' hlf hlhlf' hs'.
         hl ## hlf \<Longrightarrow>
+        ((hl + hlf, hs), c) \<midarrow>a\<rightarrow> ((hlhlf', hs'), c') \<Longrightarrow>
         F hlf \<Longrightarrow>
         (\<exists>hl'.
-          hl' ## hlf \<and> fst hx' = hl' + hlf \<and>
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
           (a = Tau \<longrightarrow> hl' = hl) \<and>
-          safe n c' hl' (snd hx') r g q F)) \<Longrightarrow>
+          safe n c' hl' hs' r g q F)) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
     safe (Suc n) c hl hs r g q F\<close>
 
@@ -257,22 +258,23 @@ lemma safe_suc_iff:
   \<open>safe (Suc n) c hl hs r g q F \<longleftrightarrow>
     (c = Skip \<longrightarrow> q (hl, hs)) \<and>
     (\<forall>hs'. r hs hs' \<longrightarrow> safe n c hl hs' r g q F) \<and>
-    (\<forall>a c' hlx hx'.
+    (\<forall>a c' hlx hlx' hs'.
         hl \<preceq> hlx \<longrightarrow>
-        ((hlx, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<longrightarrow>
+        ((hlx,hs), c) \<midarrow>a\<rightarrow> ((hlx',hs'), c') \<longrightarrow>
         a \<noteq> Tau \<longrightarrow>
-        g hs (snd hx')) \<and>
-    (\<forall>a c' hx'.
-        ((hl, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<longrightarrow>
-        safe n c' (fst hx') (snd hx') r g q F) \<and>
-    (\<forall>a c' hlf hx'.
-        ((hl + hlf, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<longrightarrow>
+        g hs hs') \<and>
+    (\<forall>a c' hl' hs'.
+        ((hl,hs), c) \<midarrow>a\<rightarrow> ((hl',hs'), c') \<longrightarrow>
+        safe n c' hl' hs' r g q F) \<and>
+    (\<forall>a c' hlf hlhlf' hs'.
         hl ## hlf \<longrightarrow>
+        ((hl + hlf,hs), c) \<midarrow>a\<rightarrow> ((hlhlf',hs'), c') \<longrightarrow>
         F hlf \<longrightarrow>
         (\<exists>hl'.
-          hl' ## hlf \<and> fst hx' = hl' + hlf \<and>
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
           (a = Tau \<longrightarrow> hl' = hl) \<and>
-          safe n c' hl' (snd hx') r g q F))\<close>
+          safe n c' hl' hs' r g q F))\<close>
   apply (rule iffI)
    apply (erule safe_sucE, force)
   apply (rule safe_suc; presburger)
@@ -284,18 +286,21 @@ lemma safe_sucD:
   \<open>safe (Suc n) c hl hs r g q F \<Longrightarrow>
     hl \<preceq> hlx \<Longrightarrow>
     a \<noteq> Tau \<Longrightarrow>
-    ((hlx, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
-    g hs (snd hx')\<close>
-  \<open>safe (Suc n) c hl hs r g q F \<Longrightarrow> ((hl, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
-    safe n c' (fst hx') (snd hx') r g q F\<close>
+    ((hlx,hs), c) \<midarrow>a\<rightarrow> ((hlx',hs'), c') \<Longrightarrow>
+    g hs hs'\<close>
   \<open>safe (Suc n) c hl hs r g q F \<Longrightarrow>
-      ((hl + hlf, hs), c) \<midarrow>a\<rightarrow> (hx', c') \<Longrightarrow>
+    hl ## hs \<Longrightarrow>
+    ((hl,hs), c) \<midarrow>a\<rightarrow> ((hl',hs'), c') \<Longrightarrow>
+    safe n c' hl' hs' r g q F\<close>
+  \<open>safe (Suc n) c hl hs r g q F \<Longrightarrow>
       hl ## hlf \<Longrightarrow>
+      ((hl + hlf,hs), c) \<midarrow>a\<rightarrow> ((hlhlf',hs'), c') \<Longrightarrow>
       F hlf \<Longrightarrow>
       (\<exists>hl'.
-        hl' ## hlf \<and> fst hx' = hl' + hlf \<and>
+        hl' ## hlf \<and>
+        hlhlf' = hl' + hlf \<and>
         (a = Tau \<longrightarrow> hl' = hl) \<and>
-        safe n c' hl' (snd hx') r g q F)\<close>
+        safe n c' hl' hs' r g q F)\<close>
   by (erule safe_sucE, simp; fail)+
 
 
@@ -326,8 +331,8 @@ next
         apply (simp add: safe_suc.hyps; fail)
        apply (blast intro: safe_suc.hyps)
       apply (metis predicate2D safe_suc.hyps(4))
-     apply (simp add: safe_suc.hyps(6); fail)
-    apply (fast dest: safe_suc.hyps(7))
+     apply (metis safe_suc.hyps(6))
+    apply (metis safe_suc.hyps(7))
     done
 qed
 
@@ -338,9 +343,10 @@ lemma safe_rely_antimonoD:
   apply (induct rule: safe.induct)
    apply force
   apply (rule safe_suc)
-        apply presburger
-       apply (metis predicate2D)
-    apply presburger+
+      apply presburger
+     apply (metis predicate2D)
+    apply presburger
+   apply metis
   apply metis
   done
 
@@ -354,7 +360,8 @@ lemma safe_step_monoD:
   apply (erule disjE, fast)
   apply clarsimp
   apply (rule safe_suc)
-        apply (clarsimp; metis)+
+      apply (clarsimp; metis)+
+  apply metis
   done
 
 lemma safe_step_SucD:
@@ -370,8 +377,8 @@ lemma safe_frameset_antimonoD:
       apply force
      apply force
     apply force
-   apply force
-  apply (simp add: le_fun_def, metis prod.collapse)
+   apply metis
+  apply (simp add: le_fun_def, metis)
   done
 
 
@@ -403,6 +410,7 @@ lemma safe_frame':
     hl ## hlf \<Longrightarrow>
     (sswa (r \<squnion> g) f) \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
     sswa (r \<squnion> g) f (hlf, hs) \<Longrightarrow>
+    precise f \<Longrightarrow>
     safe n c (hl + hlf) hs r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (F \<midarrow>\<^emph> F)\<close>
 proof (induct arbitrary: hlf rule: safe.induct)
   case (safe_nil c hl hs r g q F)
@@ -422,12 +430,32 @@ next
        apply (rule sswa_step, rule sup2I1, blast, blast)
       (* subgoal: opstep guarantee *)
       apply (simp add: opstep_iff del: sup_apply top_apply)
-      apply (metis act.simps(2) partial_le_part_left safe_suc.hyps(4))
+      apply (metis act.distinct(1) disjoint_add_leftL disjoint_add_leftR
+        disjoint_add_left_commute2 partial_add_right_commute partial_le_part_left safe_suc.hyps(4))
       (* subgoal: plain opstep *)
-     apply (frule safe_suc.hyps(7), blast)
+     apply (frule safe_suc.hyps(6), blast, blast)
       apply (force simp add: le_fun_def)
      apply (clarsimp simp del: sup_apply top_apply)
-     apply (erule opstep_act_cases, force)
+     apply (erule opstep_act_cases, blast)
+     apply clarsimp
+     apply (frule safe_suc.hyps(4)[rotated 2],
+        blast, metis disjoint_add_leftL,
+        metis disjoint_add_leftL partial_le_plus sepadd_right_mono)
+     apply clarsimp
+     apply (rename_tac hs'')
+     apply (frule_tac y'=hs'' in sswa_stepD, blast)
+     apply (simp add: less_eq_sepadd_def)
+     apply (erule disjE)
+
+
+     apply (rule_tac x=\<open>hl' + hlf\<close> in exI)
+     apply (rule_tac x=hs'' in exI)
+
+
+
+     apply (drule_tac x=hlf in spec, drule mp, assumption)
+     apply clarsimp
+
      apply (frule safe_suc.hyps(4)[rotated], force, force simp add: partial_le_plus)
      apply (clarsimp simp del: sup_apply top_apply)
      apply (frule sswa_stepD, force)

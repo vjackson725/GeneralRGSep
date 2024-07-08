@@ -11,7 +11,7 @@ declare zero_prod_def[simp]
 
 subsection \<open> perm_alg \<close>
 
-instantiation prod :: (perm_alg,perm_alg) perm_alg
+instantiation prod :: (pre_perm_alg,pre_perm_alg) pre_perm_alg
 begin
 
 definition disjoint_prod :: \<open>'a \<times> 'b \<Rightarrow> 'a \<times> 'b \<Rightarrow> bool\<close> where
@@ -20,23 +20,17 @@ declare disjoint_prod_def[simp]
 
 instance
   apply standard
-        apply (force simp add: partial_add_assoc)
-       apply (force dest: partial_add_commute)
-      apply (force simp add: disjoint_sym_iff)
-     apply (force dest: disjoint_add_rightL)
-    apply (force dest: disjoint_add_right_commute)
-   apply (force dest: positivity)
+      apply (force simp add: partial_add_assoc)
+     apply (force dest: partial_add_commute)
+    apply (force simp add: disjoint_sym_iff)
+   apply (force dest: disjoint_add_rightL)
+  apply (force dest: disjoint_add_right_commute)
   done
-
-lemma less_sepadd_prod_eq:
-  \<open>a \<prec> b \<longleftrightarrow> (fst a \<noteq> fst b \<or> snd a \<noteq> snd b) \<and> fst a \<lesssim> fst b \<and> snd a \<lesssim> snd b\<close>
-  apply (cases a; cases b)
-  apply clarsimp
-  apply (simp add: less_sepadd_def part_of_def)
-  oops
 
 end
 
+instance prod :: (perm_alg,perm_alg) perm_alg
+  by standard (force dest: positivity)
 
 lemma less_eq_sepadd_prod_eq:
   \<open>a \<preceq> b \<longleftrightarrow> fst a = fst b \<and> snd a = snd b \<or> fst a \<lesssim> fst b \<and> snd a \<lesssim> snd b\<close>
@@ -46,16 +40,28 @@ lemma part_of_prod_eq:
   \<open>a \<lesssim> b \<longleftrightarrow> fst a \<lesssim> fst b \<and> snd a \<lesssim> snd b\<close>
   by (cases a; cases b; force simp add: part_of_def)
 
+lemma less_sepadd_prod_eq:
+  fixes a b :: \<open>'a::pre_perm_alg \<times> 'b::pre_perm_alg\<close>
+  shows \<open>a \<prec> b \<longleftrightarrow>
+          (fst a \<noteq>  fst b \<or> snd a \<noteq> snd b) \<and>
+          fst a \<lesssim> fst b \<and>
+          snd a \<lesssim> snd b \<and>
+          (\<not> fst b \<lesssim> fst a \<or> \<not> snd b \<lesssim> snd a)\<close>
+  by (cases a; cases b; auto simp add: less_sepadd_def part_of_def)
+
+
 subsection \<open> mu_sep_alg \<close>
 
-instantiation prod :: (multiunit_sep_alg,multiunit_sep_alg) multiunit_sep_alg
+instantiation prod :: (pre_multiunit_sep_alg,pre_multiunit_sep_alg) pre_multiunit_sep_alg
 begin
 
 lemma less_sepadd_prod_eq2[simp]:
   fixes a :: \<open>'a \<times> 'b\<close>
   shows \<open>a \<prec> b \<longleftrightarrow> (fst a \<prec> fst b \<and> snd a \<preceq> snd b \<or> fst a \<preceq> fst b \<and> snd a \<prec> snd b)\<close>
-  by (cases a, cases b, clarsimp simp add: less_sepadd_def' less_eq_sepadd_def,
-      metis unitof_disjoint2 unitof_is_unitR2)
+  apply (cases a, cases b)
+  apply (clarsimp simp add: less_eq_sepadd_def less_sepadd_def' part_of_def less_sepadd_prod_eq)
+  apply (metis le_iff_sepadd less_eq_sepadd_def resource_preordering.strict_iff_not)
+  done
 
 lemma less_eq_sepadd_prod_eq2[simp]:
   fixes a :: \<open>'a \<times> 'b\<close>
@@ -325,7 +331,7 @@ end
 
 subsection \<open> perm_alg \<close>
 
-instantiation sum :: (perm_alg,perm_alg) perm_alg
+instantiation sum :: (pre_perm_alg,pre_perm_alg) pre_perm_alg
 begin
 
 definition disjoint_sum :: \<open>'a + 'b \<Rightarrow> 'a + 'b \<Rightarrow> bool\<close> where
@@ -359,21 +365,23 @@ lemma plus_sum_simps[simp]:
 
 instance
   apply standard
-       apply (simp add: disjoint_sum_def)
-       apply (elim disjE; force simp add: partial_add_assoc)
       apply (simp add: disjoint_sum_def)
-      apply (elim disjE; force dest: partial_add_commute)
+      apply (elim disjE; force simp add: partial_add_assoc)
      apply (simp add: disjoint_sum_def)
-     apply (elim disjE exE conjE; force dest: disjoint_sym)
+     apply (elim disjE; force dest: partial_add_commute)
     apply (simp add: disjoint_sum_def)
-    apply (elim disjE exE conjE; force dest: disjoint_add_rightL)
+    apply (elim disjE exE conjE; force dest: disjoint_sym)
    apply (simp add: disjoint_sum_def)
-   apply (elim disjE exE conjE; force dest: disjoint_add_right_commute)
+   apply (elim disjE exE conjE; force dest: disjoint_add_rightL)
   apply (simp add: disjoint_sum_def)
-  apply (elim disjE exE conjE; force dest: positivity)
+  apply (elim disjE exE conjE; force dest: disjoint_add_right_commute)
   done
 
 end
+
+instance sum :: (perm_alg, perm_alg) perm_alg
+  by standard
+    (force simp add: disjoint_sum_def dest: positivity)
 
 lemma part_of_sum_simps[simp]:
   \<open>\<And>x y. Inl x \<lesssim> Inl y \<longleftrightarrow> x \<lesssim> y\<close>
@@ -407,7 +415,7 @@ lemma less_sepadd_sum_simps[simp]:
   \<open>\<And>x y. Inr x \<prec> Inr y \<longleftrightarrow> x \<prec> y\<close>
   \<open>\<And>x y. Inl x \<prec> Inr y \<longleftrightarrow> False\<close>
   \<open>\<And>x y. Inr x \<prec> Inl y \<longleftrightarrow> False\<close>
-  by (simp add: le_res_less_le_not_le)+
+  by (simp add: resource_preorder.less_le_not_le)+
 
 
 subsection \<open> mu_sep_alg \<close>
@@ -516,7 +524,7 @@ instance munit :: no_unit_perm_alg
 
 section \<open> option \<close>
 
-instantiation option :: (perm_alg) perm_alg
+instantiation option :: (pre_perm_alg) pre_perm_alg
 begin
 
 definition disjoint_option :: \<open>'a option \<Rightarrow> 'a option \<Rightarrow> bool\<close> where
@@ -558,19 +566,22 @@ lemma plus_option_iff:
 
 instance
   apply standard
-       apply (simp add: disjoint_option_def plus_option_def partial_add_assoc
+      apply (simp add: disjoint_option_def plus_option_def partial_add_assoc
       split: option.splits; fail)
-      apply (simp add: disjoint_option_def plus_option_def split: option.splits,
+     apply (simp add: disjoint_option_def plus_option_def split: option.splits,
       metis partial_add_commute; fail)
-     apply (metis disjoint_option_def2 disjoint_sym)
-    apply (simp add: disjoint_option_def split: option.splits,
+    apply (metis disjoint_option_def2 disjoint_sym)
+   apply (simp add: disjoint_option_def split: option.splits,
       metis disjoint_add_rightL; fail)
-   apply (simp add: disjoint_option_def disjoint_sym_iff
+  apply (simp add: disjoint_option_def disjoint_sym_iff
       disjoint_add_right_commute split: option.splits; fail)
-  apply (simp add: disjoint_option_def positivity split: option.splits; fail)
   done
 
 end
+
+instance option :: (perm_alg) perm_alg
+  by standard
+    (simp add: disjoint_option_def positivity split: option.splits; fail)
 
 lemma less_eq_sepadd_option_simps[simp]:
   \<open>None \<preceq> a\<close>
@@ -582,9 +593,9 @@ lemma less_sepadd_option_simps[simp]:
   \<open>a \<prec> None \<longleftrightarrow> False\<close>
   \<open>None \<prec> Some x\<close>
   \<open>Some x \<prec> Some y \<longleftrightarrow> x \<prec> y\<close>
-  by (simp add: less_sepadd_def' disjoint_option_iff plus_option_iff; blast?; force)+
+  by (simp add: resource_preordering.strict_iff_not)+
 
-instantiation option :: (perm_alg) multiunit_sep_alg
+instantiation option :: (pre_perm_alg) pre_multiunit_sep_alg
 begin
 
 definition unitof_option :: \<open>'a option \<Rightarrow> 'a option\<close> where
@@ -596,7 +607,10 @@ instance
 
 end
 
-instantiation option :: (perm_alg) sep_alg 
+instance option :: (perm_alg) multiunit_sep_alg
+  by standard
+
+instantiation option :: (pre_perm_alg) pre_sep_alg 
 begin
 
 definition zero_option :: \<open>'a option\<close> where
@@ -611,6 +625,9 @@ instance
   by standard force+
 
 end
+
+instance option :: (perm_alg) sep_alg
+  by standard
 
 subsection \<open> Extended instances \<close>
 
@@ -681,7 +698,7 @@ instance option :: (all_disjoint_perm_alg) all_disjoint_perm_alg
 
 section \<open> functions \<close>
 
-instantiation "fun" :: (type, perm_alg) perm_alg
+instantiation "fun" :: (type, pre_perm_alg) pre_perm_alg
 begin
 
 definition disjoint_fun :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> bool\<close> where
@@ -700,33 +717,53 @@ lemma plus_fun_apply[simp]:
 
 instance
   apply standard
-       apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_assoc)
-      apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_commute)
-     apply (simp add: disjoint_fun_def, metis disjoint_sym)
-    apply (simp add: disjoint_fun_def plus_fun_def, metis disjoint_add_rightL)
-   apply (simp add: disjoint_fun_def plus_fun_def, metis disjoint_add_right_commute)
-  apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis positivity)
+      apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_assoc)
+     apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_commute)
+    apply (simp add: disjoint_fun_def, metis disjoint_sym)
+   apply (simp add: disjoint_fun_def plus_fun_def, metis disjoint_add_rightL)
+  apply (simp add: disjoint_fun_def plus_fun_def, metis disjoint_add_right_commute)
   done
 
+end
+
+instantiation "fun" :: (type, perm_alg) perm_alg
+begin
+
+instance
+  by standard
+    (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis positivity)
+
+lemma fun_positivity_alt:
+  fixes a c1 c2 :: \<open>'a \<Rightarrow> 'b\<close>
+  shows \<open>a ## c1 \<Longrightarrow> a + c1 ## c2 \<Longrightarrow> a + c1 + c2 = a \<Longrightarrow> a + c1 = a\<close>
+  by (simp add: plus_fun_def disjoint_fun_def fun_eq_iff, metis positivity)
+
+lemma fun_positivity:
+  fixes a b c1 c2 :: \<open>'a \<Rightarrow> 'b\<close>
+  shows \<open>a ## c1 \<Longrightarrow> a + c1 = b \<Longrightarrow> b ## c2 \<Longrightarrow> b + c2 = a \<Longrightarrow> a = b\<close>
+  by (simp add: plus_fun_def disjoint_fun_def fun_eq_iff, metis positivity)
+
 lemma less_sepadd_fun_eq:
-  fixes f g :: \<open>'a \<Rightarrow> 'b::perm_alg\<close>
+  fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
   shows \<open>f \<prec> g \<longleftrightarrow> (\<exists>x. f x \<noteq> g x) \<and> (\<forall>x. f x \<lesssim> g x)\<close>
   by (simp add: part_of_def less_sepadd_def' fun_eq_iff disjoint_fun_def,
       metis)
 
 lemma less_eq_sepadd_fun_eq:
-  fixes f g :: \<open>'a \<Rightarrow> 'b::perm_alg\<close>
+  fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
   shows \<open>f \<preceq> g \<longleftrightarrow> (\<forall>x. f x = g x) \<or> (\<forall>x. f x \<lesssim> g x)\<close>
   by (simp add: part_of_def less_eq_sepadd_def disjoint_fun_def fun_eq_iff,
       metis)
 
 end
 
+
+
 lemma fun_all_unit_elems_then_unit:
   \<open>\<forall>x. sepadd_unit (f x) \<Longrightarrow> sepadd_unit f\<close>
   by (simp add: disjoint_fun_def plus_fun_def sepadd_unit_def_strong)
 
-instantiation "fun" :: (type, multiunit_sep_alg) multiunit_sep_alg
+instantiation "fun" :: (type, pre_multiunit_sep_alg) pre_multiunit_sep_alg
 begin
  
 definition unitof_fun :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b)\<close> where
@@ -736,6 +773,13 @@ declare unitof_fun_def[simp]
 instance
   by standard
     (simp add: disjoint_fun_def plus_fun_def le_fun_def fun_eq_iff le_iff_sepadd; metis)+
+
+end
+
+instantiation "fun" :: (type, multiunit_sep_alg) multiunit_sep_alg
+begin
+
+instance by standard
 
 lemma less_sepadd_fun_eq2:
   fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
@@ -749,8 +793,7 @@ lemma less_eq_sepadd_fun_eq2:
 
 end
 
-
-instantiation "fun" :: (type, sep_alg) sep_alg
+instantiation "fun" :: (type, pre_sep_alg) pre_sep_alg
 begin
 
 definition zero_fun :: \<open>('a \<Rightarrow> 'b)\<close> where
@@ -766,6 +809,10 @@ instance
     (fastforce simp add: fun_eq_iff less_eq_sepadd_fun_eq2)+
 
 end
+
+instance "fun" :: (type, sep_alg) sep_alg
+  by standard
+
 
 subsection \<open> Extended instances \<close>
 
