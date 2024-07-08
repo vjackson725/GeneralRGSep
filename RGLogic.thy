@@ -222,10 +222,21 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
+definition flatten_rel
+  :: \<open>('a::pre_perm_alg \<times> 'a \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)\<close>
+  where
+  \<open>flatten_rel r \<equiv> \<lambda>s s'. (\<exists>a b a' b'.
+    a ## b \<and> s = a' + b' \<and> a' ## b' \<and> s' = a' + b' \<and> r (a,b) (a',b'))\<close>
+
+definition flatten_pred
+  :: \<open>('a::pre_perm_alg \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close>
+  where
+  \<open>flatten_pred p \<equiv> \<lambda>s. \<exists>s1 s2. s1 ## s2 \<and> p (s1, s2)\<close>
+
 inductive rgsat ::
-  \<open>('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
+  \<open>('s::perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow> ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('s \<times> 's \<Rightarrow> bool) \<Rightarrow> ('s \<times> 's \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
@@ -260,9 +271,9 @@ inductive rgsat ::
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    sp b (wssa r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f. sp b (wssa r (p \<^emph>\<and> f)) \<le> sswa r (q \<^emph>\<and> f) \<Longrightarrow>
-    b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    sp b (flatten_pred (wssa r p)) \<le> flatten_pred (sswa r q) \<Longrightarrow>
+    \<forall>f. sp b (flatten_pred (wssa r (p \<^emph>\<and> f))) \<le> flatten_pred (sswa r (q \<^emph>\<and> f)) \<Longrightarrow>
+    b \<le> flatten_rel (\<top> \<times>\<^sub>R g) \<Longrightarrow>
     rgsat (Atomic b) r g p' q'\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q \<Longrightarrow>
@@ -279,7 +290,7 @@ inductive rgsat ::
 | rgsat_conj:
   \<open>rgsat c r g p1 q1 \<Longrightarrow>
     rgsat c r g p2 q2 \<Longrightarrow>
-    \<forall>a b c::'l. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    \<forall>a b c::'s. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     rgsat c r g (p1 \<sqinter> p2) (q1 \<sqinter> q2)\<close>
 
 abbreviation rgsat_pretty
