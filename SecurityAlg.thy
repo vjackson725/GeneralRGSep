@@ -230,18 +230,6 @@ lemma
   by (clarsimp simp add: symp_def sepconj_def)
 
 
-subsection \<open> small triple proof \<close>
-
-lemma
-  \<open>(=), (=) \<turnstile> { \<L> ((p \<triangleleft> l) l') } Guard (\<L> (\<T> p)) { \<L> (\<T> p) }\<close>
-  unfolding Guard_def
-  apply (rule rgsat_atom)
-      apply (force simp add: sp_def)
-     apply (force simp add: sp_def)
-    apply (clarsimp simp add: sp_def)
-  oops
-
-
 section \<open> Domain orders \<close>
 
 paragraph \<open> leq \<close>
@@ -552,13 +540,13 @@ lemma
   using refl_cl sym_cl by blast
 
 definition level_eval_H
-  :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> ('a \<Rightarrow> 'l::order) \<Rightarrow> ('l \<Rightarrow> 'a set set)\<close> (\<open>_ \<Colon>\<^sub>H _\<close> [55,55] 55)
+  :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> ('a \<Rightarrow> 'l::order) \<Rightarrow> ('l \<Rightarrow> 'a set \<Rightarrow> bool)\<close> (\<open>_ \<Colon>\<^sub>H _\<close> [55,55] 55)
   where
-  \<open>e \<Colon>\<^sub>H l' \<equiv> \<lambda>l. {A. \<exists>s. A = {s'. l' s \<le> l \<longrightarrow> l' s' \<le> l \<longrightarrow> e s = e s'}}\<close>
+  \<open>e \<Colon>\<^sub>H l' \<equiv> \<lambda>l U. \<exists>s. U = {s'. l' s \<le> l \<longrightarrow> l' s' \<le> l \<longrightarrow> e s = e s'}\<close>
 
 definition \<open>uncertainty p s \<equiv> {s'. p (s,s')}\<close>
 
-definition \<open>urel_to_hypemset p \<equiv> range (uncertainty p)\<close>
+definition \<open>urel_to_hypemset p \<equiv> \<lambda>y. \<exists>x. y = uncertainty p x\<close>
 
 lemma hypemset_level_eval_eq:
   \<open>{uncertainty ((e \<triangleleft> l') l) s|s. True} =
@@ -575,8 +563,8 @@ lemma equiv_class_image_eq:
     (Set.filter ((\<noteq>) {} \<circ> (\<inter>) A) (equiv_classes_by e))\<close>
   by (force simp add: image_def Set.filter_def)
 
-definition revealH :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> ('s set \<Rightarrow> 's set set)\<close> (\<open>reveal\<^sub>H\<close>) where
-  \<open>reveal\<^sub>H f \<equiv> \<lambda>U. (\<lambda>v. Set.filter ((=) v \<circ> f) U) ` UNIV\<close>
+definition revealH :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> ('s set \<Rightarrow> 's set \<Rightarrow> bool)\<close> (\<open>reveal\<^sub>H\<close>) where
+  \<open>reveal\<^sub>H f \<equiv> \<lambda>U U'. \<exists>v. U' = Set.filter ((=) v \<circ> f) U\<close>
 
 definition \<open>equiv_class_rel f \<equiv> \<lambda>(x,y). f x = f y\<close>
 
@@ -627,6 +615,80 @@ lemma
   done
 
 lemma
+  fixes A B :: \<open>('a::sep_alg) set\<close>
+  shows \<open>\<forall>a\<in>A. \<exists>b\<in>B. a ## b \<Longrightarrow>
+          \<forall>b\<in>B. \<exists>a\<in>A. a ## b \<Longrightarrow>
+          R = {(a,b,a+b)|a b::'a. a ## b \<and> \<not> sepadd_unit a \<and> \<not> sepadd_unit b} \<Longrightarrow>
+          U = {a::'a. sepadd_unit a} \<Longrightarrow>
+          L = {(a::'a,b). \<not> sepadd_unit a \<and> a \<prec> b} \<Longrightarrow>
+          \<forall>a::'a. a ## a \<longrightarrow> sepadd_unit a \<Longrightarrow>
+          \<forall>a\<in>A. \<exists>ab\<in>AB. (\<exists>b\<in>B. a ## b \<and> ab = a + b) \<Longrightarrow>
+          \<forall>b\<in>B. \<exists>ab\<in>AB. (\<exists>a\<in>A. a ## b \<and> ab = a + b) \<Longrightarrow>
+          \<forall>b\<in>B. \<forall>a\<in>A. \<not> b \<preceq> a \<Longrightarrow>
+          \<forall>ab\<in>AB. \<exists>!x. fst x ## snd x \<and> ab = fst x + snd x \<and> fst x \<in> A \<and> snd x \<in> B \<Longrightarrow>
+          \<exists>C. C + B = AB\<close>
+  nitpick[card 'a=5]
+  oops
+
+lemma
+  fixes A :: \<open>('a::pre_perm_alg) set\<close>
+  shows
+    \<open>B \<preceq> A \<Longrightarrow> C \<preceq> A \<Longrightarrow>
+      P B \<Longrightarrow> P C \<Longrightarrow>
+      precise P \<Longrightarrow>
+      B = C\<close>
+  apply (simp add: precise_def)
+  oops
+
+lemma
+  fixes AB :: \<open>(('a::cancel_sep_alg) \<times> 'a) set\<close>
+  assumes
+    \<open>\<forall>a b. (a,b) \<in> AB \<longrightarrow> a ## b\<close>
+    \<open>\<forall>x y. x \<in> fst ` AB \<longrightarrow> y \<in> snd ` AB \<longrightarrow> x ## y \<longrightarrow>
+      (\<forall>x' y'. x' \<in> fst ` AB \<longrightarrow> y' \<in> snd ` AB \<longrightarrow> x' ## y' \<longrightarrow>
+            x+y = x'+y \<longrightarrow> x = x' \<and> y = y')\<close>
+    \<open>L = {(a::'a,b). a \<prec> b \<and> (\<nexists>x. a \<prec> x \<and> x \<prec> b)}\<close>
+    \<open>R = {(a::'a,b,a+b)|a b. a ## b \<and> \<not> sepadd_unit a \<and> \<not> sepadd_unit b}\<close>
+    \<open>U = {a::'a. sepadd_unit a}\<close>
+  shows
+    \<open>{a + b|a b. (a, b) \<in> AB \<and> a ## b} = fst ` AB + snd ` AB\<close>
+  using assms
+  apply (clarsimp simp add: set_eq_iff image_def plus_set_def Bex_def)
+  apply metis
+  done
+
+lemma
+  fixes A :: \<open>('a::cancel_sep_alg) set\<close>
+  assumes
+    \<open>L = {(a::'a,b). a \<prec> b \<and> (\<nexists>x. a \<prec> x \<and> x \<prec> b)}\<close>
+    \<open>R = {(a::'a,b,a+b)|a b. a ## b \<and> \<not> sepadd_unit a \<and> \<not> sepadd_unit b}\<close>
+    \<open>U = {a::'a. sepadd_unit a}\<close>
+    and
+    \<open>\<forall>a\<in>A. \<exists>y. y \<preceq> a \<and> y\<in>S\<close>
+    \<open>X = {x. \<exists>y. x##y \<and> x+y\<in>A \<and> y\<in>S}\<close>
+    \<open>Y = {y. \<exists>x. x##y \<and> x+y\<in>A \<and> y\<in>S}\<close>
+    and irredundant: \<open>\<forall>y\<in>S. \<exists>x. x##y \<and> x+y \<in> A\<close>
+  shows
+    \<open>\<exists>X'\<subseteq>X. A = X' + Y\<close>
+  using assms
+  apply (clarsimp simp add: set_eq_iff image_def plus_set_def Bex_def)
+  nitpick
+  done
+
+
+
+section \<open> Triple proofs \<close>
+
+lemma
+  \<open>(=), (=) \<turnstile> { \<L> ((p \<triangleleft> l) l') } Guard (\<L> (\<T> p)) { \<L> (\<T> p) }\<close>
+  unfolding Guard_def
+  apply (rule rgsat_atom)
+      apply (force simp add: sp_def)
+     apply (force simp add: sp_def)
+    apply (clarsimp simp add: sp_def)
+  oops
+
+lemma
   fixes x :: \<open>'a\<close>
     and v :: \<open>'b :: perm_alg\<close>
   shows
@@ -639,8 +701,6 @@ definition sec_points_toH
   (infix \<open>\<^bold>\<mapsto>\<^sub>H\<close> 90)
   where
   \<open>p \<^bold>\<mapsto>\<^sub>H v \<equiv> \<lambda>u. \<exists>s\<in>u. {{h. (p \<^bold>\<mapsto> v) h}}\<close>
-
-
 
 
 end

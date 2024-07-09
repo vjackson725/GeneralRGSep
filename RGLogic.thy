@@ -234,7 +234,7 @@ definition flatten_pred
   \<open>flatten_pred p \<equiv> \<lambda>s. \<exists>s1 s2. s1 ## s2 \<and> p (s1, s2)\<close>
 
 inductive rgsat ::
-  \<open>('s::perm_alg \<times> 's) comm \<Rightarrow>
+  \<open>('s::perm_alg) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<times> 's \<Rightarrow> bool) \<Rightarrow> ('s \<times> 's \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
