@@ -1073,33 +1073,6 @@ lemma (in perm_alg)
   nitpick
   oops
 
-lemma (in cancel_perm_alg) cancel_lessL:
-  \<open>a ## b \<Longrightarrow> a ## c \<Longrightarrow> a + b \<prec> a + c \<Longrightarrow> b \<prec> c\<close>
-  apply (clarsimp simp add: less_sepadd_def')
-  apply (metis disjoint_add_leftR partial_add_assoc_rev partial_left_cancel2D)
-  done
-
-
-lemma helper00:
-  fixes A :: \<open>('a::cancel_perm_alg) set\<close>
-  shows
-  \<open>\<forall>x\<in>A. min_of A x \<Longrightarrow>
-   a \<in> A \<Longrightarrow>
-   a ## x \<Longrightarrow>
-   \<exists>b. b \<in> A \<and> x ## b \<and> (\<forall>b'. b' \<in> A \<longrightarrow> x ## b' \<longrightarrow> \<not> x + b' \<prec> x + b)\<close>
-  by (meson cancel_lessL disjoint_sym)
-
-lemma helper0:
-  fixes A :: \<open>('a::cancel_perm_alg) set\<close>
-  assumes
-    \<open>\<forall>x\<in>A. min_of A x\<close>
-    (* \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x)\<close> *)
-    \<open>a \<in> A\<close>
-    \<open>a ## x\<close>
-  shows \<open>\<exists>z. z \<in> {x} + A \<and> min_of ({x} + A) z\<close>
-  using assms
-  by (clarsimp simp add: plus_set_def)
-    (metis cancel_lessL disjoint_sym)
 
 lemma disj_imp_rev:
   \<open>P \<or> Q \<longleftrightarrow> \<not> Q \<longrightarrow> P\<close>
@@ -1163,19 +1136,170 @@ lemma minset_Un:
   shows \<open>\<exists>y\<in>\<Union>\<AA>. y \<preceq> x \<and> min_of (\<Union>\<AA>) y\<close>
   oops (* counterexample above *)
 
+lemma (in cancel_perm_alg) cancel_lessL:
+  \<open>a ## b \<Longrightarrow> a ## c \<Longrightarrow> a + b \<prec> a + c \<Longrightarrow> b \<prec> c\<close>
+  by (clarsimp simp add: less_sepadd_def')
+    (metis disjoint_add_leftR disjoint_add_swap_lr partial_add_assoc2 partial_left_cancel2)
 
+lemma (in cancel_perm_alg) cancel_lessR:
+  \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> a + c \<prec> b + c \<Longrightarrow> a \<prec> b\<close>
+  by (clarsimp simp add: less_sepadd_def')
+    (metis disjoint_add_leftL disjoint_add_left_commute2 partial_right_cancelD sepadd_right_addmono)
+
+lemma singleton_plus_preserves_has_min:
+  fixes A :: \<open>('a::cancel_perm_alg) set\<close>
+  assumes
+    \<open>\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x\<close>
+    \<open>\<exists>a\<in>A. x ## a\<close>
+  shows \<open>\<exists>z. z \<in> {x} + A \<and> min_of ({x} + A) z\<close>
+proof -
+  obtain m a where
+    \<open>a \<in> A\<close> \<open>x ## a\<close>
+    \<open>m \<in> A\<close> \<open>m \<preceq> a\<close> \<open>min_of A m\<close>
+    using assms(1,2)
+    by blast
+
+  have \<open>m + x \<in> {x} + A\<close>
+  proof -
+    have \<open>m ## x\<close>
+      using \<open>m \<preceq> a\<close> \<open>x ## a\<close>
+      by (meson disjoint_preservation2 disjoint_sym)
+    then show ?thesis
+      using \<open>m \<in> A\<close>
+      by (simp add: plus_set_def, metis disjoint_sym partial_add_commute)
+  qed
+  moreover have \<open>min_of ({x} + A) (m + x)\<close>
+    using \<open>x ## a\<close> \<open>m \<preceq> a\<close> \<open>min_of A m\<close>
+    by (simp add: plus_set_def)
+      (metis cancel_lessL disjoint_preservation2 partial_add_commute)
+  ultimately show ?thesis by blast
+qed
+
+lemma resource_order_mono_nless:
+  fixes a :: \<open>'a::cancel_perm_alg\<close>
+  shows
+  \<open>R = {(a,b,a+b)|a b::'a. a##b} \<Longrightarrow>
+    L = {(a,b)|a b::'a. a \<prec> b} \<Longrightarrow>
+    \<not> x \<prec> a \<Longrightarrow> \<not> y \<prec> b \<Longrightarrow> x ## y \<Longrightarrow> a ## b \<Longrightarrow> \<not> x+y \<prec> a+b\<close>
+  nitpick
+  sorry
+
+
+lemma
+  fixes A B :: \<open>('a::cancel_perm_alg) set\<close>
+  assumes
+    \<open>\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x\<close>
+    \<open>\<And>a. a \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> a \<and> min_of B x\<close>
+  shows
+    \<open>\<exists>m\<in>A + B. min_of (A + B) m\<close>
+proof -
+  { fix m
+    assume assms2:
+      \<open>m \<in> A + B\<close>
+      \<open>min_of (A + B) m\<close>
+    then obtain ma mb
+      where split_m:
+        \<open>ma \<in> A\<close> \<open>mb \<in> B\<close>
+        \<open>ma ## mb\<close> \<open>m = ma + mb\<close>
+        \<open>min_of A ma\<close>
+        \<open>min_of B mb\<close>
+      apply (clarsimp simp add: plus_set_def imp_conjL all_simps(5)[symmetric] Ball_def[symmetric])
+      apply (frule assms(1))
+      apply (frule assms(2))
+      apply clarsimp
+      apply (rename_tac ma mb)
+      apply (drule bspec, assumption, drule bspec, assumption, drule mp,
+          rule disjoint_preservation, assumption, rule disjoint_preservation2, assumption, assumption)
+      apply (simp add: disjoint_preservation disjoint_preservation2 resource_order.nless_le
+          resource_order_parts_leq_then_add_leq)
+      done
+    then have \<open>\<exists>ma\<in>A. \<exists>mb\<in>B. ma ## mb \<and> m = ma + mb \<and> min_of A ma \<and> min_of B mb\<close>
+      by blast
+  } note helper = this
+
+  have \<open>\<forall>a\<in>A. (\<exists>b\<in>B. a ## b) \<longrightarrow> (\<exists>m. m \<in> {a} + B \<and> min_of ({a} + B) m)\<close>
+    using assms(2)
+    by (simp add: singleton_plus_preserves_has_min)
+
+  define MA where \<open>MA = {m\<in>A. min_of A m}\<close>
+  define MB where \<open>MB = {m\<in>B. min_of B m}\<close>
+
+  {
+    fix a b
+    assume
+      \<open>a \<in> A\<close>
+      \<open>min_of A a\<close>
+      \<open>b \<in> B\<close>
+      \<open>min_of B b\<close>
+      \<open>a ## b\<close>
+
+    have
+      \<open>\<forall>a'\<in>A. a' ## b \<longrightarrow> \<not> a' + b \<prec> a + b\<close>
+      using \<open>a ## b\<close> \<open>min_of A a\<close>
+      by (metis cancel_lessR)
+    moreover have
+      \<open>\<forall>a'\<in>A. \<forall>b'\<in>B. a' ## b' \<longrightarrow> a' ## b \<longrightarrow> \<not> a' + b' \<prec> a' + b\<close>
+      using \<open>a ## b\<close> \<open>min_of B b\<close>
+      by (metis cancel_lessL)
+    ultimately have
+      \<open>\<forall>x\<in>A. \<forall>y\<in>B. x ## y \<longrightarrow> \<not> x + y \<prec> a + b\<close>
+      sorry
+  } note helper2 = this
+
+  have
+    \<open>\<exists>a\<in>MA. \<exists>b\<in>MB. a ## b \<and> (\<forall>x\<in>A. \<forall>y\<in>B. x ## y \<longrightarrow> x + y \<prec> a + b \<longrightarrow> False)\<close>
+    apply (clarsimp simp add: MA_def MB_def)
+    sorry
+  then have
+    \<open>\<exists>a\<in>A. \<exists>b\<in>B. a ## b \<and> (\<forall>x\<in>A. \<forall>y\<in>B. x ## y \<longrightarrow> x + y \<prec> a + b \<longrightarrow> False)\<close>
+    by (clarsimp simp add: MA_def MB_def, blast)
+  then show ?thesis
+    by (clarsimp simp add: plus_set_def, blast)
+qed
+
+
+lemma plus_preserves_has_min:
+  fixes A B :: \<open>('a::cancel_perm_alg) set\<close>
+  assumes
+    \<open>\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x\<close>
+    \<open>\<And>a. a \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> a \<and> min_of B x\<close>
+    \<open>a \<in> A\<close>
+    \<open>b \<in> B\<close>
+    \<open>a ## b\<close>
+  shows \<open>\<exists>z. z \<in> A + B \<and> min_of (A + B) z\<close>
+proof -
+
+  have \<open>\<forall>a\<in>A. \<forall>b\<in>B. a ## b \<longrightarrow> (\<exists>z. z \<in> {a} + B \<and> min_of ({a} + B) z)\<close>
+    using assms(2)
+    by (force simp add: singleton_plus_preserves_has_min)
+  then obtain f where \<open>\<forall>a\<in>A. \<forall>b\<in>B. a ## b \<longrightarrow> f a b \<in> {a} + B \<and> min_of ({a} + B) (f a b)\<close>
+    by (simp only: bchoice_iff bchoice_iff', fast)
+
+  obtain z x where
+    \<open>x \<in> A\<close>
+    \<open>z \<in> {x} + B\<close>
+    \<open>\<forall>y\<in>A. min_of ({y} + B) z\<close>
+    sorry
+  then show ?thesis
+    by (metis plus_set_eq_plus_left_members)
+qed
 
 lemma thegoal:
   fixes A B :: \<open>('a::cancel_perm_alg) set\<close>
-  shows
-    \<open>(\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x) \<Longrightarrow>
-      (\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x) \<Longrightarrow>
-      a \<in> A \<Longrightarrow>
-      b \<in> B \<Longrightarrow>
-      a ## b \<Longrightarrow>
-      \<exists>x. (\<exists>a b. x = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<and>
+  assumes
+    \<open>\<And>a. a \<in> A \<Longrightarrow> \<exists>x\<in>A. x \<preceq> a \<and> min_of A x\<close>
+    \<open>\<And>b. b \<in> B \<Longrightarrow> \<exists>x\<in>B. x \<preceq> b \<and> min_of B x\<close>
+    \<open>a \<in> A\<close>
+    \<open>b \<in> B\<close>
+    \<open>a ## b\<close>
+  shows \<open>\<exists>x. (\<exists>a b. x = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<and>
              x \<preceq> a + b \<and> (\<forall>z. (\<exists>a b. z = a + b \<and> a \<in> A \<and> b \<in> B \<and> a ## b) \<longrightarrow> \<not> z \<prec> x)\<close>
-  oops
+proof -
+  have \<open>\<And>x. x \<in> A \<Longrightarrow> x \<preceq> a \<Longrightarrow> \<exists>z. z \<in> {x} + B \<and> min_of ({x} + B) z\<close>
+    sledgehammer
+
+  show ?thesis
+qed
 
 lemma helper2:
   fixes A B :: \<open>('a::perm_alg) set\<close>
