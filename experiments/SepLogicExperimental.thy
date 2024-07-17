@@ -823,4 +823,70 @@ lemma
   oops
 
 
+section \<open> Invalid element perm algebra \<close>
+
+class invalid =
+  fixes invalid :: \<open>'a\<close> (\<open>\<II>\<close>)
+
+
+class ie_perm_alg = plus + invalid +
+  assumes invalidR[simp]: \<open>x + \<II> = \<II>\<close>
+  assumes invalidL[simp]: \<open>\<II> + x = \<II>\<close>
+  assumes disjoint1: \<open>x+(y+z) \<noteq> \<II> \<Longrightarrow> x+y \<noteq> \<II>\<close>
+  assumes disjoint2: \<open>x+y \<noteq> \<II> \<Longrightarrow> (x+y)+z \<noteq> \<II> \<Longrightarrow> x+(y+z) \<noteq> \<II>\<close>
+  assumes plus_comm: \<open>x+y = y+x\<close>
+  assumes plus_assoc:
+    \<open>x+y \<noteq> \<II> \<Longrightarrow> y+z \<noteq> \<II> \<Longrightarrow> x+z \<noteq> \<II> \<Longrightarrow> (x+y)+z = x+(y+z)\<close>
+  assumes positivity:
+    \<open>x+y \<noteq> \<II> \<Longrightarrow> (x+y)+z \<noteq> \<II> \<Longrightarrow> (x+y)+z = x \<Longrightarrow> x+y = x\<close>
+begin
+
+sublocale is_perm_alg: perm_alg \<open>(+)\<close> \<open>\<lambda>x y. x+y \<noteq> \<II>\<close>
+  apply standard
+       apply (simp add: plus_assoc; fail)
+      apply (simp add: plus_comm; fail)
+     apply (simp add: plus_comm; fail)
+    apply (metis disjoint1)
+   apply (metis disjoint2 plus_comm)
+  apply (metis positivity)
+  done
+
+end
+
+class ie_perm_alg2 = plus + invalid +
+  assumes invalidR[simp]: \<open>x + \<II> = \<II>\<close>
+  assumes plus_comm: \<open>x+y = y+x\<close>
+  assumes plus_assoc: \<open>(x+y)+z = x+(y+z)\<close>
+  assumes positivity: \<open>(x+y)+z = x \<Longrightarrow> x+y = x\<close>
+begin
+
+
+lemma invalidL[simp]: \<open>\<II> + x = \<II>\<close>
+  using invalidR plus_comm by fastforce
+
+sublocale is_ie_perm_alg: ie_perm_alg
+  apply standard
+        apply (simp; fail)
+       apply (simp; fail)
+      apply (metis invalidL plus_assoc)
+     apply (simp add: plus_assoc; fail)
+    apply (simp add: plus_comm)
+   apply (metis plus_assoc)
+  apply (metis positivity)
+  done
+
+end
+
+context ie_perm_alg
+begin
+
+sublocale is_ie_perm_alg2: ie_perm_alg2
+  apply standard
+     apply (simp; fail)
+    apply (simp add: plus_comm; fail)
+   apply (metis local.disjoint2 invalidL invalidR
+      is_perm_alg.partial_add_assoc3)
+  apply (metis invalidR is_perm_alg.unit_sub_closure2' plus_comm)
+  done
+
 end
