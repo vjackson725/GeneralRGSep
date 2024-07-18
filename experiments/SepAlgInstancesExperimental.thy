@@ -102,6 +102,38 @@ proof -
 qed
 
 
+section \<open> Lists (component-wise) \<close>
+
+instantiation list :: (pre_perm_alg) pre_perm_alg
+begin
+
+definition disjoint_list :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> bool\<close> where
+  \<open>disjoint_list a b \<equiv> list_all2 (##) a b\<close>
+
+definition plus_list :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> 'a list\<close> where
+  \<open>plus_list a b \<equiv> map2 (+) a b\<close>
+
+instance
+  apply standard
+      apply (clarsimp simp add: disjoint_list_def plus_list_def list_all2_conv_all_nth
+      list_eq_iff_nth_eq, metis partial_add_assoc)
+     apply (clarsimp simp add: disjoint_list_def plus_list_def list_all2_conv_all_nth
+      list_eq_iff_nth_eq, metis partial_add_commute)
+    apply (clarsimp simp add: disjoint_list_def list_all2_conv_all_nth, metis disjoint_sym)
+   apply (clarsimp simp add: disjoint_list_def plus_list_def list_all2_conv_all_nth
+      list_eq_iff_nth_eq, metis disjoint_add_rightL)
+   apply (clarsimp simp add: disjoint_list_def plus_list_def list_all2_conv_all_nth
+      list_eq_iff_nth_eq, metis disjoint_add_right_commute)
+  done
+
+end
+
+instance list :: (perm_alg) perm_alg
+  by standard
+    (clarsimp simp add: disjoint_list_def plus_list_def list_all2_conv_all_nth list_eq_iff_nth_eq,
+      metis positivity)
+
+
 section \<open> Limited Fraction permission algebra \<close>
 
 (* fractions with a bounded denominator *)
