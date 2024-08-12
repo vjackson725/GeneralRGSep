@@ -885,24 +885,10 @@ typedef 'a discr = \<open>UNIV :: 'a set\<close>
   morphisms the_discr Discr
   by blast
 
+setup_lifting type_definition_discr
+
 lemmas Discr_inverse_iff[simp] = Discr_inverse[simplified]
 lemmas Discr_inject_iff[simp] = Discr_inject[simplified]
-
-instantiation discr :: (type) order
-begin
-
-definition less_eq_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> bool\<close> where
-  \<open>less_eq_discr a b \<equiv> the_discr a = the_discr b\<close>
-declare less_eq_discr_def[simp]
-
-definition less_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> bool\<close> where
-  \<open>less_discr a b \<equiv> False\<close>
-declare less_discr_def[simp]
-
-instance
-  by standard (simp add: the_discr_inject)+
-
-end
 
 instantiation discr :: (type) perm_alg
 begin
@@ -969,6 +955,78 @@ instance by standard simp+
 end
 
 (* not all_disjoint_perm_alg *)
+
+subsection \<open> lifting instances for discr \<close>
+
+instantiation discr :: (minus) minus
+begin
+lift_definition minus_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> 'a discr\<close> is \<open>minus\<close> .
+instance by standard
+end
+
+instantiation discr :: (uminus) uminus
+begin
+lift_definition uminus_discr :: \<open>'a discr \<Rightarrow> 'a discr\<close> is \<open>uminus\<close> .
+instance by standard
+end
+
+instantiation discr :: (ord) ord
+begin
+lift_definition less_eq_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> bool\<close> is \<open>(\<le>)\<close> .
+lift_definition less_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> bool\<close> is \<open>(<)\<close> .
+instance by standard
+end
+
+instantiation discr :: (sup) sup
+begin
+lift_definition sup_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> 'a discr\<close> is \<open>sup\<close> .
+instance by standard
+end
+
+instantiation discr :: (inf) inf
+begin
+lift_definition inf_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> 'a discr\<close> is \<open>inf\<close> .
+instance by standard
+end
+
+instantiation discr :: (top) top
+begin
+lift_definition top_discr :: \<open>'a discr\<close> is \<open>top\<close> .
+instance by standard
+end
+
+instantiation discr :: (bot) bot
+begin
+lift_definition bot_discr :: \<open>'a discr\<close> is \<open>bot\<close> .
+instance by standard
+end
+
+instance discr :: (order) order
+  by standard (transfer, force)+
+
+instance discr :: (order_top) order_top
+  by standard (transfer, simp)+
+
+instance discr :: (order_bot) order_bot
+  by standard (transfer, simp)+
+
+instance discr :: (semilattice_sup) semilattice_sup
+  by standard (transfer, simp)+
+
+instance discr :: (semilattice_inf) semilattice_inf
+  by standard (transfer, simp)+
+
+instance discr :: (lattice) lattice
+  by standard (transfer, simp)+
+
+instance discr :: (bounded_lattice) bounded_lattice
+  by standard (transfer, simp)+
+
+instance discr :: (distrib_lattice) distrib_lattice
+  by standard (transfer, simp add: sup_inf_distrib1)
+
+instance discr :: (boolean_algebra) boolean_algebra
+  by standard (transfer, simp add: diff_eq)+
 
 
 section \<open> Fractional FPermissions \<close>
