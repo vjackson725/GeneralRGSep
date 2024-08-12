@@ -261,7 +261,7 @@ inductive rgsat ::
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
     sp b (wssa r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f. sp b (wssa r (p \<^emph>\<and> f)) \<le> sswa r (q \<^emph>\<and> f) \<Longrightarrow>
+    \<forall>f. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic b) r g p' q'\<close>
 | rgsat_frame:

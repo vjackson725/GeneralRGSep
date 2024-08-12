@@ -470,7 +470,7 @@ subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
   \<open>sp b (wssa  r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f. f \<le> F \<times>\<^sub>P \<top> \<longrightarrow> sp b (wssa r (p \<^emph>\<and> f)) \<le> sswa r (q \<^emph>\<and> f) \<Longrightarrow>
+    \<forall>f. f \<le> F \<longrightarrow> sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa  r p (hl, hs) \<Longrightarrow>
     safe n (Atomic b) hl hs r g (sswa r q) F\<close>
@@ -491,20 +491,20 @@ next
      apply (metis predicate2D rel_Times_iff safe_skip' sp_impliesD)
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: opstep_iff sp_def[of b] imp_ex_conjL le_fun_def simp del: sup_apply)
-    apply (drule_tac x=\<open>(=) hlf \<times>\<^sub>P \<top>\<close> in spec)
+    apply (drule_tac x=\<open>(=) hlf\<close> in spec)
     apply (drule mp, force)
     apply (drule spec2, drule spec2, drule mp, fast, drule mp,
         rule predicate1D[OF wlp_rely_sepconj_conj_semidistrib])
-     apply (rule sepconj_conjI; force)
+     apply (rule sepconj_conjI, blast; force simp add: wlp_def)
     apply (drule predicate1D[OF sp_rely_sepconj_conj_semidistrib])
     apply (clarsimp simp add: sepconj_conj_def)
-    apply (metis safe_skip')
+    apply (metis (mono_tags, lifting) prod.collapse rel_Times_iff safe_skip' sp_def)
     done
 qed
 
 lemma safe_atom:
   \<open>sp b (wssa r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f. f \<le> F \<times>\<^sub>P \<top> \<longrightarrow> sp b (wssa r (p \<^emph>\<and> f)) \<le> sswa r (q \<^emph>\<and> f) \<Longrightarrow>
+    \<forall>f. f \<le> F \<longrightarrow> sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa r p (hl, hs) \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
