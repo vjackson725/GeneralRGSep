@@ -118,6 +118,19 @@ lemma sswa_over_shared:
   \<open>sswa r (\<S> ps) = \<S> (sp r\<^sup>*\<^sup>* ps)\<close>
   by (force simp add: sp_def fun_eq_iff sepconj_conj_def)
 
+lemma wssa_semiignore_local[simp]:
+  \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
+  \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
+   by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+
+lemma sepconj_local_eq:
+  \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
+  by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+lemma sepconj_shared_eq:
+  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b::perm_alg \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
+  by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
 
 section \<open> Framed step relation \<close>
 
