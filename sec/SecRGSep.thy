@@ -27,20 +27,22 @@ lemma pguard_true_eq[simp]:
   by (simp add: pguard_def fun_eq_iff)
 
 lemma split_leak_triple:
-  fixes l1 l2 :: \<open>'s::perm_alg \<Rightarrow> 'l::{bounded_lattice, perm_alg}\<close>
+  fixes l1 :: \<open>'a::perm_alg \<Rightarrow> 'l::{bounded_lattice, perm_alg}\<close>
   assumes vf_frame:
-    \<open>\<And>x xf y yf. x ## xf \<Longrightarrow> y ## yf \<Longrightarrow> v1 (x + xf) = v1 (y + yf) \<Longrightarrow> v1 x = v1 y\<close>
+    \<open>\<And>lf x xf y yf. F (lf,xf,yf) \<Longrightarrow> x ## xf \<Longrightarrow> y ## yf \<Longrightarrow> v1 (x + xf) = v1 (y + yf) \<Longrightarrow> v1 x = v1 y\<close>
     and lf_frame:
-    \<open>\<And>x xf c cf. c \<le> l1 x \<Longrightarrow> x ## xf \<Longrightarrow> c + cf \<le> l1 (x + xf)\<close>
+    \<open>\<And>x lvl lvlf xf yf. F (lvlf,xf,yf) \<Longrightarrow> lvl \<le> l1 x \<Longrightarrow> x ## xf \<Longrightarrow> lvl + lvlf \<le> l1 (x + xf)\<close>
+    \<open>\<And>y lvl lvlf xf yf. F (lvlf,xf,yf) \<Longrightarrow> lvl \<le> l1 y \<Longrightarrow> y ## yf \<Longrightarrow> lvl + lvlf \<le> l1 (y + yf)\<close>
   shows
-    \<open>r, leak l2 v2 \<turnstile> { wssa r p } \<langle> leak l1 v1 \<times>\<^sub>R leak l2 v2 \<rangle> { sswa r (p \<sqinter> \<S> (v2\<Colon>l2)) \<sqinter> \<L> (v1\<Colon>l1) }\<close>
+    \<open>r, leak l2 v2 \<turnstile>\<^bsub>F\<^esub> { wssa r p } \<langle> leak l1 v1 \<times>\<^sub>R leak l2 v2 \<rangle> { sswa r (p \<sqinter> \<S> (v2\<Colon>l2)) \<sqinter> \<L> (v1\<Colon>l1) }\<close>
   apply (rule_tac p=\<open>p\<close> and q=\<open>\<L> (v1\<Colon>l1) \<sqinter> (p \<sqinter> \<S> (v2\<Colon>l2))\<close> in rgsat_atom)
       apply force
      apply (force simp add: sp_def le_fun_def leval_def)
     apply (force simp add: sp_def pguard_def)
    apply (clarsimp simp add: sp_def leval_def sepconj_conj_def wlp_def)
    apply (drule spec, drule spec2, drule mp, rule rtranclp.rtrancl_refl)
-   apply (metis rtranclp.rtrancl_refl lf_frame vf_frame)
+   apply (metis rtranclp.rtrancl_refl lf_frame[OF predicate1D[of _ F]]
+      vf_frame[OF predicate1D[of _ F]])
   apply force
   done
 
@@ -87,27 +89,24 @@ lemma leak_triple:
   fixes l :: \<open>('a::perm_alg\<times>'b::perm_alg \<Rightarrow> ('l1::{bounded_lattice,perm_alg}\<times>'l2::{bounded_lattice,perm_alg}))\<close>
     and p :: \<open>('l1 \<times> 'a \<times> 'a) \<times> ('l2 \<times> 'b \<times> 'b) \<Rightarrow> bool\<close>
   assumes l_framing:
-    \<open>\<And>ll ls lf xl xf xs. (ll, ls) \<le> l (xl, xs) \<Longrightarrow> (ll + lf, ls) \<le> l (xl + xf, xs)\<close>
+    \<open>\<And>ll ls xl xs lf xf yf.
+      F (lf,xf,yf) \<Longrightarrow> (ll, ls) \<le> l (xl, xs) \<Longrightarrow> (ll + lf, ls) \<le> l (xl + xf, xs)\<close>
+    \<open>\<And>ll ls yl ys lf xf yf.
+      F (lf,xf,yf) \<Longrightarrow> (ll, ls) \<le> l (yl, ys) \<Longrightarrow> (ll + lf, ls) \<le> l (yl + yf, ys)\<close>
     and v_framing:
-    \<open>\<And>xl xf xs yl yf ys. v (xl + xf, xs) = v (yl + yf, ys) \<Longrightarrow> v (xl, xs) = v (yl, ys)\<close>
+    \<open>\<And>lf xf yf xl xs yl ys.
+      F (lf,xf,yf) \<Longrightarrow> v (xl + xf, xs) = v (yl + yf, ys) \<Longrightarrow> v (xl, xs) = v (yl, ys)\<close>
   shows
-    \<open>r, restrict_second (leak_rg l v) \<turnstile> { wssa r p } \<langle> leak_rg l v \<rangle> { sswa r (p \<sqinter> v \<Colon>\<^sub>R\<^sub>G l) }\<close>
+    \<open>r, restrict_second (leak_rg l v) \<turnstile>\<^bsub>F\<^esub> { wssa r p } \<langle> leak_rg l v \<rangle> { sswa r (p \<sqinter> v \<Colon>\<^sub>R\<^sub>G l) }\<close>
   apply (rule_tac p=p and q=\<open>p \<sqinter> v \<Colon>\<^sub>R\<^sub>G l\<close> in rgsat_atom)
       apply force
      apply force
     apply (force simp add: sp_def leak_rg_eq leval_def leval_rg_def)
    apply (clarsimp simp add: sp_def leval_def sepconj_conj_def wlp_def leak_rg_eq)
    apply (drule spec, drule spec2, drule mp, rule rtranclp.rtrancl_refl)
-   apply clarsimp
-   apply (intro exI, rule conjI, rule rtranclp.rtrancl_refl)
-   apply (intro exI, rule conjI, assumption,
-      intro exI, rule conjI, assumption,
-      intro exI, rule conjI, assumption,
-      rule conjI[OF refl],
-      rule conjI[OF refl],
-      rule conjI[OF refl])
    apply (clarsimp simp add: leval_rg_def)
-   apply (metis l_framing v_framing)
+   apply (metis rtranclp.rtrancl_refl l_framing[OF predicate1D[of _ F]]
+      v_framing[OF predicate1D[of _ F]])
   apply (force simp add: sp_def leval_def sepconj_conj_def wlp_def leak_rg_eq restrict_second_def)
   done
 
