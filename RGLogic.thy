@@ -7,6 +7,12 @@ section \<open> rely/guarantee helpers \<close>
 abbreviation \<open>sswa r \<equiv> sp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
 abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
 
+subsection \<open> rel relf + trans \<close>
+
+lemma trans_rely[simp]: \<open>transp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+  by (metis rel_Times_left_eq_rtranclp_distrib transp_rtranclp)
+  
+
 subsection \<open> step properties \<close>
 
 lemma sp_rely_step:
