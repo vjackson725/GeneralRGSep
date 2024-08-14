@@ -243,83 +243,91 @@ section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
   \<open>('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
-    ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow> ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+    ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa r p \<le> q \<Longrightarrow> rgsat Skip r g p q\<close>
+  \<open>sswa r p \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) \<Longrightarrow>
+  \<open>rgsat c r g (sswa r i) (sswa r i) F \<Longrightarrow>
     p \<le> i \<Longrightarrow> sswa r i \<le> q \<Longrightarrow>
-    rgsat (Iter c) r g p q\<close>
+    rgsat (Iter c) r g p q F\<close>
 | rgsat_seq:
-  \<open>rgsat c1 r g p1 p2 \<Longrightarrow>
-    rgsat c2 r g p2 p3 \<Longrightarrow>
-    rgsat (c1 ;; c2) r g p1 p3\<close>
+  \<open>rgsat c1 r g p1 p2 F \<Longrightarrow>
+    rgsat c2 r g p2 p3 F \<Longrightarrow>
+    rgsat (c1 ;; c2) r g p1 p3 F\<close>
 | rgsat_indet:
-  \<open>rgsat c1 r g1 p q1 \<Longrightarrow>
-    rgsat c2 r g2 p q2 \<Longrightarrow>
+  \<open>rgsat c1 r g1 p q1 F \<Longrightarrow>
+    rgsat c2 r g2 p q2 F \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
-    rgsat (c1 \<^bold>+ c2) r g p q\<close>
+    rgsat (c1 \<^bold>+ c2) r g p q F\<close>
 | rgsat_endet:
-  \<open>rgsat c1 r g1 p q1 \<Longrightarrow>
-    rgsat c2 r g2 p q2 \<Longrightarrow>
+  \<open>rgsat c1 r g1 p q1 F \<Longrightarrow>
+    rgsat c2 r g2 p q2 F \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
-    rgsat (c1 \<box> c2) r g p q\<close>
+    rgsat (c1 \<box> c2) r g p q F\<close>
 | rgsat_par:
-  \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 \<Longrightarrow>
-    rgsat s2 (r \<squnion> g1) g2 p2 q2 \<Longrightarrow>
+  \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 \<top> \<Longrightarrow>
+    rgsat s2 (r \<squnion> g1) g2 p2 q2 \<top> \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
     sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
-    rgsat (s1 \<parallel> s2) r g p q\<close>
+    rgsat (s1 \<parallel> s2) r g p q \<top>\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
     sp b (wssa r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
+    \<forall>f\<le>F. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    rgsat (Atomic b) r g p' q'\<close>
+    rgsat (Atomic b) r g p' q' F\<close>
 | rgsat_frame:
-  \<open>rgsat c r g p q \<Longrightarrow>
+  \<open>rgsat c r g p q F \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
-    rgsat c r g (p \<^emph>\<and> f) (q \<^emph>\<and> f')\<close>
+    f' \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
+    rgsat c r g (p \<^emph>\<and> f) (q \<^emph>\<and> f') (F \<midarrow>\<^emph> F)\<close>
 | rgsat_weaken:
-  \<open>rgsat c r' g' p' q' \<Longrightarrow>
-    p \<le> p' \<Longrightarrow> q' \<le> q \<Longrightarrow> r \<le> r' \<Longrightarrow> g' \<le> g \<Longrightarrow>
-    rgsat c r g p q\<close>
+  \<open>rgsat c r' g' p' q' F' \<Longrightarrow>
+    p \<le> p' \<Longrightarrow>
+    q' \<le> q \<Longrightarrow>
+    r \<le> r' \<Longrightarrow>
+    g' \<le> g \<Longrightarrow>
+    F \<le> F' \<Longrightarrow>
+    rgsat c r g p q F\<close>
 | rgsat_disj:
-  \<open>rgsat c r g p1 q1 \<Longrightarrow>
-    rgsat c r g p2 q2 \<Longrightarrow>
-    rgsat c r g (p1 \<squnion> p2) (q1 \<squnion> q2)\<close>
+  \<open>rgsat c r g p1 q1 F \<Longrightarrow>
+    rgsat c r g p2 q2 F \<Longrightarrow>
+    rgsat c r g (p1 \<squnion> p2) (q1 \<squnion> q2) F\<close>
 | rgsat_conj:
-  \<open>rgsat c r g p1 q1 \<Longrightarrow>
-    rgsat c r g p2 q2 \<Longrightarrow>
-    \<forall>a b c::'l. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
-    rgsat c r g (p1 \<sqinter> p2) (q1 \<sqinter> q2)\<close>
+  \<open>rgsat c r g p1 q1 F \<Longrightarrow>
+    rgsat c r g p2 q2 F \<Longrightarrow>
+    \<forall>a b c::'l. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    rgsat c r g (p1 \<sqinter> p2) (q1 \<sqinter> q2) F\<close>
 
 abbreviation rgsat_pretty
-  :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
-  (\<open>_, _ \<turnstile> { _ } _ { _ }\<close> [55, 55, 55, 55, 55] 56) where
-  \<open>r, g \<turnstile> { p } c { q } \<equiv> rgsat c r g p q\<close>
+  :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
+  (\<open>_, _ \<turnstile>\<^bsub>_\<^esub> { _ } _ { _ }\<close> [55, 55, 0, 55, 55, 55] 56) where
+  \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } c { q } \<equiv> rgsat c r g p q F\<close>
 
-inductive_cases rgsep_doneE[elim]: \<open>rgsat Skip r g p q\<close>
-inductive_cases rgsep_iterE[elim]: \<open>rgsat (DO c OD) r g p q\<close>
+inductive_cases rgsep_doneE[elim]: \<open>rgsat Skip r g p q F\<close>
+inductive_cases rgsep_iterE[elim]: \<open>rgsat (DO c OD) r g p q F\<close>
 \<comment> \<open> inductive_cases rgsep_fixptE[elim]: \<open>rgsat (\<mu> c) r g p q\<close> \<close>
-inductive_cases rgsep_parE[elim]: \<open>rgsat (s1 \<parallel> s2) r g p q\<close>
-inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic c) r g p q\<close>
+inductive_cases rgsep_parE[elim]: \<open>rgsat (s1 \<parallel> s2) r g p q F\<close>
+inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic c) r g p q F\<close>
 
 lemma backwards_done:
-  \<open>rgsat Skip r g (wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p) p\<close>
+  \<open>rgsat Skip r g (wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p) p F\<close>
   by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
         where p'=\<open>wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p\<close> and q'=p])
     (clarsimp simp add: sp_def wlp_def le_fun_def)+
 
 lemma rgsat_ex:
-  \<open>rgsat c r g p q' \<Longrightarrow> q' = q x \<Longrightarrow> rgsat c r g p (\<lambda>y. \<exists>x. q x y)\<close>
+  \<open>rgsat c r g p q' F \<Longrightarrow> q' = q x \<Longrightarrow> rgsat c r g p (\<lambda>y. \<exists>x. q x y) F\<close>
   apply (induct arbitrary: q x rule: rgsat.inducts)
             apply (rule rgsat_skip)
             apply (force simp add: sp_def le_fun_def imp_ex_conjL)
@@ -331,20 +339,22 @@ lemma rgsat_ex:
        apply (rule rgsat_par; blast)
       apply (rule rgsat_atom; blast)
      apply (rule rgsat_weaken, (rule rgsat_frame; blast); force)
-    apply (rule rgsat_weaken, blast, blast, blast, blast, blast)
+    apply (rule rgsat_weaken, blast, blast, blast, blast, blast, fast)
    apply (rule rgsat_weaken, rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 in rgsat_disj)
+         apply blast
         apply blast
-       apply blast
-      apply (simp; fail)
-     apply (clarsimp, blast)
+       apply (simp; fail)
+      apply (clarsimp, blast)
+     apply blast
     apply blast
    apply blast
   apply (rule rgsat_weaken, rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 in rgsat_conj)
+         apply blast
         apply blast
-       apply blast
+       apply (simp; fail)
       apply (simp; fail)
-     apply (simp; fail)
-    apply (clarsimp, blast)
+     apply (clarsimp, blast)
+    apply blast
    apply blast
   apply blast
   done

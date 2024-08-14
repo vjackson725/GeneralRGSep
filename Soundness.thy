@@ -948,28 +948,33 @@ lemma safe_conj:
 section \<open> Soundness \<close>
 
 lemma soundness:
-  assumes \<open>rgsat c r g p q\<close>
+  assumes \<open>rgsat c r g p q F\<close>
     and \<open>p (hl, hs)\<close>
-  shows \<open>safe n c hl hs r g q \<top>\<close>
+  shows \<open>safe n c hl hs r g q F\<close>
   using assms
-proof (induct c r g p q arbitrary: n hl hs rule: rgsat.inducts)
-  case (rgsat_skip p r q g as h)
+proof (induct c r g p q F arbitrary: n hl hs rule: rgsat.inducts)
+  case (rgsat_skip r p q g F)
   then show ?case
     by (simp add: safe_skip)
 next
-  case (rgsat_seq c1 r g p1 p2 c2 p3)
+  case (rgsat_iter c r g i F p q)
   then show ?case
-    using safe_seq[of n c1 hl hs r g p2 \<top> c2 p3]
+    using safe_postpred_mono[OF _ safe_iter[of r i n c g]]
     by blast
 next
-  case (rgsat_indet c1 r g1 p q1 c2 g2 q2 g q)
+  case (rgsat_seq c1 r g p1 p2 F c2 p3)
   then show ?case
-    using safe_indet[of n c1 hl hs r g q \<top> c2]
+    using safe_seq[of n c1 hl hs r g p2 F c2 p3]
+    by blast
+next
+  case (rgsat_indet c1 r g1 p q1 F c2 g2 q2 g q)
+  then show ?case
+    using safe_indet[of n c1 hl hs r g q F c2]
     by (meson safe_guarantee_mono safe_postpred_mono)
 next
-  case (rgsat_endet c1 r g1 p q1 c2 g2 q2 g q)
+  case (rgsat_endet c1 r g1 p q1 F c2 g2 q2 g q)
   then show ?case
-    using safe_endet[of n c1 hl hs r g q \<top> c2]
+    using safe_endet[of n c1 hl hs r g q F c2]
     by (meson safe_guarantee_mono safe_postpred_mono)
 next
   case (rgsat_par s1 r g2 g1 p1 q1 s2 p2 q2 g p q)
@@ -987,35 +992,33 @@ next
     apply blast
     done
 next
-  case (rgsat_iter c r g i p q)
-  then show ?case
-    using safe_postpred_mono[OF _ safe_iter[of r i n c g]]
-    by blast
-next
-  case (rgsat_atom p r p' q' q b g n)
+  case (rgsat_atom p' r p q q' b F g)
   then show ?case
     by (intro safe_atom; blast)
 next
-  case (rgsat_frame c r g p q f f' n)
+  case (rgsat_frame c r g p q F f f')
   then show ?case
     apply (clarsimp simp add: sepconj_conj_def[of p] simp del: sup_apply top_apply)
-    apply (rule safe_frame[where f=f], blast, blast, blast, force, blast, simp)
+    apply (rule safe_frame[of _ _ _ _ _ _ _ F _ f]; blast)
     done
 next
-  case (rgsat_disj c r' g' p' q' p q r g)
-  then show ?case
-    by (metis safe_postpred_mono sup.cobounded2 sup1E sup_ge1)
-next
-  case (rgsat_conj c r g p1 q1 p2 q2 n hl)
-  then show ?case
-    by (intro safe_conj, blast, blast; force)
-next
-  case (rgsat_weaken c r' g' p' q' p q r g)
+  case (rgsat_weaken c r' g' p' q' F' p q r g F)
   moreover have \<open>p' (hl, hs)\<close>
     using rgsat_weaken.hyps(3) rgsat_weaken.prems
     by (metis rev_predicate1D)
+  moreover then have \<open>safe n c hl hs r' g' q' F'\<close>
+    by (simp add: rgsat_weaken.hyps(2))
   ultimately show ?case
-    by (meson safe_guarantee_mono safe_postpred_monoD safe_rely_antimonoD)
+    by (meson safe_guarantee_mono safe_postpred_monoD safe_rely_antimonoD safe_frameset_antimonoD
+        safe_frameset_antimonoD)
+next
+  case (rgsat_disj c r g p1 q1 F p2 q2)
+  then show ?case
+    by (metis safe_postpred_mono sup.cobounded2 sup1E sup_ge1)
+next
+  case (rgsat_conj c r g p1 q1 F p2 q2)
+  then show ?case
+    by (intro safe_conj, blast, blast; force)
 qed
 
 end
