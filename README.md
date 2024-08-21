@@ -1,6 +1,6 @@
 = Generic RGSep =
 
-This repository contains an implemetation of a Generic RGSep and a proof of its soundness.
+This repository contains an implementation of a Generic RGSep and a proof of its soundness.
 
 == Theories ==
 
