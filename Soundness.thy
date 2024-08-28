@@ -944,6 +944,40 @@ lemma safe_conj:
   apply blast
   done
 
+lemma safe_Conj':
+  assumes frame_cancellative:
+    \<open>\<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
+  shows
+  \<open>Q \<noteq> {} \<Longrightarrow>
+    \<forall>q\<in>Q. safe n c hl hs r g q F \<Longrightarrow>
+    safe n c hl hs r g (\<Sqinter>Q) (F)\<close>
+proof (induct n arbitrary: c hl hs r g Q)
+  case 0
+  then show ?case by blast
+next
+  case (Suc n)
+
+  show ?case
+    using Suc.prems
+    apply -
+    apply (intro safe_suc conjI impI allI)
+         apply blast
+        apply (rule Suc.hyps; blast)
+      (* subgoal(s): opstep safe *)
+       apply (rule Suc.hyps; blast)
+      apply (blast dest: safe_sucD(4))
+      (* subgoal(s): frame safe *)
+     apply (subgoal_tac \<open>\<exists>q. q \<in> Q\<close>)
+      prefer 2
+      apply blast
+     apply (clarsimp simp del: inf_apply Inf_apply)
+     apply (frule_tac q=q in safe_sucD(5)[OF bspec[of _ \<open>\<lambda>q. safe _ _ _ _ _ _ q _\<close>]],
+        blast, blast, blast, blast)
+     apply (clarsimp simp del: inf_apply Inf_apply)
+     apply (metis (no_types, lifting) Suc.hyps safe_sucD(5) frame_cancellative)
+    apply (blast dest: safe_sucD(6))
+    done
+qed
 
 section \<open> Soundness \<close>
 
@@ -1012,13 +1046,12 @@ next
     by (meson safe_guarantee_mono safe_postpred_monoD safe_rely_antimonoD safe_frameset_antimonoD
         safe_frameset_antimonoD)
 next
-  case (rgsat_disj c r g p1 q1 F p2 q2)
-  then show ?case
-    by (metis safe_postpred_mono sup.cobounded2 sup1E sup_ge1)
+  case (rgsat_Disj P c r g q F n hl hs)
+  then show ?case by force
 next
-  case (rgsat_conj c r g p1 q1 F p2 q2)
+  case (rgsat_Conj Q c r g p F n hl hs)
   then show ?case
-    by (intro safe_conj, blast, blast; force)
+    by (intro safe_Conj'; fast)
 qed
 
 end

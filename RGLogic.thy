@@ -299,26 +299,26 @@ inductive rgsat ::
     g' \<le> g \<Longrightarrow>
     F \<le> F' \<Longrightarrow>
     rgsat c r g p q F\<close>
-| rgsat_disj:
-  \<open>rgsat c r g p1 q1 F \<Longrightarrow>
-    rgsat c r g p2 q2 F \<Longrightarrow>
-    rgsat c r g (p1 \<squnion> p2) (q1 \<squnion> q2) F\<close>
-| rgsat_conj:
-  \<open>rgsat c r g p1 q1 F \<Longrightarrow>
-    rgsat c r g p2 q2 F \<Longrightarrow>
-    \<forall>a b c::'l. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
-    rgsat c r g (p1 \<sqinter> p2) (q1 \<sqinter> q2) F\<close>
+| rgsat_Disj:
+  \<open>\<forall>p\<in>P. rgsat c r g p q F \<Longrightarrow>
+    rgsat c r g (\<Squnion>P) q F\<close>
+| rgsat_Conj:
+  \<open>\<forall>q\<in>Q. rgsat c r g p q F \<Longrightarrow>
+    Q \<noteq> {} \<Longrightarrow>
+    \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    rgsat c r g p (\<Sqinter>Q) F\<close>
 
 abbreviation rgsat_pretty
   :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
   (\<open>_, _ \<turnstile>\<^bsub>_\<^esub> { _ } _ { _ }\<close> [55, 55, 0, 55, 55, 55] 56) where
   \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } c { q } \<equiv> rgsat c r g p q F\<close>
 
-inductive_cases rgsep_doneE[elim]: \<open>rgsat Skip r g p q F\<close>
+inductive_cases rgsep_skipE[elim]: \<open>rgsat Skip r g p q F\<close>
 inductive_cases rgsep_iterE[elim]: \<open>rgsat (DO c OD) r g p q F\<close>
-\<comment> \<open> inductive_cases rgsep_fixptE[elim]: \<open>rgsat (\<mu> c) r g p q\<close> \<close>
-inductive_cases rgsep_parE[elim]: \<open>rgsat (s1 \<parallel> s2) r g p q F\<close>
-inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic c) r g p q F\<close>
+inductive_cases rgsep_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q F\<close>
+inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic b) r g p q F\<close>
+inductive_cases rgsep_indetE[elim]: \<open>rgsat (c1 \<^bold>+ c2) r g p q F\<close>
+inductive_cases rgsep_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q F\<close>
 
 lemma backwards_done:
   \<open>rgsat Skip r g (wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p) p F\<close>
@@ -326,37 +326,23 @@ lemma backwards_done:
         where p'=\<open>wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p\<close> and q'=p])
     (clarsimp simp add: sp_def wlp_def le_fun_def)+
 
-lemma rgsat_ex:
-  \<open>rgsat c r g p q' F \<Longrightarrow> q' = q x \<Longrightarrow> rgsat c r g p (\<lambda>y. \<exists>x. q x y) F\<close>
-  apply (induct arbitrary: q x rule: rgsat.inducts)
-            apply (rule rgsat_skip)
-            apply (force simp add: sp_def le_fun_def imp_ex_conjL)
-           apply (rule rgsat_iter, force, force)
-           apply (simp add: sp_def le_fun_def imp_ex_conjL; metis)
-          apply (rule rgsat_seq; force)
-         apply (rule rgsat_indet, fast, fast, fast, fast, fast, fast)
-        apply (rule rgsat_endet, fast, fast, fast, fast, fast, fast)
-       apply (rule rgsat_par; blast)
-      apply (rule rgsat_atom; blast)
-     apply (rule rgsat_weaken, (rule rgsat_frame; blast); force)
-    apply (rule rgsat_weaken, blast, blast, blast, blast, blast, fast)
-   apply (rule rgsat_weaken, rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 in rgsat_disj)
-         apply blast
-        apply blast
-       apply (simp; fail)
-      apply (clarsimp, blast)
-     apply blast
-    apply blast
-   apply blast
-  apply (rule rgsat_weaken, rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 in rgsat_conj)
-         apply blast
-        apply blast
-       apply (simp; fail)
-      apply (simp; fail)
-     apply (clarsimp, blast)
-    apply blast
-   apply blast
-  apply blast
-  done
+lemma rgsat_impossible[intro]:
+  \<open>rgsat c r g \<bottom> q F\<close>
+  using rgsat_Disj by fastforce
+
+lemma rgsat_disj:
+  \<open>rgsat c r g p1 q F \<Longrightarrow>
+    rgsat c r g p2 q F \<Longrightarrow>
+    rgsat c r g (p1 \<squnion> p2) q F\<close>
+  using rgsat_Disj[of \<open>{p1,p2}\<close>]
+  by fastforce
+
+lemma rgsat_conj:
+  \<open>rgsat c r g p q1 F \<Longrightarrow>
+    rgsat c r g p q2 F \<Longrightarrow>
+    \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    rgsat c r g p (q1 \<sqinter> q2) F\<close>
+  using rgsat_Conj[of \<open>{q1,q2}\<close>]
+  by fastforce
 
 end
