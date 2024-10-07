@@ -544,7 +544,7 @@ end
 class allcompatible_inf_perm_alg = inf_perm_alg + allcompatible_perm_alg
 begin
 
-sublocale semilattice_inf \<open>(\<sqinter>)\<close> \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
+sublocale allcompatible_semilattice_inf: semilattice_inf \<open>(\<sqinter>)\<close> \<open>(\<preceq>)\<close> \<open>(\<prec>)\<close>
   by standard
     (simp add: all_compatible sepinf_leqL sepinf_leqR sepinf_least)+
 
@@ -570,11 +570,11 @@ begin
 
 lemma left_inf_preserves_disjoint:
   \<open>a ## b \<Longrightarrow> (x \<sqinter> a) ## (x \<sqinter> b)\<close>
-  by (meson disjoint_preservation disjoint_sym inf.cobounded2)
+  by (meson disjoint_preservation disjoint_sym allcompatible_semilattice_inf.inf.cobounded2)
 
 lemma inf_add_distrib2:
     \<open>\<And>x a b. a ## b \<Longrightarrow> (a + b) \<sqinter> x = (a \<sqinter> x) + (b \<sqinter> x)\<close>
-  by (simp add: inf_add_distrib1 inf_commute)
+  by (simp add: inf_add_distrib1 allcompatible_semilattice_inf.inf_commute)
 
 end
 
@@ -888,5 +888,33 @@ sublocale is_ie_perm_alg2: ie_perm_alg2
       is_perm_alg.partial_add_assoc3)
   apply (metis invalidR is_perm_alg.unit_sub_closure2' plus_comm)
   done
+
+end
+
+
+lemma (in perm_alg) gc_em_ext_collapse:
+  assumes
+    \<open>\<forall>p q. p \<^emph> q \<le> p\<close>
+    \<open>\<forall>p. p \<le> p \<^emph> \<top>\<close>
+  shows
+    \<open>p \<sqinter> q \<le> p \<^emph> q\<close>
+proof -
+  {
+    fix p
+    have \<open>p \<le> p \<^emph> p \<squnion> p \<^emph> (-p)\<close>
+      by (metis assms(2) boolean_algebra.disj_cancel_right local.sepconj_pdisj_distrib_left)
+    moreover have \<open>p \<^emph> (-p) \<le> \<bottom>\<close>
+      by (metis assms(1) boolean_algebra.conj_cancel_left le_infI local.sepconj_comm)
+    ultimately have \<open>p \<le> p \<^emph> p\<close>
+      by blast
+  }
+  then show ?thesis
+    by (meson le_infE local.sepconj_mono order_eq_refl order_trans)
+qed
+
+lemma (in multiunit_sep_alg)
+  \<open>\<forall>p q. p \<le> p \<^emph> \<top>\<close>
+  by auto
+
 
 end
