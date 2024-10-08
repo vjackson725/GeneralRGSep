@@ -42,15 +42,11 @@ inductive seval :: \<open>'s hset \<times> ('s \<times> 's) comm \<Rightarrow> '
 | atom:
   \<open>\<SS>' = secrel2hset (\<lambda>z z'. (\<exists>S\<in>\<SS>. s \<in> S \<and> s' \<in> S) \<and> b (s,s') (z,z')) \<Longrightarrow>
     (\<SS>, \<langle>b\<rangle>) \<sim>Vis a\<leadsto>\<^sub>s (\<SS>', Skip)\<close>
+| iter_step:
+  \<open>(\<SS>, DO c OD) \<sim>Tau\<leadsto>\<^sub>s (\<SS>, c ;; DO c OD)\<close>
+| iter_done:
+  \<open>(\<forall>S\<in>\<SS>. \<forall>s1\<in>S. \<forall>s2\<in>S. \<not> pre_state (\<Squnion>(head_atoms c)) (s1,s2)) \<Longrightarrow> (\<SS>, DO c OD) \<sim>Tau\<leadsto>\<^sub>s (\<SS>, Skip)\<close>
 
 
-(*
-  | Atomic \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (\<open>\<close> [0] 999)
-  | Iter \<open>'a comm\<close> (\<open>DO (_) OD\<close> [0] 999)
-\<comment> \<open> loops are represented by (least) fixed points. Fixed point variables are done in de Brijn
-style. \<close>
-  | Fix \<open>'a comm\<close> (\<open>\<mu>\<close>)
-  | FixVar nat
-*)
 
 end
