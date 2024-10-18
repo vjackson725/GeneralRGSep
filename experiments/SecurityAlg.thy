@@ -365,6 +365,41 @@ lemma
   nitpick
   oops
 
+(* nope *)
+lemma
+  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (- p))\<close>
+  nitpick
+  oops
+
+lemma
+  \<open>equivp (curry p) \<Longrightarrow>
+    quasireflp (curry q) \<Longrightarrow> symp (curry q) \<Longrightarrow>
+    quasireflp (curry (p \<leadsto> q))\<close>
+  nitpick
+  oops
+
+lemma
+  \<open>equivp (curry p) \<Longrightarrow>
+    quasireflp (curry (-p))\<close>
+  nitpick
+  oops
+
+lemma
+  \<open>quasireflp (curry (p \<leadsto> q) \<squnion> ((=) \<sqinter> rel_lift (prepost_state (curry (p \<leadsto> q)))))\<close>
+  unfolding prepost_state_def' curry_def reflp_on_def
+  by force
+
+lemma
+  \<open>quasireflp (curry (-p) \<squnion> ((=) \<sqinter> rel_lift (prepost_state (curry (-p)))))\<close>
+  unfolding prepost_state_def' curry_def reflp_on_def
+  by force
+
+(* nope *)
+lemma
+  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (- p))\<close>
+  nitpick
+  oops
+
 lemma
   \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<leadsto> q))\<close>
   by (clarsimp simp add: symp_def sepconj_def)
