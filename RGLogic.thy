@@ -314,6 +314,7 @@ abbreviation rgsat_pretty
   \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } c { q } \<equiv> rgsat c r g p q F\<close>
 
 inductive_cases rgsep_skipE[elim]: \<open>rgsat Skip r g p q F\<close>
+inductive_cases rgsep_seqE[elim]: \<open>rgsat (c1 ;; c2) r g p q F\<close>
 inductive_cases rgsep_iterE[elim]: \<open>rgsat (DO c OD) r g p q F\<close>
 inductive_cases rgsep_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q F\<close>
 inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic b) r g p q F\<close>

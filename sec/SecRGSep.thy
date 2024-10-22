@@ -111,4 +111,102 @@ lemma leak_triple:
   done
 
 
+inductive prog_straightline :: \<open>'a comm \<Rightarrow> bool\<close> where
+  psl_seq[intro!]:
+  \<open>\<lbrakk> prog_straightline c1
+   ; prog_straightline c2
+   \<rbrakk> \<Longrightarrow> prog_straightline (c1 ;; c2)\<close>
+| psl_skip[intro!]: \<open>prog_straightline Skip\<close>
+| psl_atom[intro!]: \<open>prog_straightline (\<langle> b \<rangle>)\<close>
+
+inductive_cases psl_seqE[elim!]: \<open>prog_straightline (c1 ;; c2)\<close>
+inductive_cases psl_skipE[elim!]: \<open>prog_straightline Skip\<close>
+inductive_cases psl_atomE[elim!]: \<open>prog_straightline (\<langle> b \<rangle>)\<close>
+
+inductive_cases psl_doodE[elim!]: \<open>prog_straightline (DO c OD)\<close>
+inductive_cases psl_endetE[elim!]: \<open>prog_straightline (c1 \<box> c2)\<close>
+inductive_cases psl_indetE[elim!]: \<open>prog_straightline (c1 \<^bold>+ c2)\<close>
+inductive_cases psl_parE[elim!]: \<open>prog_straightline (c1 \<parallel> c2)\<close>
+
+definition
+  \<open>major \<equiv> \<lambda>((x,x'), (y,y')). (x, y)\<close>
+
+definition
+  \<open>minor \<equiv> \<lambda>((x,x'), (y,y')). (x', y')\<close>
+
+definition
+  \<open>exch4 \<equiv> \<lambda>((a,b),(c,d)). ((a,c),(b,d))\<close>
+
+definition
+  \<open>rel_exch4 r \<equiv> \<lambda>a b. r (exch4 a) (exch4 b)\<close>
+
+type_synonym ('a,'b) secstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
+
+definition
+  \<open>seclift_rel \<equiv> \<lambda>rx. \<lambda>(a,a') (b,b'). rx a b \<and> rx a' b'\<close>
+
+definition leakL
+  :: \<open>('a \<times> 'b \<Rightarrow> 'v) \<Rightarrow>
+        ('a \<times> 'a) \<times> ('b \<times> 'b) \<Rightarrow> ('a \<times> 'a) \<times> ('b \<times> 'b) \<Rightarrow> bool\<close> where
+  \<open>leakL vf \<equiv> rel_exch4 (\<lambda>(x,x') (y,y'). x = y \<and> x' = y' \<and> vf y = vf y')\<close>
+
+definition sec_agree
+  :: \<open>('a \<times> 'b \<Rightarrow> 'v) \<Rightarrow> ('a \<times> 'a) \<times> ('b \<times> 'b) \<Rightarrow> bool\<close> (\<open>\<bbbA>\<close>)
+  where
+    \<open>\<bbbA> vf \<equiv> (\<lambda>(ab,ab'). vf ab = vf ab') \<circ> exch4\<close>
+
+
+lemma eqrel_times_eqrel_eq[simp]:
+  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
+  by (force simp add: rel_Times_def)
+
+lemma rgsat_single_leak:
+  fixes p :: \<open>('a::perm_alg,'b::perm_alg) secstate \<Rightarrow> bool\<close>
+    and v :: \<open>'a \<times> 'b \<Rightarrow> 'v\<close>
+  assumes v_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> v (xl + xf, xs) = v (yl + yf, ys) \<Longrightarrow> v (xl, xs) = v (yl, ys)\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { p }
+      \<langle> leakL v \<rangle>
+      { p \<sqinter> \<bbbA> v }\<close>
+  apply (rule_tac p=p and q=\<open>p \<sqinter> \<bbbA> v\<close> in rgsat_atom)
+      apply force
+     apply (force simp add: sec_agree_def exch4_def)
+    apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_agree_def split: prod.splits)
+   apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_agree_def split: prod.splits)
+   apply (metis v_framing)
+  apply force
+  done
+
+lemma conj_agree_iff:
+  \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
+  by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
+
+
+lemma
+  fixes p :: \<open>('a::perm_alg,'b::perm_alg) secstate \<Rightarrow> bool\<close>
+    and v :: \<open>'a \<times> 'b \<Rightarrow> 'v\<close>
+  assumes v1_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> v1 (xl + xf, xs) = v1 (yl + yf, ys) \<Longrightarrow> v1 (xl, xs) = v1 (yl, ys)\<close>
+  assumes v2_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> v2 (xl + xf, xs) = v2 (yl + yf, ys) \<Longrightarrow> v2 (xl, xs) = v2 (yl, ys)\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { \<top> }
+      \<langle> leakL v1 \<rangle> ;;
+      \<langle> leakL v2 \<rangle>
+      { \<bbbA> v1 \<sqinter> \<bbbA> v2 }\<close>
+  apply (rule_tac ?p2.0=\<open>\<bbbA> v1\<close> in rgsat_seq)
+   apply (rule rgsat_single_leak[where p=\<top>, simplified])
+   apply (metis v1_framing)
+  apply (rule rgsat_single_leak[where p=\<open>\<bbbA> v1\<close>, simplified])
+  apply (metis v2_framing)
+  done
+
 end
