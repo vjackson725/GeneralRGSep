@@ -917,4 +917,36 @@ lemma (in multiunit_sep_alg)
   by auto
 
 
+
+
+section \<open> Extractive shared state (2024-10-23) \<close>
+
+definition smyth_lift
+  :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)\<close> (\<open>\<SS>\<close>) where
+  \<open>\<SS> e r \<equiv> \<lambda>a a'. \<forall>b'. e a' b' \<longrightarrow> (\<exists>b. e a b \<and> r b b')\<close>
+
+definition hoare_lift
+  :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)\<close> (\<open>\<HH>\<close>) where
+  \<open>\<HH> e r \<equiv> \<lambda>a a'. \<forall>b. e a b \<longrightarrow> (\<exists>b'. e a' b' \<and> r b b')\<close>
+
+
+
+
+lemma
+  fixes e :: \<open>'a::perm_alg \<Rightarrow> 'b \<Rightarrow> bool\<close>
+    and r :: \<open>'b \<Rightarrow> 'b \<Rightarrow> bool\<close>
+  assumes
+    \<open>R = \<SS> e r \<sqinter> \<HH> e r\<close>
+   and embedding_r_closed:
+    \<open>\<forall>b b'. r b b' \<longrightarrow> (\<exists>a. e a b) \<longrightarrow> (\<exists>a'. e a' b')\<close>
+  shows
+    \<open>\<forall>a a'. R a a' \<longrightarrow> (\<forall>b. e a b \<longrightarrow> (\<exists>b'. e a' b' \<and> r b b'))\<close>
+    \<open>\<forall>b b'. r b b' \<longrightarrow> (\<forall>a. e a b \<longrightarrow> (\<exists>a'. e a' b' \<and> R a a'))\<close>
+  using assms
+  subgoal sorry
+  subgoal sorry
+  oops
+
+
+
 end

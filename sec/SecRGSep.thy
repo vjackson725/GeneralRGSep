@@ -143,7 +143,21 @@ definition
 type_synonym ('a,'b) secstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
 
 definition
-  \<open>seclift_rel \<equiv> \<lambda>rx. \<lambda>(a,a') (b,b'). rx a b \<and> rx a' b'\<close>
+  \<open>seclift_pred p \<equiv> \<lambda>(a,a'). p a \<and> p a'\<close>
+
+lemma exch4_conv[simp]:
+  \<open>exch4 ((a, b), (a', b')) = ((a, a'), (b, b'))\<close>
+  by (simp add: exch4_def)
+
+lemma seclift_pred_conv[simp]:
+  \<open>seclift_pred p (x, y) = (p x \<and> p y)\<close>
+  by (simp add: seclift_pred_def)
+
+
+definition
+  \<open>seclift_rel r \<equiv> \<lambda>(a,a') (b,b'). r a b \<and> r a' b'\<close>
+
+
 
 definition leakL
   :: \<open>('a \<times> 'b \<Rightarrow> 'v) \<Rightarrow>
@@ -155,17 +169,38 @@ definition sec_agree
   where
     \<open>\<bbbA> vf \<equiv> (\<lambda>(ab,ab'). vf ab = vf ab') \<circ> exch4\<close>
 
+lemma conj_agree_iff:
+  \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
+  by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
 
 lemma eqrel_times_eqrel_eq[simp]:
   \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
   by (force simp add: rel_Times_def)
+
+
+definition sec_both
+  :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'a) \<times> ('b \<times> 'b) \<Rightarrow> bool\<close> (\<open>\<bool>\<close>)
+  where
+    \<open>\<bool> p \<equiv> (\<lambda>(ab,ab'). p ab \<and> p ab') \<circ> exch4\<close>
+
+lemma sec_both_conj_distrib:
+  \<open>\<bool> p \<sqinter> \<bool> q = \<bool> (p \<sqinter> q)\<close>
+  by (force simp add: sec_both_def exch4_def fun_eq_iff)
+
+lemma sec_both_disj_semidistrib:
+  \<open>\<bool> p \<squnion> \<bool> q \<le> \<bool> (p \<squnion> q)\<close>
+  by (force simp add: sec_both_def exch4_def fun_eq_iff)
+
+
+
 
 lemma rgsat_single_leak:
   fixes p :: \<open>('a::perm_alg,'b::perm_alg) secstate \<Rightarrow> bool\<close>
     and v :: \<open>'a \<times> 'b \<Rightarrow> 'v\<close>
   assumes v_framing:
     \<open>\<And>xf yf xl xs yl ys.
-      F (xf,yf) \<Longrightarrow> v (xl + xf, xs) = v (yl + yf, ys) \<Longrightarrow> v (xl, xs) = v (yl, ys)\<close>
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        v (xl + xf, xs) = v (yl + yf, ys) \<Longrightarrow> v (xl, xs) = v (yl, ys)\<close>
   shows
     \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
       { p }
@@ -182,20 +217,17 @@ lemma rgsat_single_leak:
   apply force
   done
 
-lemma conj_agree_iff:
-  \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
-  by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
-
-
 lemma
   fixes p :: \<open>('a::perm_alg,'b::perm_alg) secstate \<Rightarrow> bool\<close>
     and v :: \<open>'a \<times> 'b \<Rightarrow> 'v\<close>
   assumes v1_framing:
     \<open>\<And>xf yf xl xs yl ys.
-      F (xf,yf) \<Longrightarrow> v1 (xl + xf, xs) = v1 (yl + yf, ys) \<Longrightarrow> v1 (xl, xs) = v1 (yl, ys)\<close>
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        v1 (xl + xf, xs) = v1 (yl + yf, ys) \<Longrightarrow> v1 (xl, xs) = v1 (yl, ys)\<close>
   assumes v2_framing:
     \<open>\<And>xf yf xl xs yl ys.
-      F (xf,yf) \<Longrightarrow> v2 (xl + xf, xs) = v2 (yl + yf, ys) \<Longrightarrow> v2 (xl, xs) = v2 (yl, ys)\<close>
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        v2 (xl + xf, xs) = v2 (yl + yf, ys) \<Longrightarrow> v2 (xl, xs) = v2 (yl, ys)\<close>
   shows
     \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
       { \<top> }
@@ -208,5 +240,177 @@ lemma
   apply (rule rgsat_single_leak[where p=\<open>\<bbbA> v1\<close>, simplified])
   apply (metis v2_framing)
   done
+
+
+lemma rgsat_sec_guard:
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  assumes p_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        p (xl + xf, xs) = p (yl + yf, ys) \<Longrightarrow> p (xl, xs) = p (yl, ys)\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { \<top> }
+      Guard (seclift_pred p \<circ> exch4)
+      { \<bbbA> p }\<close>
+  apply (rule_tac p=\<top> and q=\<open>\<bbbA> p\<close> in rgsat_atom)
+      apply force
+     apply force
+    apply (force simp add: post_state_def le_fun_def sec_agree_def)
+   apply clarsimp
+   apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_agree_def split: prod.splits)
+   apply (metis p_framing)
+  apply force
+  done
+
+lemma helper:
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  assumes p_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        p (xl + xf, xs) = p (yl + yf, ys) \<Longrightarrow> p (xl, xs) = p (yl, ys)\<close>
+  shows
+    \<open>- (seclift_pred p \<circ> exch4) = (seclift_pred (-p) \<circ> exch4)\<close>
+  apply (simp add: exch4_def seclift_pred_def fun_eq_iff)
+  oops
+
+definition
+  \<open>SecIfThenElse p ct cf \<equiv>
+    Guard (seclift_pred p \<circ> exch4) ;; ct \<box> Guard (seclift_pred (-p) \<circ> exch4) ;; cf\<close>
+
+lemma sec_ifthenelse_complete:
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  shows \<open>(seclift_pred p \<circ> exch4) \<squnion> (seclift_pred (-p) \<circ> exch4) = \<top>\<close>
+  apply (clarsimp simp add: seclift_pred_def exch4_def fun_eq_iff)
+  apply (rename_tac a a' b b')
+  oops
+  
+
+lemma
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  assumes p_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        p (xl + xf, xs) = p (yl + yf, ys) \<Longrightarrow> p (xl, xs) = p (yl, ys)\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { \<top> }
+      SecIfThenElse p Skip Skip
+      { \<bbbA> p \<squnion> \<bbbA> (-p) }\<close>
+  unfolding SecIfThenElse_def
+  apply -
+  apply (rule_tac ?g1.0=\<top> and ?g2.0=\<top> and ?q1.0=\<open>\<bbbA> p\<close> and ?q2.0=\<open>\<bbbA> (-p)\<close> in rgsat_endet)
+       apply (rule_tac rgsat_seq[OF _ rgsat_skip])
+        apply (rule rgsat_sec_guard)
+        apply (metis assms)
+       apply force
+      apply (rule_tac rgsat_seq[OF _ rgsat_skip])
+       apply (rule rgsat_sec_guard)
+       apply (force simp add: p_framing)
+      apply force
+     apply force
+    apply force
+   apply force
+  apply force
+  done
+
+
+lemma
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  assumes p_strong_framing:
+    \<open>\<And>xf yf xl xs.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow>  p (xl + xf, xs) \<longleftrightarrow> p (xl, xs)\<close>
+    \<open>\<And>xf yf yl ys.
+      F (xf,yf) \<Longrightarrow> yl ## yf \<Longrightarrow>  p (yl + yf, ys) \<longleftrightarrow> p (yl, ys)\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { \<top> }
+      IfThenElse (seclift_pred p \<circ> exch4) Skip Skip
+      { \<bool> p \<squnion> -(\<bool> p) }\<close>
+  unfolding IfThenElse_def
+  apply -
+  apply (rule_tac ?g1.0=\<top> and ?g2.0=\<top> and ?q1.0=\<open>\<bool> p\<close> and ?q2.0=\<open>- \<bool> p\<close> in rgsat_endet)
+       apply (rule_tac rgsat_seq[OF _ rgsat_skip])
+        apply (rule_tac p=\<top> and q=\<open>\<bool> p\<close> and q'=\<open>\<bool> p\<close> in rgsat_atom)
+            apply force
+           apply force
+          apply (force simp add: post_state_def le_fun_def sec_both_def)
+         apply clarsimp
+         apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_both_def split: prod.splits)
+         apply (metis assms)
+        apply force
+       apply force
+      apply (rule_tac rgsat_seq[OF _ rgsat_skip])
+       apply (rule_tac p=\<top> and q=\<open>- \<bool> p\<close> and q'=\<open>- \<bool> p\<close> in rgsat_atom)
+           apply force
+          apply force
+         apply (clarsimp simp add: post_state_def sec_both_def; fail)
+        apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_both_def split: prod.splits)
+        apply (metis assms)
+       apply (clarsimp simp add: post_state_def sec_both_def; fail)
+      apply force
+     apply force
+    apply force
+   apply force
+  apply force
+  done
+
+lemma agree_pred_impl_both_or_both_not:
+  \<open>\<bbbA> p \<le> \<bool> p \<squnion> \<bool> (-p)\<close>
+  by (simp add: sec_agree_def sec_both_def exch4_def le_fun_def)
+
+
+lemma sec_if_then_else:
+  fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
+  assumes p_framing:
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        p (xl + xf, xs) \<and> p (yl + yf, ys) \<Longrightarrow> p (xl, xs) \<and> p (yl, ys)\<close>
+    \<open>\<And>xf yf xl xs yl ys.
+      F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
+        \<not> p (xl + xf, xs) \<or> \<not> p (yl + yf, ys) \<Longrightarrow> \<not> p (xl, xs) \<or> \<not> p (yl, ys)\<close>
+    and p_atoms:
+      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> p } (\<langle> ctt \<rangle>) { \<bool> q1 }\<close>
+      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> (-p) } (\<langle> cff \<rangle>) { \<bool> q2 }\<close>
+  shows
+    \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
+      { \<bbbA> p }
+      IfThenElse (seclift_pred p \<circ> exch4) (\<langle> ctt \<rangle>) (\<langle> cff \<rangle>)
+      { \<bool> q1 \<squnion> \<bool> q2 }\<close>
+  unfolding IfThenElse_def
+  apply -
+  apply (rule_tac ?g1.0=\<top> and ?g2.0=\<top> and ?q1.0=\<open>\<bool> q1\<close> and ?q2.0=\<open>\<bool> q2\<close> in rgsat_endet)
+       apply (rule_tac rgsat_seq)
+        apply (rule_tac p=\<open>\<bbbA> p\<close> and q=\<open>\<bool> p\<close> and q'=\<open>\<bool> p\<close> in rgsat_atom)
+            apply force
+           apply force
+          apply (clarsimp simp add: sec_both_def sec_agree_def post_state_def le_fun_def
+      seclift_pred_def exch4_def pguard_def sp_def; fail)
+         apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_both_def split: prod.splits)
+         apply (metis assms(1))
+        apply force
+       apply (metis assms(3))
+      apply (rule_tac rgsat_seq)
+       apply (rule_tac p=\<open>\<bbbA> p\<close> and q=\<open>\<bool> (-p)\<close> and q'=\<open>\<bool> (-p)\<close> in rgsat_atom)
+           apply force
+          apply force
+         apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_both_def sec_agree_def split: prod.splits;
+      fail)
+        apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
+      le_fun_def sepconj_conj_def sec_both_def sec_agree_def split: prod.splits)
+        apply (metis p_framing(2))
+       apply force
+      apply (metis assms(4))
+     apply force
+    apply force
+   apply force
+  apply force
+  done
+
 
 end

@@ -56,7 +56,7 @@ text \<open>
   We later use it to construct a completed trace semantics.
 \<close>
 inductive bigtr
-  :: \<open>('s \<times> 's) comm \<Rightarrow> 's \<Rightarrow> 'a aact list \<times> 's \<Rightarrow> bool\<close>
+  :: \<open>('s \<times> 's) comm \<Rightarrow> 's \<Rightarrow> 's set aact list \<times> 's \<Rightarrow> bool\<close>
   where
   btr_skip: \<open>bigtr Skip s ([], s)\<close>
 | btr_seq:
@@ -76,7 +76,7 @@ inductive bigtr
 | btr_endetR:
     \<open>bigtr c2 s t2s' \<Longrightarrow> bigtr (c1 \<box> c2) s t2s'\<close>
 | btr_atom:
-    \<open>b (s,s) (s',s') \<Longrightarrow> bigtr (\<langle>b\<rangle>) s ([a], s')\<close>
+    \<open>b (s,s) (s',s') \<Longrightarrow>  \<Longrightarrow> bigtr (\<langle>b\<rangle>) s ([a], s')\<close>
 | btr_iter_step:
     \<open>bigtr c s (t1, s') \<Longrightarrow>
       bigtr (DO c OD) s' (t2, s'') \<Longrightarrow>
