@@ -241,24 +241,69 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
+definition crash_lift :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a + unit \<Rightarrow> 'b::order_bot)\<close> where
+  \<open>crash_lift f \<equiv> \<lambda>ma. case ma of Inl a \<Rightarrow> f a | Inr _ \<Rightarrow> \<bottom>\<close>
+
+lemma crash_lift_simps[simp]:
+  \<open>crash_lift f (Inl a) = f a\<close>
+  \<open>crash_lift f (Inr u) = \<bottom>\<close>
+  by (simp add: crash_lift_def)+
+
+
+definition crash_lift_rel :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a + unit \<Rightarrow> 'b + unit \<Rightarrow> 'c::order_bot)\<close> where
+  \<open>crash_lift_rel r \<equiv> \<lambda>ma. crash_lift (crash_lift r ma)\<close>
+
+lemma crash_lift_rel_simps[simp]:
+  \<open>crash_lift_rel r (Inl a) (Inl b) = r a b\<close>
+  \<open>crash_lift_rel r (Inr u) mb = \<bottom>\<close>
+  \<open>crash_lift_rel r ma (Inr u) = \<bottom>\<close>
+  by (simp add: crash_lift_rel_def crash_lift_def split: sum.splits)+
+
+
+definition crash_lift2_rel :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b + unit \<Rightarrow> 'c::order_bot)\<close> where
+  \<open>crash_lift2_rel r \<equiv> \<lambda>a. crash_lift (r a)\<close>
+
+lemma crash_lift2_rel_simps[simp]:
+  \<open>crash_lift2_rel r a (Inl b) = r a b\<close>
+  \<open>crash_lift2_rel r a (Inr u) = \<bottom>\<close>
+  by (simp add: crash_lift2_rel_def split: sum.splits)+
+
+
+
+lemma crash_lift_galois:
+  \<open>crash_lift p \<le> q \<longleftrightarrow> p \<le> q \<circ> Inl\<close>
+  by (simp add: crash_lift_def le_fun_def split: sum.splits)
+
+definition comp2 :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infix \<open>\<circ>\<^sub>2\<close> 55) where
+  \<open>r \<circ>\<^sub>2 g \<equiv> \<lambda>x. r (g x) \<circ> g\<close>
+
+lemma comp2_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
+  by (simp add: comp2_def comp_def)
+
+
+lemma crash_lift_rel_galois:
+  \<open>crash_lift_rel r \<le> r' \<longleftrightarrow> r \<le> r' \<circ>\<^sub>2 Inl\<close>
+  by (simp add: crash_lift_rel_def crash_lift_def le_fun_def split: sum.splits)
+
+
 inductive rgsat ::
   \<open>('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's + unit \<Rightarrow> bool) \<Rightarrow>
     ('l \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa r p \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
+  \<open>crash_lift (sswa r p) \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) F \<Longrightarrow>
-    p \<le> i \<Longrightarrow> sswa r i \<le> q \<Longrightarrow>
+  \<open>rgsat c r g (sswa r i) (crash_lift (sswa r i)) F \<Longrightarrow>
+    p \<le> i \<Longrightarrow> sswa r i \<le> q \<circ> Inl \<Longrightarrow>
     rgsat (Iter c) r g p q F\<close>
 | rgsat_seq:
   \<open>rgsat c1 r g p1 p2 F \<Longrightarrow>
-    rgsat c2 r g p2 p3 F \<Longrightarrow>
+    rgsat c2 r g (p2 \<circ> Inl) p3 F \<Longrightarrow>
     rgsat (c1 ;; c2) r g p1 p3 F\<close>
 | rgsat_indet:
   \<open>rgsat c1 r g1 p q1 F \<Longrightarrow>
@@ -277,20 +322,20 @@ inductive rgsat ::
     rgsat s2 (r \<squnion> g1) g2 p2 q2 \<top> \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
-    sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
+    sswa (r \<squnion> g2) (q1 \<circ> Inl) \<^emph>\<and> sswa (r \<squnion> g1) (q2 \<circ> Inl) \<le> q \<circ> Inl \<Longrightarrow>
     rgsat (s1 \<parallel> s2) r g p q \<top>\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
-    sswa r q \<le> q' \<Longrightarrow>
-    sp b (wssa r p) \<le> sswa r q \<Longrightarrow>
-    \<forall>f\<le>F. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
-    b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    sswa r ((q :: _ + unit \<Rightarrow> bool) \<circ> Inl) \<le> q' \<circ> Inl \<Longrightarrow>
+    sp b (wssa r p) \<le> crash_lift (sswa r (q \<circ> Inl)) \<Longrightarrow>
+    \<forall>f\<le>F. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> crash_lift (sswa r ((q \<circ> Inl) \<^emph>\<and> \<L> f)) \<Longrightarrow>
+    b \<le> crash_lift2_rel (\<top> \<times>\<^sub>R g) \<Longrightarrow>
     rgsat (Atomic b) r g p' q' F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q F \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
     f' \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
-    rgsat c r g (p \<^emph>\<and> f) (q \<^emph>\<and> f') (F \<midarrow>\<^emph> F)\<close>
+    rgsat c r g (p \<^emph>\<and> f) (crash_lift ((q \<circ> Inl) \<^emph>\<and> f')) (F \<midarrow>\<^emph> F)\<close>
 | rgsat_weaken:
   \<open>rgsat c r' g' p' q' F' \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
@@ -322,10 +367,10 @@ inductive_cases rgsep_indetE[elim]: \<open>rgsat (c1 \<^bold>+ c2) r g p q F\<cl
 inductive_cases rgsep_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q F\<close>
 
 lemma backwards_done:
-  \<open>rgsat Skip r g (wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p) p F\<close>
+  \<open>rgsat Skip r g (wssa r p) (crash_lift p) F\<close>
   by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
-        where p'=\<open>wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*) p\<close> and q'=p])
-    (clarsimp simp add: sp_def wlp_def le_fun_def)+
+        where p'=\<open>wssa r p\<close> and q'=\<open>crash_lift p\<close>])
+    (clarsimp simp add: sp_def wlp_def le_fun_def crash_lift_def split: sum.split)+
 
 lemma rgsat_impossible[intro]:
   \<open>rgsat c r g \<bottom> q F\<close>

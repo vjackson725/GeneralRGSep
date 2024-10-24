@@ -1192,4 +1192,15 @@ lemma wlp_sp_absorb:
   \<open>reflp r1 \<Longrightarrow> transp r2 \<Longrightarrow> r1 \<le> r2 \<Longrightarrow> wlp r1 (sp r2 p) = sp r2 p\<close>
   by (rule order.antisym; simp add: wlp_sp_weak_absorb wlp_refl_rel_le)
 
+
+
+
+\<comment> \<open> TODO: move \<close>
+
+abbreviation map_suml :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> 'a + 'c \<Rightarrow> 'b + 'c\<close> where
+  \<open>map_suml f \<equiv> map_sum f (\<lambda>x. x)\<close>
+
+abbreviation map_sumr :: \<open>('b \<Rightarrow> 'c) \<Rightarrow> 'a + 'b \<Rightarrow> 'a + 'c\<close> where
+  \<open>map_sumr f \<equiv> map_sum (\<lambda>x. x) f\<close>
+
 end
