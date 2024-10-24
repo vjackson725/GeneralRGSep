@@ -194,6 +194,32 @@ lemma sec_both_disj_semidistrib:
 
 
 
+text \<open>
+  output v = assert (\<bbbA> v)
+  leak v = assume (\<bbbA> v)
+\<close>
+
+(*
+lemma
+    \<open>(=), (=) \<turnstile>\<^bsub>F\<^esub>
+      { \<bbbA> v }
+      \<langle> output v \<rangle>
+      { \<top> }\<close>
+*)
+
+(*
+    \<open>(=), (=) \<turnstile>\<^bsub>F\<^esub>
+      { p \<mapsto> \<midarrow> }
+      [p] := e
+      { p \<mapsto> e }\<close>
+
+    \<open>(=), (=) \<turnstile>\<^bsub>F\<^esub>
+      { \<not> (p \<mapsto> \<midarrow>) }
+      [p] := e
+      { X }\<close>
+    ???
+*)
+
 lemma rgsat_single_leak:
   fixes p :: \<open>('a::perm_alg,'b::perm_alg) secstate \<Rightarrow> bool\<close>
     and v :: \<open>'a \<times> 'b \<Rightarrow> 'v\<close>
@@ -214,7 +240,7 @@ lemma rgsat_single_leak:
    apply (clarsimp simp add: sp_def leakL_def rel_exch4_def exch4_def
       le_fun_def sepconj_conj_def sec_agree_def split: prod.splits)
    apply (metis v_framing)
-  apply force
+  apply (simp add: le_fun_def leakL_def rel_exch4_def; fail)
   done
 
 lemma
@@ -285,7 +311,11 @@ lemma sec_ifthenelse_complete:
   apply (clarsimp simp add: seclift_pred_def exch4_def fun_eq_iff)
   apply (rename_tac a a' b b')
   oops
-  
+
+lemma
+  \<open>\<bbbA> p \<le> \<bbbA> (-p)\<close>
+  by (clarsimp simp add: sec_agree_def exch4_def fun_eq_iff)
+
 
 lemma
   fixes p :: \<open>('a::perm_alg) \<times> ('b::perm_alg) \<Rightarrow> bool\<close>
@@ -373,12 +403,12 @@ lemma sec_if_then_else:
       F (xf,yf) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
         \<not> p (xl + xf, xs) \<or> \<not> p (yl + yf, ys) \<Longrightarrow> \<not> p (xl, xs) \<or> \<not> p (yl, ys)\<close>
     and p_atoms:
-      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> p } (\<langle> ctt \<rangle>) { \<bool> q1 }\<close>
-      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> (-p) } (\<langle> cff \<rangle>) { \<bool> q2 }\<close>
+      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> p } ctt { \<bool> q1 }\<close>
+      \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub> { \<bool> (-p) } cff { \<bool> q2 }\<close>
   shows
     \<open>(=), \<top> \<turnstile>\<^bsub>F\<^esub>
       { \<bbbA> p }
-      IfThenElse (seclift_pred p \<circ> exch4) (\<langle> ctt \<rangle>) (\<langle> cff \<rangle>)
+      IfThenElse (seclift_pred p \<circ> exch4) ctt cff
       { \<bool> q1 \<squnion> \<bool> q2 }\<close>
   unfolding IfThenElse_def
   apply -
