@@ -9,9 +9,11 @@ abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)
 
 subsection \<open> rel relf + trans \<close>
 
-lemma trans_rely[simp]: \<open>transp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+lemma relyrel_trans: \<open>transp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
   by (metis rel_Times_left_eq_rtranclp_distrib transp_rtranclp)
-  
+
+lemma relyrel_mono: \<open>r1 \<le> r2 \<Longrightarrow> ((=) \<times>\<^sub>R r1\<^sup>*\<^sup>*) \<le> ((=) \<times>\<^sub>R r2\<^sup>*\<^sup>*)\<close>
+  by (simp add: le_fun_def, metis mono_rtranclp)
 
 subsection \<open> step properties \<close>
 
@@ -241,69 +243,25 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
-definition crash_lift :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a + unit \<Rightarrow> 'b::order_bot)\<close> where
-  \<open>crash_lift f \<equiv> \<lambda>ma. case ma of Inl a \<Rightarrow> f a | Inr _ \<Rightarrow> \<bottom>\<close>
-
-lemma crash_lift_simps[simp]:
-  \<open>crash_lift f (Inl a) = f a\<close>
-  \<open>crash_lift f (Inr u) = \<bottom>\<close>
-  by (simp add: crash_lift_def)+
-
-
-definition crash_lift_rel :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a + unit \<Rightarrow> 'b + unit \<Rightarrow> 'c::order_bot)\<close> where
-  \<open>crash_lift_rel r \<equiv> \<lambda>ma. crash_lift (crash_lift r ma)\<close>
-
-lemma crash_lift_rel_simps[simp]:
-  \<open>crash_lift_rel r (Inl a) (Inl b) = r a b\<close>
-  \<open>crash_lift_rel r (Inr u) mb = \<bottom>\<close>
-  \<open>crash_lift_rel r ma (Inr u) = \<bottom>\<close>
-  by (simp add: crash_lift_rel_def crash_lift_def split: sum.splits)+
-
-
-definition crash_lift2_rel :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b + unit \<Rightarrow> 'c::order_bot)\<close> where
-  \<open>crash_lift2_rel r \<equiv> \<lambda>a. crash_lift (r a)\<close>
-
-lemma crash_lift2_rel_simps[simp]:
-  \<open>crash_lift2_rel r a (Inl b) = r a b\<close>
-  \<open>crash_lift2_rel r a (Inr u) = \<bottom>\<close>
-  by (simp add: crash_lift2_rel_def split: sum.splits)+
-
-
-
-lemma crash_lift_galois:
-  \<open>crash_lift p \<le> q \<longleftrightarrow> p \<le> q \<circ> Inl\<close>
-  by (simp add: crash_lift_def le_fun_def split: sum.splits)
-
-definition comp2 :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infix \<open>\<circ>\<^sub>2\<close> 55) where
-  \<open>r \<circ>\<^sub>2 g \<equiv> \<lambda>x. r (g x) \<circ> g\<close>
-
-lemma comp2_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
-  by (simp add: comp2_def comp_def)
-
-
-lemma crash_lift_rel_galois:
-  \<open>crash_lift_rel r \<le> r' \<longleftrightarrow> r \<le> r' \<circ>\<^sub>2 Inl\<close>
-  by (simp add: crash_lift_rel_def crash_lift_def le_fun_def split: sum.splits)
-
-
 inductive rgsat ::
   \<open>('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's + unit \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
-  \<open>crash_lift (sswa r p) \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
+  \<open>sswa r p \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (crash_lift (sswa r i)) F \<Longrightarrow>
-    p \<le> i \<Longrightarrow> sswa r i \<le> q \<circ> Inl \<Longrightarrow>
+  \<open>rgsat c r g i i F \<Longrightarrow>
+    p \<le> wssa r i \<Longrightarrow>
+    sswa r i \<le> q \<Longrightarrow>
     rgsat (Iter c) r g p q F\<close>
 | rgsat_seq:
   \<open>rgsat c1 r g p1 p2 F \<Longrightarrow>
-    rgsat c2 r g (p2 \<circ> Inl) p3 F \<Longrightarrow>
+    rgsat c2 r g (p2) p3 F \<Longrightarrow>
     rgsat (c1 ;; c2) r g p1 p3 F\<close>
 | rgsat_indet:
   \<open>rgsat c1 r g1 p q1 F \<Longrightarrow>
@@ -322,20 +280,23 @@ inductive rgsat ::
     rgsat s2 (r \<squnion> g1) g2 p2 q2 \<top> \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
-    sswa (r \<squnion> g2) (q1 \<circ> Inl) \<^emph>\<and> sswa (r \<squnion> g1) (q2 \<circ> Inl) \<le> q \<circ> Inl \<Longrightarrow>
+    sswa (r \<squnion> g2) (q1) \<^emph>\<and> sswa (r \<squnion> g1) (q2) \<le> q \<Longrightarrow>
     rgsat (s1 \<parallel> s2) r g p q \<top>\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
-    sswa r ((q :: _ + unit \<Rightarrow> bool) \<circ> Inl) \<le> q' \<circ> Inl \<Longrightarrow>
-    sp b (wssa r p) \<le> crash_lift (sswa r (q \<circ> Inl)) \<Longrightarrow>
-    \<forall>f\<le>F. sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> crash_lift (sswa r ((q \<circ> Inl) \<^emph>\<and> \<L> f)) \<Longrightarrow>
-    b \<le> crash_lift2_rel (\<top> \<times>\<^sub>R g) \<Longrightarrow>
-    rgsat (Atomic b) r g p' q' F\<close>
+    p \<le> ap \<Longrightarrow>
+    sp (rel_liftL ap \<sqinter> aq) p \<le> q \<Longrightarrow>
+    sswa r q \<le> q' \<Longrightarrow>
+    \<forall>f\<le>F. sp (rel_liftL ap \<sqinter> aq) (p \<^emph>\<and> \<L> f) \<le> wssa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
+    rel_liftL ap \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    rgsat (Atomic ap aq) r g p' q' F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q F \<Longrightarrow>
+    p' \<le> p \<^emph>\<and> f \<Longrightarrow>
+    q \<^emph>\<and> f' \<le> q' \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
     f' \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
-    rgsat c r g (p \<^emph>\<and> f) (crash_lift ((q \<circ> Inl) \<^emph>\<and> f')) (F \<midarrow>\<^emph> F)\<close>
+    rgsat c r g p' q' (F \<midarrow>\<^emph> F)\<close>
 | rgsat_weaken:
   \<open>rgsat c r' g' p' q' F' \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
@@ -345,42 +306,44 @@ inductive rgsat ::
     F \<le> F' \<Longrightarrow>
     rgsat c r g p q F\<close>
 | rgsat_Disj:
-  \<open>\<forall>p\<in>P. rgsat c r g p q F \<Longrightarrow>
-    rgsat c r g (\<Squnion>P) q F\<close>
+  \<open>p' \<le> \<Squnion>P \<Longrightarrow>
+    \<forall>p\<in>P. rgsat c r g p q F \<Longrightarrow>
+    rgsat c r g p' q F\<close>
 | rgsat_Conj:
   \<open>\<forall>q\<in>Q. rgsat c r g p q F \<Longrightarrow>
     Q \<noteq> {} \<Longrightarrow>
     \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
-    rgsat c r g p (\<Sqinter>Q) F\<close>
+    \<Sqinter>Q \<le> q' \<Longrightarrow>
+    rgsat c r g p q' F\<close>
 
 abbreviation rgsat_pretty
   :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
   (\<open>_, _ \<turnstile>\<^bsub>_\<^esub> { _ } _ { _ }\<close> [55, 55, 0, 55, 55, 55] 56) where
   \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } c { q } \<equiv> rgsat c r g p q F\<close>
 
-inductive_cases rgsep_skipE[elim]: \<open>rgsat Skip r g p q F\<close>
-inductive_cases rgsep_seqE[elim]: \<open>rgsat (c1 ;; c2) r g p q F\<close>
-inductive_cases rgsep_iterE[elim]: \<open>rgsat (DO c OD) r g p q F\<close>
-inductive_cases rgsep_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q F\<close>
-inductive_cases rgsep_atomE[elim]: \<open>rgsat (Atomic b) r g p q F\<close>
-inductive_cases rgsep_indetE[elim]: \<open>rgsat (c1 \<^bold>+ c2) r g p q F\<close>
-inductive_cases rgsep_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q F\<close>
+inductive_cases rgsat_skipE[elim]: \<open>rgsat Skip r g p q F\<close>
+inductive_cases rgsat_seqE[elim]: \<open>rgsat (c1 ;; c2) r g p q F\<close>
+inductive_cases rgsat_iterE[elim]: \<open>rgsat (DO c OD) r g p q F\<close>
+inductive_cases rgsat_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q F\<close>
+inductive_cases rgsat_atomE[elim]: \<open>rgsat (Atomic ap aq) r g p q F\<close>
+inductive_cases rgsat_indetE[elim]: \<open>rgsat (c1 \<^bold>+ c2) r g p q F\<close>
+inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q F\<close>
 
 lemma backwards_done:
-  \<open>rgsat Skip r g (wssa r p) (crash_lift p) F\<close>
+  \<open>rgsat Skip r g (wssa r p) p F\<close>
   by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
-        where p'=\<open>wssa r p\<close> and q'=\<open>crash_lift p\<close>])
-    (clarsimp simp add: sp_def wlp_def le_fun_def crash_lift_def split: sum.split)+
+        where p'=\<open>wssa r p\<close> and q'=p])
+    (clarsimp simp add: sp_def wlp_def le_fun_def split: sum.split)+
 
 lemma rgsat_impossible[intro]:
   \<open>rgsat c r g \<bottom> q F\<close>
-  using rgsat_Disj by fastforce
+  using rgsat_Disj[of \<open>\<bottom>\<close> \<open>{}\<close>] by fastforce
 
 lemma rgsat_disj:
   \<open>rgsat c r g p1 q F \<Longrightarrow>
     rgsat c r g p2 q F \<Longrightarrow>
     rgsat c r g (p1 \<squnion> p2) q F\<close>
-  using rgsat_Disj[of \<open>{p1,p2}\<close>]
+  using rgsat_Disj[of \<open>p1 \<squnion> p2\<close> \<open>{p1,p2}\<close>]
   by fastforce
 
 lemma rgsat_conj:
@@ -388,7 +351,60 @@ lemma rgsat_conj:
     rgsat c r g p q2 F \<Longrightarrow>
     \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     rgsat c r g p (q1 \<sqinter> q2) F\<close>
-  using rgsat_Conj[of \<open>{q1,q2}\<close>]
+  using rgsat_Conj[of \<open>{q1,q2}\<close> _ _ _ _ _ \<open>q1 \<sqinter> q2\<close>]
   by fastforce
+
+text \<open>
+  The strongest weakening rule we can prove by induction. This is because parallel has the
+  pessimistic frame set \<open>\<top>\<close>, which this rule inherits, and frame stabilisation requires the
+  guarantee does not weaken is the same.
+  It is nevertheless sound to use the stronger version.
+\<close>
+lemma rgsat_weak_weaken:
+  \<open>rgsat c r' g p' q' \<top> \<Longrightarrow>
+      p \<le> p' \<Longrightarrow>
+      q' \<le> q \<Longrightarrow>
+      r \<le> r' \<Longrightarrow>
+      rgsat c r g p q \<top>\<close>
+  apply (induct arbitrary: r p q rule: rgsat.inducts)
+           apply (meson rgsat_skip order.trans relyrel_mono sp_mono; fail)
+          apply (rule_tac i=i in rgsat_iter)
+            apply blast
+           apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+          apply (meson order.trans relyrel_mono sp_rel_mono; fail)
+         apply (meson order_refl rgsat_seq; fail)
+        apply (meson rgsat_indet; fail)
+       apply (meson rgsat_endet; fail)
+      apply (rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 and
+      ?g1.0=g1 and ?g2.0=g2 in rgsat_par)
+           apply (meson order.refl sup_mono; fail)
+          apply (meson order.refl sup_mono; fail)
+         apply order
+        apply order
+       apply order
+      apply (meson order.trans le_disj_eq_absorb relyrel_mono sepconj_conj_mono sp_mono sup_mono; fail)
+    (* atom *)
+     apply (rule_tac p=p and q=q in rgsat_atom)
+          apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
+         apply blast
+        apply blast
+       apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
+      apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+     apply (meson order.trans rel_Times_mono_right; fail)
+    (* frame *)
+    apply (rule_tac p=p and q=q and r=ra in rgsat_frame)
+        apply blast
+       apply (rule order.trans; assumption)
+      apply (rule order.trans; assumption)
+     apply (meson order.refl order.trans sp_rel_mono relyrel_mono sup_mono; fail)
+     apply blast
+    (* weaken *)
+    apply (meson rgsat_weaken; fail)
+    (* Disj *)
+   apply (rule_tac P=P in rgsat_Disj; simp; fail)
+    (* Conj *)
+  apply (rule_tac Q=Q in rgsat_Conj; simp; fail)
+  done
+
 
 end

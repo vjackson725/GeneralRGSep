@@ -146,6 +146,13 @@ definition \<open>rel_liftR p \<equiv> \<lambda>a b. p b\<close>
 definition \<open>rel_lift p \<equiv> \<lambda>a b. p a \<and> p b\<close>
 definition \<open>rel_imp_lift p \<equiv> \<lambda>a b. p a \<longrightarrow> p b\<close>
 
+definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
+  \<open>r \<circ>\<^sub>2 f \<equiv> \<lambda>x y. r (f x) (f y)\<close>
+
+lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
+  by (simp add: comp_rel_def comp_def)
+
+
 definition \<open>pre_state_of B r \<equiv> \<lambda>a. \<exists>b\<in>B. r a b\<close>
 definition \<open>post_state_of A r \<equiv> \<lambda>b. \<exists>a\<in>A. r a b\<close>
 
@@ -164,6 +171,8 @@ abbreviation \<open>quasireflp r \<equiv> reflp_on (Collect (prepost_state r)) r
 definition \<open>pre_change_state r \<equiv> \<lambda>a. \<exists>b. r a b \<and> a \<noteq> b\<close>
 definition \<open>post_change_state r \<equiv> \<lambda>b. \<exists>a. r a b \<and> a \<noteq> b\<close>
 definition \<open>change_state \<equiv> pre_change_state \<squnion> post_change_state\<close>
+
+
 
 lemma quasireflpD1[dest]:
   \<open>quasireflp r \<Longrightarrow> r x y \<Longrightarrow> r x x\<close>
@@ -935,6 +944,17 @@ lemma rel_Times_comp[simp]:
   \<open>(a \<times>\<^sub>R b) OO (c \<times>\<^sub>R d) = (a OO c) \<times>\<^sub>R (b OO d)\<close>
   by (force simp add: fun_eq_iff OO_def)
 
+lemma rel_Times_mono:
+  \<open>a \<le> a' \<Longrightarrow> b \<le> b' \<Longrightarrow> a \<times>\<^sub>R b \<le> a' \<times>\<^sub>R b'\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma rel_Times_mono_left:
+  \<open>a \<le> a' \<Longrightarrow> a \<times>\<^sub>R b \<le> a' \<times>\<^sub>R b\<close>
+  by (simp add: rel_Times_mono)
+
+lemma rel_Times_mono_right:
+  \<open>b \<le> b' \<Longrightarrow> a \<times>\<^sub>R b \<le> a \<times>\<^sub>R b'\<close>
+  by (simp add: rel_Times_mono)
 
 lemma Times_singleton[simp]:
   \<open>{x} \<times> B = Pair x ` B\<close>
@@ -977,7 +997,7 @@ definition wlp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> 
 
 paragraph \<open> wlp predicate properties \<close>
 
-lemma wlp_mono:
+lemma wlp_pred_mono:
   \<open>p \<le> q \<Longrightarrow> wlp r p \<le> wlp r q\<close>
   by (force simp add: wlp_def)
 
@@ -1034,6 +1054,10 @@ lemma wlp_rel_antimono:
   \<open>r1 \<le> r2 \<Longrightarrow> wlp r2 p \<le> wlp r1 p\<close>
   by (force simp add: wlp_def)
 
+lemma wlp_mono:
+  \<open>r1 \<le> r2 \<Longrightarrow> p \<le> q \<Longrightarrow> wlp r2 p \<le> wlp r1 q\<close>
+  by (force simp add: wlp_def)
+
 lemma wlp_eq_rel[simp]:
   \<open>wlp (=) p = p\<close>
   by (force simp add: wlp_def)
@@ -1060,11 +1084,11 @@ lemma wlp_comp_rel:
 
 paragraph \<open> sp predicate properties \<close>
 
-lemma sp_mono:
+lemma sp_pred_mono:
   \<open>p \<le> q \<Longrightarrow> sp r p \<le> sp r q\<close>
   by (force simp add: sp_def)
 
-lemma sp_mono2:
+lemma sp_pred_mono2:
   \<open>p \<le> q \<Longrightarrow> sp r p x \<Longrightarrow> sp r q x\<close>
   by (force simp add: sp_def)
 
@@ -1118,6 +1142,10 @@ paragraph \<open> sp relation properties \<close>
 lemma sp_rel_mono:
   \<open>r1 \<le> r2 \<Longrightarrow> sp r1 p \<le> sp r2 p\<close>
   by (force simp add: sp_def)
+
+lemma sp_mono:
+  \<open>r1 \<le> r2 \<Longrightarrow> p1 \<le> p2 \<Longrightarrow> sp r1 p1 \<le> sp r2 p2\<close>
+  by (meson order.trans sp_pred_mono sp_rel_mono)
 
 lemma sp_eq_rel[simp]:
   \<open>sp (=) p = p\<close>

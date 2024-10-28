@@ -16,17 +16,34 @@ lemma act_not_eq_iff[simp]:
 
 subsection \<open> Operational semantics steps \<close>
 
-fun head_atoms :: \<open>'a comm \<Rightarrow> ('a \<Rightarrow> 'a + unit \<Rightarrow> bool) set\<close> where
+fun head_atoms :: \<open>'a comm \<Rightarrow> (('a \<Rightarrow> bool) \<times> ('a \<Rightarrow> 'a \<Rightarrow> bool)) set\<close> where
   \<open>head_atoms (c1 ;; c2) = (let a1 = head_atoms c1
                              in if a1 = \<bottom> then head_atoms c2 else a1)\<close>
 | \<open>head_atoms (c1 \<^bold>+ c2) = (head_atoms c1 \<squnion> head_atoms c2)\<close>
 | \<open>head_atoms (c1 \<box> c2) = (head_atoms c1 \<squnion> head_atoms c2)\<close>
 | \<open>head_atoms (c1 \<parallel> c2) = (head_atoms c1 \<squnion> head_atoms c2)\<close>
-| \<open>head_atoms (Atomic b) = {b}\<close>
+| \<open>head_atoms (Atomic ap aq) = {(ap,aq)}\<close>
 | \<open>head_atoms (DO c OD) = head_atoms c\<close>
 | \<open>head_atoms Skip = {}\<close>
 | \<open>head_atoms (\<mu> c) = head_atoms c\<close>
 | \<open>head_atoms (FixVar x) = \<bottom>\<close>
+
+text \<open>
+  A program is stuck at a certain state when every head atom is stuck at that state,
+  except for loops, which are never stuck.
+  This stuck state could be a deadlock, or it could be transient and eventually resolved
+  by interference.
+\<close>
+fun stuck :: \<open>'a comm \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
+  \<open>stuck (c1 ;; c2) h = (stuck c1 h \<or> head_atoms c1 = {} \<and> stuck c2 h)\<close>
+| \<open>stuck (c1 \<^bold>+ c2) h = (stuck c1 h \<or> stuck c2 h)\<close>
+| \<open>stuck (c1 \<box> c2) h = (stuck c1 h \<or> stuck c2 h)\<close>
+| \<open>stuck (c1 \<parallel> c2) h = (stuck c1 h \<or> stuck c2 h)\<close>
+| \<open>stuck (Atomic ap aq) h = (ap h \<and> \<not> pre_state aq h)\<close>
+| \<open>stuck (DO c OD) h = False\<close>
+| \<open>stuck Skip h = False\<close>
+| \<open>stuck (\<mu> c) h = stuck c h\<close>
+| \<open>stuck (FixVar x) h = False\<close>
 
 inductive opstep :: \<open>act \<Rightarrow> 's \<times> 's comm \<Rightarrow> ('s + unit) \<times> 's comm \<Rightarrow> bool\<close> where
   seq_left[intro!]: \<open>opstep a (h, c1) (h', c1') \<Longrightarrow> opstep a (h, c1 ;; c2) (h', c1' ;; c2)\<close>
@@ -47,9 +64,14 @@ inductive opstep :: \<open>act \<Rightarrow> 's \<times> 's comm \<Rightarrow> (
 | par_right[intro]: \<open>opstep a (h, t) (h', t') \<Longrightarrow> opstep a (h, s \<parallel> t) (h', s \<parallel> t')\<close>
 | par_skip[intro!]: \<open>opstep Tau (h, Skip \<parallel> Skip) (Inl h, Skip)\<close>
 | iter_step[intro]: \<open>opstep Tau (h, DO c OD) (Inl h, c ;; DO c OD)\<close>
-| iter_end[intro]: \<open>\<not> pre_state (\<Squnion>(head_atoms c)) h \<Longrightarrow> opstep Tau (h, DO c OD) (Inl h, Skip)\<close>
+| iter_end[intro]: \<open>stuck c h \<Longrightarrow> opstep Tau (h, DO c OD) (Inl h, Skip)\<close>
 | fixpt_skip[intro!]: \<open>c' = c[0 \<leftarrow> \<mu> c] \<Longrightarrow> opstep Tau (h, \<mu> c) (Inl h, c')\<close>
-| atomic[intro!]: \<open>a = Local \<Longrightarrow> snd s' = Skip \<Longrightarrow> b h (fst s') \<Longrightarrow> opstep a (h, Atomic b) s'\<close>
+| atomic[intro!]:
+  \<open>a = Local \<Longrightarrow>
+    if ap h
+    then \<exists>x. aq h x \<and> fst s' = Inl x \<and> snd s' = Skip
+    else fst s' = Inr () \<and> snd s' = Atomic ap aq \<Longrightarrow>
+    opstep a (h, Atomic ap aq) s'\<close>
 
 inductive_cases opstep_tauE[elim]: \<open>opstep Tau s s'\<close>
 inductive_cases opstep_localE[elim]: \<open>opstep Local s s'\<close>
@@ -61,7 +83,7 @@ inductive_cases opstep_endetE[elim]: \<open>opstep a (h, c1 \<box> c2) s'\<close
 inductive_cases opstep_parE[elim]: \<open>opstep a (h, c1 \<parallel> c2) s'\<close>
 inductive_cases opstep_iterE[elim]: \<open>opstep a (h, DO c OD) s'\<close>
 inductive_cases opstep_fixptE[elim]: \<open>opstep a (h, \<mu> c) s'\<close>
-inductive_cases opstep_atomicE[elim!]: \<open>opstep a (h, Atomic b) s'\<close>
+inductive_cases opstep_atomicE[elim!]: \<open>opstep a (h, Atomic ap aq) s'\<close>
 
 paragraph \<open> Pretty operational semantics \<close>
 
@@ -92,11 +114,13 @@ lemma opstep_iff_standard[opstep_iff]:
     (\<exists>h' c1'. opstep a (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2)) \<or>
     (\<exists>h' c2'. opstep a (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2'))\<close>
   \<open>opstep a (h, DO c OD) s' \<longleftrightarrow>
-    a = Tau \<and> \<not> pre_state (\<Squnion>(head_atoms c)) h \<and> s' = (Inl h, Skip) \<or>
+    a = Tau \<and> stuck c h \<and> s' = (Inl h, Skip) \<or>
     a = Tau \<and> s' = (Inl h, c ;; DO c OD)\<close>
   \<open>opstep a (h, \<mu> c) s' \<longleftrightarrow> a = Tau \<and> s' = (Inl h, c[0 \<leftarrow> \<mu> c])\<close>
-  \<open>opstep a (h, Atomic b) s' \<longleftrightarrow>
-    a = Local \<and> snd s' = Skip \<and> b h (fst s')\<close>
+  \<open>opstep a (h, Atomic ap aq) s' \<longleftrightarrow>
+    a = Local \<and> (if ap h
+                  then \<exists>x. aq h x \<and> fst s' = Inl x \<and> snd s' = Skip
+                  else fst s' = Inr () \<and> snd s' = Atomic ap aq)\<close>
          apply blast
         apply blast
        apply blast
@@ -134,7 +158,7 @@ proof -
     assume \<open>opstep a s s'\<close>
       and \<open>all_atom_comm p (snd s)\<close>
     then have \<open>all_atom_comm p (snd s')\<close>
-      by (induct rule: opstep.inducts) force+
+      by (induct rule: opstep.inducts) (force split: if_splits)+
   }
   then show ?thesis
     using assms
@@ -166,7 +190,7 @@ lemma opstep_preserves_all_atom_comm:
 proof -
   { fix s s'
     have \<open>opstep a s s' \<Longrightarrow> all_atom_comm p (snd s) \<Longrightarrow> all_atom_comm p (snd s')\<close>
-      by (induct arbitrary: h' rule: opstep.inducts) force+
+      by (induct arbitrary: h' rule: opstep.inducts) (force split: if_splits)+
   }
   then show ?thesis
     using assms
@@ -179,16 +203,34 @@ lemmas rev_opstep_preserves_all_atom_comm = opstep_preserves_all_atom_comm[rotat
 subsection \<open> Opstep rules for defined programs \<close>
 
 lemma opstep_assert[intro!]:
-  \<open>if p h then h' = Inl h else h' = Inr () \<Longrightarrow> opstep Local (h, Assert p) (h', Skip)\<close>
-  by (force simp add: opstep.atomic passert_def)
+  \<open>if p h
+    then fst s' = Inl h \<and> snd s' = Skip
+    else fst s' = Inr () \<and> snd s' = Assert p \<Longrightarrow>
+    opstep Local (h, Assert p) s'\<close>
+  by (force simp add: Assert_def split: if_splits)
 
-lemma opstep_assume[intro!]: \<open>p h \<Longrightarrow> opstep Local (h, Assume p) (Inl h, Skip)\<close>
-  by (simp add: opstep.atomic)
+lemma opstep_assert_iff[opstep_iff]:
+  \<open>opstep a (h, Assert p) (h', c') \<longleftrightarrow>
+    a = Local \<and> 
+    (if p h
+    then h' = Inl h \<and> c' = Skip
+    else h' = Inr () \<and> c' = Assert p)\<close>
+  by (force simp add: Assert_def split: if_splits)
+
+lemma opstep_assume[intro!]:
+  \<open>p h \<Longrightarrow> opstep Local (h, Assume p) (Inl h, Skip)\<close>
+  by (force simp add: Assume_def split: if_splits)
+
+lemma opstep_assume_iff[opstep_iff]:
+  \<open>opstep a (h, Assume p) (h', c') \<longleftrightarrow> a = Local \<and> p h \<and> h' = Inl h \<and> c' = Skip\<close>
+  by (force simp add: Assume_def split: if_splits)
+
 
 lemma opstep_IfThenElse_iff[opstep_iff]:
   \<open>opstep a (h, IfThenElse p ct cf) s' \<longleftrightarrow>
-    a = Local \<and> p h \<and> s' = (Inl h, Skip ;; ct) \<or> a = Local \<and> \<not> p h \<and> s' = (Inl h, Skip ;; cf)\<close>
-  by (simp add: IfThenElse_def opstep_iff)
+    a = Local \<and> p h \<and> s' = (Inl h, Skip ;; ct) \<or>
+    a = Local \<and> \<not> p h \<and> s' = (Inl h, Skip ;; cf)\<close>
+  by (simp add: IfThenElse_def Assume_def opstep_iff)
 
 lemma opstep_IfThenElse_true[intro]:
   \<open>p h \<Longrightarrow> h' = Inl h \<Longrightarrow> opstep Local (h, IfThenElse p a b) (h', Skip ;; a)\<close>
@@ -198,21 +240,14 @@ lemma opstep_IfThenElse_false[intro]:
   \<open>\<not> p h \<Longrightarrow> h' = Inl h \<Longrightarrow> opstep Local (h, IfThenElse p a b) (h', Skip ;; b)\<close>
   by (simp add: opstep_iff)
 
-lemma pre_state_passert_eq[simp]:
-  \<open>pre_state (passert p) = \<top>\<close>
-  by (simp add: passert_def pre_state_def fun_eq_iff, blast)
-
-lemma pre_state_passume_eq[simp]:
-  \<open>pre_state (passume p) = p\<close>
-  by (simp add: passume_def pre_state_def)
-
 lemma opstep_WhileLoop_iff[opstep_iff]:
   \<open>opstep a (h, WhileLoop p c) s' \<longleftrightarrow>
+    a = Tau \<and> s' = (Inl h, Skip) \<or>
     a = Tau \<and>
     s' = (Inl h,
       (Assume p ;; c \<box> Assume (- p)) ;;
         DO Assume p ;; c \<box> Assume (- p) OD)\<close>
-  by (simp add: WhileLoop_def opstep_iff)
+  by (simp add: WhileLoop_def Assume_def pre_state_def opstep_iff)
 
 
 section \<open> Safe \<close>
@@ -414,40 +449,41 @@ lemma safe_skip:
 subsection \<open> Safety of frame \<close>
 
 lemma safe_frame':
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow>
+  \<open>safe n c s r g q F \<Longrightarrow>
+    s = Inl (hl, hs) \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
-    (sswa (r \<squnion> g) f) \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
+    sswa (r \<squnion> g) f \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
     sswa (r \<squnion> g) f (hlf, hs) \<Longrightarrow>
     safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (F \<midarrow>\<^emph> F)\<close>
-proof (induct arbitrary: hlf rule: safe.induct)
+proof (induct arbitrary: hl hs hlf rule: safe.induct)
   case (safe_nil c ls hs r g q F)
   then show ?case by blast
 next
-  case (safe_suc c q ls hs r n g F)
+  case (safe_suc c q lsx hsx r n g F)
+
+  note hyps = safe_suc.hyps[simplified safe_suc.prems(1)[simplified]]
+
   show ?case
-    using safe_suc.prems
+    using safe_suc.prems(2-)
     apply -
     apply (rule safe.safe_suc)
       (* subgoal: skip *)
-        apply (clarsimp simp add: sepconj_conj_def simp del: sup_apply)
-       apply (drule mp[OF safe_suc.hyps(1)])
-    subgoal sorry
+       apply (clarsimp simp add: sepconj_conj_def simp del: top_apply sup_apply)
+       apply (metis hyps(1))
       (* subgoal: rely step *)
-    thm safe_suc.hyps(3)
-    apply (rule safe_suc.hyps(3))
-       apply (rule safe_suc.hyps(3), blast, blast, blast)
-       apply (rule sswa_step, rule sup2I1, blast, blast)
+      apply (rule hyps(3), blast, blast, blast, blast)
+      apply (rule sswa_step, rule sup2I1, blast, blast)
       (* subgoal: plain opstep *)
-     apply (frule(1) safe_suc.hyps(5))
+     apply (frule(1) hyps(5))
       apply (force simp add: le_fun_def)
      apply (clarsimp simp del: sup_apply top_apply)
      apply (erule opstep_act_cases)
       apply force
-     apply (metis sswa_stepD sup2I2)
+     apply (meson sswa_stepD sup2I2; fail)
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply top_apply)
     apply (rename_tac c hlf2 st')
-    apply (frule safe_suc.hyps(5)[rotated 1])
+    apply (frule hyps(5)[rotated 1])
       apply (metis (full_types) disjoint_add_leftL disjoint_add_leftR disjoint_add_left_commute2
         partial_add_commute pred_Times_iff rev_predicate1D sepimp_def)
      apply (metis disjoint_add_swap_lr)
@@ -471,7 +507,7 @@ lemma safe_frame:
     sswa (r \<squnion> g) f \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
     F' \<le> F \<midarrow>\<^emph> F \<Longrightarrow>
-    safe n c (hl + hlf) hs r g (q \<^emph>\<and> f') F'\<close>
+    safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> f') F'\<close>
   apply (rule safe_postpred_monoD)
    apply (rule safe_frameset_antimonoD)
     apply (rule safe_frame'[where f=f]; blast)
@@ -487,7 +523,7 @@ lemma safe_atom':
     \<forall>f. f \<le> F \<longrightarrow> sp b (wssa r (p \<^emph>\<and> \<L> f)) \<le> sswa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa  r p (hl, hs) \<Longrightarrow>
-    safe n (Atomic b) (Inl (hl, hs)) r g (sswa r q) F\<close>
+    safe n (Atomic ap aq) (Inl (hl, hs)) r g (sswa r q) F\<close>
 proof (induct n arbitrary: hl hs)
   case 0
   then show ?case by force
@@ -522,7 +558,7 @@ lemma safe_atom:
     b \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa r p (hl, hs) \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    safe n (Atomic b) (Inl (hl, hs)) r g q' F\<close>
+    safe n (Atomic ap aq) (Inl (hl, hs)) r g q' F\<close>
   by (meson safe_postpred_mono safe_atom')
 
 

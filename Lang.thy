@@ -13,9 +13,11 @@ datatype 'a comm =
   | Par \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<parallel>\<close> 65)
   | Indet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<^bold>+\<close> 65)
   | Endet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<box>\<close> 65)
-  \<comment> \<open> note we represent crashes by \<open>Inr ()\<close>, and not \<open>None\<close>, as options and either have different
-        separation algebras. \<close>
-  | Atomic \<open>'a \<Rightarrow> 'a + unit \<Rightarrow> bool\<close> (\<open>\<langle> _ \<rangle>\<close> [0] 999)
+  \<comment> \<open> An atomic action is represnted by a precondition and a (relational) post-condition.
+       Trying to evaluate the action outside the precondition results in a crash.
+       Trying to evaluate the action outside the domain of the postcondition results in deadlock,
+       until a state in the domain is reached. \<close>
+  | Atomic \<open>'a \<Rightarrow> bool\<close> \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0] 999)
   | Iter \<open>'a comm\<close> (\<open>DO (_) OD\<close> [0] 999)
 \<comment> \<open> loops are represented by (least) fixed points. Fixed point variables are done in de Bruijn
       style. \<close>
@@ -33,7 +35,7 @@ primrec map_fixvar :: \<open>(nat \<Rightarrow> nat) \<Rightarrow> 'a comm \<Rig
 | \<open>map_fixvar f (DO c OD) = DO (map_fixvar f c) OD\<close>
 | \<open>map_fixvar f (\<mu> c) = \<mu> (map_fixvar (case_nat 0 (Suc \<circ> f)) c)\<close>
 | \<open>map_fixvar f (FixVar x) = FixVar (f x)\<close>
-| \<open>map_fixvar f (Atomic b) = Atomic b\<close>
+| \<open>map_fixvar f (Atomic p q) = Atomic p q\<close>
 
 
 lemma map_fixvar_size[simp]:
@@ -60,7 +62,7 @@ lemma map_fixvar_rev_iff:
       (\<exists>ca. c = \<mu> ca \<and> c' = map_fixvar (case_nat 0 (Suc \<circ> f)) ca)\<close>
   \<open>map_fixvar f c = Skip \<longleftrightarrow> c = Skip\<close>
   \<open>map_fixvar f c = FixVar y \<longleftrightarrow> (\<exists>x. c = FixVar x \<and> f x = y)\<close>
-  \<open>map_fixvar f c = Atomic b \<longleftrightarrow> c = Atomic b\<close>
+  \<open>map_fixvar f c = Atomic p q \<longleftrightarrow> c = Atomic p q\<close>
          apply ((induct c; simp), metis)
          apply ((induct c; simp), metis)
         apply ((induct c; simp), metis)
@@ -99,7 +101,7 @@ primrec fixvar_subst :: \<open>'a comm \<Rightarrow> nat \<Rightarrow> 'a comm \
 | \<open>(DO c OD)[x \<leftarrow> c'] = (DO c[x \<leftarrow> c'] OD)\<close>
 | \<open>(\<mu> c)[x \<leftarrow> c'] = \<mu> (c[Suc x \<leftarrow> c'])\<close>
 | \<open>(FixVar y)[x \<leftarrow> c'] = (if x = y then c' else FixVar y)\<close>
-| \<open>(Atomic b)[_ \<leftarrow> _] = Atomic b\<close>
+| \<open>(Atomic p q)[_ \<leftarrow> _] = Atomic p q\<close>
 
 lemma fixvar_subst_rev_iff:
   \<open>c[x \<leftarrow> cx] = Skip \<longleftrightarrow> c = Skip \<or> c = FixVar x \<and> cx = Skip\<close>
@@ -122,7 +124,7 @@ lemma fixvar_subst_rev_iff:
       (\<exists>ca. c = \<mu> ca \<and> c' = ca[Suc x \<leftarrow> cx]) \<or>
       c = FixVar x \<and> cx = \<mu> c'\<close>
   \<open>c[x \<leftarrow> cx] = FixVar y \<longleftrightarrow> c = FixVar x \<and> cx = FixVar y \<or> x \<noteq> y \<and> c = FixVar y\<close>
-  \<open>c[x \<leftarrow> cx] = Atomic b \<longleftrightarrow> c = Atomic b \<or> c = FixVar x \<and> cx = Atomic b\<close>
+  \<open>c[x \<leftarrow> cx] = Atomic p q \<longleftrightarrow> c = Atomic p q \<or> c = FixVar x \<and> cx = Atomic p q\<close>
           apply (induct c; simp; fail)
          apply ((induct c; simp), metis)+
   apply (induct c; simp; fail)
@@ -145,7 +147,7 @@ fun map_comm :: \<open>('b \<Rightarrow> 'a) \<Rightarrow> 'a comm \<Rightarrow>
 | \<open>map_comm f (a \<parallel> b) = map_comm f a \<parallel> map_comm f b\<close>
 | \<open>map_comm f (a \<^bold>+ b) = map_comm f a \<^bold>+ map_comm f b\<close>
 | \<open>map_comm f (a \<box> b) = map_comm f a \<box> map_comm f b\<close>
-| \<open>map_comm f (Atomic b) = Atomic (\<lambda>x y. b (f x) (map_suml f y))\<close>
+| \<open>map_comm f (Atomic p q) = Atomic (p \<circ> f) (q \<circ>\<^sub>2 f)\<close>
 | \<open>map_comm f (DO a OD) = DO map_comm f a OD\<close>
 | \<open>map_comm f (\<mu> c) = \<mu> (map_comm f c)\<close>
 | \<open>map_comm f (FixVar x) = FixVar x\<close>
@@ -165,8 +167,8 @@ lemma map_comm_rev_iff:
   \<open>map_comm f c = \<mu> c' \<longleftrightarrow>
       (\<exists>ca. c = \<mu> ca \<and> c' = map_comm f ca)\<close>
   \<open>map_comm f c = FixVar x \<longleftrightarrow> c = FixVar x\<close>
-  \<open>map_comm f c = Atomic b \<longleftrightarrow> (\<exists>b'. c = Atomic b' \<and> b = (\<lambda>x y. b' (f x) (map_suml f y)))\<close>
-  by (induct c; simp; argo)+
+  \<open>map_comm f c = Atomic p q \<longleftrightarrow> (\<exists>p' q'. c = Atomic p' q' \<and> p = (p' \<circ> f) \<and> q = (q' \<circ>\<^sub>2 f))\<close>
+  by (induct c; simp add: fun_eq_iff; (argo?; blast))+
 
 lemmas map_comm_rev_iff2 = map_comm_rev_iff[THEN trans[OF eq_commute]]
 
@@ -174,7 +176,7 @@ subsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-inductive all_atom_comm :: \<open>(('a \<Rightarrow> 'a + unit \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
+inductive all_atom_comm :: \<open>(('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
   skip[iff]: \<open>all_atom_comm p Skip\<close>
 | seq[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 ;; c2)\<close>
 | par[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 \<parallel> c2)\<close>
@@ -183,7 +185,7 @@ inductive all_atom_comm :: \<open>(('a \<Rightarrow> 'a + unit \<Rightarrow> boo
 | iter[intro!]: \<open>all_atom_comm p c \<Longrightarrow> all_atom_comm p (DO c OD)\<close>
 | fixpt[intro!]: \<open>all_atom_comm p c \<Longrightarrow> all_atom_comm p (\<mu> c)\<close>
 | fixvar[iff]: \<open>all_atom_comm p (FixVar x)\<close>
-| atom[intro!]: \<open>p b \<Longrightarrow> all_atom_comm p (Atomic b)\<close>
+| atom[intro!]: \<open>p ap aq \<Longrightarrow> all_atom_comm p (Atomic ap aq)\<close>
 
 inductive_cases all_atom_comm_seqE[elim!]: \<open>all_atom_comm p (c1 ;; c2)\<close>
 inductive_cases all_atom_comm_indetE[elim!]: \<open>all_atom_comm p (c1 \<^bold>+ c2)\<close>
@@ -192,7 +194,7 @@ inductive_cases all_atom_comm_parE[elim!]: \<open>all_atom_comm p (c1 \<parallel
 inductive_cases all_atom_comm_iterE[elim!]: \<open>all_atom_comm p (DO c OD)\<close>
 inductive_cases all_atom_comm_fixptE[elim!]: \<open>all_atom_comm p (\<mu> c)\<close>
 inductive_cases all_atom_comm_fixvarE[elim!]: \<open>all_atom_comm p (FixVar x)\<close>
-inductive_cases all_atom_comm_atomE[elim!]: \<open>all_atom_comm p (Atomic b)\<close>
+inductive_cases all_atom_comm_atomE[elim!]: \<open>all_atom_comm p (Atomic ap aq)\<close>
 
 lemma all_atom_comm_simps[simp]:
   \<open>all_atom_comm p (c1 ;; c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
@@ -201,7 +203,7 @@ lemma all_atom_comm_simps[simp]:
   \<open>all_atom_comm p (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
   \<open>all_atom_comm p (DO c OD) \<longleftrightarrow> all_atom_comm p c\<close>
   \<open>all_atom_comm p (\<mu> c) \<longleftrightarrow> all_atom_comm p c\<close>
-  \<open>all_atom_comm p (Atomic b) \<longleftrightarrow> p b\<close>
+  \<open>all_atom_comm p (Atomic ap aq) \<longleftrightarrow> p ap aq\<close>
   by fastforce+
 
 lemma all_atom_comm_pred_mono:
@@ -219,15 +221,11 @@ lemma all_atom_comm_conj_eq:
   by (induct c) force+
 
 lemma all_atom_comm_pconj_eq[simp]:
-  \<open>all_atom_comm (\<lambda>x. p x \<and> q x) c \<longleftrightarrow> all_atom_comm p c \<and> all_atom_comm q c\<close>
+  \<open>all_atom_comm (p \<sqinter> q) c \<longleftrightarrow> all_atom_comm p c \<and> all_atom_comm q c\<close>
   by (induct c) force+
 
 lemma all_atom_comm_top_eq[simp]:
   \<open>all_atom_comm \<top> c\<close>
-  by (induct c) force+
-
-lemma all_atom_comm_pTrue_eq[simp]:
-  \<open>all_atom_comm (\<lambda>x. True) c\<close>
   by (induct c) force+
 
 lemma all_atom_comm_subst[simp]:
@@ -238,7 +236,8 @@ lemma all_atom_comm_subst_strong:
   \<open>all_atom_comm p c' - all_atom_comm p c \<Longrightarrow> all_atom_comm p (c[x \<leftarrow> c']) \<longleftrightarrow> all_atom_comm p c\<close>
   by (induct c arbitrary: x) force+
 
-abbreviation \<open>atoms_subrel_of r \<equiv> all_atom_comm (\<lambda>b. b \<le> r)\<close>
+definition
+  \<open>atoms_subrel_of r \<equiv> all_atom_comm (\<lambda>ap aq. ap \<le> pre_state r \<and> aq \<sqinter> rel_liftL ap \<le> r)\<close>
 
 
 section \<open> Specific Languages \<close>
@@ -247,24 +246,11 @@ subsection \<open> Sugared atomic programs \<close>
 
 subsubsection \<open> Assert \<close>
 
-definition \<open>passert p \<equiv> \<lambda>a b. if p a then b = Inl a else b = Inr ()\<close>
-
-abbreviation \<open>Assert p \<equiv> Atomic (passert p)\<close>
-
-lemmas Assert_def = arg_cong[where f=Atomic, OF meta_eq_to_obj_eq[OF passert_def]]
-
+definition \<open>Assert p \<equiv> Atomic p ((=) \<sqinter> rel_liftL p)\<close>
 
 subsubsection \<open> Assume \<close>
 
-definition \<open>passume p \<equiv> \<lambda>a b. p a \<and> b = Inl a\<close>
-
-abbreviation \<open>Assume p \<equiv> Atomic (passume p)\<close>
-
-lemmas Assume_def = arg_cong[where f=Atomic, OF meta_eq_to_obj_eq[OF passume_def]]
-
-lemma passume_simps[simp]:
-  \<open>passume p a b \<longleftrightarrow> p a \<and> b = Inl a\<close>
-  by (force simp add: passume_def)
+definition \<open>Assume p \<equiv> Atomic \<top> ((=) \<sqinter> rel_liftL p)\<close>
 
 
 subsection \<open> If-then-else and While Loops \<close>
@@ -274,34 +260,34 @@ definition \<open>WhileLoop p c \<equiv> DO (Assume p ;; c \<box> Assume (-p)) O
 
 lemma IfThenElse_inject[simp]:
   \<open>IfThenElse p1 ct1 cf1 = IfThenElse p2 ct2 cf2 \<longleftrightarrow> p1 = p2 \<and> ct1 = ct2 \<and> cf1 = cf2\<close>
-  by (simp add: IfThenElse_def passume_def fun_eq_iff, blast)
+  by (simp add: IfThenElse_def Assume_def fun_eq_iff, blast)
 
 lemma WhileLoop_inject[simp]:
   \<open>WhileLoop p1 c1 = WhileLoop p2 c2 \<longleftrightarrow> p1 = p2 \<and> c1 = c2\<close>
-  by (simp add: WhileLoop_def map_fixvar_inj_inject passume_def fun_eq_iff, blast)
+  by (simp add: WhileLoop_def map_fixvar_inj_inject Assume_def fun_eq_iff, blast)
 
 lemma IfThenElse_distinct[simp]:
   \<open>IfThenElse p ct cf \<noteq> Skip\<close>
   \<open>IfThenElse p ct cf \<noteq> c1 ;; c2\<close>
   \<open>IfThenElse p ct cf \<noteq> c1 \<parallel> c2\<close>
   \<open>IfThenElse p ct cf \<noteq> \<mu> c\<close>
-  \<open>IfThenElse p ct cf \<noteq> Atomic b\<close>
+  \<open>IfThenElse p ct cf \<noteq> Atomic ap aq\<close>
   \<open>Skip \<noteq> IfThenElse p ct cf\<close>
   \<open>c1 ;; c2 \<noteq> IfThenElse p ct cf\<close>
   \<open>c1 \<parallel> c2 \<noteq> IfThenElse p ct cf\<close>
   \<open>\<mu> c \<noteq> IfThenElse p ct cf\<close>
-  \<open>Atomic b \<noteq> IfThenElse p ct cf\<close>
+  \<open>Atomic ap aq \<noteq> IfThenElse p ct cf\<close>
   by (simp add: IfThenElse_def)+
 
 lemma WhileLoop_distinct[simp]:
   \<open>WhileLoop p c \<noteq> Skip\<close>
   \<open>WhileLoop p c \<noteq> c1 \<box> c2\<close>
   \<open>WhileLoop p c \<noteq> c1 \<parallel> c2\<close>
-  \<open>WhileLoop p c \<noteq> Atomic b\<close>
+  \<open>WhileLoop p c \<noteq> Atomic ap aq\<close>
   \<open>Skip \<noteq> WhileLoop p c\<close>
   \<open>c1 \<box> c2 \<noteq> WhileLoop p c\<close>
   \<open>c1 \<parallel> c2 \<noteq> WhileLoop p c\<close>
-  \<open>Atomic b \<noteq> WhileLoop p c\<close>
+  \<open>Atomic ap aq \<noteq> WhileLoop p c\<close>
   \<open>WhileLoop p c \<noteq> \<mu> c\<close>
   \<open>\<mu> c \<noteq> WhileLoop p c\<close>
   by (simp add: WhileLoop_def; fail)+
