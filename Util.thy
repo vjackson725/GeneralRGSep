@@ -222,23 +222,23 @@ lemma post_state_reldisj[simp]:
   \<open>post_state (r1 \<squnion> r2) = post_state r1 \<squnion> post_state r2\<close>
   by (force simp add: post_state_def)
 
-lemma rel_liftL_unfold[simp]:
+lemma rel_liftL_apply[simp]:
   \<open>rel_liftL p a b = p a\<close>
   by (simp add: rel_liftL_def)
 
-lemma rel_liftR_unfold[simp]:
+lemma rel_liftR_apply[simp]:
   \<open>rel_liftR p a b = p b\<close>
   by (simp add: rel_liftR_def)
 
-lemma rel_subid_unfold[simp]:
+lemma rel_subid_apply[simp]:
   \<open>rel_lift p a b = (p a \<and> p b)\<close>
   by (simp add: rel_lift_def)
 
-lemma liftL_le_liftL[simp]:
+lemma liftL_mono[simp]:
   \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
   by (simp add: rel_liftL_def le_fun_def)
 
-lemma liftR_le_liftR[simp]:
+lemma liftR_mono[simp]:
   \<open>rel_liftR p \<le> rel_liftR q \<longleftrightarrow> p \<le> q\<close>
   by (simp add: rel_liftR_def)
 
@@ -249,6 +249,7 @@ lemma rel_lift_top[simp]:
 lemma rel_lift_bot[simp]:
   \<open>rel_lift \<bottom> = \<bottom>\<close>
   by (force simp add: rel_lift_def)
+
 lemma rel_lift_pred_True[simp]:
   \<open>rel_lift (\<lambda>x. True) = \<top>\<close>
   by (force simp add: rel_lift_def)
@@ -991,9 +992,17 @@ text \<open> strongest postcondition, by way of relations \<close>
 definition sp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)\<close> where
   \<open>sp r p \<equiv> \<lambda>y. (\<exists>x. r x y \<and> p x)\<close>
 
+lemma sp_apply:
+  \<open>sp r p y = (\<exists>x. r x y \<and> p x)\<close>
+  by (simp add: sp_def)
+
 text \<open> weakest liberal precondition, by way of relations \<close>
 definition wlp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
   \<open>wlp r q \<equiv> \<lambda>x. (\<forall>y. r x y \<longrightarrow> q y)\<close>
+
+lemma wlp_apply:
+  \<open>wlp r q x = (\<forall>y. r x y \<longrightarrow> q y)\<close>
+  by (simp add: wlp_def)
 
 paragraph \<open> wlp predicate properties \<close>
 
@@ -1081,6 +1090,7 @@ lemma wlp_inf_rel_semidistrib:
 lemma wlp_comp_rel:
   \<open>wlp r1 (wlp r2 p) = wlp (r1 OO r2) p\<close>
   by (force simp add: wlp_def)
+
 
 paragraph \<open> sp predicate properties \<close>
 
@@ -1170,6 +1180,28 @@ lemma sp_inf_rel_semidistrib:
 lemma sp_comp_rel:
   \<open>sp r2 (sp r1 p) = sp (r1 OO r2) p\<close>
   by (force simp add: sp_def relcompp_apply)
+
+lemma sp_rel_liftL_iff[simp]:
+  \<open>sp (rel_liftL p' \<sqinter> r) p = sp r (p \<sqinter> p')\<close>
+  \<open>sp (r \<sqinter> rel_liftL p') p = sp r (p \<sqinter> p')\<close>
+  by (force simp add: sp_def)+
+
+lemma sp_rel_liftR_iff[simp]:
+  \<open>sp (rel_liftR q \<sqinter> r) p = sp r p \<sqinter> q\<close>
+  \<open>sp (r \<sqinter> rel_liftR q) p = sp r p \<sqinter> q\<close>
+  by (force simp add: sp_def)+
+
+lemma sp_rel_liftL_iff'[simp]:
+  \<open>sp (\<lambda>x y. p' x \<and> r x y) p = sp r (p \<sqinter> p')\<close>
+  \<open>sp (\<lambda>x y. r x y \<and> p' x) p = sp r (p \<sqinter> p')\<close>
+  by (force simp add: sp_def)+
+
+lemma sp_rel_liftR_iff'[simp]:
+  \<open>sp (\<lambda>x y. q y \<and> r x y) p = sp r p \<sqinter> q\<close>
+  \<open>sp (\<lambda>x y. r x y \<and> q y) p = sp r p \<sqinter> q\<close>
+  by (force simp add: sp_def)+
+
+
 
 paragraph \<open> wlp/sp misc properties \<close>
 

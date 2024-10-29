@@ -99,12 +99,12 @@ lemma sp_rely_of_pred_Times_eq[simp]:
 subsection \<open> Local and shared predicate lifting \<close>
 
 abbreviation(input) local_pred
-  :: \<open>('a::perm_alg \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<close>)
+  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<close>)
   where
     \<open>\<L>(p) \<equiv> p \<circ> fst\<close>
 
 abbreviation(input) shared_pred
-  :: \<open>('b::perm_alg \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<S>\<close>)
+  :: \<open>('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<S>\<close>)
   where
     \<open>\<S>(p) \<equiv> p \<circ> snd\<close>
 
@@ -129,14 +129,32 @@ lemma sswa_over_shared:
 lemma wssa_semiignore_local[simp]:
   \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
   \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
-   by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+
+text \<open>
+  The full law local ignore law is _not_ true for \<open>wssa\<close>, unlike the one for \<open>sswa\<close>.
+  Imagine the following situation:
+    State model: \<open>bool \<times> bool\<close>
+    Sep-algebra: \<open>R000, R011, R101, R111\<close>
+    Inputs:
+      \<open>q = {11, 00}\<close>
+      \<open>r = (0 \<leadsto> 1, 0 \<leadsto> 1)\<close>
+    Results:
+      \<open>wssa r q = {}\<close>
+      \<open>\<L> \<top> \<^emph>\<and> q = {11, 10, 00}\<close>
+      \<open>(\<L> pl \<^emph>\<and> wssa r q) = {}\<close>
+      \<open>wssa r (\<L> pl \<^emph>\<and> q) = {11, 10}\<close>
+    Here we observe that the outputs are not the same, because \<open>wssa\<close> only preserves
+    a \<^emph>\<open>subset\<close> of the initial predicate, and this subset might not be compatible
+    with the frame.
+\<close>
 
 lemma sepconj_local_eq:
   \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
   by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
 
 lemma sepconj_shared_eq:
-  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b::perm_alg \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
+  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
   by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
 
 
@@ -244,7 +262,7 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
-  \<open>('l::perm_alg \<times> 's::perm_alg) comm \<Rightarrow>
+  \<open>('l::perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
@@ -284,11 +302,12 @@ inductive rgsat ::
     rgsat (s1 \<parallel> s2) r g p q \<top>\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
-    p \<le> ap \<Longrightarrow>
-    sp (rel_liftL ap \<sqinter> aq) p \<le> q \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    \<forall>f\<le>F. sp (rel_liftL ap \<sqinter> aq) (p \<^emph>\<and> \<L> f) \<le> wssa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
-    rel_liftL ap \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    sswa r p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> ap \<Longrightarrow>
+    sp aq (sswa r p) \<le> wssa r q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> wssa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
+    rel_liftL (sswa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic ap aq) r g p' q' F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q F \<Longrightarrow>
@@ -384,13 +403,19 @@ lemma rgsat_weak_weaken:
        apply order
       apply (meson order.trans le_disj_eq_absorb relyrel_mono sepconj_conj_mono sp_mono sup_mono; fail)
     (* atom *)
-     apply (rule_tac p=p and q=q in rgsat_atom)
-          apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
-         apply blast
-        apply blast
-       apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
-      apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
-     apply (meson order.trans rel_Times_mono_right; fail)
+      apply (rule_tac p=p and q=q in rgsat_atom)
+            apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
+           apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
+          apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
+         apply (intro allI impI, drule spec, drule mp, assumption)
+         apply (meson order.trans rel_Times_mono_right rtranclp_mono sepconj_conj_monoL sp_pred_mono
+      sp_rel_mono; fail)
+        apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
+      inf_mono order_le_less sp_pred_mono; fail)
+       apply (intro allI impI, drule spec, drule mp, assumption)
+       apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
+      sepconj_conj_monoL sp_pred_mono; fail)
+      apply (meson order.trans inf_mono le_disj_eq_absorb liftL_mono relyrel_mono sp_rel_mono; fail)
     (* frame *)
     apply (rule_tac p=p and q=q and r=ra in rgsat_frame)
         apply blast

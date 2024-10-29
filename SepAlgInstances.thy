@@ -177,13 +177,17 @@ lemma perm_alg_plus_fst_plus_snd_eq[simp]:
 subsubsection \<open> Sepconj-conj \<close>
 
 definition sepconj_conj
-  :: \<open>('a::pre_perm_alg \<times> 'b::pre_perm_alg \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+  :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
   (infixr \<open>\<^emph>\<and>\<close> 70) where
   \<open>p \<^emph>\<and> q \<equiv> \<lambda>h. \<exists>a b c. a ## b \<and> h = (a + b, c) \<and> p (a, c) \<and> q (b, c)\<close>
 
 lemma sepconj_conjI:
   \<open>p (a, y) \<Longrightarrow> q (b, y) \<Longrightarrow> a ## b \<Longrightarrow> x = a + b \<Longrightarrow> (p \<^emph>\<and> q) (x, y)\<close>
   by (force simp add: sepconj_conj_def)
+
+lemma sepconj_conj_apply:
+  \<open>(p \<^emph>\<and> q) (ab, c) = (\<exists>a b. a ## b \<and> ab = a + b \<and> p (a, c) \<and> q (b, c))\<close>
+  by (simp add: sepconj_conj_def)
 
 lemma sepconj_conj_assoc:
   \<open>(p \<^emph>\<and> q) \<^emph>\<and> r = p \<^emph>\<and> (q \<^emph>\<and> r)\<close>
