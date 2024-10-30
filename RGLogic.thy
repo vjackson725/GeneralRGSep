@@ -50,7 +50,7 @@ lemma sswa_trivial[intro]:
 lemmas sswa_idem[simp] =
   sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
-thm sp_mono
+lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
 
 lemmas wssa_weaker = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
@@ -61,7 +61,7 @@ lemma wssa_trivial[dest]:
 lemmas wssa_idem[simp] =
   wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
-thm wlp_mono
+lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
 
 
 lemmas rely_rel_wlp_impl_sp =
@@ -273,7 +273,7 @@ inductive rgsat ::
   rgsat_skip:
   \<open>sswa r p \<le> q \<Longrightarrow> rgsat Skip r g p q F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g i i F \<Longrightarrow>
+  \<open>rgsat c r g (sswa r i) i F \<Longrightarrow>
     p \<le> wssa r i \<Longrightarrow>
     sswa r i \<le> q \<Longrightarrow>
     rgsat (Iter c) r g p q F\<close>
@@ -303,11 +303,12 @@ inductive rgsat ::
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    sswa r p \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> ap \<Longrightarrow>
-    sp aq (sswa r p) \<le> wssa r q \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> wssa r (q \<^emph>\<and> \<L> f) \<Longrightarrow>
-    rel_liftL (sswa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. p \<^emph>\<and> \<L> f \<le> ap \<Longrightarrow>
+    sp aq p \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (p \<^emph>\<and> \<L> f) \<le> q \<^emph>\<and> \<L> f \<Longrightarrow>
+    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> \<L> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic ap aq) r g p' q' F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q F \<Longrightarrow>
@@ -386,14 +387,14 @@ lemma rgsat_weak_weaken:
       r \<le> r' \<Longrightarrow>
       rgsat c r g p q \<top>\<close>
   apply (induct arbitrary: r p q rule: rgsat.inducts)
-           apply (meson rgsat_skip order.trans relyrel_mono sp_mono; fail)
-          apply (rule_tac i=i in rgsat_iter)
-            apply blast
-           apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
-          apply (meson order.trans relyrel_mono sp_rel_mono; fail)
-         apply (meson order_refl rgsat_seq; fail)
-        apply (meson rgsat_indet; fail)
-       apply (meson rgsat_endet; fail)
+            apply (meson rgsat_skip order.trans relyrel_mono sp_mono; fail)
+           apply (rule_tac i=i in rgsat_iter)
+             apply (metis order.refl sswa_rel_mono)
+            apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+           apply (meson order.trans relyrel_mono sp_rel_mono; fail)
+          apply (meson order_refl rgsat_seq; fail)
+         apply (meson rgsat_indet; fail)
+        apply (meson rgsat_endet; fail)
       apply (rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 and
       ?g1.0=g1 and ?g2.0=g2 in rgsat_par)
            apply (meson order.refl sup_mono; fail)
@@ -404,18 +405,19 @@ lemma rgsat_weak_weaken:
       apply (meson order.trans le_disj_eq_absorb relyrel_mono sepconj_conj_mono sp_mono sup_mono; fail)
     (* atom *)
       apply (rule_tac p=p and q=q in rgsat_atom)
-            apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
+             apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
+            apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
            apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
-          apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
-         apply (intro allI impI, drule spec, drule mp, assumption)
-         apply (meson order.trans rel_Times_mono_right rtranclp_mono sepconj_conj_monoL sp_pred_mono
+          apply (intro allI impI, drule spec, drule mp, assumption)
+          apply (meson order.trans rel_Times_mono_right rtranclp_mono sepconj_conj_monoL sp_pred_mono
       sp_rel_mono; fail)
-        apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
+         apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
       inf_mono order_le_less sp_pred_mono; fail)
-       apply (intro allI impI, drule spec, drule mp, assumption)
-       apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
+        apply (intro allI impI, drule spec, drule mp, assumption)
+        apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
       sepconj_conj_monoL sp_pred_mono; fail)
-      apply (meson order.trans inf_mono le_disj_eq_absorb liftL_mono relyrel_mono sp_rel_mono; fail)
+       apply (meson order.trans inf_mono le_disj_eq_absorb liftL_mono relyrel_mono sp_rel_mono; fail)
+      apply blast
     (* frame *)
     apply (rule_tac p=p and q=q and r=ra in rgsat_frame)
         apply blast

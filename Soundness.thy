@@ -573,11 +573,12 @@ lemma safe_frame:
 subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
-  \<open>sswa r p \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> ap \<Longrightarrow>
-    sp aq (sswa r p) \<le> wssa r q \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (sswa r p \<^emph>\<and> \<L> f) \<le> wssa r q \<^emph>\<and> \<L> f \<Longrightarrow>
-    rel_liftL (sswa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+  \<open>p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. p \<^emph>\<and> \<L> f \<le> ap \<Longrightarrow>
+    sp aq p \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (p \<^emph>\<and> \<L> f) \<le> q \<^emph>\<and> \<L> f \<Longrightarrow>
+    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> \<L> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa r p (hl, hs) \<Longrightarrow>
     safe n (Atomic ap aq) (Inl (hl, hs)) r g (sswa r q) F\<close>
 proof (induct n arbitrary: hl hs)
@@ -592,41 +593,95 @@ next
        apply force
       (* subgoal: rely *)
       apply (rule Suc.hyps)
+            apply blast
            apply blast
           apply blast
-         apply blast
-        apply (meson wssa_step; fail)
+         apply (meson wssa_step; fail)
+        apply blast
        apply blast
       apply (meson wssa_step; fail)
       (* subgoal: plain opstep *)
      apply (simp add: opstep_iff del: top_apply inf_apply comp_apply rel_liftL_apply split: if_splits)
      apply (rule conjI)
-      apply (meson inf1I rely_rel_wlp_impl_sp safe_skip' sp_impliesD; fail)
-     apply (clarsimp simp add: le_fun_def imp_conjL, meson rely_rel_wlp_impl_sp; fail)
+      apply (metis safe_skip_inl_sswa_iff sp_impliesD sswa_trivial wssa_trivial)
+     apply (simp add: le_fun_def, metis wssa_trivial)
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: opstep_iff sp_def[of aq] imp_ex_conjL imp_conjL le_fun_def
         simp del: comp_apply split: if_splits)
     apply (drule_tac x=\<open>(=) hlf\<close> in spec, drule mp, force)
     apply (drule_tac x=\<open>(=) hlf\<close> in spec, drule mp, force)
-    apply (subgoal_tac \<open>(sswa r p \<^emph>\<and> ((=) hlf \<circ> fst)) (hl + hlf, hs)\<close>)
+    apply (drule_tac x=\<open>(=) hlf\<close> in spec, drule mp, force)
+    apply (subgoal_tac \<open>(p \<^emph>\<and> ((=) hlf \<circ> fst)) (hl + hlf, hs)\<close>)
      prefer 2
      apply (force intro!: sepconj_conjI)
     apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
     apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
-    apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
-    apply (simp add: safe_skip_inl_sswa_iff)
-    apply (clarsimp simp add: sepconj_conj_apply)
-    sorry
+    apply (simp add: safe_skip_inl_sswa_iff sepconj_conj_apply)
+    apply blast
+    done
 qed
 
 lemma safe_atom:
-  \<open>sp aq (wssa r p \<sqinter> ap) \<le> q \<Longrightarrow>
-    \<forall>f. f \<le> F \<longrightarrow> sp aq (wssa r (p \<^emph>\<and> \<L> f) \<sqinter> ap) \<le> q \<^emph>\<and> \<L> f \<Longrightarrow>
+  \<open>p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. p \<^emph>\<and> \<L> f \<le> ap \<Longrightarrow>
+    sp aq p \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (p \<^emph>\<and> \<L> f) \<le> q \<^emph>\<and> \<L> f \<Longrightarrow>
+    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> \<L> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa r p (hl, hs) \<Longrightarrow>
-    aq \<sqinter> rel_liftL ap \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
     safe n (Atomic ap aq) (Inl (hl, hs)) r g q' F\<close>
-  by (meson safe_postpred_mono safe_atom')
+  by (rule safe_postpred_mono[OF _ safe_atom']; assumption)
+
+
+lemma strong_safe_atom':
+  \<open>p \<le> ap \<Longrightarrow>
+    \<forall>f. F f \<longrightarrow> p \<^emph>\<and> \<L> ((=) f) \<le> ap \<Longrightarrow>
+    sp aq p \<le> q \<Longrightarrow>
+    \<forall>f. F f \<longrightarrow> sp aq (p \<^emph>\<and> \<L> ((=) f)) \<le> q \<^emph>\<and> \<L> ((=) f) \<Longrightarrow>
+    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f. F f \<longrightarrow> rel_liftL (p \<^emph>\<and> \<L> ((=) f)) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    wssa r p (hl, hs) \<Longrightarrow>
+    safe n (Atomic ap aq) (Inl (hl, hs)) r g (sswa r q) F\<close>
+proof (induct n arbitrary: hl hs)
+  case 0
+  then show ?case by force
+next
+  case (Suc n)
+  show ?case
+    using Suc.prems
+    apply (intro safe.safe_suc)
+      (* subgoal: skip *)
+       apply force
+      (* subgoal: rely *)
+      apply (rule Suc.hyps)
+            apply blast
+           apply blast
+          apply blast
+         apply (meson wssa_step; fail)
+        apply blast
+       apply blast
+      apply (meson wssa_step; fail)
+      (* subgoal: plain opstep *)
+     apply (simp add: opstep_iff del: top_apply inf_apply comp_apply rel_liftL_apply split: if_splits)
+     apply (rule conjI)
+      apply (metis safe_skip_inl_sswa_iff sp_impliesD sswa_trivial wssa_trivial)
+     apply (simp add: le_fun_def, metis wssa_trivial)
+      (* subgoal: local framed opstep *)
+    apply (clarsimp simp add: opstep_iff sp_def[of aq] imp_ex_conjL imp_conjL le_fun_def
+        simp del: comp_apply split: if_splits)
+    apply (drule spec, drule mp, force)
+    apply (drule spec, drule mp, force)
+    apply (drule spec, drule mp, force)
+    apply (subgoal_tac \<open>(p \<^emph>\<and> ((=) hlf \<circ> fst)) (hl + hlf, hs)\<close>)
+     prefer 2
+     apply (force intro!: sepconj_conjI)
+    apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
+    apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
+    apply (simp add: safe_skip_inl_sswa_iff sepconj_conj_apply)
+    apply blast
+    done
+qed
 
 
 subsection \<open> Safety of Sequencing \<close>
@@ -700,7 +755,9 @@ lemma safe_seq:
 subsection \<open> Safety of Iter \<close>
 
 lemma safe_iter:
-  \<open>(\<And>hl' hs'. sswa r i (hl', hs') \<Longrightarrow> safe n c (Inl (hl', hs')) r g (sswa r i) F) \<Longrightarrow>
+  \<open>(\<And>hl' hs'.
+      sswa r i (hl', hs') \<Longrightarrow>
+      safe n c (Inl (hl', hs')) r g (sswa r i) F) \<Longrightarrow>
     sswa r i (hl, hs) \<Longrightarrow>
     safe n (Iter c) (Inl (hl, hs)) r g (sswa r i) F\<close>
 proof (induct n arbitrary: i hl hs)
@@ -735,7 +792,7 @@ proof (induct n arbitrary: i hl hs)
       apply (simp add: rely_rel_wlp_impl_sp; fail)
      apply clarsimp
      apply (rule safe_step_monoD[rotated], assumption)
-     apply (simp add: Suc.hyps safe_ih(1); fail)
+     apply (force intro: Suc.hyps simp add: safe_ih(1))
       (* subgoal: locally framed opstep *)
     apply (clarsimp simp add: le_Suc_eq all_conj_distrib opstep_iff simp del: sup_apply)
     apply (erule disjE)
@@ -747,7 +804,7 @@ proof (induct n arbitrary: i hl hs)
      apply (simp add: rely_rel_wlp_impl_sp; fail)
     apply clarsimp
     apply (rule safe_step_monoD[rotated], assumption)
-    apply (simp add: Suc.hyps safe_ih(1); fail)
+    apply (force intro: Suc.hyps simp add: safe_ih(1); fail)
     done
 qed force
 
@@ -1110,8 +1167,8 @@ proof (induct c r g p q F arbitrary: n hl hs rule: rgsat.inducts)
 next
   case (rgsat_iter c r g i F p q)
   then show ?case
-    using safe_postpred_mono[OF _ safe_iter[of r i n c g]]
-    sorry
+    by (intro safe_postpred_mono[OF _ safe_iter[of r i n c g]])
+      (blast intro: safe_postpred_mono sswa_stronger)+
 next
   case (rgsat_seq c1 r g p1 p2 F c2 p3)
   then show ?case
@@ -1143,12 +1200,9 @@ next
     apply blast
     done
 next
-  case (rgsat_atom p' r p ap aq q q' F g)
+  case (rgsat_atom p' r p q q' ap F aq g)
   then show ?case
-    apply -
-    apply (rule safe_atom[where p=p and q=q])
-        apply simp
-    sorry
+    by (intro safe_atom[where p=p and q=q]) blast+
 next
   case (rgsat_frame c r g p q F p' f f' q')
   then show ?case
