@@ -68,7 +68,18 @@ lemmas rely_rel_wlp_impl_sp =
   refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
 
-subsection \<open> distributivity properties \<close>
+subsection \<open> absorption/pseduo-idempotence properties \<close>
+
+lemma sswa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (force simp add: relyrel_trans relyrel_mono sp_wlp_absorb)
+
+lemma wssa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: relyrel_mono relyrel_trans wlp_sp_absorb)
+
+
+subsection \<open> semi-distributivity with sepconj-conj \<close>
 
 lemma wlp_rely_sepconj_conj_semidistrib_mono:
   \<open>p' \<le> wlp ((=) \<times>\<^sub>R r) p \<Longrightarrow>
@@ -88,6 +99,8 @@ lemma sp_rely_sepconj_conj_semidistrib_mono:
 lemmas sp_rely_sepconj_conj_semidistrib =
   sp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
 
+subsection \<open> Interaction with pred-Times \<close>
+
 lemma wssa_of_pred_Times_eq[simp]:
   \<open>wssa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P wlp r\<^sup>*\<^sup>* q)\<close>
   by (force simp add: rel_Times_def pred_Times_def wlp_def split: prod.splits)
@@ -95,6 +108,7 @@ lemma wssa_of_pred_Times_eq[simp]:
 lemma sp_rely_of_pred_Times_eq[simp]:
   \<open>sswa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P sp r\<^sup>*\<^sup>* q)\<close>
   by (force simp add: rel_Times_def pred_Times_def sp_def split: prod.splits)
+
 
 subsection \<open> Local and shared predicate lifting \<close>
 
@@ -431,6 +445,28 @@ lemma rgsat_weak_weaken:
    apply (rule_tac P=P in rgsat_Disj; simp; fail)
     (* Conj *)
   apply (rule_tac Q=Q in rgsat_Conj; simp; fail)
+  done
+
+
+section \<open> Specialised Rules \<close>
+
+lemma rgsat_assume:
+  assumes
+    \<open>\<forall>f\<le>F. (sswa r p \<^emph>\<and> \<L> f) \<sqinter> px \<le> (sswa r p \<sqinter> px) \<^emph>\<and> \<L> f\<close>
+    \<open>reflp_on {y. \<exists>x. sswa r p (x,y) \<and> (px (x,y) \<or> (\<exists>xf. F xf \<and> x ## xf \<and> px (x + xf, y)))} g\<close>
+  shows
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } Assume px { sswa r (sswa r p \<sqinter> px) }\<close>
+  unfolding Assume_def
+  apply (rule rgsat_atom[where p=\<open>sswa r p\<close> and q=\<open>sswa r p \<sqinter> px\<close>])
+         apply force
+        apply (simp; fail)
+       apply force
+      apply force
+     apply force
+    apply (simp add: assms(1); fail)
+   apply (insert assms(2)[simplified reflp_on_def, simplified])
+   apply fastforce
+  apply (fastforce simp add: sepconj_conj_def)
   done
 
 
