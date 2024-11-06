@@ -277,7 +277,7 @@ lemma safe_sucD:
 subsubsection \<open> Monotonicity of safe \<close>
 
 lemma safe_postpred_monoD:
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow> q \<le> q' \<Longrightarrow> safe n c (Inl (hl, hs)) r g q' F\<close>
+  \<open>safe n c s r g q F \<Longrightarrow> q \<le> q' \<Longrightarrow> safe n c s r g q' F\<close>
   apply (induct rule: safe.induct)
    apply blast
   apply (rule safe_suc)
@@ -288,7 +288,7 @@ lemma safe_postpred_monoD:
 lemmas safe_postpred_mono = safe_postpred_monoD[rotated]
 
 lemma safe_guarantee_monoD:
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow> g \<le> g' \<Longrightarrow> safe n c (Inl (hl, hs)) r g' q F\<close>
+  \<open>safe n c s r g q F \<Longrightarrow> g \<le> g' \<Longrightarrow> safe n c s r g' q F\<close>
 proof (induct rule: safe.induct)
   case safe_nil
   then show ?case by blast
@@ -308,7 +308,7 @@ qed
 lemmas safe_guarantee_mono = safe_guarantee_monoD[rotated]
 
 lemma safe_rely_antimonoD:
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow> r' \<le> r \<Longrightarrow> safe n c (Inl (hl, hs)) r' g q F\<close>
+  \<open>safe n c s r g q F \<Longrightarrow> r' \<le> r \<Longrightarrow> safe n c s r' g q F\<close>
   apply (induct rule: safe.induct)
    apply force
   apply (rule safe_suc)
@@ -321,7 +321,7 @@ lemma safe_rely_antimonoD:
 lemmas safe_rely_antimono = safe_rely_antimonoD[rotated]
 
 lemma safe_step_monoD:
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow> m \<le> n \<Longrightarrow> safe m c (Inl (hl, hs)) r g q F\<close>
+  \<open>safe n c s r g q F \<Longrightarrow> m \<le> n \<Longrightarrow> safe m c s r g q F\<close>
   apply (induct arbitrary: m rule: safe.inducts)
    apply force
   apply (clarsimp simp add: le_Suc_iff0)
@@ -332,11 +332,11 @@ lemma safe_step_monoD:
   done
 
 lemma safe_step_SucD:
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q F \<Longrightarrow> safe n c (Inl (hl, hs)) r g q F\<close>
+  \<open>safe (Suc n) c s r g q F \<Longrightarrow> safe n c s r g q F\<close>
   by (metis le_add2 plus_1_eq_Suc safe_step_monoD)
 
 lemma safe_frameset_antimonoD:
-  \<open>safe n c (Inl (hl, hs)) r g q F \<Longrightarrow> F' \<le> F \<Longrightarrow> safe n c (Inl (hl, hs)) r g q F'\<close>
+  \<open>safe n c s r g q F \<Longrightarrow> F' \<le> F \<Longrightarrow> safe n c s r g q F'\<close>
   apply (induct arbitrary: F' rule: safe.inducts)
    apply force
   apply clarsimp
@@ -402,7 +402,7 @@ proof -
 qed
 
 lemma safe_skip_inl_sswa_iff:
-  \<open>safe n Skip (Inl (hl, hs)) r g (sswa r q) F \<longleftrightarrow> n = 0 \<or> sswa r q (hl, hs)\<close>
+  \<open>safe n Skip s r g (sswa r q) F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs) \<and> (n = 0 \<or> sswa r q (hl, hs)))\<close>
   by (cases n; simp add: safe_skip_sswa_iff)
 
 
