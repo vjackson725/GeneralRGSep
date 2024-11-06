@@ -351,8 +351,14 @@ definition sepconj :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightar
 lemma sepconj_iff: \<open>(P \<^emph> Q) r = (\<exists>h1 h2. h1 ## h2 \<and> r = h1 + h2 \<and> P h1 \<and> Q h2)\<close>
   by (simp add: sepconj_def)
 
-lemma sepconjI[intro]: \<open>h1 ## h2 \<Longrightarrow> r = h1 + h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> (P \<^emph> Q) r\<close>
+lemma sepconjI: \<open>h1 ## h2 \<Longrightarrow> r = h1 + h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> (P \<^emph> Q) r\<close>
   using sepconj_iff by auto
+
+lemma sepconj_directI[intro]: \<open>h1 ## h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> (P \<^emph> Q) (h1 + h2)\<close>
+  using sepconj_iff by auto
+
+lemma sepconj_crossI[intro]: \<open>h1 ## h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> (P \<^emph> Q) (h2 + h1)\<close>
+  by (metis sepconj_iff partial_add_commute)
 
 lemma sepconjE[elim!]:
   \<open>(P \<^emph> Q) r \<Longrightarrow> (\<And>h1 h2. h1 ## h2 \<Longrightarrow> r = h1 + h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> Z) \<Longrightarrow> Z\<close>
