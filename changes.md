@@ -1,3 +1,7 @@
+2024-11-06:
+* Changed + to do a tau move.
+* Changed DO semantics to be directly defined using `~opstep`.
+* Removed mu recursion remnants.
 
 2024-10-30:
 * I had to change the enabledness condition in do-od!!! The previous statement was wrong, because we really want `stuck`, and loops can never be 'stuck' because if the interior gets stuck the loop just exits.
