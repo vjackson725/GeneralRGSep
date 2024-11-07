@@ -173,22 +173,7 @@ definition \<open>post_change_state r \<equiv> \<lambda>b. \<exists>a. r a b \<a
 definition \<open>change_state \<equiv> pre_change_state \<squnion> post_change_state\<close>
 
 
-
-lemma quasireflpD1[dest]:
-  \<open>quasireflp r \<Longrightarrow> r x y \<Longrightarrow> r x x\<close>
-  by (metis mem_Collect_eq pre_state_def prepost_state_def reflp_onD sup2CI)
-
-lemma quasireflpD2[dest]:
-  \<open>quasireflp r \<Longrightarrow> r x y \<Longrightarrow> r y y\<close>
-  by (metis mem_Collect_eq post_state_def prepost_state_def reflp_onD sup2CI)
-
-lemma quasireflpD1'[dest]:
-  \<open>quasireflp r \<Longrightarrow> pre_state r x \<Longrightarrow> r x x\<close>
-  by (metis mem_Collect_eq prepost_state_def reflp_onD sup2CI)
-
-lemma quasireflpD2'[dest]:
-  \<open>quasireflp r \<Longrightarrow> post_state r y \<Longrightarrow> r y y\<close>
-  by (metis mem_Collect_eq prepost_state_def reflp_onD sup2CI)
+subsubsection \<open> pre- and post-state \<close>
 
 lemma pre_state_trancl_eq[simp]:
   \<open>pre_state (r\<^sup>+\<^sup>+) = pre_state r\<close>
@@ -221,6 +206,28 @@ lemma post_state_relconj_le:
 lemma post_state_reldisj[simp]:
   \<open>post_state (r1 \<squnion> r2) = post_state r1 \<squnion> post_state r2\<close>
   by (force simp add: post_state_def)
+
+
+subsubsection \<open> quasireflp \<close>
+
+lemma quasireflpD1[dest]:
+  \<open>quasireflp r \<Longrightarrow> r x y \<Longrightarrow> r x x\<close>
+  by (metis mem_Collect_eq pre_state_def prepost_state_def reflp_onD sup2CI)
+
+lemma quasireflpD2[dest]:
+  \<open>quasireflp r \<Longrightarrow> r x y \<Longrightarrow> r y y\<close>
+  by (metis mem_Collect_eq post_state_def prepost_state_def reflp_onD sup2CI)
+
+lemma quasireflpD1'[dest]:
+  \<open>quasireflp r \<Longrightarrow> pre_state r x \<Longrightarrow> r x x\<close>
+  by (metis mem_Collect_eq prepost_state_def reflp_onD sup2CI)
+
+lemma quasireflpD2'[dest]:
+  \<open>quasireflp r \<Longrightarrow> post_state r y \<Longrightarrow> r y y\<close>
+  by (metis mem_Collect_eq prepost_state_def reflp_onD sup2CI)
+
+
+subsubsection \<open> rel-lift \<close>
 
 lemma rel_liftL_apply[simp]:
   \<open>rel_liftL p a b = p a\<close>
@@ -257,6 +264,25 @@ lemma rel_lift_pred_True[simp]:
 lemma rel_lift_pred_False[simp]:
   \<open>rel_lift (\<lambda>x. False) = \<bottom>\<close>
   by (force simp add: rel_lift_def)
+
+lemma rel_liftL_conj_distrib:
+  \<open>rel_liftL (p1 \<sqinter> p2) = rel_liftL p1 \<sqinter> rel_liftL p2\<close>
+  by (force simp add: rel_liftL_def)
+
+lemma rel_liftR_conj_distrib:
+  \<open>rel_liftR (p1 \<sqinter> p2) = rel_liftR p1 \<sqinter> rel_liftR p2\<close>
+  by (force simp add: rel_liftR_def)
+
+lemma rel_liftL_disj_distrib:
+  \<open>rel_liftL (p1 \<squnion> p2) = rel_liftL p1 \<squnion> rel_liftL p2\<close>
+  by (force simp add: rel_liftL_def)
+
+lemma rel_liftR_disj_distrib:
+  \<open>rel_liftR (p1 \<squnion> p2) = rel_liftR p1 \<squnion> rel_liftR p2\<close>
+  by (force simp add: rel_liftR_def)
+
+
+subsubsection \<open> pre-change state\<close>
 
 lemma pre_change_state_mono[dest]:
   \<open>r1 \<le> r2 \<Longrightarrow> pre_change_state r1 x \<Longrightarrow> pre_change_state r2 x\<close>

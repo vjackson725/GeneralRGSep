@@ -453,7 +453,8 @@ section \<open> Specialised Rules \<close>
 lemma rgsat_assume:
   assumes
     \<open>\<forall>f\<le>F. (sswa r p \<^emph>\<and> \<L> f) \<sqinter> px \<le> (sswa r p \<sqinter> px) \<^emph>\<and> \<L> f\<close>
-    \<open>reflp_on {y. \<exists>x. sswa r p (x,y) \<and> (px (x,y) \<or> (\<exists>xf. F xf \<and> x ## xf \<and> px (x + xf, y)))} g\<close>
+    \<open>(=) \<sqinter> rel_liftL (sswa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((sswa r p \<^emph>\<and> \<L> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
     \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } Assume px { sswa r (sswa r p \<sqinter> px) }\<close>
   unfolding Assume_def
@@ -464,9 +465,8 @@ lemma rgsat_assume:
       apply force
      apply force
     apply (simp add: assms(1); fail)
-   apply (insert assms(2)[simplified reflp_on_def, simplified])
-   apply fastforce
-  apply (fastforce simp add: sepconj_conj_def)
+   apply (metis assms(2) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
+  apply (metis assms(3) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
   done
 
 

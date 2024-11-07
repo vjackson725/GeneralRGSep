@@ -13,12 +13,13 @@ datatype 'a comm =
   | Par \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<parallel>\<close> 65)
   | Indet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<^bold>+\<close> 65)
   | Endet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<box>\<close> 65)
-  \<comment> \<open> An atomic action is represnted by a precondition and a (relational) post-condition.
+  \<comment> \<open> An atomic action is represented by a precondition and a (relational) post-condition.
        Trying to evaluate the action outside the precondition results in a crash.
        Trying to evaluate the action outside the domain of the postcondition results in deadlock,
        until a state in the domain is reached. \<close>
   | Atomic \<open>'a \<Rightarrow> bool\<close> \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0] 999)
   | Iter \<open>'a comm\<close> (\<open>DO (_) OD\<close> [0] 999)
+
 
 subsection \<open> substitution \<close>
 
