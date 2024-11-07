@@ -450,15 +450,39 @@ lemma rgsat_weak_weaken:
 
 section \<open> Specialised Rules \<close>
 
+subsection \<open> Assert \<close>
+
+lemma rgsat_assert:
+  assumes
+    \<open>\<forall>f\<le>F. wssa r (p \<sqinter> px) \<^emph>\<and> (f \<circ> fst) \<le> px\<close>
+    \<open>(=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px)) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px) \<^emph>\<and> (f \<circ> fst)) \<le> \<top> \<times>\<^sub>R g\<close>
+  shows
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { wssa r (p \<sqinter> px) } Assert px { wssa r (p \<sqinter> px) }\<close>
+  unfolding Assert_def
+  apply (rule rgsat_atom[where p=\<open>wssa r (p \<sqinter> px)\<close> and q=\<open>wssa r (p \<sqinter> px)\<close>])
+         apply force
+        apply (simp only: sswa_over_wssa_eq; fail)
+       apply blast
+      apply (metis assms(1))
+     apply (simp del: inf.bounded_iff; fail)
+    apply force
+   apply (blast intro: predicate2D[OF assms(2)])
+  apply (cut_tac assms(3), blast)
+  done
+
+
+subsection \<open> Assume \<close>
+
 lemma rgsat_assume:
   assumes
-    \<open>\<forall>f\<le>F. (sswa r p \<^emph>\<and> \<L> f) \<sqinter> px \<le> (sswa r p \<sqinter> px) \<^emph>\<and> \<L> f\<close>
-    \<open>(=) \<sqinter> rel_liftL (sswa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((sswa r p \<^emph>\<and> \<L> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> \<L> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> \<L> f\<close>
+    \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> \<L> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
-    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { p } Assume px { sswa r (sswa r p \<sqinter> px) }\<close>
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { wssa r p } Assume px { sswa r (wssa r p \<sqinter> px) }\<close>
   unfolding Assume_def
-  apply (rule rgsat_atom[where p=\<open>sswa r p\<close> and q=\<open>sswa r p \<sqinter> px\<close>])
+  apply (rule rgsat_atom[where p=\<open>wssa r p\<close> and q=\<open>wssa r p \<sqinter> px\<close>])
          apply force
         apply (simp; fail)
        apply force
@@ -467,6 +491,61 @@ lemma rgsat_assume:
     apply (simp add: assms(1); fail)
    apply (metis assms(2) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
   apply (metis assms(3) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
+  done
+
+
+subsection \<open> If-then-else \<close>
+
+lemma rgsat_if_then_else:
+  assumes frame_assms:
+   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> (f \<circ> fst)\<close>
+   \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> -px \<le> (wssa r p \<sqinter> -px) \<^emph>\<and> (f \<circ> fst)\<close>
+   \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> -px) \<le> \<top> \<times>\<^sub>R g\<close>
+   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> -px) \<le> \<top> \<times>\<^sub>R g\<close>
+  and rgsat_assms:
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { sswa r (wssa r p \<sqinter> px) } ctt { q1 }\<close>
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { sswa r (wssa r p \<sqinter> -px) } cff { q2 }\<close>
+  shows
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { wssa r p } IfThenElse px ctt cff { q1 \<squnion> q2 }\<close>
+  unfolding IfThenElse_def
+  apply (rule rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl, where ?q1.0=q1 and ?q2.0=q2])
+       apply (rule rgsat_weaken[OF rgsat_assume[where g=g] order.refl
+        order.refl order.refl order.refl order.refl]; meson frame_assms; fail)
+      apply (meson rgsat_assms; fail)
+     apply (rule rgsat_weaken[OF rgsat_assume[where g=g] order.refl
+        order.refl order.refl order.refl order.refl]; meson frame_assms; fail)
+    apply (meson rgsat_assms; fail)
+   apply force
+  apply force
+  done
+
+
+subsection \<open> WhileLoop \<close>
+
+lemma rgsat_while_stable:
+  assumes frame_assms:
+    \<open>\<forall>f\<le>F. (wssa r i \<^emph>\<and> (f \<circ> fst)) \<sqinter> px \<le> (wssa r i \<sqinter> px) \<^emph>\<and> (f \<circ> fst)\<close>
+    \<open>(=) \<sqinter> rel_liftL (wssa r i \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r i \<^emph>\<and> (f \<circ> fst)) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+  assumes i_stable:
+    \<open>i \<le> wssa r i\<close>
+  and rgsat_assms:
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { i \<sqinter> sswa r px } c { i }\<close>
+  shows
+    \<open>r, g \<turnstile>\<^bsub>F\<^esub> { i } WhileLoop px c { i }\<close>
+  unfolding WhileLoop_def
+  apply (rule rgsat_iter[OF rgsat_seq, rotated])
+     apply (rule rgsat_assms)
+    apply (simp add: i_stable; fail)
+   apply (meson i_stable wlp_weaker_iff_sp_stronger; fail)
+  apply (rule rgsat_weaken[OF rgsat_assume _ _ order.refl order.refl order.refl])
+      apply (rule frame_assms)
+     apply (rule frame_assms)
+    apply (rule frame_assms)
+   apply (meson i_stable order_trans wlp_weaker_iff_sp_stronger; fail)
+  apply (meson inf.bounded_iff inf_le1 sp_inf_semidistrib wlp_weaker_iff_sp_stronger)
   done
 
 
