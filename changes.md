@@ -1,3 +1,8 @@
+2024-11-08:
+* Changed the frame sets to specify the shared state as well. This allows for more precise frame predicates.
+  The meaning of this notion is quite subtle, as `F` means you are allowed to _add_ a frame to the _current_ state.
+  The it _can_ be the case that the _result_ of an opstep is comprised of a local state and a frame, even if its shared state is not in `F`.
+
 2024-11-06:
 * Changed + to do a tau move.
 * Changed DO semantics to be directly defined using `~opstep`.

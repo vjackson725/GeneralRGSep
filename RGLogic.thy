@@ -281,7 +281,7 @@ inductive rgsat ::
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
@@ -318,19 +318,19 @@ inductive rgsat ::
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
     p \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. p \<^emph>\<and> \<L> f \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. p \<^emph>\<and> f \<le> ap \<Longrightarrow>
     sp aq p \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (p \<^emph>\<and> \<L> f) \<le> q \<^emph>\<and> \<L> f \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
     rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> \<L> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic ap aq) r g p' q' F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q F \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
-    q \<^emph>\<and> f' \<le> q' \<Longrightarrow>
-    sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
-    f' \<le> F \<times>\<^sub>P \<top> \<Longrightarrow>
-    rgsat c r g p' q' (F \<midarrow>\<^emph> F)\<close>
+    q \<^emph>\<and> sswa (r \<squnion> g) f \<le> q' \<Longrightarrow>
+    sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
+    F' \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F \<Longrightarrow>
+    rgsat c r g p' q' F'\<close>
 | rgsat_weaken:
   \<open>rgsat c r' g' p' q' F' \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
@@ -346,7 +346,7 @@ inductive rgsat ::
 | rgsat_Conj:
   \<open>\<forall>q\<in>Q. rgsat c r g p q F \<Longrightarrow>
     Q \<noteq> {} \<Longrightarrow>
-    \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    \<forall>z a b c. F (c, z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     \<Sqinter>Q \<le> q' \<Longrightarrow>
     rgsat c r g p q' F\<close>
 
@@ -383,7 +383,7 @@ lemma rgsat_disj:
 lemma rgsat_conj:
   \<open>rgsat c r g p q1 F \<Longrightarrow>
     rgsat c r g p q2 F \<Longrightarrow>
-    \<forall>a b c. F c \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    \<forall>z a b c. F (c, z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     rgsat c r g p (q1 \<sqinter> q2) F\<close>
   using rgsat_Conj[of \<open>{q1,q2}\<close> _ _ _ _ _ \<open>q1 \<sqinter> q2\<close>]
   by fastforce
@@ -434,11 +434,11 @@ lemma rgsat_weak_weaken:
       apply blast
     (* frame *)
     apply (rule_tac p=p and q=q and r=ra in rgsat_frame)
-        apply blast
-       apply (rule order.trans; assumption)
-      apply (rule order.trans; assumption)
-     apply (meson order.refl order.trans sp_rel_mono relyrel_mono sup_mono; fail)
-     apply blast
+         apply blast
+        apply (rule order.trans; assumption)
+       apply (meson order.trans le_disj_eq_absorb sepconj_conj_monoR sswa_rel_mono sup.mono; fail)
+      apply (meson order.refl order.trans sp_rel_mono relyrel_mono sup_mono; fail)
+     apply (meson order.trans le_disj_eq_absorb sepimp_conj_mono sswa_rel_mono sup.mono)
     (* weaken *)
     apply (meson rgsat_weaken; fail)
     (* Disj *)
@@ -454,9 +454,9 @@ subsection \<open> Assert \<close>
 
 lemma rgsat_assert:
   assumes
-    \<open>\<forall>f\<le>F. wssa r (p \<sqinter> px) \<^emph>\<and> (f \<circ> fst) \<le> px\<close>
+    \<open>\<forall>f\<le>F. wssa r (p \<sqinter> px) \<^emph>\<and> f \<le> px\<close>
     \<open>(=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px)) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px) \<^emph>\<and> (f \<circ> fst)) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px) \<^emph>\<and> f) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
     \<open>r, g \<turnstile>\<^bsub>F\<^esub> { wssa r (p \<sqinter> px) } Assert px { wssa r (p \<sqinter> px) }\<close>
   unfolding Assert_def
@@ -476,9 +476,9 @@ subsection \<open> Assume \<close>
 
 lemma rgsat_assume:
   assumes
-    \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> \<L> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> \<L> f\<close>
+    \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> f\<close>
     \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> \<L> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
     \<open>r, g \<turnstile>\<^bsub>F\<^esub> { wssa r p } Assume px { sswa r (wssa r p \<sqinter> px) }\<close>
   unfolding Assume_def
@@ -498,12 +498,12 @@ subsection \<open> If-then-else \<close>
 
 lemma rgsat_if_then_else:
   assumes frame_assms:
-   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> (f \<circ> fst)\<close>
+   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> f\<close>
    \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> -px \<le> (wssa r p \<sqinter> -px) \<^emph>\<and> (f \<circ> fst)\<close>
+   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+   \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> -px \<le> (wssa r p \<sqinter> -px) \<^emph>\<and> f\<close>
    \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> -px) \<le> \<top> \<times>\<^sub>R g\<close>
-   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> (f \<circ> fst)) \<sqinter> -px) \<le> \<top> \<times>\<^sub>R g\<close>
+   \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> f) \<sqinter> -px) \<le> \<top> \<times>\<^sub>R g\<close>
   and rgsat_assms:
     \<open>r, g \<turnstile>\<^bsub>F\<^esub> { sswa r (wssa r p \<sqinter> px) } ctt { q1 }\<close>
     \<open>r, g \<turnstile>\<^bsub>F\<^esub> { sswa r (wssa r p \<sqinter> -px) } cff { q2 }\<close>
@@ -526,9 +526,9 @@ subsection \<open> WhileLoop \<close>
 
 lemma rgsat_while_stable:
   assumes frame_assms:
-    \<open>\<forall>f\<le>F. (wssa r i \<^emph>\<and> (f \<circ> fst)) \<sqinter> px \<le> (wssa r i \<sqinter> px) \<^emph>\<and> (f \<circ> fst)\<close>
+    \<open>\<forall>f\<le>F. (wssa r i \<^emph>\<and> f) \<sqinter> px \<le> (wssa r i \<sqinter> px) \<^emph>\<and> f\<close>
     \<open>(=) \<sqinter> rel_liftL (wssa r i \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r i \<^emph>\<and> (f \<circ> fst)) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r i \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   assumes i_stable:
     \<open>i \<le> wssa r i\<close>
   and rgsat_assms:

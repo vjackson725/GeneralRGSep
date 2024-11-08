@@ -174,6 +174,7 @@ lemma perm_alg_plus_fst_plus_snd_eq[simp]:
     \<open>xy +\<^sub>R y +\<^sub>L x = xy + (x, y)\<close>
   by simp+
 
+
 subsubsection \<open> Sepconj-conj \<close>
 
 definition sepconj_conj
@@ -208,6 +209,34 @@ lemma sepconj_conj_monoL:
 lemma sepconj_conj_monoR:
   \<open>q \<le> q' \<Longrightarrow> p \<^emph>\<and> q \<le> p \<^emph>\<and> q'\<close>
   by (force simp add: sepconj_conj_def)
+
+
+subsubsection \<open> Sepimp-imp \<close>
+
+definition sepimp_conj
+  :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+  (infixr \<open>\<midarrow>\<^emph>\<^sub>\<and>\<close> 65) where
+  \<open>p \<midarrow>\<^emph>\<^sub>\<and> q \<equiv> \<lambda>(x,y). \<forall>x1. x ## x1 \<longrightarrow> p (x1, y) \<longrightarrow> q (x + x1, y)\<close>
+
+lemma sepimp_conjI:
+  \<open>(\<And>x1. x ## x1 \<Longrightarrow> p (x1, y) \<Longrightarrow> q (x + x1, y)) \<Longrightarrow> (p \<midarrow>\<^emph>\<^sub>\<and> q) (x, y)\<close>
+  by (simp add: sepimp_conj_def)
+
+lemma sepimp_conj_apply:
+  \<open>(p \<midarrow>\<^emph>\<^sub>\<and> q) (x, y) = (\<forall>x1. x ## x1 \<longrightarrow> p (x1, y) \<longrightarrow> q (x + x1, y))\<close>
+  by (simp add: sepimp_conj_def)
+
+lemma sepimp_conj_sepconj_conjL:
+  \<open>(p \<^emph>\<and> q \<midarrow>\<^emph>\<^sub>\<and> r) = (p \<midarrow>\<^emph>\<^sub>\<and> q \<midarrow>\<^emph>\<^sub>\<and> r)\<close>
+  apply (clarsimp simp add: sepconj_conj_def sepimp_conj_def fun_eq_iff)
+  apply (rule iffI)
+   apply (metis disjoint_add_leftR disjoint_add_swap_lr partial_add_assoc2)
+  apply (metis disjoint_add_rightL disjoint_add_swap_rl partial_add_assoc3)
+  done
+
+lemma sepimp_conj_mono:
+  \<open>p' \<le> p \<Longrightarrow> q \<le> q' \<Longrightarrow> p \<midarrow>\<^emph>\<^sub>\<and> q \<le> p' \<midarrow>\<^emph>\<^sub>\<and> q'\<close>
+  by (force simp add: sepimp_conj_def)
 
 
 section \<open> (additive) unit \<close>
