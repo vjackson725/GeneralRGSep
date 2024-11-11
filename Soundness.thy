@@ -194,14 +194,15 @@ inductive safe
     \<comment> \<open> TODO: This requires termination is represented as infinite stuttering past the end.
                We may want a different model, but that would be more complicated. \<close>
     (c = Skip \<longrightarrow> q (hl, hs)) \<Longrightarrow>
+    \<comment> \<open> the current state is in the stateset \<close>
+    S (hl, hs) \<Longrightarrow>
     \<comment> \<open> rely steps are safe \<close>
     (\<And>hs'. r hs hs' \<Longrightarrow> safe n c (Inl (hl, hs')) r g q S F) \<Longrightarrow>
     \<comment> \<open> closed under opsteps \<close>
     (\<And>a c' hl' hs'.
         ((hl,hs), c) \<midarrow>a\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
         safe n c' (Inl (hl', hs')) r g q S F \<and>
-        (a \<noteq> Tau \<longrightarrow> g hs hs') \<and>
-        S (hl', hs')) \<Longrightarrow>
+        (a \<noteq> Tau \<longrightarrow> g hs hs')) \<Longrightarrow>
     \<comment> \<open> closed under framed opsteps \<close>
     (\<And>a c' hlf hlhlf' hs'.
         hl ## hlf \<Longrightarrow>
@@ -211,8 +212,7 @@ inductive safe
           hl' ## hlf \<and>
           hlhlf' = hl' + hlf \<and>
           (a = Tau \<longrightarrow> hl' = hl) \<and>
-          safe n c' (Inl (hl', hs')) r g q S F \<and>
-          S (hl', hs')) \<and>
+          safe n c' (Inl (hl', hs')) r g q S F) \<and>
         (a \<noteq> Tau \<longrightarrow> g hs hs')) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
     safe (Suc n) c (Inl (hl, hs)) r g q S F\<close>
@@ -229,12 +229,12 @@ lemma safe_nil_iff[simp]:
 lemma safe_suc_iff:
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<longleftrightarrow>
     (c = Skip \<longrightarrow> q (hl, hs)) \<and>
+    S (hl, hs) \<and>
     (\<forall>hs'. r hs hs' \<longrightarrow> safe n c (Inl (hl, hs')) r g q S F) \<and>
     (\<forall>a c' hl' hs'.
         ((hl,hs), c) \<midarrow>a\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
         safe n c' (Inl (hl',hs')) r g q S F \<and>
-        (a \<noteq> Tau \<longrightarrow> g hs hs') \<and>
-        S (hl', hs')) \<and>
+        (a \<noteq> Tau \<longrightarrow> g hs hs')) \<and>
     (\<forall>a c' hlf hlhlf' hs'.
         hl ## hlf \<longrightarrow>
         ((hl + hlf,hs), c) \<midarrow>a\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
@@ -243,8 +243,7 @@ lemma safe_suc_iff:
           hl' ## hlf \<and>
           hlhlf' = hl' + hlf \<and>
           (a = Tau \<longrightarrow> hl' = hl) \<and>
-          safe n c' (Inl (hl',hs')) r g q S F \<and>
-          S (hl', hs')) \<and>
+          safe n c' (Inl (hl',hs')) r g q S F) \<and>
         (a \<noteq> Tau \<longrightarrow> g hs hs'))\<close>
   apply (rule iffI)
    apply (erule safe_sucE, force)
@@ -253,6 +252,7 @@ lemma safe_suc_iff:
 
 lemma safe_sucD:
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> c = Skip \<Longrightarrow> q (hl, hs)\<close>
+  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> S (hl, hs)\<close>
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> r hs hs' \<Longrightarrow> safe n c (Inl (hl, hs')) r g q S F\<close>
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     ((hl,hs), c) \<midarrow>a\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
@@ -262,10 +262,6 @@ lemma safe_sucD:
     a \<noteq> Tau \<Longrightarrow>
     g hs hs'\<close>
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
-    ((hl,hs), c) \<midarrow>a\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
-    a \<noteq> Tau \<Longrightarrow>
-    S (hl', hs')\<close>
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     ((hl + hlf,hs), c) \<midarrow>a\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
     F (hlf, hs) \<Longrightarrow>
@@ -273,8 +269,7 @@ lemma safe_sucD:
       hl' ## hlf \<and>
       hlhlf' = hl' + hlf \<and>
       (a = Tau \<longrightarrow> hl' = hl) \<and>
-      safe n c' (Inl (hl', hs')) r g q S F \<and>
-      S (hl', hs'))\<close>
+      safe n c' (Inl (hl', hs')) r g q S F)\<close>
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     ((hl + hlf,hs), c) \<midarrow>a\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
@@ -303,15 +298,16 @@ proof (induct rule: safe.induct)
   case safe_nil
   then show ?case by blast
 next
-  case (safe_suc c q hl hs r n g)
+  case (safe_suc c q hl hs S r n g F)
   show ?case
     using safe_suc.prems
     apply -
     apply (rule safe.safe_suc)
-       apply (simp add: safe_suc.hyps; fail)
-      apply (blast intro: safe_suc.hyps)
-     apply (frule safe_suc.hyps(4), blast)
-    apply (frule(2) safe_suc.hyps(5), blast)
+        apply (simp add: safe_suc.hyps(1); fail)
+       apply (simp add: safe_suc.hyps(2); fail)
+      apply (simp add: safe_suc.hyps(4); fail)
+     apply (frule safe_suc.hyps(5), blast)
+    apply (frule(2) safe_suc.hyps(6), blast)
     done
 qed
 
@@ -322,6 +318,7 @@ lemma safe_rely_antimonoD:
   apply (induct rule: safe.induct)
    apply force
   apply (rule safe_suc)
+      apply presburger
      apply presburger
     apply (metis predicate2D)
    apply metis
@@ -350,6 +347,7 @@ lemma safe_frameset_antimonoD:
   apply (induct arbitrary: F' rule: safe.inducts)
    apply force
   apply (rule safe_suc)
+      apply force
      apply force
     apply force
    apply force
@@ -366,10 +364,10 @@ lemma safe_stateset_monoD:
   apply (induct arbitrary: S' rule: safe.inducts)
    apply force
   apply (rule safe_suc)
-     apply force
-    apply force
-   apply (simp add: le_fun_def; fail)
-  apply (simp add: le_fun_def)
+      apply (simp; fail)
+     apply (simp add: le_fun_def; fail)
+    apply (simp; fail)
+   apply (simp; fail)
   apply metis
   done
 
@@ -382,30 +380,33 @@ lemma safe_skip_iff:
     (\<exists>n' hl hs.
       n = Suc n' \<and>
       s = Inl (hl, hs) \<and>
-      (\<forall>k<n. \<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs')))\<close>
+      (\<forall>k<n. (\<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs'))))\<close>
   apply (induct n arbitrary: s)
-   apply simp
+   apply (simp; fail)
   apply (rule iffI)
    apply (erule safe.cases, blast)
-   apply simp
-   apply clarsimp
-   apply (metis Suc_less_eq less_Suc0 relpowp_E2 relpowp_fun_conv)
-   apply clarsimp
+   apply (clarsimp simp add: less_Suc_eq_0_disj relpowp_simp_alt simp del: relpowp.simps(2); fail)
+  apply clarsimp
   apply (rule safe_suc)
+      apply force
      apply force
     apply (clarsimp simp add: less_Suc_eq_0_disj all_conj_distrib imp_ex_conjL
-      relpowp_commute[symmetric] relcompp_apply del: disjCI, meson nat.exhaust; fail)
+      relpowp_commute[symmetric] relcompp_apply del: disjCI)
+    apply (case_tac n; blast)
    apply force
   apply force
   done
 
-lemma safe_skip_sswa_iff:
-  \<open>safe n Skip s r g (sswa r q) S F \<longleftrightarrow>
-    (\<exists>hl hs. n = 0 \<and> s = Inl (hl, hs)) \<or>
-    (\<exists>n' hl hs.
-      n = Suc n' \<and>
-      s = Inl (hl, hs) \<and>
-      sswa r q (hl, hs))\<close>
+lemma safe_skip_sswa_stableS_iff:
+  assumes stable_S: \<open>sswa r S \<le> S\<close>
+  shows
+    \<open>safe n Skip s r g (sswa r q) S F \<longleftrightarrow>
+      (\<exists>hl hs. n = 0 \<and> s = Inl (hl, hs)) \<or>
+      (\<exists>n' hl hs.
+        n = Suc n' \<and>
+        s = Inl (hl, hs) \<and>
+        sswa r q (hl, hs) \<and>
+        S (hl, hs))\<close>
 proof -
   {
     fix k hl hs hs'
@@ -420,31 +421,40 @@ proof -
     apply (cases n, force)
     apply (cases s rule: sumE[rotated], force)
     apply (rule trans[OF safe_skip_iff])
-    apply auto
+    apply clarsimp
+    apply (rule iffI)
+     apply (metis relpowp_0_I zero_less_Suc)
+    apply (metis order.eq_iff relpowp_imp_rtranclp rtranclp_idemp sswa_stepD sswa_stronger stable_S)
     done
 qed
 
-lemma safe_skip_inl_sswa_iff:
-  \<open>safe n Skip s r g (sswa r q) S F \<longleftrightarrow>
-    (\<exists>hl hs. s = Inl (hl, hs) \<and> (n = 0 \<or> sswa r q (hl, hs)))\<close>
-  by (cases n; simp add: safe_skip_sswa_iff)
-
+lemma safe_skip_inl_sswa_stableS_iff:
+  assumes stable_S: \<open>sswa r S \<le> S\<close>
+  shows
+    \<open>safe n Skip s r g (sswa r q) S F \<longleftrightarrow>
+      (\<exists>hl hs. s = Inl (hl, hs) \<and> (n = 0 \<or> sswa r q (hl, hs) \<and> S (hl, hs)))\<close>
+  using assms
+  by (cases n; simp add: safe_skip_sswa_stableS_iff)
 
 lemma safe_skip':
-  \<open>sswa r q (hl, hs) \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g (sswa r q) S F\<close>
+  \<open>sswa r q (hl, hs) \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g (sswa r q) (sswa r q) F\<close>
   apply (induct n arbitrary: hl hs q)
    apply force
   apply (rule safe_suc)
+      apply force
      apply force
-    apply (simp add: safe_skip_inl_sswa_iff sswa_step; fail)
+    apply (simp add: safe_skip_inl_sswa_stableS_iff sswa_step; fail)
    apply force
   apply force
   done
 
 lemma safe_skip:
-  \<open>p (hl, hs) \<Longrightarrow> sswa r p \<le> q \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g q S F\<close>
-  apply (rule safe_postpred_monoD[OF safe_skip'[where q=p]])
-   apply (metis (mono_tags, lifting) rel_Times_iff rtranclp.rtrancl_refl sp_def)
+  \<open>p (hl, hs) \<Longrightarrow> sswa r p \<le> q \<Longrightarrow> sswa r p \<le> S \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g q S F\<close>
+  apply (rule safe_postpred_monoD)
+   apply (rule safe_stateset_monoD)
+    apply (rule safe_skip'[where q=p])
+    apply (metis (mono_tags, lifting) rel_Times_iff rtranclp.rtrancl_refl sp_def)
+   apply blast
   apply blast
   done
 
@@ -457,12 +467,12 @@ lemma safe_frame':
     hl ## hlf \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
     sswa (r \<squnion> g) f (hlf, hs) \<Longrightarrow>
-    safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (S \<^emph>\<and> F) (sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F)\<close>
+    safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (S \<^emph>\<and> sswa (r \<squnion> g) f) (sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F)\<close>
 proof (induct arbitrary: hl hs hlf rule: safe.induct)
   case (safe_nil c ls hs r g q S F)
   then show ?case by blast
 next
-  case (safe_suc c q lsx hsx r n g S F)
+  case (safe_suc c q lsx hsx S r n g F)
 
   note hyps = safe_suc.hyps[simplified safe_suc.prems(1)[simplified]]
 
@@ -471,27 +481,25 @@ next
     apply -
     apply (rule safe.safe_suc)
       (* subgoal: skip *)
-       apply (clarsimp simp add: sepconj_conj_def simp del: sup_apply)
-       apply (metis hyps(1))
+        apply (clarsimp simp add: sepconj_conj_def simp del: sup_apply)
+        apply (metis hyps(1))
+      (* subgoal: stateset *)
+       apply (meson hyps(2) predicate1D sepconj_conjI; fail)
       (* subgoal: rely step *)
-      apply (rule hyps(3), blast, blast, blast, blast)
+      apply (rule hyps(4), blast, blast, blast, blast)
       apply (rule sswa_step, rule sup2I1, blast, blast)
       (* subgoal: plain opstep *)
-     apply (frule(1) hyps(5))
+     apply (frule(1) hyps(6))
       apply (force simp add: le_fun_def)
      apply (clarsimp simp del: sup_apply)
-     apply (rule conjI)
-      apply (erule opstep_act_cases)
-       apply force
-      apply (clarsimp simp del: sup_apply)
-      apply (meson sswa_stepD sup2I2; fail)
      apply (erule opstep_act_cases)
-      apply (metis Inl_inject fst_conv snd_conv predicate1D sepconj_conjI)
-     apply (meson predicate1D sepconj_conjI sswa_step sup2CI)
+      apply force
+     apply (clarsimp simp del: sup_apply)
+     apply (meson sswa_stepD sup2I2; fail)
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply)
     apply (rename_tac c hlf2 st')
-    apply (frule hyps(5)[rotated 1])
+    apply (frule hyps(6)[rotated 1])
       apply (clarsimp simp add: sepimp_conj_apply simp del: sup_apply)
       apply (metis disjoint_add_leftR disjoint_sym_iff partial_add_commute)
      apply (metis disjoint_add_swap_lr)
@@ -501,15 +509,10 @@ next
     apply (rule conjI)
      apply (metis disjoint_add_leftR partial_add_assoc3)
     apply (clarsimp simp del: sup_apply)
-    apply (rule conjI)
-     apply (erule opstep_act_cases)
-      apply force
-     apply (frule sswa_stepD, force)
-     apply (metis disjoint_add_leftR disjoint_add_rightL)
     apply (erule opstep_act_cases)
-     apply (metis Inl_inject fst_conv snd_conv predicate1D sepconj_conjI)
-    apply (meson disjoint_add_leftL disjoint_add_leftR disjoint_sym predicate1D sepconj_conjI
-        sswa_step sup2CI; fail)
+     apply force
+    apply (frule sswa_stepD, force)
+    apply (metis disjoint_add_leftR disjoint_add_rightL)
     done
 qed
 
@@ -521,7 +524,7 @@ lemma safe_frame:
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
     F' \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F \<Longrightarrow>
     s = (Inl (hl + hlf, hs)) \<Longrightarrow>
-    S \<^emph>\<and> F \<le> S' \<Longrightarrow>
+    S \<^emph>\<and> sswa (r \<squnion> g) f \<le> S' \<Longrightarrow>
     safe n c s r g (q \<^emph>\<and> f') S' F'\<close>
   apply simp
   apply (rule safe_postpred_monoD)
@@ -537,14 +540,14 @@ lemma safe_frame:
 subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
-  \<open>p \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. p \<^emph>\<and> f \<le> ap \<Longrightarrow>
-    sp aq p \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+  \<open>wssa r p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap \<Longrightarrow>
+    sp aq (wssa r p) \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq ((wssa r p) \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    rel_liftL (wssa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL ((wssa r p) \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     wssa r p (hl, hs) \<Longrightarrow>
-    safe n (Atomic ap aq) (Inl (hl, hs)) r g (sswa r q) p F\<close>
+    safe n (Atomic ap aq) (Inl (hl, hs)) r g (sswa r q) (wssa r p \<squnion> sswa r (sp aq (wssa r p))) F\<close>
 proof (induct n arbitrary: hl hs)
   case 0
   then show ?case by force
@@ -554,6 +557,8 @@ next
     using Suc.prems
     apply (intro safe.safe_suc)
       (* subgoal: skip *)
+        apply force
+      (* subgoal: stateset *)
        apply force
       (* subgoal: rely *)
       apply (rule Suc.hyps)
@@ -565,11 +570,13 @@ next
        apply blast
       apply (meson wssa_step; fail)
       (* subgoal: plain opstep *)
-     apply (simp add: opstep_iff del: inf_apply comp_apply top_apply rel_liftL_apply
+     apply (simp add: opstep_iff del: inf_apply comp_apply top_apply sup_apply rel_liftL_apply
         split: if_splits)
-     apply (rule conjI)
-      apply (metis safe_skip_inl_sswa_iff sp_impliesD sswa_trivial wssa_trivial)
-     apply (simp add: le_fun_def, metis wssa_trivial)
+     apply (intro conjI)
+      apply (simp add: safe_skip_inl_sswa_stableS_iff)
+      apply (meson sp_impliesD sswa_stronger sswa_trivial; fail)
+     apply (drule predicate2D[where P=\<open>P1 \<sqinter> P2\<close> for P1 P2, simplified, OF _ conjI], force, force)
+     apply force
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: opstep_iff sp_def[of aq] imp_ex_conjL imp_conjL le_fun_def
         simp del: comp_apply split: if_splits)
@@ -581,8 +588,12 @@ next
      apply (force intro!: sepconj_conjI)
     apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
     apply (drule spec2, drule spec2, drule mp[of \<open>aq _ _\<close>], assumption)
-    apply (simp add: safe_skip_inl_sswa_iff sepconj_conj_apply)
-    apply blast
+    apply (clarsimp simp add: sepconj_conj_apply imp_ex_conjL imp_conjL simp del: sup_apply)
+    apply (subst safe_skip_inl_sswa_stableS_iff)
+     apply (simp add: sp_sup[simplified sup_fun_def sup_bool_def]; fail)
+    apply (frule spec, drule mp, assumption, drule mp, rule sym, assumption, drule mp, assumption)
+    apply clarsimp
+    sledgehammer
     done
 qed
 

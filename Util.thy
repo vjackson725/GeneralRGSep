@@ -139,7 +139,14 @@ next
   qed
 qed
 
+
 section \<open> Relations \<close>
+
+lemmas relpowp_simp_alt =
+  relpowp.simps(2)[simplified relpowp_commute[symmetric]]
+
+
+subsection \<open> Relation definitions \<close>
 
 definition \<open>rel_liftL p \<equiv> \<lambda>a b. p a\<close>
 definition \<open>rel_liftR p \<equiv> \<lambda>a b. p b\<close>
