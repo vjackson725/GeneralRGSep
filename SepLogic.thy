@@ -38,6 +38,9 @@ lemma disjoint_sym_iff: \<open>a ## b \<longleftrightarrow> b ## a\<close>
 lemma disjoint_add_rightR: \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a ## c\<close>
   by (metis disjoint_add_rightL disjoint_sym partial_add_commute)
 
+lemmas disjoint_add_rightR' =
+  disjoint_add_rightR[OF disjoint_sym, THEN disjoint_sym, of c b a for a b c]
+
 lemma disjoint_add_leftL: \<open>a ## b \<Longrightarrow> a + b ## c \<Longrightarrow> a ## c\<close>
   using disjoint_add_rightL disjoint_sym by blast
 

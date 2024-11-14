@@ -303,10 +303,10 @@ inductive rgsat ::
     sswa r i \<le> q \<Longrightarrow>
     rgsat (Iter c) r g p q L F\<close>
 | rgsat_seq:
-  \<open>rgsat c1 r g p1 p2 L1 F \<Longrightarrow>
-    rgsat c2 r g p2 p3 L2 F \<Longrightarrow>
-    L1 \<squnion> L2 \<le> L \<Longrightarrow>
-    rgsat (c1 ;; c2) r g p1 p3 L F\<close>
+  \<open>rgsat c1 r g p1 p2 S1 F \<Longrightarrow>
+    rgsat c2 r g p2 p3 S2 F \<Longrightarrow>
+    S1 \<squnion> S2 \<le> S \<Longrightarrow>
+    rgsat (c1 ;; c2) r g p1 p3 S F\<close>
 | rgsat_indet:
   \<open>rgsat c1 r g1 p q1 L1 F \<Longrightarrow>
     rgsat c2 r g2 p q2 L2 F \<Longrightarrow>
@@ -322,14 +322,13 @@ inductive rgsat ::
     L1 \<squnion> L2 \<le> L \<Longrightarrow>
     rgsat (c1 \<box> c2) r g p q L F\<close>
 | rgsat_par:
-  \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 L1 F1 \<Longrightarrow>
-    rgsat s2 (r \<squnion> g1) g2 p2 q2 L2 F2 \<Longrightarrow>
+  \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 S1 (S2 \<squnion> S2 \<^emph>\<and> F) \<Longrightarrow>
+    rgsat s2 (r \<squnion> g1) g2 p2 q2 S2 (S1 \<squnion> S1 \<^emph>\<and> F) \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
-    sswa (r \<squnion> g2) (q1) \<^emph>\<and> sswa (r \<squnion> g1) (q2) \<le> q \<Longrightarrow>
-    L1 \<^emph>\<and> L2 \<le> L \<Longrightarrow>
-    (L1 \<^emph>\<and> F2) \<squnion> (L2 \<^emph>\<and> F1) \<le> F \<Longrightarrow>
-    rgsat (s1 \<parallel> s2) r g p q L F\<close>
+    sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
+    S1 \<^emph>\<and> S2 \<le> S \<Longrightarrow>
+    rgsat (s1 \<parallel> s2) r g p q S F\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
@@ -416,49 +415,82 @@ text \<open>
   It is nevertheless sound to use the stronger version.
 \<close>
 lemma rgsat_weak_weaken:
-  \<open>rgsat c r' g p' q' L' \<top> \<Longrightarrow>
-      p \<le> p' \<Longrightarrow>
-      q' \<le> q \<Longrightarrow>
-      r \<le> r' \<Longrightarrow>
-      L' \<le> L \<Longrightarrow>
-      rgsat c r g p q L \<top>\<close>
-  apply (induct arbitrary: r p q L rule: rgsat.inducts)
-           apply (meson rgsat_skip order.trans relyrel_mono sp_mono; fail)
-    (* iter *)
-          apply (rule_tac i=i in rgsat_iter)
-            apply (metis order.refl sswa_rel_mono)
-           apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
-          apply (meson order.trans relyrel_mono sp_rel_mono; fail)
-    (* seq *)
-         apply (rule_tac ?L1.0=L1 and ?L2.0=L2 in rgsat_seq)
-           apply blast
-          apply force
-         apply order
-    (* indet *)
-        apply (rule_tac ?L1.0=L1 and ?L2.0=L2 and ?g1.0=g1 and ?g2.0=g2 and
-      ?q1.0=q1 and ?q2.0=q2 in rgsat_indet)
-              apply blast
-             apply (thin_tac \<open>\<And>ra pa q L. _ pa \<Longrightarrow> _ q \<Longrightarrow> _ ra \<Longrightarrow> _ L \<Longrightarrow> ra, g1 \<turnstile>\<^bsub>L, F\<^esub> { pa } c1 { q }\<close>)
-             apply blast
-            apply order
-           apply order
-          apply order
-         apply order
-        apply order
-    (* endet *)
-       apply (rule_tac ?L1.0=L1 and ?L2.0=L2 and ?g1.0=g1 and ?g2.0=g2 and
-      ?q1.0=q1 and ?q2.0=q2 in rgsat_endet)
-             apply blast
-            apply (thin_tac \<open>\<And>ra pa q L. _ pa \<Longrightarrow> _ q \<Longrightarrow> _ ra \<Longrightarrow> _ L \<Longrightarrow> ra, g1 \<turnstile>\<^bsub>L, F\<^esub> { pa } c1 { q }\<close>)
-            apply blast
-           apply order
-          apply order
-         apply order
-        apply order
-       apply order
+  \<open>rgsat c r g p q S \<top> \<Longrightarrow>
+      p' \<le> p \<Longrightarrow>
+      q \<le> q' \<Longrightarrow>
+      r' \<le> r \<Longrightarrow>
+      S \<le> S' \<Longrightarrow>
+      rgsat c r' g' p' q' S' \<top>\<close>
+proof(induct arbitrary: r' g' p' q' S' rule: rgsat.inducts)
+  case (rgsat_skip r p q S g F)
+  then show ?case
+    by (intro rgsat.rgsat_skip)
+      (meson order.trans relyrel_mono sp_mono; fail)+
+next
+  case (rgsat_iter c r g i L F p q)
+  then show ?case
+    apply (intro rgsat.rgsat_iter[where i=i])
+      apply (metis order.refl sswa_rel_mono)
+     apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+    apply (meson order.trans relyrel_mono sp_rel_mono; fail)
+    done
+next
+  case (rgsat_seq c1 r g p1 p2 S1 F c2 p3 S2 L)
+  then show ?case
+    apply (intro rgsat.rgsat_seq[where ?S1.0=S1 and ?S2.0=S2])
+      apply blast
+     apply force
+    apply order
+    done
+next
+  case (rgsat_indet c1 r g1 p q1 L1 F c2 g2 q2 L2 g q L)
+  
+  show ?case
+    using rgsat_indet.prems rgsat_indet.hyps(5-)
+      rgsat.rgsat_indet[OF rgsat_indet.hyps(2) rgsat_indet.hyps(4)]
+    by (meson order_refl order_trans)
+next
+  case (rgsat_endet c1 r g1 p q1 L1 F c2 g2 q2 L2 g q L)
+
+  show ?case
+    using rgsat_endet.prems rgsat_endet.hyps(5-)
+      rgsat.rgsat_endet[OF rgsat_endet.hyps(2) rgsat_endet.hyps(4)]
+    by (meson order_refl order_trans)
+next
+  case (rgsat_par s1 r g2 g1 p1 q1 S1 S2 F s2 p2 q2 g p q S)
+  
+  show ?case
+    using rgsat_par.prems rgsat_par.hyps(5-)
+    apply (intro rgsat.rgsat_par[OF rgsat_par.hyps(2) rgsat_par.hyps(4)])
+
+    sorry
+next
+  case (rgsat_atom p' r p q q' ap F aq g L)
+  then show ?case sorry
+next
+  case (rgsat_frame c r g p q L F p' f q' F' L')
+  then show ?case sorry
+next
+  case (rgsat_weaken c ra' ga' pa' qa' Sa' Fa' p q r g S F)
+
+  from rgsat_weaken.hyps(3-) rgsat_weaken.prems
+  show ?case
+    using rgsat.rgsat_weaken[of _ r' g' p' q' S' Fa'] rgsat_weaken.hyps(2)
+    by simp
+next
+  case (rgsat_Disj p' P c r g q L F)
+  then show ?case
+    using rgsat.rgsat_Disj[of _ P]
+    by simp
+next
+  case (rgsat_Conj Q c r g p L F q')
+  then show ?case
+    using rgsat.rgsat_Conj[of Q]
+    by simp
+qed
     (* par *)
        apply (rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 and ?g1.0=g1 and ?g2.0=g2
-      and ?L1.0=L1 and ?L2.0=L2 and ?F1.0=F1 and ?F2.0=F2 in rgsat_par)
+      and ?L1.0=L1 and ?L2.0=L2 and ?F1.0=F1 and ?F2.0=F2 in rgsat.rgsat_par)
               apply (meson order.refl sup_mono; fail)
              apply (meson order.refl sup_mono; fail)
             apply order
@@ -485,19 +517,13 @@ lemma rgsat_weak_weaken:
       apply blast
      apply (simp; fail)
     (* frame *)
-     apply (rule_tac p=p and q=q and r=ra in rgsat_frame)
+     apply (rule_tac p=p and q=q and r=ra in rgsat.rgsat_frame)
           apply blast
          apply (rule order.trans; assumption)
         apply (meson order.trans le_disj_eq_absorb sepconj_conj_monoR sswa_rel_mono sup.mono; fail)
        apply (meson order.refl order.trans sp_rel_mono relyrel_mono sup_mono; fail)
       apply (meson order.trans le_disj_eq_absorb sepimp_conj_mono sswa_rel_mono sup.mono)
      apply (simp; fail)
-    (* weaken *)
-    apply (meson rgsat_weaken; fail)
-    (* Disj *)
-   apply (rule_tac P=P in rgsat_Disj; simp; fail)
-    (* Conj *)
-  apply (rule_tac Q=Q in rgsat_Conj; simp; fail)
   done
 
 
