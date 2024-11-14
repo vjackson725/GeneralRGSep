@@ -47,9 +47,6 @@ lemma sswa_trivial[intro]:
   \<open>p x \<Longrightarrow> sswa r p x\<close>
   by (simp add: sp_refl_relI)
 
-lemmas sswa_idem[simp] =
-  sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-
 lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
 
 lemmas wssa_weaker = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
@@ -57,9 +54,6 @@ lemmas wssa_weaker = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup
 lemma wssa_trivial[dest]:
   \<open>wssa r p x \<Longrightarrow> p x\<close>
   by (meson le_boolE le_funE wssa_weaker)
-
-lemmas wssa_idem[simp] =
-  wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
 lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
 
@@ -69,6 +63,22 @@ lemmas rely_rel_wlp_impl_sp =
 
 
 subsection \<open> absorption/pseduo-idempotence properties \<close>
+
+(*
+lemmas sswa_idem[simp] =
+  sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemmas wssa_idem[simp] =
+  wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+*)
+
+lemma sswa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(1) sp_comp_rel)
+
+lemma wssa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(2) wlp_comp_rel)
 
 lemma sswa_over_wssa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (wssa r2 p) = wssa r2 p\<close>

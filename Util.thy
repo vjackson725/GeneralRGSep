@@ -1147,6 +1147,8 @@ lemma sp_sup[simp]:
   \<open>sp r (p \<squnion> q) = sp r p \<squnion> sp r q\<close>
   by (force simp add: sp_def)
 
+lemmas sp_disj[simp] = sp_sup[simplified sup_fun_def sup_bool_def]
+
 lemma sp_Sup[simp]:
   \<open>sp r (\<Squnion>P) = \<Squnion>(sp r ` P)\<close>
   by (fastforce simp add: sp_def)
@@ -1155,9 +1157,7 @@ lemma sp_top[simp]:
   \<open>sp r \<top> = post_state r\<close>
   by (clarsimp simp add: sp_def post_state_def fun_eq_iff)
 
-lemma sp_Ktrue[simp]:
-  \<open>sp r (\<lambda>_. True) = post_state r\<close>
-  by (force simp add: sp_def post_state_def fun_eq_iff)
+lemmas sp_Ktrue[simp] = sp_top[simplified top_fun_def top_bool_def]
 
 lemma sp_inf_semidistrib:
   \<open>sp r (p \<sqinter> q) \<le> sp r p \<sqinter> sp r q\<close>
