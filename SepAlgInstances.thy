@@ -80,13 +80,16 @@ end
 
 subsection \<open> sep_alg \<close>
 
+instantiation prod :: (multiunit_sep_alg,multiunit_sep_alg) multiunit_sep_alg
+begin
+instance by standard (simp add: fun_eq_iff)+
+end
+
 instantiation prod :: (sep_alg,sep_alg) sep_alg
 begin
 
 declare bot_prod_def[simp]
-
-instance
-  by standard (simp add: fun_eq_iff)+
+instance by standard (simp add: fun_eq_iff)+
 
 end
 

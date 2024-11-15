@@ -1,9 +1,6 @@
 theory Security
-  imports SecRGSep
+  imports "../RGLogic"
 begin
-
-definition is_enabled :: \<open>'s comm \<Rightarrow> 's \<Rightarrow> bool\<close> where
-  \<open>is_enabled c s \<equiv> Ex ((\<Squnion>(head_atoms c)) s)\<close>
 
 (*
   Do we need hiding here??
@@ -37,7 +34,6 @@ lemma quad_exch_idem[simp]:
   Factorisation theorem?
 *)
 
-
 text \<open>
   It's obvious (from \<open>safe\<close>) that if you reach the end, then you satifsy the postcondition.
   The postcondition is supposed to encode all the knowledge information the attacker gains
@@ -50,39 +46,6 @@ text \<open>
 \<close>
 
 definition \<open>pmerge xs ys \<equiv> undefined\<close>
-
-text \<open>
-  \<open>bigtr\<close> is a bigstep semantics.
-  We later use it to construct a completed trace semantics.
-\<close>
-inductive bigtr
-  :: \<open>('s \<times> 's) comm \<Rightarrow> 's \<Rightarrow> 's set aact list \<times> 's \<Rightarrow> bool\<close>
-  where
-  btr_skip: \<open>bigtr Skip s ([], s)\<close>
-| btr_seq:
-    \<open>\<lbrakk> bigtr c1 s (t1, s')
-     ; bigtr c2 s' (t2, s'')
-     \<rbrakk> \<Longrightarrow> bigtr (c1 ;; c2) s (t1 @ t2, s'')\<close>
-| btr_par:
-    \<open>\<lbrakk> bigtr c1 s (t1, s')
-     ; bigtr c2 s' (t2, s'')
-     \<rbrakk> \<Longrightarrow> bigtr (c1 \<parallel> c2) s (pmerge t1 t2, s'')\<close>
-| btr_indetL:
-    \<open>bigtr c1 s t1s' \<Longrightarrow> bigtr (c1 \<^bold>+ c2) s t1s'\<close>
-| btr_indetR:
-    \<open>bigtr c2 s t2s' \<Longrightarrow> bigtr (c1 \<^bold>+ c2) s t2s'\<close>
-| btr_endetL:
-    \<open>bigtr c1 s t1s' \<Longrightarrow> bigtr (c1 \<box> c2) s t1s'\<close>
-| btr_endetR:
-    \<open>bigtr c2 s t2s' \<Longrightarrow> bigtr (c1 \<box> c2) s t2s'\<close>
-| btr_atom:
-    \<open>b (s,s) (s',s') \<Longrightarrow>  \<Longrightarrow> bigtr (\<langle>b\<rangle>) s ([a], s')\<close>
-| btr_iter_step:
-    \<open>bigtr c s (t1, s') \<Longrightarrow>
-      bigtr (DO c OD) s' (t2, s'') \<Longrightarrow>
-      bigtr (DO c OD) s (t1 @ t2, s')\<close>
-| btr_iter_end:
-    \<open>\<not> is_enabled c (s,s) \<Longrightarrow> bigtr (DO c OD) s (t, s)\<close>
 
 \<comment> \<open>
   b (s,s) (s',s') should be the same as b (s,s) (s',_), if b is wf.

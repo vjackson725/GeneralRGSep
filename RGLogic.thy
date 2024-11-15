@@ -488,6 +488,7 @@ next
     using rgsat.rgsat_Conj[of Q]
     by simp
 qed
+(*
     (* par *)
        apply (rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 and ?g1.0=g1 and ?g2.0=g2
       and ?L1.0=L1 and ?L2.0=L2 and ?F1.0=F1 and ?F2.0=F2 in rgsat.rgsat_par)
@@ -525,7 +526,7 @@ qed
       apply (meson order.trans le_disj_eq_absorb sepimp_conj_mono sswa_rel_mono sup.mono)
      apply (simp; fail)
   done
-
+*)
 
 section \<open> Specialised Rules \<close>
 
@@ -554,7 +555,7 @@ lemma rgsat_assert:
 
 subsection \<open> Assume \<close>
 
-lemma rgsat_assume:
+lemma rgsat_assume':
   assumes
     \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> f\<close>
     \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
@@ -564,8 +565,8 @@ lemma rgsat_assume:
   unfolding Assume_def
   apply (rule rgsat_atom[where p=\<open>wssa r p\<close> and q=\<open>wssa r p \<sqinter> px\<close>])
           apply force
-         apply (simp; fail)
-        apply force
+         apply force
+        apply (simp; fail)
        apply force
       apply force
      apply (simp add: assms(1); fail)
@@ -573,6 +574,9 @@ lemma rgsat_assume:
    apply (metis assms(3) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
   apply blast
   done
+
+lemmas rgsat_assume =
+  rgsat_weaken[OF rgsat_assume' _ _ order.refl order.refl _ order.refl, of _ _ p' for p']
 
 
 subsection \<open> If-then-else \<close>
@@ -609,15 +613,15 @@ lemma rgsat_if_then_else:
   unfolding IfThenElse_def
   apply (rule rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
         where ?L1.0=\<open>wssa r p \<squnion> L1\<close> and ?L2.0=\<open>wssa r p \<squnion> L2\<close>])
-          apply (rule rgsat_weaken[OF rgsat_assume order.refl order.refl order.refl order.refl
-        order.refl order.refl])
+          apply (rule rgsat_weaken[OF rgsat_assume' order.refl order.refl
+        order.refl order.refl order.refl order.refl])
             apply (rule frame_assms)
            apply (rule frame_assms)
           apply (rule frame_assms)
          apply (rule rgsat_assms(1))
         apply order
-       apply (rule rgsat_weaken[OF rgsat_assume order.refl order.refl order.refl order.refl
-        order.refl order.refl])
+       apply (rule rgsat_weaken[OF rgsat_assume' order.refl order.refl
+        order.refl order.refl order.refl order.refl])
          apply (rule frame_assms)
         apply (rule frame_assms)
        apply (rule frame_assms)
@@ -648,7 +652,7 @@ lemma rgsat_while_stable:
      apply (rule order.refl)
     apply (simp add: i_stable; fail)
    apply (meson i_stable wlp_weaker_iff_sp_stronger; fail)
-  apply (rule rgsat_weaken[OF rgsat_assume _ _ order.refl order.refl _ order.refl])
+  apply (rule rgsat_weaken[OF rgsat_assume' _ _ order.refl order.refl _ order.refl])
        apply (rule frame_assms)
       apply (rule frame_assms)
      apply (rule frame_assms)
