@@ -2,6 +2,29 @@ theory SecRGSep
   imports "../RGLogic"
 begin
 
+definition rel_compl :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (\<open>_\<^sup>c\<close> [86] 85) where
+  \<open>a\<^sup>c \<equiv> (\<lambda>x y. a y x)\<close>
+
+lemma rel_compl_rel_comp_distrib:
+  \<open>(a OO b)\<^sup>c = (b\<^sup>c OO a\<^sup>c)\<close>
+  by (force simp add: rel_compl_def relcompp_apply fun_eq_iff)
+
+definition
+  \<open>LL r \<equiv> \<lambda>(x,_). (\<exists>z. r (x,z))\<close>
+
+lemma LL_apply[simp]:
+  \<open>LL a (x,y) = (\<exists>z. a (x,z))\<close>
+  by (simp add: LL_def)
+
+definition
+  \<open>RR r \<equiv> \<lambda>(_,y). (\<exists>z. r (z,y))\<close>
+
+lemma RR_apply[simp]:
+  \<open>RR a (x,y) = (\<exists>z. a (z,y))\<close>
+  by (simp add: RR_def)
+
+
+
 definition
   \<open>major \<equiv> \<lambda>((x,x'), (y,y')). (x, y)\<close>
 
@@ -159,116 +182,198 @@ lemma agree_transp:
 
 subsection \<open> completions \<close>
 
-definition qrefl_neg :: \<open>('a \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'a \<Rightarrow> bool)\<close> (\<open>-\<^sup>= _\<close> [81] 80) where
-  \<open>-\<^sup>= p \<equiv> \<lambda>(x,y). \<not> p (x,y) \<and> \<not> p (x,x) \<and> \<not> p (y,y)\<close>
+lemma quasirefl_LL_apply[simp]:
+  \<open>quasireflp (curry p) \<Longrightarrow> LL p (x,y) = p (x,x)\<close>
+  by (simp add: LL_def reflp_on_def prepost_state_def' curry_def, blast)
 
-lemma qrefl_neg_apply[simp]:
-  \<open>(-\<^sup>= p) (x,y) = (\<not> p (x,y) \<and> \<not> p (x,x) \<and> \<not> p (y,y))\<close>
-  by (simp add: qrefl_neg_def)
+lemma quasirefl_RR_apply[simp]:
+  \<open>quasireflp (curry p) \<Longrightarrow> RR p (x,y) = p (y,y)\<close>
+  by (simp add: RR_def reflp_on_def prepost_state_def' curry_def, blast)
 
-lemma qrefl_neg_quasireflp:
-  \<open>quasireflp (curry (-\<^sup>= p))\<close>
-  unfolding qrefl_neg_def reflp_on_def curry_def prepost_state_def'
-  by blast
 
-lemma qrefl_neg_symp:
-  \<open>symp (curry p) \<Longrightarrow> symp (curry (-\<^sup>= p))\<close>
-  unfolding qrefl_neg_def symp_def curry_def
-  by blast
+definition lr_neg :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<sim> _\<close> [81] 80) where
+  \<open>\<sim> p \<equiv> - p \<sqinter> - LL p \<sqinter> - RR p\<close>
 
-lemma noncontra_qrefl_neg:
-  \<open>p \<sqinter> -\<^sup>= p = \<bottom>\<close>
-  by (simp add: qrefl_neg_def fun_eq_iff)
-  
+lemma lr_neg_apply[simp]:
+  \<open>(\<sim> p) (x,y) = (- p \<sqinter> - LL p \<sqinter> - RR p) (x,y)\<close>
+  by (simp add: lr_neg_def)
 
-lemma qrefl_neg_excluded_middle_counterex:
-  \<open>p \<squnion> -\<^sup>= p = \<top>\<close>
+lemma lr_neg_quasireflp:
+  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (\<sim> p))\<close>
+  unfolding lr_neg_def reflp_on_def curry_def prepost_state_def'
+  by (simp, blast)
+
+lemma lr_neg_symp:
+  \<open>symp (curry p) \<Longrightarrow> symp (curry (\<sim> p))\<close>
+  unfolding lr_neg_def symp_def curry_def
+  by (simp, blast)
+
+
+lemma noncontra_lr_neg:
+  \<open>p \<sqinter> \<sim> p = \<bottom>\<close>
+  by (simp add: lr_neg_def fun_eq_iff)
+
+lemma lr_neg_excluded_middle_counterex:
+  \<open>quasireflp (curry p) \<Longrightarrow> p \<squnion> \<sim> p = \<top>\<close>
   nitpick[card 'a=2]
   oops
 
-lemma qrefl_neg_almost_excluded_middle_counterex:
-  \<open>p \<squnion> -\<^sup>= p \<squnion> case_prod (=) = \<top>\<close>
+lemma lr_neg_weak_excluded_middle_counterex:
+  \<open>quasireflp (curry p) \<Longrightarrow> \<sim> p \<squnion> \<sim>(\<sim>p) = \<top>\<close>
   nitpick[card 'a=2]
   oops
 
-lemma qrefl_neg_disj_syll:
-  \<open>(-\<^sup>= p) (x,y) \<Longrightarrow> (p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
+lemma lr_neg_order_reversing:
+  \<open>p \<le> q \<Longrightarrow> \<sim> q \<le> \<sim> p\<close>
+  by (force simp add: lr_neg_def)
+
+lemma lr_neg_top_eq[simp]:
+  \<open>\<sim> \<top> = \<bottom>\<close>
+  by force
+
+lemma lr_neg_bot_eq[simp]:
+  \<open>\<sim> \<bottom> = \<top>\<close>
+  by force
+
+lemma lr_neg_de_Morgan_disj:
+  \<open>\<sim> p \<sqinter> \<sim> q = \<sim> (p \<squnion> q)\<close>
+  by force
+
+lemma lr_neg_semi_de_Morgan_conj:
+  \<open>\<sim> p \<squnion> \<sim> q \<le> \<sim> (p \<sqinter> q)\<close>
+  by force
+
+
+lemma lr_neg_pseudo_dual[simp]:
+  \<open>\<sim> (\<sim> (\<sim> p)) = \<sim> p\<close>
+  by (force simp add: lr_neg_def)
+
+lemma lr_neg_dual_counterex:
+  \<open>\<sim> (\<sim> p) = p\<close>
+  nitpick[card 'a=2, card 'b=1]
+  oops
+
+lemma double_lr_neg_conj_distrib:
+  \<open>quasireflp (curry p) \<Longrightarrow>
+    quasireflp (curry q) \<Longrightarrow>
+    \<sim>(\<sim>(p \<sqinter> q)) = \<sim>(\<sim>p) \<sqinter> \<sim>(\<sim>q)\<close>
+  apply (clarsimp simp add: lr_neg_def reflp_on_def curry_def prepost_state_def' fun_eq_iff)
+  apply (rule iffI, blast, metis)
+  done
+
+text \<open> Thus \<open>\<sim>\<close> is a pseudocomplement on quasi-reflexive relations. \<close>
+
+
+lemma lr_neg_disj_syll:
+  \<open>(\<sim> p) (x,y) \<Longrightarrow> (p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
+  by (simp)
+
+lemma lr_neg_strong_mp:
+  \<open>p (x,y) \<Longrightarrow> (\<sim> p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
   by simp
 
-lemma qrefl_neg_strong_mp:
-  \<open>p (x,y) \<Longrightarrow> (-\<^sup>= p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
-  by simp
 
-definition qrefl_implies
-  :: \<open>('a \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'a \<Rightarrow> bool)\<close>
-  (infixr \<open>\<leadsto>\<^sup>=\<close> 60)
+definition lr_implies
+  :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+  (infixr \<open>\<leadsto>\<^sub>L\<^sub>R\<close> 60)
   where
-  \<open>p \<leadsto>\<^sup>= q \<equiv> \<lambda>(x,y). (p (x,y) \<longrightarrow> q (x,y)) \<and>
-                      (p (x,x) \<longrightarrow> q (x,x)) \<and>
-                      (p (y,y) \<longrightarrow> q (y,y))\<close>
+  \<open>p \<leadsto>\<^sub>L\<^sub>R q \<equiv> (p \<leadsto> q) \<sqinter> (LL p \<leadsto> LL q) \<sqinter> (RR p \<leadsto> RR q)\<close>
 
-lemma qrefl_implies_apply[simp]:
-  \<open>(p \<leadsto>\<^sup>= q) (x,y) =
-    ((p (x, y) \<longrightarrow> q (x, y)) \<and>
-      (p (x, x) \<longrightarrow> q (x, x)) \<and>
-      (p (y, y) \<longrightarrow> q (y, y)))\<close>
-  by (force simp add: qrefl_implies_def qrefl_neg_def)
+lemma lr_implies_apply[simp]:
+  \<open>(p \<leadsto>\<^sub>L\<^sub>R q) (x,y) = ((p \<leadsto> q) \<sqinter> (LL p \<leadsto> LL q) \<sqinter> (RR p \<leadsto> RR q)) (x,y)\<close>
+  by (force simp add: lr_implies_def)
 
-lemma strong_impl_implies_disj_qimpl:
-  \<open>quasireflp (curry q) \<Longrightarrow> (-\<^sup>= p \<squnion> q) \<le> p \<leadsto>\<^sup>= q\<close>
-  by (force simp add: le_fun_def reflp_on_def prepost_state_def' curry_def)
+subsubsection \<open> Lemmas \<close>
 
-lemma strong_impl_implies_conj_qimpl:
-  \<open>quasireflp (curry q) \<Longrightarrow> p \<leadsto>\<^sup>= q \<le> -\<^sup>= (p \<sqinter> -\<^sup>= q)\<close>
-  by (force simp add: le_fun_def reflp_on_def prepost_state_def' curry_def)
+lemma lr_neg_eq_lr_impl_bot:
+  \<open>\<sim> p = p \<leadsto>\<^sub>L\<^sub>R \<bottom>\<close>
+  by fastforce
 
-lemma qrefl_impl_implies_strong_impl_counterex:
+lemma lr_impl_refl:
+  \<open>(p \<leadsto>\<^sub>L\<^sub>R p) = \<top>\<close>
+  by (simp add: fun_eq_iff)
+
+lemma lr_impl_weaken:
+  \<open>q \<sqinter> (p \<leadsto>\<^sub>L\<^sub>R q) = q\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma lr_impl_mp_eqn:
+  \<open>p \<sqinter> (p \<leadsto>\<^sub>L\<^sub>R q) = p \<sqinter> q\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma quasireflp_then_lr_impl_right_conj_distrib:
+  \<open>quasireflp (curry q1) \<Longrightarrow>
+    quasireflp (curry q2) \<Longrightarrow>
+    p \<leadsto>\<^sub>L\<^sub>R q1 \<sqinter> q2 = (p \<leadsto>\<^sub>L\<^sub>R q1) \<sqinter> (p \<leadsto>\<^sub>L\<^sub>R q2)\<close>
+  by (clarsimp simp add: fun_eq_iff reflp_on_def prepost_state_def' curry_def
+      all_conj_distrib, metis)
+
+lemma qrefl_then_lr_impl_impl_subst:
+  \<open>quasireflp (curry p) \<Longrightarrow>
+    p \<leadsto>\<^sub>L\<^sub>R q \<leadsto>\<^sub>L\<^sub>R r \<le> (p \<leadsto>\<^sub>L\<^sub>R q) \<leadsto>\<^sub>L\<^sub>R p \<leadsto>\<^sub>L\<^sub>R r\<close>
+  by (clarsimp simp add: reflp_on_def prepost_state_def' curry_def, metis)
+
+lemma qrefl_then_lr_impl_id_embellish:
+  \<open>quasireflp (curry p) \<Longrightarrow>
+    quasireflp (curry q) \<Longrightarrow>
+    p \<le> q \<leadsto>\<^sub>L\<^sub>R p \<sqinter> q\<close>
+  by (clarsimp simp add: reflp_on_def prepost_state_def' curry_def, metis)
+
+lemma qrefl_then_lr_impl_galois:
+  \<open>quasireflp (curry p) \<Longrightarrow>
+    quasireflp (curry q) \<Longrightarrow>
+    p \<le> q \<leadsto>\<^sub>L\<^sub>R r \<longleftrightarrow> p \<sqinter> q \<le> r\<close>
+  by (clarsimp simp add: reflp_on_def prepost_state_def' curry_def le_fun_def, blast)
+
+lemma lr_impl_disj_left:
+  \<open>(p \<leadsto>\<^sub>L\<^sub>R r) \<sqinter> (q \<leadsto>\<^sub>L\<^sub>R r) \<le> p \<squnion> q \<leadsto>\<^sub>L\<^sub>R r\<close>
+  by (clarsimp simp add: reflp_on_def prepost_state_def' curry_def, metis)
+
+
+lemma lr_impl_then_disj_qimpl:
+  \<open>\<sim> p \<squnion> q \<le> p \<leadsto>\<^sub>L\<^sub>R q\<close>
+  by (force simp add: le_fun_def)
+
+lemma lr_impl_then_conj_qimpl:
+  \<open>p \<leadsto>\<^sub>L\<^sub>R q \<le> \<sim> (p \<sqinter> \<sim> q)\<close>
+  by (force simp add: le_fun_def)
+
+
+lemma lr_impl_then_lr_impl_counterex:
   \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry q) \<Longrightarrow>
     \<forall>x. p (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (p (x,y) \<or> p (y,x))) \<Longrightarrow>
     \<forall>x. q (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (q (x,y) \<or> q (y,x))) \<Longrightarrow>
-    A = p \<leadsto>\<^sup>= q \<Longrightarrow>
-    B = (-\<^sup>= p \<squnion> q) \<Longrightarrow>
+    A = p \<leadsto>\<^sub>L\<^sub>R q \<Longrightarrow>
+    B = (\<sim> p \<squnion> q) \<Longrightarrow>
     A \<le> B\<close>
   nitpick[card 'a=2]
   oops
 
-lemma qrefl_impl_implies_strong_impl_counterex:
+lemma lr_impl_then_lr_impl_counterex:
   \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry q) \<Longrightarrow>
     \<forall>x. p (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (p (x,y) \<or> p (y,x))) \<Longrightarrow>
     \<forall>x. q (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (q (x,y) \<or> q (y,x))) \<Longrightarrow>
-    A = -\<^sup>= (p \<sqinter> -\<^sup>= q) \<Longrightarrow>
-    B = p \<leadsto>\<^sup>= q \<Longrightarrow>
+    A = \<sim> (p \<sqinter> \<sim> q) \<Longrightarrow>
+    B = p \<leadsto>\<^sub>L\<^sub>R q \<Longrightarrow>
     A \<le> B\<close>
   nitpick[card 'a=2]
   oops
-
-lemma qrefl_implies_quasireflp:
-  \<open>quasireflp (curry (-\<^sup>= p \<squnion> q))\<close>
-  unfolding qrefl_implies_def qrefl_neg_def reflp_on_def curry_def
-    prepost_state_def'
-  by force
-
-lemma qrefl_implies_quasireflp:
-  \<open>quasireflp (curry (-\<^sup>= (p \<sqinter> -\<^sup>= q)))\<close>
-  unfolding qrefl_implies_def qrefl_neg_def reflp_on_def curry_def
-    prepost_state_def'
-  by force
-
-
-lemma qrefl_implies_quasireflp:
-  \<open>quasireflp (curry (p \<leadsto>\<^sup>= q))\<close>
-  unfolding qrefl_implies_def qrefl_neg_def reflp_on_def curry_def
-    prepost_state_def'
-  by force
-
-lemma qrefl_implies_symp:
-  \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<leadsto>\<^sup>= q))\<close>
-  by (simp add: symp_def)
-
-lemma qrefl_implies_mp:
-  \<open>(p \<leadsto>\<^sup>= q) (x,y) \<Longrightarrow> p (x,y) \<Longrightarrow> q (x,y)\<close>
+lemma lr_then_mp:
+  \<open>(p \<leadsto>\<^sub>L\<^sub>R q) (x,y) \<Longrightarrow> p (x,y) \<Longrightarrow> q (x,y)\<close>
   by simp
 
+lemma qrefl_then_quasireflp:
+  \<open>quasireflp (curry p) \<Longrightarrow>
+    quasireflp (curry q) \<Longrightarrow>
+    quasireflp (curry (p \<leadsto>\<^sub>L\<^sub>R q))\<close>
+  by (simp add: lr_implies_def reflp_on_def curry_def prepost_state_def', blast)
+
+lemma qrefl_then_symp:
+  \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<leadsto>\<^sub>L\<^sub>R q))\<close>
+  by (simp add: lr_implies_def symp_def, blast)
+
+
+section \<open> relational lifting \<close>
 
 definition \<open>liftP p \<equiv> \<lambda>(x,x'). p x \<and> p x'\<close>
 definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
@@ -293,6 +398,7 @@ lemma tmpname2:
     symp_def transp_def wlp_def
   nitpick
   oops
+
 
 section \<open> Program \<close>
 
