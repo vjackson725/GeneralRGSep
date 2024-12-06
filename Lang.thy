@@ -7,25 +7,25 @@ section \<open> Language Definition \<close>
 
 subsection \<open> Commands \<close>
 
-datatype 'a comm =
+datatype ('s, 'a) comm =
   Skip
-  | Seq \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>;;\<close> 75)
-  | Par \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<parallel>\<close> 65)
-  | Indet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<^bold>+\<close> 65)
-  | Endet \<open>'a comm\<close> \<open>'a comm\<close> (infixr \<open>\<box>\<close> 65)
+  | Seq \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>;;\<close> 75)
+  | Par \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<parallel>\<close> 65)
+  | Indet \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<^bold>+\<close> 65)
+  | Endet \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<box>\<close> 65)
   \<comment> \<open> An atomic action is represented by a precondition and a (relational) post-condition.
        Trying to evaluate the action outside the precondition results in a crash.
        Trying to evaluate the action outside the domain of the postcondition results in deadlock,
        until a state in the domain is reached. \<close>
-  | Atomic \<open>'a \<Rightarrow> bool\<close> \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0] 999)
-  | Iter \<open>'a comm\<close> (\<open>DO (_) OD\<close> [0] 999)
+  | Atomic \<open>'s \<Rightarrow> bool\<close> \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0,0] 999)
+  | Iter \<open>('s, 'a) comm\<close> (\<open>DO (_) OD\<close> [0] 999)
 
 
 subsection \<open> substitution \<close>
 
-subsection \<open> Map atoms \<close>
+subsection \<open> Map atomic commands \<close>
 
-fun map_comm :: \<open>('b \<Rightarrow> 'a) \<Rightarrow> 'a comm \<Rightarrow> 'b comm\<close> where
+fun map_comm :: \<open>('u \<Rightarrow> 's) \<Rightarrow> ('s, 'a) comm \<Rightarrow> ('u, 'b) comm\<close> where
   \<open>map_comm f Skip = Skip\<close>
 | \<open>map_comm f (a ;; b) = map_comm f a ;; map_comm f b\<close>
 | \<open>map_comm f (a \<parallel> b) = map_comm f a \<parallel> map_comm f b\<close>
@@ -46,8 +46,11 @@ lemma map_comm_rev_iff:
       (\<exists>c1 c2. c = c1 \<box> c2 \<and> c1' = map_comm f c1 \<and> c2' = map_comm f c2)\<close>
   \<open>map_comm f c = DO c' OD \<longleftrightarrow>
       (\<exists>ca. c = DO ca OD \<and> c' = map_comm f ca)\<close>
-  \<open>map_comm f c = Atomic p q \<longleftrightarrow> (\<exists>p' q'. c = Atomic p' q' \<and> p = (p' \<circ> f) \<and> q = (q' \<circ>\<^sub>2 f))\<close>
-  by (induct c; simp add: fun_eq_iff; (argo?; blast))+
+  \<open>map_comm f c = Atomic p q \<longleftrightarrow>
+      (\<exists>p' q'. c = Atomic p' q' \<and> p = (p' \<circ> f) \<and> q = (q' \<circ>\<^sub>2 f))\<close>
+        apply (induct c; (simp add: fun_eq_iff; argo)+)+
+  apply (induct c; force)
+  done
 
 lemmas map_comm_rev_iff2 = map_comm_rev_iff[THEN trans[OF eq_commute]]
 
@@ -55,55 +58,48 @@ subsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-inductive all_atom_comm :: \<open>(('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
-  skip[iff]: \<open>all_atom_comm p Skip\<close>
-| seq[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 ;; c2)\<close>
-| par[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 \<parallel> c2)\<close>
-| indet[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 \<^bold>+ c2)\<close>
-| endet[intro!]: \<open>all_atom_comm p c1 \<Longrightarrow> all_atom_comm p c2 \<Longrightarrow> all_atom_comm p (c1 \<box> c2)\<close>
-| iter[intro!]: \<open>all_atom_comm p c \<Longrightarrow> all_atom_comm p (DO c OD)\<close>
-| atom[intro!]: \<open>p ap aq \<Longrightarrow> all_atom_comm p (Atomic ap aq)\<close>
+inductive all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> ('s, 'a) comm \<Rightarrow> bool\<close> where
+  skip[iff]: \<open>all_atom_comm P Skip\<close>
+| seq[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 ;; c2)\<close>
+| par[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<parallel> c2)\<close>
+| indet[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<^bold>+ c2)\<close>
+| endet[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<box> c2)\<close>
+| iter[intro!]: \<open>all_atom_comm P c \<Longrightarrow> all_atom_comm P (DO c OD)\<close>
+| atom[intro!]: \<open>P p q \<Longrightarrow> all_atom_comm P (Atomic p q)\<close>
 
-inductive_cases all_atom_comm_seqE[elim!]: \<open>all_atom_comm p (c1 ;; c2)\<close>
-inductive_cases all_atom_comm_indetE[elim!]: \<open>all_atom_comm p (c1 \<^bold>+ c2)\<close>
-inductive_cases all_atom_comm_endetE[elim!]: \<open>all_atom_comm p (c1 \<box> c2)\<close>
-inductive_cases all_atom_comm_parE[elim!]: \<open>all_atom_comm p (c1 \<parallel> c2)\<close>
-inductive_cases all_atom_comm_iterE[elim!]: \<open>all_atom_comm p (DO c OD)\<close>
-inductive_cases all_atom_comm_atomE[elim!]: \<open>all_atom_comm p (Atomic ap aq)\<close>
+inductive_cases all_atom_comm_seqE[elim!]: \<open>all_atom_comm P (c1 ;; c2)\<close>
+inductive_cases all_atom_comm_indetE[elim!]: \<open>all_atom_comm P (c1 \<^bold>+ c2)\<close>
+inductive_cases all_atom_comm_endetE[elim!]: \<open>all_atom_comm P (c1 \<box> c2)\<close>
+inductive_cases all_atom_comm_parE[elim!]: \<open>all_atom_comm P (c1 \<parallel> c2)\<close>
+inductive_cases all_atom_comm_iterE[elim!]: \<open>all_atom_comm P (DO c OD)\<close>
+inductive_cases all_atom_comm_atomE[elim!]: \<open>all_atom_comm P (Atomic ap aq)\<close>
 
 lemma all_atom_comm_simps[simp]:
-  \<open>all_atom_comm p (c1 ;; c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
-  \<open>all_atom_comm p (c1 \<^bold>+ c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
-  \<open>all_atom_comm p (c1 \<box> c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
-  \<open>all_atom_comm p (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm p c1 \<and> all_atom_comm p c2\<close>
-  \<open>all_atom_comm p (DO c OD) \<longleftrightarrow> all_atom_comm p c\<close>
-  \<open>all_atom_comm p (Atomic ap aq) \<longleftrightarrow> p ap aq\<close>
+  \<open>all_atom_comm P (c1 ;; c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<^bold>+ c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<box> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (DO c OD) \<longleftrightarrow> all_atom_comm P c\<close>
+  \<open>all_atom_comm P (Atomic ap aq) \<longleftrightarrow> P ap aq\<close>
   by fastforce+
 
 lemma all_atom_comm_pred_mono:
-  \<open>p \<le> q \<Longrightarrow> all_atom_comm p c \<Longrightarrow> all_atom_comm q c\<close>
+  \<open>P \<le> Q \<Longrightarrow> all_atom_comm P c \<Longrightarrow> all_atom_comm Q c\<close>
   by (induct c) force+
 
 lemma all_atom_comm_pred_mono':
-  \<open>p \<le> q \<Longrightarrow> all_atom_comm p \<le> all_atom_comm q\<close>
+  \<open>P \<le> Q \<Longrightarrow> all_atom_comm P \<le> all_atom_comm Q\<close>
   using all_atom_comm_pred_mono by auto
 
 lemmas all_atom_comm_pred_monoD = all_atom_comm_pred_mono[rotated]
 
-lemma all_atom_comm_conj_eq:
-  \<open>all_atom_comm (p \<sqinter> q) c \<longleftrightarrow> all_atom_comm p c \<and> all_atom_comm q c\<close>
-  by (induct c) force+
-
-lemma all_atom_comm_pconj_eq[simp]:
-  \<open>all_atom_comm (p \<sqinter> q) c \<longleftrightarrow> all_atom_comm p c \<and> all_atom_comm q c\<close>
+lemma all_atom_comm_conj_eq[simp]:
+  \<open>all_atom_comm (P \<sqinter> Q) c \<longleftrightarrow> all_atom_comm P c \<and> all_atom_comm Q c\<close>
   by (induct c) force+
 
 lemma all_atom_comm_top_eq[simp]:
   \<open>all_atom_comm \<top> c\<close>
   by (induct c) force+
-
-definition
-  \<open>atoms_subrel_of r \<equiv> all_atom_comm (\<lambda>ap aq. ap \<le> pre_state r \<and> aq \<sqinter> rel_liftL ap \<le> r)\<close>
 
 
 section \<open> Specific Languages \<close>
@@ -112,11 +108,15 @@ subsection \<open> Sugared atomic programs \<close>
 
 subsubsection \<open> Assert \<close>
 
-definition \<open>Assert p \<equiv> Atomic p ((=) \<sqinter> rel_liftL p)\<close>
+definition \<open>Assert p \<equiv> Atomic p (=)\<close>
 
 subsubsection \<open> Await \<close>
 
-definition \<open>Await p \<equiv> Atomic \<top> ((=) \<sqinter> rel_liftL p)\<close>
+definition \<open>Await p \<equiv> Atomic \<top> (rel_liftL p \<sqinter> (=))\<close>
+
+lemma Await_inject[simp]:
+  \<open>Await p1 = Await p2 \<longleftrightarrow> p1 = p2\<close>
+  by (force simp add: Await_def fun_eq_iff rel_liftL_def)
 
 subsection \<open> If-then-else \<close>
 
@@ -124,7 +124,7 @@ definition \<open>IfThenElse p ct cf \<equiv> Await p ;; ct \<box> Await (-p) ;;
 
 lemma IfThenElse_inject[simp]:
   \<open>IfThenElse p1 ct1 cf1 = IfThenElse p2 ct2 cf2 \<longleftrightarrow> p1 = p2 \<and> ct1 = ct2 \<and> cf1 = cf2\<close>
-  by (simp add: IfThenElse_def Await_def fun_eq_iff, blast)
+  by (force simp add: IfThenElse_def fun_eq_iff)
 
 lemma IfThenElse_distinct[simp]:
   \<open>IfThenElse p ct cf \<noteq> Skip\<close>

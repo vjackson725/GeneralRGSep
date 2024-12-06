@@ -160,6 +160,19 @@ lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
   by (simp add: comp_rel_def comp_def)
 
 
+lemma rel_lift_apply[simp]:
+  \<open>rel_lift p a b = (p a \<and> p b)\<close>
+  by (simp add: rel_lift_def)
+
+lemma rel_liftL_apply[simp]:
+  \<open>rel_liftL p a b = p a\<close>
+  by (simp add: rel_liftL_def)
+
+lemma rel_liftR_apply[simp]:
+  \<open>rel_liftR p a b = p b\<close>
+  by (simp add: rel_liftR_def)
+
+
 definition \<open>pre_state_of B r \<equiv> \<lambda>a. \<exists>b\<in>B. r a b\<close>
 definition \<open>post_state_of A r \<equiv> \<lambda>b. \<exists>a\<in>A. r a b\<close>
 
@@ -176,6 +189,55 @@ lemmas prepost_state_def' = prepost_state_def pre_state_def post_state_def
 definition \<open>pre_change_state r \<equiv> \<lambda>a. \<exists>b. r a b \<and> a \<noteq> b\<close>
 definition \<open>post_change_state r \<equiv> \<lambda>b. \<exists>a. r a b \<and> a \<noteq> b\<close>
 definition \<open>change_state \<equiv> pre_change_state \<squnion> post_change_state\<close>
+
+
+subsubsection \<open> rel liftings / projs \<close>
+
+paragraph \<open> binary relations \<close>
+
+lemma liftL_mono[simp]:
+  \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
+  by (simp add: rel_liftL_def le_fun_def)
+
+lemma liftR_mono[simp]:
+  \<open>rel_liftR p \<le> rel_liftR q \<longleftrightarrow> p \<le> q\<close>
+  by (simp add: rel_liftR_def)
+
+lemma rel_lift_top[simp]:
+  \<open>rel_lift \<top> = \<top>\<close>
+  by (force simp add: rel_lift_def)
+
+lemma rel_lift_bot[simp]:
+  \<open>rel_lift \<bottom> = \<bottom>\<close>
+  by (force simp add: rel_lift_def)
+
+lemma rel_lift_pred_True[simp]:
+  \<open>rel_lift (\<lambda>x. True) = \<top>\<close>
+  by (force simp add: rel_lift_def)
+
+lemma rel_lift_pred_False[simp]:
+  \<open>rel_lift (\<lambda>x. False) = \<bottom>\<close>
+  by (force simp add: rel_lift_def)
+
+lemma rel_liftL_conj_distrib:
+  \<open>rel_liftL (p1 \<sqinter> p2) = rel_liftL p1 \<sqinter> rel_liftL p2\<close>
+  by (force simp add: rel_liftL_def)
+
+lemma rel_liftR_conj_distrib:
+  \<open>rel_liftR (p1 \<sqinter> p2) = rel_liftR p1 \<sqinter> rel_liftR p2\<close>
+  by (force simp add: rel_liftR_def)
+
+lemma rel_liftL_disj_distrib:
+  \<open>rel_liftL (p1 \<squnion> p2) = rel_liftL p1 \<squnion> rel_liftL p2\<close>
+  by (force simp add: rel_liftL_def)
+
+lemma rel_liftR_disj_distrib:
+  \<open>rel_liftR (p1 \<squnion> p2) = rel_liftR p1 \<squnion> rel_liftR p2\<close>
+  by (force simp add: rel_liftR_def)
+
+lemma rel_liftL_conj_eq:
+  \<open>rel_liftL (p \<sqinter> q) = rel_liftL p \<sqinter> rel_liftL q\<close>
+  by (force simp add: rel_liftL_def)
 
 
 subsubsection \<open> pre- and post-state \<close>
@@ -232,61 +294,6 @@ lemma quasireflpD1'[dest]:
 lemma quasireflpD2'[dest]:
   \<open>quasireflp r \<Longrightarrow> post_state r y \<Longrightarrow> r y y\<close>
   by (metis mem_Collect_eq prepost_state_def reflp_onD sup2CI)
-
-
-subsubsection \<open> rel-lift \<close>
-
-lemma rel_liftL_apply[simp]:
-  \<open>rel_liftL p a b = p a\<close>
-  by (simp add: rel_liftL_def)
-
-lemma rel_liftR_apply[simp]:
-  \<open>rel_liftR p a b = p b\<close>
-  by (simp add: rel_liftR_def)
-
-lemma rel_subid_apply[simp]:
-  \<open>rel_lift p a b = (p a \<and> p b)\<close>
-  by (simp add: rel_lift_def)
-
-lemma liftL_mono[simp]:
-  \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: rel_liftL_def le_fun_def)
-
-lemma liftR_mono[simp]:
-  \<open>rel_liftR p \<le> rel_liftR q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: rel_liftR_def)
-
-lemma rel_lift_top[simp]:
-  \<open>rel_lift \<top> = \<top>\<close>
-  by (force simp add: rel_lift_def)
-
-lemma rel_lift_bot[simp]:
-  \<open>rel_lift \<bottom> = \<bottom>\<close>
-  by (force simp add: rel_lift_def)
-
-lemma rel_lift_pred_True[simp]:
-  \<open>rel_lift (\<lambda>x. True) = \<top>\<close>
-  by (force simp add: rel_lift_def)
-
-lemma rel_lift_pred_False[simp]:
-  \<open>rel_lift (\<lambda>x. False) = \<bottom>\<close>
-  by (force simp add: rel_lift_def)
-
-lemma rel_liftL_conj_distrib:
-  \<open>rel_liftL (p1 \<sqinter> p2) = rel_liftL p1 \<sqinter> rel_liftL p2\<close>
-  by (force simp add: rel_liftL_def)
-
-lemma rel_liftR_conj_distrib:
-  \<open>rel_liftR (p1 \<sqinter> p2) = rel_liftR p1 \<sqinter> rel_liftR p2\<close>
-  by (force simp add: rel_liftR_def)
-
-lemma rel_liftL_disj_distrib:
-  \<open>rel_liftL (p1 \<squnion> p2) = rel_liftL p1 \<squnion> rel_liftL p2\<close>
-  by (force simp add: rel_liftL_def)
-
-lemma rel_liftR_disj_distrib:
-  \<open>rel_liftR (p1 \<squnion> p2) = rel_liftR p1 \<squnion> rel_liftR p2\<close>
-  by (force simp add: rel_liftR_def)
 
 
 subsubsection \<open> pre-change state\<close>
@@ -1066,10 +1073,10 @@ lemma wlp_Ktrue[simp]:
   \<open>wlp r (\<lambda>_. True) = \<top>\<close>
   by (force simp add: wlp_def)
 
-lemma wlp_inf[simp]: \<open>wlp r (p \<sqinter> q) = wlp r p \<sqinter> wlp r q\<close>
+lemma wlp_inf: \<open>wlp r (p \<sqinter> q) = wlp r p \<sqinter> wlp r q\<close>
   by (force simp add: wlp_def)
 
-lemma wlp_Inf[simp]: \<open>wlp r (\<Sqinter>P) = \<Sqinter>(wlp r ` P)\<close>
+lemma wlp_Inf: \<open>wlp r (\<Sqinter>P) = \<Sqinter>(wlp r ` P)\<close>
   by (fastforce simp add: wlp_def)
 
 lemma wlp_bot[simp]:
@@ -1084,14 +1091,14 @@ lemma wlp_sup_semidistrib:
   \<open>wlp r p \<squnion> wlp r q \<le> wlp r (p \<squnion> q)\<close>
   by (force simp add: wlp_def)
 
-lemma wlp_disj_determ[simp]:
+lemma wlp_disj_determ:
   \<open>deterministic r \<Longrightarrow> wlp r (p \<squnion> q) = wlp r p \<squnion> wlp r q\<close>
   by (force simp add: deterministic_def wlp_def)
 
 lemma wlp_Sup_semidistrib: \<open>\<Squnion>(wlp r ` P) \<le> wlp r (\<Squnion>P)\<close>
   by (force simp add: wlp_def)
 
-lemma wlp_Sup_determ[simp]:
+lemma wlp_Sup_determ:
   assumes \<open>deterministic r\<close>
     and \<open>P \<noteq> {}\<close>
   shows \<open>wlp r (\<Squnion>P) = \<Squnion>(wlp r ` P)\<close>
@@ -1127,7 +1134,7 @@ lemma wlp_top_rel[simp]:
   \<open>p < \<top> \<Longrightarrow> wlp \<top> p = \<bottom>\<close>
   by (force simp add: wlp_def less_fun_def)
 
-lemma wlp_sup_rel[simp]:
+lemma wlp_sup_rel:
   \<open>wlp (r1 \<squnion> r2) p = wlp r1 p \<sqinter> wlp r2 p\<close>
   by (force simp add: wlp_def fun_eq_iff)
 
@@ -1158,13 +1165,13 @@ lemma sp_Kfalse[simp]:
   \<open>sp r (\<lambda>_. False) = \<bottom>\<close>
   by (force simp add: sp_def)
 
-lemma sp_sup[simp]:
+lemma sp_sup:
   \<open>sp r (p \<squnion> q) = sp r p \<squnion> sp r q\<close>
   by (force simp add: sp_def)
 
-lemmas sp_disj[simp] = sp_sup[simplified sup_fun_def sup_bool_def]
+lemmas sp_disj = sp_sup[simplified sup_fun_def sup_bool_def]
 
-lemma sp_Sup[simp]:
+lemma sp_Sup:
   \<open>sp r (\<Squnion>P) = \<Squnion>(sp r ` P)\<close>
   by (fastforce simp add: sp_def)
 
@@ -1178,14 +1185,14 @@ lemma sp_inf_semidistrib:
   \<open>sp r (p \<sqinter> q) \<le> sp r p \<sqinter> sp r q\<close>
   by (force simp add: sp_def)
 
-lemma sp_inf_determ[simp]:
+lemma sp_inf_determ:
   \<open>deterministic (r\<inverse>\<inverse>) \<Longrightarrow> sp r (p \<sqinter> q) = sp r p \<sqinter> sp r q\<close>
   by (simp add: sp_def deterministic_def, blast)
 
 lemma sp_Inf_semidistrib: \<open>sp r (\<Sqinter>P) \<le> \<Sqinter>{sp r p| p. p \<in> P}\<close>
   by (fastforce simp add: sp_def)
 
-lemma sp_Inf_determ[simp]:
+lemma sp_Inf_determ:
   assumes \<open>deterministic (r\<inverse>\<inverse>)\<close>
     and \<open>P \<noteq> {}\<close>
   shows \<open>sp r (\<Sqinter>P) = \<Sqinter>{sp r p| p. p \<in> P}\<close>
@@ -1217,7 +1224,7 @@ lemma sp_top_rel[simp]:
   \<open>\<bottom> < p \<Longrightarrow> sp \<top> p = \<top>\<close>
   by (force simp add: sp_def less_fun_def fun_eq_iff)
 
-lemma sp_sup_rel[simp]:
+lemma sp_sup_rel:
   \<open>sp (r1 \<squnion> r2) p = sp r1 p \<squnion> sp r2 p\<close>
   by (force simp add: sp_def)
 

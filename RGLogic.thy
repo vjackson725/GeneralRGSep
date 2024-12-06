@@ -286,7 +286,7 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
-  \<open>('l::perm_alg \<times> 's) comm \<Rightarrow>
+  \<open>('l::perm_alg \<times> 's, 'a) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
@@ -298,10 +298,11 @@ inductive rgsat ::
   rgsat_skip:
   \<open>sswa r p \<le> q \<Longrightarrow> sswa r p \<le> L \<Longrightarrow> rgsat Skip r g p q L F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) i L F \<Longrightarrow>
+  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r L) F \<Longrightarrow>
     p \<le> wssa r i \<Longrightarrow>
     sswa r i \<le> q \<Longrightarrow>
-    rgsat (Iter c) r g p q L F\<close>
+    sswa r L \<le> L' \<Longrightarrow>
+    rgsat (Iter c) r g p q L' F\<close>
 | rgsat_seq:
   \<open>rgsat c1 r g p1 p2 S1 F \<Longrightarrow>
     rgsat c2 r g p2 p3 S2 F \<Longrightarrow>
@@ -327,18 +328,19 @@ inductive rgsat ::
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
     sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
-    S1 \<^emph>\<and> S2 \<le> S \<Longrightarrow>
+    sswa (r \<squnion> g2) S1 \<^emph>\<and> sswa (r \<squnion> g1) S2 \<le> S \<Longrightarrow>
     rgsat (s1 \<parallel> s2) r g p q S F\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    p \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. p \<^emph>\<and> f \<le> ap \<Longrightarrow>
-    sp aq p \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_liftL p \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    \<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    p \<le> L \<Longrightarrow>
+    wssa r p \<le> L \<Longrightarrow>
+    sswa r q \<le> L \<Longrightarrow>
+    wssa r p \<le> ap \<Longrightarrow>
+    \<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap \<Longrightarrow>
+    sp aq (wssa r p) \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    rel_liftL (wssa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
+    \<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic ap aq) r g p' q' L F\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q L F \<Longrightarrow>
@@ -397,7 +399,7 @@ lemma rgsat_disj:
   \<open>rgsat c r g p1 q L F \<Longrightarrow>
     rgsat c r g p2 q L F \<Longrightarrow>
     rgsat c r g (p1 \<squnion> p2) q L F\<close>
-  using rgsat_Disj[of \<open>p1 \<squnion> p2\<close> \<open>{p1,p2}\<close>]
+  using rgsat_Disj[of \<open>p1 \<squnion> p2\<close> \<open>{p1,p2}\<close> c]
   by simp
 
 lemma rgsat_conj:
@@ -405,13 +407,12 @@ lemma rgsat_conj:
     rgsat c r g p q2 L F \<Longrightarrow>
     \<forall>z a b c. F (c, z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     rgsat c r g p (q1 \<sqinter> q2) L F\<close>
-  using rgsat_Conj[of \<open>{q1,q2}\<close> _ _ _ _ _ _ \<open>q1 \<sqinter> q2\<close>]
+  using rgsat_Conj[of \<open>{q1,q2}\<close> c _ _ _ _ _ \<open>q1 \<sqinter> q2\<close>]
   by simp
 
 text \<open>
-  The strongest weakening rule we can prove by induction. This is for two reasons: because parallel
-  has the pessimistic frame set \<open>\<top>\<close>, which this rule inherits, and because the frame rule
-  stabilises on not just \<open>r\<close> (antimono) but also \<open>g\<close> (mono).
+  The strongest weakening rule we can prove by induction.
+  This is because the frame rule stabilises not just on \<open>r\<close> (antimono) but also \<open>g\<close> (mono).
   It is nevertheless sound to use the stronger version.
 \<close>
 lemma rgsat_weak_weaken:
@@ -429,11 +430,15 @@ proof(induct arbitrary: r' g' p' q' S' rule: rgsat.inducts)
 next
   case (rgsat_iter c r g i L F p q)
   then show ?case
-    apply (intro rgsat.rgsat_iter[where i=i])
-      apply (metis order.refl sswa_rel_mono)
-     apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+    sorry
+(*
+    apply (intro rgsat.rgsat_iter[of _ _ _ i L])
+       apply (metis order.refl sswa_rel_mono)
+      apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
+     apply (meson order.trans relyrel_mono sp_rel_mono; fail)
     apply (meson order.trans relyrel_mono sp_rel_mono; fail)
     done
+*)
 next
   case (rgsat_seq c1 r g p1 p2 S1 F c2 p3 S2 L)
   then show ?case
@@ -462,30 +467,31 @@ next
   show ?case
     using rgsat_par.prems rgsat_par.hyps(5-)
     apply (intro rgsat.rgsat_par[OF rgsat_par.hyps(2) rgsat_par.hyps(4)])
-
     sorry
 next
   case (rgsat_atom p' r p q q' ap F aq g L)
-  then show ?case sorry
+  then show ?case
+    sorry
 next
   case (rgsat_frame c r g p q L F p' f q' F' L')
-  then show ?case sorry
+  then show ?case
+    sorry
 next
   case (rgsat_weaken c ra' ga' pa' qa' Sa' Fa' p q r g S F)
 
   from rgsat_weaken.hyps(3-) rgsat_weaken.prems
   show ?case
-    using rgsat.rgsat_weaken[of _ r' g' p' q' S' Fa'] rgsat_weaken.hyps(2)
+    using rgsat.rgsat_weaken[of c r' g' p' q' S' Fa'] rgsat_weaken.hyps(2)
     by simp
 next
   case (rgsat_Disj p' P c r g q L F)
   then show ?case
-    using rgsat.rgsat_Disj[of _ P]
+    using rgsat.rgsat_Disj[of _ P c]
     by simp
 next
   case (rgsat_Conj Q c r g p L F q')
   then show ?case
-    using rgsat.rgsat_Conj[of Q]
+    using rgsat.rgsat_Conj[of Q c]
     by simp
 qed
 (*
@@ -532,48 +538,59 @@ section \<open> Specialised Rules \<close>
 
 subsection \<open> Assert \<close>
 
+
 lemma rgsat_assert:
   assumes
-    \<open>\<forall>f\<le>F. wssa r (p \<sqinter> px) \<^emph>\<and> f \<le> px\<close>
-    \<open>(=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px)) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL (wssa r (p \<sqinter> px) \<^emph>\<and> f) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (sswa r p \<sqinter> wssa r px) \<^emph>\<and> f \<le> px\<close>
+    \<open>(=) \<sqinter> rel_liftL (sswa r p \<sqinter> wssa r px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((sswa r p \<sqinter> wssa r px) \<^emph>\<and> f) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
-    \<open>r, g \<turnstile>\<^bsub>wssa r (p \<sqinter> px), F\<^esub> { wssa r (p \<sqinter> px) } Assert px { wssa r (p \<sqinter> px) }\<close>
+    \<open>r, g \<turnstile>\<^bsub>sswa r p \<sqinter> wssa r px, F\<^esub> { p \<sqinter> wssa r px } Assert px { sswa r p \<sqinter> wssa r px }\<close>
   unfolding Assert_def
-  apply (rule rgsat_atom[where p=\<open>wssa r (p \<sqinter> px)\<close> and q=\<open>wssa r (p \<sqinter> px)\<close>])
-          apply force
-         apply (simp only: sswa_over_wssa_eq; fail)
-        apply blast
-       apply (metis assms(1))
-      apply (simp del: inf.bounded_iff; fail)
-     apply force
-    apply (blast intro: predicate2D[OF assms(2)])
-   apply (cut_tac assms(3), blast)
-  apply blast
+  apply (rule rgsat_atom[where p=\<open>sswa r p \<sqinter> px\<close> and q=\<open>sswa r p \<sqinter> wssa r px\<close>])
+           apply (force simp add: wlp_inf)
+          apply (metis order.refl sp_inf_semidistrib sswa_over_sswa_eq sswa_over_wssa_eq)
+         apply (force simp add: wlp_inf)
+        apply (metis order.refl sp_inf_semidistrib sswa_over_sswa_eq sswa_over_wssa_eq)
+       apply blast
+      apply (cut_tac assms(1))
+      apply (simp add: wlp_inf)
+     apply (simp add: wlp_inf; fail)
+    apply (simp add: wlp_inf; fail)
+   apply (cut_tac assms(2))
+   apply (simp add: wlp_inf le_fun_def; fail)
+  apply (cut_tac assms(3))
+  apply (simp add: wlp_inf le_fun_def; fail)
   done
 
 
 subsection \<open> Await \<close>
 
+(* TODO *)
 lemma rgsat_await':
   assumes
     \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> f\<close>
     \<open>(=) \<sqinter> rel_liftL (wssa r p \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
     \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   shows
-    \<open>r, g \<turnstile>\<^bsub>wssa r p, F\<^esub> { wssa r p } Await px { sswa r (wssa r p \<sqinter> px) }\<close>
+    \<open>r, g \<turnstile>\<^bsub>wssa r p, F\<^esub> { p } Await px { sswa r (wssa r p \<sqinter> px) }\<close>
   unfolding Await_def
+  sorry
+(*
   apply (rule rgsat_atom[where p=\<open>wssa r p\<close> and q=\<open>wssa r p \<sqinter> px\<close>])
           apply force
          apply force
         apply (simp; fail)
        apply force
-      apply force
+      apply (simp add: rel3_proj13_def; fail)
      apply (simp add: assms(1); fail)
-    apply (metis assms(2) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
-   apply (metis assms(3) inf.left_commute[of \<open>(=)\<close>] rel_liftL_conj_distrib)
+    apply (cut_tac assms(2))
+    apply (simp add: le_fun_def; fail)
+   apply (cut_tac assms(3))
+   apply (simp add: le_fun_def; fail)
   apply blast
   done
+*)
 
 lemmas rgsat_await =
   rgsat_weaken[OF rgsat_await' _ _ order.refl order.refl _ order.refl, of _ _ p' for p']
@@ -589,8 +606,8 @@ lemma rgsat_precond_in_localst:
           apply blast
          apply blast
         apply blast
-       apply (meson order.trans sepconj_conj_mono; fail)
-      apply (metis wssa_weaker order.trans)
+       apply (meson order_trans sepconj_conj_monoL sepconj_conj_monoR sswa_stronger; fail)
+      apply (metis order.trans)
      apply (meson order_trans sepconj_conj_mono sswa_stronger; fail)
     apply blast
    apply fast
@@ -611,6 +628,8 @@ lemma rgsat_if_then_else:
   shows
     \<open>r, g \<turnstile>\<^bsub>wssa r p \<squnion> L1 \<squnion> L2, F\<^esub> { wssa r p } IfThenElse px ctt cff { q1 \<squnion> q2 }\<close>
   unfolding IfThenElse_def
+  sorry
+(*
   apply (rule rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
         where ?L1.0=\<open>wssa r p \<squnion> L1\<close> and ?L2.0=\<open>wssa r p \<squnion> L2\<close>])
           apply (rule rgsat_weaken[OF rgsat_await' order.refl order.refl
@@ -631,35 +650,36 @@ lemma rgsat_if_then_else:
    apply blast
   apply blast
   done
-
+*)
 
 subsection \<open> WhileLoop \<close>
 
 lemma rgsat_while_stable:
   assumes frame_assms:
-    \<open>\<forall>f\<le>F. (wssa r i \<^emph>\<and> f) \<sqinter> px \<le> (wssa r i \<sqinter> px) \<^emph>\<and> f\<close>
-    \<open>(=) \<sqinter> rel_liftL (wssa r i \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r i \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-  assumes i_stable:
-    \<open>i \<le> wssa r i\<close>
+    \<open>\<forall>f\<le>F. (sswa r i \<^emph>\<and> f) \<sqinter> px \<le> (sswa r i \<sqinter> px) \<^emph>\<and> f\<close>
+    \<open>(=) \<sqinter> rel_liftL (sswa r i \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((sswa r i \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
   and rgsat_assms:
-    \<open>r, g \<turnstile>\<^bsub>L, F\<^esub> { i \<sqinter> sswa r px } c { i }\<close>
+    \<open>r, g \<turnstile>\<^bsub>L, F\<^esub> { sswa r (sswa r i \<sqinter> px) } c { sswa r i }\<close>
   shows
-    \<open>r, g \<turnstile>\<^bsub>i \<squnion> L, F\<^esub> { i } WhileLoop px c { i }\<close>
+    \<open>r, g \<turnstile>\<^bsub>sswa r (i \<squnion> L), F\<^esub> { i } WhileLoop px c { sswa r i }\<close>
   unfolding WhileLoop_def
-  apply (rule rgsat_iter[OF rgsat_seq, rotated])
-      apply (rule rgsat_assms)
-     apply (rule order.refl)
-    apply (simp add: i_stable; fail)
-   apply (meson i_stable wlp_weaker_iff_sp_stronger; fail)
-  apply (rule rgsat_weaken[OF rgsat_await' _ _ order.refl order.refl _ order.refl])
-       apply (rule frame_assms)
-      apply (rule frame_assms)
-     apply (rule frame_assms)
-    apply (meson i_stable order_trans wlp_weaker_iff_sp_stronger; fail)
-   apply (meson inf.bounded_iff inf_le1 sp_inf_semidistrib wlp_weaker_iff_sp_stronger; fail)
-  apply blast
+  apply (rule rgsat_iter[where i=\<open>sswa r i\<close> and L=\<open>i \<squnion> L\<close>])
+     apply (rule rgsat_seq)
+       apply (rule rgsat_weaken[OF rgsat_await'[where p=\<open>sswa r i\<close> and r=r] _ order.refl order.refl order.refl _ order.refl])
+           apply (simp, rule frame_assms)
+          apply (simp, rule frame_assms)
+         apply (simp, rule frame_assms)
+        apply force
+       apply (simp, rule order.refl)
+      apply (simp, rule rgsat_assms)
+  sorry
+(*
+     apply (simp add: predicate1I sswa_trivial; fail)
+    apply force
+   apply force
+  apply force
   done
-
+*)
 
 end
