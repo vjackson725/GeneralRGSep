@@ -191,85 +191,87 @@ lemma quasirefl_RR_apply[simp]:
   by (simp add: RR_def reflp_on_def prepost_state_def' curry_def, blast)
 
 
-definition lr_neg :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<sim> _\<close> [81] 80) where
-  \<open>\<sim> p \<equiv> - p \<sqinter> - LL p \<sqinter> - RR p\<close>
+definition lr_neg :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>-\<^sub>L\<^sub>R _\<close> [81] 80) where
+  \<open>-\<^sub>L\<^sub>R p \<equiv> - p \<sqinter> - LL p \<sqinter> - RR p\<close>
+
+
 
 lemma lr_neg_apply[simp]:
-  \<open>(\<sim> p) (x,y) = (- p \<sqinter> - LL p \<sqinter> - RR p) (x,y)\<close>
+  \<open>(-\<^sub>L\<^sub>R p) (x,y) = (- p \<sqinter> - LL p \<sqinter> - RR p) (x,y)\<close>
   by (simp add: lr_neg_def)
 
 lemma lr_neg_quasireflp:
-  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (\<sim> p))\<close>
+  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (-\<^sub>L\<^sub>R p))\<close>
   unfolding lr_neg_def reflp_on_def curry_def prepost_state_def'
   by (simp, blast)
 
 lemma lr_neg_symp:
-  \<open>symp (curry p) \<Longrightarrow> symp (curry (\<sim> p))\<close>
+  \<open>symp (curry p) \<Longrightarrow> symp (curry (-\<^sub>L\<^sub>R p))\<close>
   unfolding lr_neg_def symp_def curry_def
   by (simp, blast)
 
 
 lemma noncontra_lr_neg:
-  \<open>p \<sqinter> \<sim> p = \<bottom>\<close>
+  \<open>p \<sqinter> -\<^sub>L\<^sub>R p = \<bottom>\<close>
   by (simp add: lr_neg_def fun_eq_iff)
 
 lemma lr_neg_excluded_middle_counterex:
-  \<open>quasireflp (curry p) \<Longrightarrow> p \<squnion> \<sim> p = \<top>\<close>
+  \<open>quasireflp (curry p) \<Longrightarrow> p \<squnion> -\<^sub>L\<^sub>R p = \<top>\<close>
   nitpick[card 'a=2]
   oops
 
 lemma lr_neg_weak_excluded_middle_counterex:
-  \<open>quasireflp (curry p) \<Longrightarrow> \<sim> p \<squnion> \<sim>(\<sim>p) = \<top>\<close>
+  \<open>quasireflp (curry p) \<Longrightarrow> -\<^sub>L\<^sub>R p \<squnion> -\<^sub>L\<^sub>R(-\<^sub>L\<^sub>Rp) = \<top>\<close>
   nitpick[card 'a=2]
   oops
 
 lemma lr_neg_order_reversing:
-  \<open>p \<le> q \<Longrightarrow> \<sim> q \<le> \<sim> p\<close>
+  \<open>p \<le> q \<Longrightarrow> -\<^sub>L\<^sub>R q \<le> -\<^sub>L\<^sub>R p\<close>
   by (force simp add: lr_neg_def)
 
 lemma lr_neg_top_eq[simp]:
-  \<open>\<sim> \<top> = \<bottom>\<close>
+  \<open>-\<^sub>L\<^sub>R \<top> = \<bottom>\<close>
   by force
 
 lemma lr_neg_bot_eq[simp]:
-  \<open>\<sim> \<bottom> = \<top>\<close>
+  \<open>-\<^sub>L\<^sub>R \<bottom> = \<top>\<close>
   by force
 
 lemma lr_neg_de_Morgan_disj:
-  \<open>\<sim> p \<sqinter> \<sim> q = \<sim> (p \<squnion> q)\<close>
+  \<open>-\<^sub>L\<^sub>R p \<sqinter> -\<^sub>L\<^sub>R q = -\<^sub>L\<^sub>R (p \<squnion> q)\<close>
   by force
 
 lemma lr_neg_semi_de_Morgan_conj:
-  \<open>\<sim> p \<squnion> \<sim> q \<le> \<sim> (p \<sqinter> q)\<close>
+  \<open>-\<^sub>L\<^sub>R p \<squnion> -\<^sub>L\<^sub>R q \<le> -\<^sub>L\<^sub>R (p \<sqinter> q)\<close>
   by force
 
 
 lemma lr_neg_pseudo_dual[simp]:
-  \<open>\<sim> (\<sim> (\<sim> p)) = \<sim> p\<close>
+  \<open>-\<^sub>L\<^sub>R (-\<^sub>L\<^sub>R (-\<^sub>L\<^sub>R p)) = -\<^sub>L\<^sub>R p\<close>
   by (force simp add: lr_neg_def)
 
 lemma lr_neg_dual_counterex:
-  \<open>\<sim> (\<sim> p) = p\<close>
+  \<open>-\<^sub>L\<^sub>R (-\<^sub>L\<^sub>R p) = p\<close>
   nitpick[card 'a=2, card 'b=1]
   oops
 
 lemma double_lr_neg_conj_distrib:
   \<open>quasireflp (curry p) \<Longrightarrow>
     quasireflp (curry q) \<Longrightarrow>
-    \<sim>(\<sim>(p \<sqinter> q)) = \<sim>(\<sim>p) \<sqinter> \<sim>(\<sim>q)\<close>
+    -\<^sub>L\<^sub>R(-\<^sub>L\<^sub>R(p \<sqinter> q)) = -\<^sub>L\<^sub>R(-\<^sub>L\<^sub>Rp) \<sqinter> -\<^sub>L\<^sub>R(-\<^sub>L\<^sub>Rq)\<close>
   apply (clarsimp simp add: lr_neg_def reflp_on_def curry_def prepost_state_def' fun_eq_iff)
   apply (rule iffI, blast, metis)
   done
 
-text \<open> Thus \<open>\<sim>\<close> is a pseudocomplement on quasi-reflexive relations. \<close>
+text \<open> Thus \<open>-\<^sub>L\<^sub>R\<close> is a pseudocomplement on quasi-reflexive relations. \<close>
 
 
 lemma lr_neg_disj_syll:
-  \<open>(\<sim> p) (x,y) \<Longrightarrow> (p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
+  \<open>(-\<^sub>L\<^sub>R p) (x,y) \<Longrightarrow> (p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
   by (simp)
 
 lemma lr_neg_strong_mp:
-  \<open>p (x,y) \<Longrightarrow> (\<sim> p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
+  \<open>p (x,y) \<Longrightarrow> (-\<^sub>L\<^sub>R p \<squnion> q) (x,y) \<Longrightarrow> q (x,y)\<close>
   by simp
 
 
@@ -286,7 +288,7 @@ lemma lr_implies_apply[simp]:
 subsubsection \<open> Lemmas \<close>
 
 lemma lr_neg_eq_lr_impl_bot:
-  \<open>\<sim> p = p \<leadsto>\<^sub>L\<^sub>R \<bottom>\<close>
+  \<open>-\<^sub>L\<^sub>R p = p \<leadsto>\<^sub>L\<^sub>R \<bottom>\<close>
   by fastforce
 
 lemma lr_impl_refl:
@@ -331,11 +333,11 @@ lemma lr_impl_disj_left:
 
 
 lemma lr_impl_then_disj_qimpl:
-  \<open>\<sim> p \<squnion> q \<le> p \<leadsto>\<^sub>L\<^sub>R q\<close>
+  \<open>-\<^sub>L\<^sub>R p \<squnion> q \<le> p \<leadsto>\<^sub>L\<^sub>R q\<close>
   by (force simp add: le_fun_def)
 
 lemma lr_impl_then_conj_qimpl:
-  \<open>p \<leadsto>\<^sub>L\<^sub>R q \<le> \<sim> (p \<sqinter> \<sim> q)\<close>
+  \<open>p \<leadsto>\<^sub>L\<^sub>R q \<le> -\<^sub>L\<^sub>R (p \<sqinter> -\<^sub>L\<^sub>R q)\<close>
   by (force simp add: le_fun_def)
 
 
@@ -344,7 +346,7 @@ lemma lr_impl_then_lr_impl_counterex:
     \<forall>x. p (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (p (x,y) \<or> p (y,x))) \<Longrightarrow>
     \<forall>x. q (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (q (x,y) \<or> q (y,x))) \<Longrightarrow>
     A = p \<leadsto>\<^sub>L\<^sub>R q \<Longrightarrow>
-    B = (\<sim> p \<squnion> q) \<Longrightarrow>
+    B = (-\<^sub>L\<^sub>R p \<squnion> q) \<Longrightarrow>
     A \<le> B\<close>
   nitpick[card 'a=2]
   oops
@@ -353,7 +355,7 @@ lemma lr_impl_then_lr_impl_counterex:
   \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry q) \<Longrightarrow>
     \<forall>x. p (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (p (x,y) \<or> p (y,x))) \<Longrightarrow>
     \<forall>x. q (x,x) \<longrightarrow> (\<exists>y. x \<noteq> y \<and> (q (x,y) \<or> q (y,x))) \<Longrightarrow>
-    A = \<sim> (p \<sqinter> \<sim> q) \<Longrightarrow>
+    A = -\<^sub>L\<^sub>R (p \<sqinter> -\<^sub>L\<^sub>R q) \<Longrightarrow>
     B = p \<leadsto>\<^sub>L\<^sub>R q \<Longrightarrow>
     A \<le> B\<close>
   nitpick[card 'a=2]
