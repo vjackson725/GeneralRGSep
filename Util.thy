@@ -484,6 +484,11 @@ lemma surj_disjoint_equiv_iff_eq:
   \<open>surj f \<Longrightarrow> (\<forall>x. A \<inter> f x = {} \<longleftrightarrow> B \<inter> f x = {}) \<longleftrightarrow> A = B\<close>
   by (metis disjoint_equiv_iff_eq surjD)
 
+lemma Collect_neg_eq:
+  \<open>Collect (- p) = - Collect p\<close>
+  by (simp add: set_eq_iff)
+
+
 section \<open> Options \<close>
 
 lemma not_Some_prod_eq[iff]: \<open>(\<forall>a b. x \<noteq> Some (a,b)) \<longleftrightarrow> x = None\<close>

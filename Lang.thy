@@ -157,4 +157,188 @@ lemma WhileLoop_distinct[simp]:
   \<open>Atomic ap aq \<noteq> WhileLoop p c\<close>
   by (simp add: WhileLoop_def; fail)+
 
+
+section \<open> Logic Utils \<close>
+
+
+section \<open> rely/guarantee helpers \<close>
+
+abbreviation \<open>sswa r \<equiv> sp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+
+subsection \<open> rel relf + trans \<close>
+
+lemma relyrel_trans: \<open>transp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+  by (metis rel_Times_left_eq_rtranclp_distrib transp_rtranclp)
+
+lemma relyrel_mono: \<open>r1 \<le> r2 \<Longrightarrow> ((=) \<times>\<^sub>R r1\<^sup>*\<^sup>*) \<le> ((=) \<times>\<^sub>R r2\<^sup>*\<^sup>*)\<close>
+  by (simp add: le_fun_def, metis mono_rtranclp)
+
+subsection \<open> step properties \<close>
+
+lemma sp_rely_step:
+  \<open>r y y' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R rx) p (x, y) \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R (rx OO r)) p (x, y')\<close>
+  by (force simp add: sp_def)
+
+lemma sswa_step:
+  \<open>r y y' \<Longrightarrow>
+    sswa r p (x, y) \<Longrightarrow>
+    sswa r p (x, y')\<close>
+  by (simp add: sp_def, meson rtranclp.rtrancl_into_rtrancl)
+
+lemmas sswa_stepD = sswa_step[rotated]
+
+lemma wssa_step:
+  \<open>r y y' \<Longrightarrow>
+    wssa r p (x, y) \<Longrightarrow>
+    wssa r p (x, y')\<close>
+  by (simp add: wlp_def converse_rtranclp_into_rtranclp)
+
+lemmas wssa_stepD = wssa_step[rotated]
+
+subsection \<open> closure operator properties \<close>
+
+lemmas sswa_stronger = sp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemma sswa_trivial[intro]:
+  \<open>p x \<Longrightarrow> sswa r p x\<close>
+  by (simp add: sp_refl_relI)
+
+lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
+
+lemmas wssa_weaker = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemma wssa_trivial[dest]:
+  \<open>wssa r p x \<Longrightarrow> p x\<close>
+  by (meson le_boolE le_funE wssa_weaker)
+
+lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
+
+
+lemmas rely_rel_wlp_impl_sp =
+  refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+
+subsection \<open> absorption/pseduo-idempotence properties \<close>
+
+(*
+lemmas sswa_idem[simp] =
+  sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemmas wssa_idem[simp] =
+  wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+*)
+
+lemma sswa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(1) sp_comp_rel)
+
+lemma wssa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(2) wlp_comp_rel)
+
+lemma sswa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (force simp add: relyrel_trans relyrel_mono sp_wlp_absorb)
+
+lemma wssa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: relyrel_mono relyrel_trans wlp_sp_absorb)
+
+
+subsection \<open> semi-distributivity with sepconj-conj \<close>
+
+lemma wlp_rely_sepconj_conj_semidistrib_mono:
+  \<open>p' \<le> wlp ((=) \<times>\<^sub>R r) p \<Longrightarrow>
+    q' \<le> wlp ((=) \<times>\<^sub>R r) q \<Longrightarrow>
+    p' \<^emph>\<and> q' \<le> wlp ((=) \<times>\<^sub>R r) (p \<^emph>\<and> q)\<close>
+  by (fastforce simp add: wlp_def sepconj_conj_def le_fun_def)
+
+lemmas wlp_rely_sepconj_conj_semidistrib =
+  wlp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
+
+lemma sp_rely_sepconj_conj_semidistrib_mono:
+  \<open>sp ((=) \<times>\<^sub>R r) p \<le> p' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R r) q \<le> q' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R r) (p \<^emph>\<and> q) \<le> p' \<^emph>\<and> q'\<close>
+  by (fastforce simp add: sp_def sepconj_conj_def le_fun_def)
+
+lemmas sp_rely_sepconj_conj_semidistrib =
+  sp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
+
+subsection \<open> Interaction with pred-Times \<close>
+
+lemma wssa_of_pred_Times_eq[simp]:
+  \<open>wssa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P wlp r\<^sup>*\<^sup>* q)\<close>
+  by (force simp add: rel_Times_def pred_Times_def wlp_def split: prod.splits)
+
+lemma sp_rely_of_pred_Times_eq[simp]:
+  \<open>sswa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P sp r\<^sup>*\<^sup>* q)\<close>
+  by (force simp add: rel_Times_def pred_Times_def sp_def split: prod.splits)
+
+
+subsection \<open> Local and shared predicate lifting \<close>
+
+abbreviation(input) local_pred
+  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<close>)
+  where
+    \<open>\<L>(p) \<equiv> p \<circ> fst\<close>
+
+abbreviation(input) shared_pred
+  :: \<open>('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<S>\<close>)
+  where
+    \<open>\<S>(p) \<equiv> p \<circ> snd\<close>
+
+lemma wssa_ignore_local[simp]:
+  \<open>wssa r (\<L> pl) = \<L> pl\<close>
+  by (fastforce simp add: wlp_def fun_eq_iff sepconj_conj_def)
+
+lemma sswa_ignore_local[simp]:
+  \<open>sswa r (\<L> pl) = \<L> pl\<close>
+  \<open>sswa r (\<L> pl \<^emph>\<and> q) = \<L> pl \<^emph>\<and> sswa r q\<close>
+  \<open>sswa r (p \<^emph>\<and> \<L> ql) = sswa r p \<^emph>\<and> \<L> ql\<close>
+  by (force simp add: sp_def fun_eq_iff sepconj_conj_def)+
+
+lemma wssa_over_shared:
+  \<open>wssa r (\<S> ps) = \<S> (wlp r\<^sup>*\<^sup>* ps)\<close>
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)
+
+lemma sswa_over_shared:
+  \<open>sswa r (\<S> ps) = \<S> (sp r\<^sup>*\<^sup>* ps)\<close>
+  by (force simp add: sp_def fun_eq_iff sepconj_conj_def)
+
+lemma wssa_semiignore_local[simp]:
+  \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
+  \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+
+text \<open>
+  The full law local ignore law is _not_ true for \<open>wssa\<close>, unlike the one for \<open>sswa\<close>.
+  Imagine the following situation:
+    State model: \<open>bool \<times> bool\<close>
+    Sep-algebra: \<open>R000, R011, R101, R111\<close>
+    Inputs:
+      \<open>q = {11, 00}\<close>
+      \<open>r = (0 \<leadsto> 1, 0 \<leadsto> 1)\<close>
+    Results:
+      \<open>wssa r q = {}\<close>
+      \<open>\<L> \<top> \<^emph>\<and> q = {11, 10, 00}\<close>
+      \<open>(\<L> pl \<^emph>\<and> wssa r q) = {}\<close>
+      \<open>wssa r (\<L> pl \<^emph>\<and> q) = {11, 10}\<close>
+    Here we observe that the outputs are not the same, because \<open>wssa\<close> only preserves
+    a \<^emph>\<open>subset\<close> of the initial predicate, and this subset might not be compatible
+    with the frame.
+\<close>
+
+lemma sepconj_local_eq:
+  \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
+  by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+lemma sepconj_shared_eq:
+  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
+  by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+
 end

@@ -25,6 +25,28 @@ lemma RR_apply[simp]:
 
 
 
+
+
+definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
+  \<open>twoPredLift p q \<equiv> \<lambda>(x,y). p x \<and> q y\<close>
+
+nonterminal twoPredLiftL
+
+syntax
+  "_twoPredLiftS"  :: "('a \<Rightarrow> bool) \<Rightarrow> twoPredLiftL"  ("\<lblot> _" [0] 1000)
+  "_twoPredLiftC"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("_ \<rblot>" [0] 1000)
+  "_twoPredLiftL"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar>" [0] 1000)
+  "_twoPredLiftLR"  :: "twoPredLiftL \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar> _ \<rblot>" [0] 1000)
+  "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 1000)
+
+translations
+  "_twoPredLiftC (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p p"
+  "_twoPredLiftLR (_twoPredLiftS p) q" \<rightleftharpoons> "(CONST twoPredLift) p q"
+  "_twoPredLiftL (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p \<top>"
+  "_twoPredLiftR q" \<rightharpoonup> "(CONST twoPredLift) \<top> q"
+
+
+
 definition
   \<open>major \<equiv> \<lambda>((x,x'), (y,y')). (x, y)\<close>
 
@@ -408,7 +430,20 @@ abbreviation
   \<open>Output v \<equiv> Assert (\<bbbA> v \<circ> exch4)\<close>
 
 abbreviation
-  \<open>Leak v \<equiv> Assume (\<bbbA> v \<circ> exch4)\<close>
+  \<open>Leak v \<equiv> Await (\<bbbA> v \<circ> exch4)\<close>
+
+definition
+  \<open>SAwait p \<equiv>
+    \<langle>
+     (\<bbbA> p \<circ> exch4),
+      \<lambda>x a x'. (\<lblot> p \<rblot> \<circ> exch4) x \<and> x' = x
+    \<rangle>\<close>
+
+definition sec_atom_lift
+  :: \<open>('x \<Rightarrow> bool) \<times> ('x \<Rightarrow> 'a \<Rightarrow> 'y \<Rightarrow> bool) \<Rightarrow>
+        ('x \<times> 'x \<Rightarrow> bool) \<times> ('x \<times> 'x \<Rightarrow> 'a \<Rightarrow> 'y \<times> 'y \<Rightarrow> bool)\<close>
+  where
+  \<open>sec_atom_lift \<equiv> \<lambda>(p, q). (\<lblot> p \<rblot> \<sqinter> \<bbbA> (\<lambda>x. \<exists>a y. q x a y), \<lambda>(x1,x2) a (y1,y2). q x1 a y1 \<and> q x2 a y2)\<close>
 
 (*
 lemma
