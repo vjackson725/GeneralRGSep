@@ -114,17 +114,17 @@ subsubsection \<open> Assert \<close>
 
 definition \<open>Assert p \<equiv> Atomic p ((=) \<sqinter> rel_liftL p)\<close>
 
-subsubsection \<open> Assume \<close>
+subsubsection \<open> Await \<close>
 
-definition \<open>Assume p \<equiv> Atomic \<top> ((=) \<sqinter> rel_liftL p)\<close>
+definition \<open>Await p \<equiv> Atomic \<top> ((=) \<sqinter> rel_liftL p)\<close>
 
 subsection \<open> If-then-else \<close>
 
-definition \<open>IfThenElse p ct cf \<equiv> Assume p ;; ct \<box> Assume (-p) ;; cf\<close>
+definition \<open>IfThenElse p ct cf \<equiv> Await p ;; ct \<box> Await (-p) ;; cf\<close>
 
 lemma IfThenElse_inject[simp]:
   \<open>IfThenElse p1 ct1 cf1 = IfThenElse p2 ct2 cf2 \<longleftrightarrow> p1 = p2 \<and> ct1 = ct2 \<and> cf1 = cf2\<close>
-  by (simp add: IfThenElse_def Assume_def fun_eq_iff, blast)
+  by (simp add: IfThenElse_def Await_def fun_eq_iff, blast)
 
 lemma IfThenElse_distinct[simp]:
   \<open>IfThenElse p ct cf \<noteq> Skip\<close>
@@ -140,11 +140,11 @@ lemma IfThenElse_distinct[simp]:
 
 subsection \<open> WhileLoop \<close>
 
-definition \<open>WhileLoop p c \<equiv> DO (Assume p ;; c) OD\<close>
+definition \<open>WhileLoop p c \<equiv> DO (Await p ;; c) OD\<close>
 
 lemma WhileLoop_inject[simp]:
   \<open>WhileLoop p1 c1 = WhileLoop p2 c2 \<longleftrightarrow> p1 = p2 \<and> c1 = c2\<close>
-  by (simp add: WhileLoop_def Assume_def fun_eq_iff, blast)
+  by (simp add: WhileLoop_def Await_def fun_eq_iff, blast)
 
 lemma WhileLoop_distinct[simp]:
   \<open>WhileLoop p c \<noteq> Skip\<close>

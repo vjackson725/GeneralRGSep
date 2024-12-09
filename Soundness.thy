@@ -146,20 +146,20 @@ lemma opstep_assert_iff[opstep_iff]:
     else h' = Inr () \<and> c' = Assert p)\<close>
   by (force simp add: Assert_def split: if_splits)
 
-lemma opstep_assume[intro!]:
-  \<open>p h \<Longrightarrow> opstep Local (h, Assume p) (Inl h, Skip)\<close>
-  by (force simp add: Assume_def split: if_splits)
+lemma opstep_await[intro!]:
+  \<open>p h \<Longrightarrow> opstep Local (h, Await p) (Inl h, Skip)\<close>
+  by (force simp add: Await_def split: if_splits)
 
-lemma opstep_assume_iff[opstep_iff]:
-  \<open>opstep a (h, Assume p) (h', c') \<longleftrightarrow> a = Local \<and> p h \<and> h' = Inl h \<and> c' = Skip\<close>
-  by (force simp add: Assume_def split: if_splits)
+lemma opstep_await_iff[opstep_iff]:
+  \<open>opstep a (h, Await p) (h', c') \<longleftrightarrow> a = Local \<and> p h \<and> h' = Inl h \<and> c' = Skip\<close>
+  by (force simp add: Await_def split: if_splits)
 
 
 lemma opstep_IfThenElse_iff[opstep_iff]:
   \<open>opstep a (h, IfThenElse p ct cf) s' \<longleftrightarrow>
     a = Local \<and> p h \<and> s' = (Inl h, Skip ;; ct) \<or>
     a = Local \<and> \<not> p h \<and> s' = (Inl h, Skip ;; cf)\<close>
-  by (simp add: IfThenElse_def Assume_def opstep_iff)
+  by (simp add: IfThenElse_def Await_def opstep_iff)
 
 lemma opstep_IfThenElse_true[intro]:
   \<open>p h \<Longrightarrow> h' = Inl h \<Longrightarrow> opstep Local (h, IfThenElse p a b) (h', Skip ;; a)\<close>
@@ -171,9 +171,9 @@ lemma opstep_IfThenElse_false[intro]:
 
 lemma opstep_WhileLoop_iff[opstep_iff]:
   \<open>opstep a (h, WhileLoop p c) s' \<longleftrightarrow>
-    a = Tau \<and> p h \<and> s' = (Inl h, (Assume p ;; c) ;; DO Assume p ;; c OD) \<or>
+    a = Tau \<and> p h \<and> s' = (Inl h, (Await p ;; c) ;; DO Await p ;; c OD) \<or>
     a = Tau \<and> \<not> p h \<and> s' = (Inl h, Skip)\<close>
-  by (force simp add: WhileLoop_def Assume_def pre_state_def)
+  by (force simp add: WhileLoop_def Await_def pre_state_def)
 
 
 section \<open> Safe \<close>
