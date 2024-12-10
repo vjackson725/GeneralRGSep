@@ -5,6 +5,10 @@ begin
 
 section \<open> Operational Semantics \<close>
 
+type_synonym ('s, 'a) pstate = \<open>'s \<times> ('s, 'a) comm\<close>
+
+type_synonym ('s, 'a) cpstate = \<open>('s + unit) \<times> ('s, 'a) comm\<close>
+
 subsection \<open> Actions \<close>
 
 datatype 'a act = Tau | Vis 'a
@@ -16,7 +20,7 @@ lemma act_not_eq_iff[simp]:
 
 subsection \<open> Operational semantics steps \<close>
 
-fun opstep :: \<open>unit act \<Rightarrow> 's \<times> ('s, unit) comm \<Rightarrow> ('s + unit) \<times> ('s, unit) comm \<Rightarrow> bool\<close> where
+fun opstep :: \<open>unit act \<Rightarrow> ('s, unit) pstate \<Rightarrow> ('s, unit) cpstate \<Rightarrow> bool\<close> where
   \<open>opstep \<alpha> (h, Skip) s' \<longleftrightarrow> False\<close>
 | \<open>opstep \<alpha> (h, c1 ;; c2) s' \<longleftrightarrow>
     \<alpha> = Tau \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
@@ -48,8 +52,11 @@ fun opstep :: \<open>unit act \<Rightarrow> 's \<times> ('s, unit) comm \<Righta
 
 paragraph \<open> Pretty operational semantics \<close>
 
-abbreviation(input) pretty_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow> _\<close> [60,0,60] 60) where
+abbreviation pretty_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow> _\<close> [60,0,60] 60) where
   \<open>hs \<midarrow>\<alpha>\<rightarrow> ht \<equiv> opstep \<alpha> hs ht\<close>
+
+abbreviation pretty_nostep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<close> [60] 60) where
+  \<open>hs \<midarrow>|\<rightarrow> \<equiv> \<forall>\<alpha> ht. \<not> opstep \<alpha> hs ht\<close>
 
 
 subsection \<open> Lemmas about opstep \<close>
@@ -179,7 +186,8 @@ lemma opstep_WhileLoop_iff[opstep_iff]:
 section \<open> Safe \<close>
 
 inductive safe
-  :: \<open>nat \<Rightarrow> ('l::pre_perm_alg \<times> 's, unit) comm \<Rightarrow>
+  :: \<open>nat \<Rightarrow>
+      ('l::pre_perm_alg \<times> 's, unit) comm \<Rightarrow>
       'l \<times> 's + unit \<Rightarrow>
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
