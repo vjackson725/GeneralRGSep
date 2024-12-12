@@ -423,6 +423,10 @@ lemma tmpname2:
   nitpick
   oops
 
+lemma split_as:
+  \<open>\<bbbA> p = \<lblot> p \<rblot> \<squnion> \<lblot> -p \<rblot>\<close>
+  by (force simp add: twoPredLift_def sec_agree_def fun_eq_iff)
+
 
 section \<open> Program \<close>
 
