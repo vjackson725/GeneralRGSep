@@ -17,8 +17,8 @@ datatype ('s, 'a) comm =
        Trying to evaluate the action outside the precondition results in a crash.
        Trying to evaluate the action outside the domain of the postcondition results in deadlock,
        until a state in the domain is reached. \<close>
-  | Atomic \<open>'s \<Rightarrow> bool\<close> \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0,0] 999)
-  | Iter \<open>('s, 'a) comm\<close> (\<open>DO (_) OD\<close> [0] 999)
+  | Atomic \<open>'s \<Rightarrow> bool\<close> \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0,0] 1000)
+  | Iter \<open>('s, 'a) comm\<close> (\<open>DO _ OD\<close> [0] 999)
 
 
 subsection \<open> substitution \<close>

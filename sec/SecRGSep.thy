@@ -76,20 +76,6 @@ lemma eqrel_times_eqrel_eq[simp]:
   by (force simp add: rel_Times_def)
 
 
-definition sec_both
-  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool\<close> (\<open>\<bool>\<close>)
-  where
-    \<open>\<bool> p \<equiv> (\<lambda>(ab,ab'). p ab \<and> p ab')\<close>
-
-lemma sec_both_conj_distrib:
-  \<open>\<bool> p \<sqinter> \<bool> q = \<bool> (p \<sqinter> q)\<close>
-  by (force simp add: sec_both_def exch4_def fun_eq_iff)
-
-lemma sec_both_disj_semidistrib:
-  \<open>\<bool> p \<squnion> \<bool> q \<le> \<bool> (p \<squnion> q)\<close>
-  by (force simp add: sec_both_def exch4_def fun_eq_iff)
-
-
 section \<open> relational logic  \<close>
 
 
@@ -397,32 +383,6 @@ lemma qrefl_then_symp:
   by (simp add: lr_implies_def symp_def, blast)
 
 
-section \<open> relational lifting \<close>
-
-definition \<open>liftP p \<equiv> \<lambda>(x,x'). p x \<and> p x'\<close>
-definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
-
-lemma tmpname:
-  \<open>quasireflp (curry (liftP p))\<close>
-  \<open>symp (curry (liftP p))\<close>
-  \<open>transp (curry (liftP p))\<close>
-  \<open>quasireflp (curry (sp (liftR r) (liftP p)))\<close>
-  \<open>symp (curry (sp (liftR r) (liftP p)))\<close>
-  \<open>transp (curry (sp (liftR r) (liftP p)))\<close>
-  unfolding liftP_def liftR_def curry_def reflp_on_def prepost_state_def'
-    symp_def transp_def sp_def
-  by blast+
-
-(* all of these aren't true *)
-lemma tmpname2:
-  \<open>quasireflp (curry (wlp (liftR r) (liftP q)))\<close>
-  \<open>symp (curry (wlp (liftR r) (liftP q)))\<close>
-  \<open>transp (curry (wlp (liftR r) (liftP q)))\<close>
-  unfolding liftP_def liftR_def curry_def reflp_on_def prepost_state_def'
-    symp_def transp_def wlp_def
-  nitpick
-  oops
-
 lemma split_as:
   \<open>\<bbbA> p = \<lblot> p \<rblot> \<squnion> \<lblot> -p \<rblot>\<close>
   by (force simp add: twoPredLift_def sec_agree_def fun_eq_iff)
@@ -436,6 +396,47 @@ abbreviation
 abbreviation
   \<open>Leak v \<equiv> Await (\<bbbA> v \<circ> exch4)\<close>
 
+
+section \<open> relational lifting \<close>
+
+abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
+definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
+
+fun liftC :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> ('s, 'a) comm \<Rightarrow> ('s \<times> 's, 'a) comm\<close> where
+  \<open>liftC f Skip = Skip\<close>
+| \<open>liftC f (c1 ;; c2) = liftC f c1 ;; liftC f c2\<close>
+| \<open>liftC f (c1 \<parallel> c2) = liftC f c1 \<parallel> liftC f c2\<close>
+| \<open>liftC f (c1 \<^bold>+ c2) = liftC f c1 \<^bold>+ liftC f c2\<close>
+| \<open>liftC f (c1 \<box> c2) = liftC f c1 \<box> liftC f c2\<close>
+| \<open>liftC f \<langle>p, q\<rangle> = \<langle>liftP p \<sqinter> \<bbbA> f, liftR q\<rangle>\<close>
+| \<open>liftC f (DO c OD) = DO liftC f c OD\<close>
+
+
+lemma tmpname:
+  \<open>quasireflp (curry (liftP p))\<close>
+  \<open>symp (curry (liftP p))\<close>
+  \<open>transp (curry (liftP p))\<close>
+  \<open>quasireflp (curry (sp (liftR r) (liftP p)))\<close>
+  \<open>symp (curry (sp (liftR r) (liftP p)))\<close>
+  \<open>transp (curry (sp (liftR r) (liftP p)))\<close>
+  unfolding twoPredLift_def liftR_def curry_def reflp_on_def prepost_state_def'
+    symp_def transp_def sp_def
+  by blast+
+
+(* all of these aren't true *)
+lemma tmpname2:
+  \<open>quasireflp (curry (wlp (liftR r) (liftP q)))\<close>
+  \<open>symp (curry (wlp (liftR r) (liftP q)))\<close>
+  \<open>transp (curry (wlp (liftR r) (liftP q)))\<close>
+  unfolding twoPredLift_def liftR_def curry_def reflp_on_def prepost_state_def'
+    symp_def transp_def wlp_def
+  nitpick
+  oops
+
+
+
+
+(*
 definition
   \<open>SAwait p \<equiv>
     \<langle>
@@ -613,6 +614,6 @@ lemma sec_if_then_else:
    apply force
   apply force
   done
-
+*)
 
 end

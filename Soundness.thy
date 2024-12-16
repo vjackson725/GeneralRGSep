@@ -55,7 +55,7 @@ paragraph \<open> Pretty operational semantics \<close>
 abbreviation pretty_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow> _\<close> [60,0,60] 60) where
   \<open>hs \<midarrow>\<alpha>\<rightarrow> ht \<equiv> opstep \<alpha> hs ht\<close>
 
-abbreviation pretty_nostep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<close> [60] 60) where
+abbreviation pretty_no_opstep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<close> [60] 60) where
   \<open>hs \<midarrow>|\<rightarrow> \<equiv> \<forall>\<alpha> ht. \<not> opstep \<alpha> hs ht\<close>
 
 
