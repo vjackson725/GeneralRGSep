@@ -4,6 +4,13 @@ begin
 
 datatype run_st = Running | Terminated | Crashed
 
+lemma run_st_neq_iff:
+  \<open>rst \<noteq> Crashed \<longleftrightarrow> rst = Running \<or> rst = Terminated\<close>
+  \<open>rst \<noteq> Running \<longleftrightarrow> rst = Terminated \<or> rst = Crashed\<close>
+  \<open>rst \<noteq> Terminated \<longleftrightarrow> rst = Running \<or> rst = Crashed\<close>
+  by (cases rst; simp)+
+
+
 type_synonym 's ptrace = \<open>'s list \<times> run_st\<close>
 
 
@@ -17,15 +24,35 @@ abbreviation \<open>LocVis a \<equiv> Loc (Vis a)\<close>
 abbreviation \<open>LocTau \<equiv> Loc Tau\<close>
 
 
-datatype ('s, 'a) alist1 = AInit 's | ACons 's 'a \<open>('s, 'a) alist1\<close>
+datatype ('s, 'a) alist1 = ASingle 's | ACons 's 'a \<open>('s, 'a) alist1\<close>
 
 fun ahd :: \<open>('s, 'a) alist1 \<Rightarrow> 's\<close> where
-  \<open>ahd (AInit s) = s\<close>
+  \<open>ahd (ASingle s) = s\<close>
 | \<open>ahd (ACons s _ _) = s\<close>
 
 fun ahd_act :: \<open>('s, 'a) alist1 \<Rightarrow> 'a\<close> where
-  \<open>ahd_act (AInit _) = undefined\<close>
+  \<open>ahd_act (ASingle _) = undefined\<close>
 | \<open>ahd_act (ACons _ a _) = a\<close>
+
+definition alength :: \<open>('a, 'b) alist1 \<Rightarrow> nat\<close> where
+  \<open>alength xs \<equiv> size xs - 1\<close>
+
+lemma alength_simps[simp]:
+  \<open>alength (ASingle u) = 0\<close>
+  \<open>alength (ACons u w t) = Suc (alength t)\<close>
+  unfolding alength_def
+  using alist1.size_neq[of t]
+  by force+
+
+lemma alength_rev_iff[simp]:
+  \<open>alength xs = 0 \<longleftrightarrow> (\<exists>a. xs = ASingle a)\<close>
+  \<open>alength xs = Suc k \<longleftrightarrow> (\<exists>a b ys. xs = ACons a b ys \<and> alength ys = k)\<close>
+  by (cases xs; simp)+
+
+lemma alength_leq_rev_iff[simp]:
+  \<open>Suc k \<le> alength xs \<longleftrightarrow> (\<exists>a b ys. xs = ACons a b ys \<and> k \<le> alength ys)\<close>
+  by (cases xs; simp)
+  
 
 
 section \<open> relational lifting \<close>
@@ -55,6 +82,14 @@ translations
   "_twoPredLiftLR (_twoPredLiftS p) q" \<rightleftharpoons> "(CONST twoPredLift) p q"
   "_twoPredLiftL (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p \<top>"
   "_twoPredLiftR q" \<rightharpoonup> "(CONST twoPredLift) \<top> q"
+
+lemma twoPredLift_apply[simp]:
+  \<open>twoPredLift p q (x, y) \<longleftrightarrow> p x \<and> q y\<close>
+  by (simp add: twoPredLift_def)
+
+lemma twoPredLiftI[intro]:
+  \<open>p x \<Longrightarrow> q y \<Longrightarrow> twoPredLift p q (x, y)\<close>
+  by (simp add: twoPredLift_def)
 
 
 definition sec_agree
@@ -113,6 +148,32 @@ abbreviation pretty_no_fr_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> bool\
   \<open>s \<midarrow>F, |\<rightarrow> \<equiv> \<forall>\<beta> s'. \<not> fr_opstep F \<beta> s s'\<close>
 
 
+lemma fr_opstep_from_skip_then:
+  \<open>fr_opstep F \<beta> s s' \<Longrightarrow> s = (h, Skip) \<Longrightarrow> snd s' = Skip\<close>
+  by (clarsimp simp add: fr_opstep_def
+      split: prod.splits sum.splits unit.splits)
+
+lemma fr_opstep_from_skip_then2[simp]:
+  \<open>fr_opstep F \<beta> (h, Skip) (h', c') \<Longrightarrow> c' = Skip\<close>
+  using fr_opstep_from_skip_then
+  by fastforce
+
+lemma fr_opstep_tau_preserves_state:
+  \<open>s \<midarrow>F, Tau\<rightarrow> s' \<Longrightarrow> fst s' = Inl (fst s)\<close>
+  unfolding fr_opstep_def
+  apply (erule disjE)
+   apply (force dest: opstep_tau_preserves_heap)
+  apply (clarsimp split: sum.splits unit.splits)
+  apply (case_tac x)
+   apply (force dest: opstep_tau_preserves_heap)
+  apply (force dest: opstep_tau_preserves_heap)
+  done
+
+lemma fr_opstep_tau_preserves_state_simp:
+  \<open>(h, c) \<midarrow>F, Tau\<rightarrow> (h', c') \<Longrightarrow> h' = Inl h\<close>
+  by (force dest: fr_opstep_tau_preserves_state)
+
+
 text \<open>
   Note the the most recent state is at the *head* of the list.
   e.g. [sn, s{n-1}, ..., s1, s0].
@@ -133,9 +194,9 @@ inductive trsem'
       bool\<close>
   where
     trsem'_init[intro!]:
-    \<open>p s \<Longrightarrow>
-      if c = Skip then rst = Terminated \<and> q s else rst = Running \<Longrightarrow>
-      trsem' p q r g F S c c (AInit (s, rst))\<close>
+    \<open>p (fst sr) \<Longrightarrow>
+      if c = Skip then snd sr = Terminated \<and> q (fst sr) else snd sr = Running \<Longrightarrow>
+      trsem' p q r g F S c c (ASingle sr)\<close>
   | trsem'_step[intro]:
     \<open>trsem' p q r g F S cinit c t \<Longrightarrow>
       ahd t = ((hl, hs), rst) \<Longrightarrow>
@@ -149,44 +210,100 @@ inductive trsem'
           | Inl hls' \<Rightarrow>
               hls' = (hl',hs') \<and>
               (if c' = Skip then rst' = Terminated else rst' = Running)))
-      | Env \<Rightarrow> hl' = hl \<and> r hs hs' \<and> rst' = rst \<and> rst \<noteq> Crashed) \<Longrightarrow>
+      | Env \<Rightarrow> hl' = hl \<and> c' = c \<and> r hs hs' \<and> rst' = rst \<and> rst \<noteq> Crashed) \<Longrightarrow>
       trsem' p q r g F S cinit c' (ACons ((hl',hs'), rst') \<gamma> t)\<close>
 
-inductive_cases trsem_initE[elim!]: \<open>trsem' p q r g F S cinit c (AInit s)\<close>
+inductive_cases trsem_initE[elim!]: \<open>trsem' p q r g F S cinit c (ASingle s)\<close>
 inductive_cases trsem_stepE[elim!]: \<open>trsem' p q r g F S cinit c (ACons s' \<alpha> t)\<close>
 
 definition \<open>trsem p q r g F S c \<equiv> {t. \<exists>cx. trsem' p q r g F S c cx t}\<close>
+
+
+inductive trace_step_align
+  :: \<open>('s, 'a act rgact) alist1 \<Rightarrow> ('s, 'a act rgact) alist1 \<Rightarrow> bool\<close>
+  where
+  init[intro!]: \<open>trace_step_align (ASingle s1) (ASingle s2)\<close>
+| step_left_tau[intro]:
+  \<open>trace_step_align t1 t2 \<Longrightarrow> trace_step_align (ACons s1 LocTau t1) t2\<close>
+| step_right_tau[intro]:
+  \<open>trace_step_align t1 t2 \<Longrightarrow> trace_step_align t1 (ACons s2 LocTau t2)\<close>
+| step_env[intro!]:
+  \<open>trace_step_align t1 t2 \<Longrightarrow>
+    trace_step_align (ACons s1 Env t1) (ACons s2 Env t2)\<close>
+| step_vis[intro!]:
+  \<open>trace_step_align t1 t2 \<Longrightarrow>
+    trace_step_align (ACons s1 (LocVis a1) t1) (ACons s2 (LocVis a2) t2)\<close>
+
+inductive_cases trace_step_align_singleE[elim!]:
+  \<open>trace_step_align (ASingle s1) (ASingle s2)\<close>
+inductive_cases trace_step_align_single_leftE[elim]:
+  \<open>trace_step_align (ASingle s1) t2\<close>
+inductive_cases trace_step_align_single_rightE[elim]:
+  \<open>trace_step_align t1 (ASingle s2)\<close>
+
+inductive_cases trace_step_align_visE[elim!]:
+  \<open>trace_step_align (ACons s1 (LocVis a1) t1) (ACons s2 (LocVis a2) t2)\<close>
+inductive_cases trace_step_align_envE[elim!]:
+  \<open>trace_step_align (ACons s1 Env t1) (ACons s2 Env t2)\<close>
+inductive_cases trace_step_align_consE[elim]:
+  \<open>trace_step_align (ACons s1 \<beta>1 t1) (ACons s2 \<beta>2 t2)\<close>
+
+inductive_cases trace_step_align_cons_tauE[elim]:
+  \<open>trace_step_align (ACons s1 \<beta>1 t1) (ACons s2 LocTau t2)\<close>
+inductive_cases trace_step_align_tau_consE[elim]:
+  \<open>trace_step_align (ACons s1 LocTau t1) (ACons s2 \<beta>2 t2)\<close>
+
+lemma trace_step_align_cons_init_iff[simp]:
+  \<open>trace_step_align (ACons s1 a t1) (ASingle s2)
+    \<longleftrightarrow> trace_step_align t1 (ASingle s2) \<and> a = LocTau\<close>
+  by (blast elim: trace_step_align.cases)
+
+lemma trace_step_align_init_cons_iff[simp]:
+  \<open>trace_step_align (ASingle s1) (ACons s2 a t2)
+    \<longleftrightarrow> trace_step_align (ASingle s1) t2 \<and> a = LocTau\<close>
+  by (blast elim: trace_step_align.cases)
+
 
 
 \<comment> \<open> TODO: There's a lingering question here over how Env steps are supposed to work. \<close>
 inductive trace_agree
   :: \<open>('s \<Rightarrow> 'o) \<Rightarrow> ('s, 'a act rgact) alist1 \<Rightarrow> ('s, 'a act rgact) alist1 \<Rightarrow> bool\<close>
   where
-  tragree_init: \<open>\<bbbA> \<oo> (s1,s2) \<Longrightarrow> trace_agree \<oo> (AInit s1) (AInit s2)\<close>
-| tragree_step_left_tau:
+  tragree_init[intro!]: \<open>\<bbbA> \<oo> (s1,s2) \<Longrightarrow> trace_agree \<oo> (ASingle s1) (ASingle s2)\<close>
+| tragree_step_left_tau[intro]:
   \<open>trace_agree \<oo> t1 t2 \<Longrightarrow> trace_agree \<oo> (ACons s1' LocTau t1) t2\<close>
-| tragree_step_right_tau:
+| tragree_step_right_tau[intro]:
   \<open>trace_agree \<oo> t1 t2 \<Longrightarrow> trace_agree \<oo> t1 (ACons s2' LocTau t2)\<close>
-| tragree_step_env:
+| tragree_step_env[intro!]:
   \<open>trace_agree \<oo> t1 t2 \<Longrightarrow>
     \<bbbA> \<oo> (s1,s2) \<Longrightarrow>
     trace_agree \<oo> (ACons s1 Env t1) (ACons s2 Env t2)\<close>
-| tragree_step_vis:
+| tragree_step_vis[intro!]:
   \<open>trace_agree \<oo> t1 t2 \<Longrightarrow>
     \<bbbA> \<oo> (s1,s2) \<Longrightarrow>
     a1 = a2 \<Longrightarrow>
     trace_agree \<oo> (ACons s1 (LocVis a1) t1) (ACons s2 (LocVis a2) t2)\<close>
 
-inductive_cases trace_agree_initE[elim!]: \<open>trace_agree \<oo> (AInit s1) (AInit s2)\<close>
+inductive_cases trace_agree_initE[elim!]: \<open>trace_agree \<oo> (ASingle s1) (ASingle s2)\<close>
 inductive_cases trace_agree_visE[elim!]:
   \<open>trace_agree \<oo> (ACons s1 (LocVis a1) t1) (ACons s2 (LocVis a2) t2)\<close>
 inductive_cases trace_agree_envE[elim!]:
   \<open>trace_agree \<oo> (ACons s1 Env t1) (ACons s2 Env t2)\<close>
 
+lemma agree_cons_init_iff[simp]:
+  \<open>trace_agree \<oo> (ACons s1 a t1) (ASingle s2)
+    \<longleftrightarrow> trace_agree \<oo> t1 (ASingle s2) \<and> a = LocTau\<close>
+  by (blast elim: trace_agree.cases)
+
+lemma agree_init_cons_iff[simp]:
+  \<open>trace_agree \<oo> (ASingle s1) (ACons s2 a t2)
+    \<longleftrightarrow> trace_agree \<oo> (ASingle s1) t2 \<and> a = LocTau\<close>
+  by (blast elim: trace_agree.cases)
+
 
 lemma alist1_le_Suc0_iff[simp]:
   fixes t :: \<open>('a,'b) alist1\<close>
-  shows \<open>size t \<le> Suc 0 \<longleftrightarrow> (\<exists>a. t = AInit a)\<close>
+  shows \<open>size t \<le> Suc 0 \<longleftrightarrow> (\<exists>a. t = ASingle a)\<close>
   by (induct t) (simp add: alist1.size_neq)+
 
 lemma alist1_gt_Suc_iff[simp]:
@@ -196,6 +313,227 @@ lemma alist1_gt_Suc_iff[simp]:
       Suc k \<le> size t \<longleftrightarrow> (\<exists>a b t'. t = ACons a b t' \<and> k \<le> size t')\<close>
   by (induct t arbitrary: k) simp+
 
+lemma trsem'_init_skip_then:
+  \<open>trsem' p q r g S F cinit c t1 \<Longrightarrow> cinit = Skip \<Longrightarrow> c = Skip\<close>
+  apply (induct rule: trsem'.inducts)
+   apply force
+  apply (clarsimp split: rgact.splits sum.splits unit.splits)
+   apply (case_tac s'; force)
+  done
+
+lemma trsem'_init_skip_then':
+  \<open>trsem' p q r g S F Skip c t1 \<Longrightarrow> c = Skip\<close>
+  by (simp add: trsem'_init_skip_then)
+
+lemma ex_trsem'_init_skip_iff[simp]:
+  \<open>(\<exists>c. trsem' p q r g S F Skip c t1) \<longleftrightarrow> trsem' p q r g S F Skip Skip t1\<close>
+  using trsem'_init_skip_then by blast
+
+lemma apfst_eq_conv2: "apfst f x = apfst g y \<longleftrightarrow> f (fst x) = g (fst y) \<and> snd x = snd y"
+  by (cases x; cases y) clarsimp
+
+lemma apsnd_eq_conv2:
+  "apsnd f x = apsnd g y \<longleftrightarrow> f (snd x) = g (snd y) \<and> fst x = fst y"
+  by (cases x; cases y) force
+
+
+lemma safe_suc_iff2:
+  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<longleftrightarrow>
+    (c = Skip \<longrightarrow> q (hl, hs)) \<and>
+    S (hl, hs) \<and>
+    (\<forall>hs'. r hs hs' \<longrightarrow> safe n c (Inl (hl, hs')) r g q S F) \<and>
+    (\<forall>\<alpha> c' hl' hs'.
+        ((hl,hs), c) \<midarrow>F, \<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
+        safe n c' (Inl (hl',hs')) r g q S F \<and>
+        (\<alpha> \<noteq> Tau \<longrightarrow> g hs hs')) \<and>
+    (\<forall>\<alpha> c' hlf hlhlf' hs'.
+      hl ## hlf \<longrightarrow>
+      F (hlf, hs) \<longrightarrow>
+      ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
+      (\<exists>hl'.
+        hlhlf' = hl' + hlf \<and>
+        hl' ## hlf \<and>
+        (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c')))\<close>
+proof -
+  let ?lhs = \<open>
+    (\<forall>hlf. hl ## hlf \<longrightarrow>
+      (\<forall>\<alpha> c' hlhlf' hs'.
+        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
+        F (hlf, hs) \<longrightarrow>
+        (\<exists>hl'. hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          safe n c' (Inl (hl', hs')) r g q S F) \<and>
+        (\<alpha> = Vis () \<longrightarrow> g hs hs')))\<close>
+  let ?rhs1 = \<open>
+    (\<forall>hlf. F (hlf, hs) \<longrightarrow>
+            hl ## hlf \<longrightarrow>
+            (\<forall>hl'. hl' ## hlf \<longrightarrow>
+                   (\<forall>\<alpha>. (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
+                         (\<forall>c' hs'.
+                             ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
+                             safe n c' (Inl (hl', hs')) r g q S F \<and> (\<alpha> = Vis () \<longrightarrow> g hs hs')))))\<close>
+  let ?rhs2 = \<open>
+     (\<forall>hlf. hl ## hlf \<longrightarrow>
+            F (hlf, hs) \<longrightarrow>
+            (\<forall>\<alpha> c' hlhlf' hs'.
+                ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
+                (\<exists>hl'. hlhlf' = hl' + hlf \<and>
+                       hl' ## hlf \<and>
+                       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and> ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c'))))\<close>
+
+  have \<open>
+    ((\<forall>hlf. F (hlf, hs) \<longrightarrow>
+            hl ## hlf \<longrightarrow>
+            (\<forall>hl'. hl' ## hlf \<longrightarrow>
+                   (\<forall>\<alpha>. (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
+                         (\<forall>c' hs'.
+                             ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
+                             safe n c' (Inl (hl', hs')) r g q S F \<and> (\<alpha> = Vis () \<longrightarrow> g hs hs'))))) \<and>
+    (\<forall>hlf. hl ## hlf \<longrightarrow>
+            F (hlf, hs) \<longrightarrow>
+            (\<forall>\<alpha> c' hlhlf' hs'.
+                ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
+                (\<exists>hl'. hlhlf' = hl' + hlf \<and>
+                       hl' ## hlf \<and>
+                       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and> ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c')))))
+    = (?rhs1 \<and> ?rhs2)\<close>
+    by blast
+  also have \<open>... = 
+    (\<forall>hlf \<alpha> c'.
+      hl ## hlf \<longrightarrow>
+      F (hlf, hs) \<longrightarrow>
+      (\<forall>hl' hs'. hl' ## hlf \<longrightarrow>
+            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
+            ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
+            safe n c' (Inl (hl', hs')) r g q S F \<and>
+              (\<alpha> = Vis () \<longrightarrow> g hs hs')) \<and>
+      (\<forall>hlhlf' hs'.
+        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
+        (\<exists>hl'. hlhlf' = hl' + hlf \<and>
+          hl' ## hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c'))))\<close>
+    apply (simp only: all_conj_distrib imp_conjR)
+    apply (rule conj_cong; fast)
+    done
+  also have \<open>... =
+    (\<forall>hlf \<alpha> c'.
+      hl ## hlf \<longrightarrow>
+      F (hlf, hs) \<longrightarrow>
+      (\<forall>hl' hs'. hl' ## hlf \<longrightarrow>
+            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
+            ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
+            safe n c' (Inl (hl', hs')) r g q S F \<and>
+              (\<alpha> = Vis () \<longrightarrow> g hs hs')) \<and>
+      (\<forall>hlhlf' hs'.
+        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
+        (\<exists>hl'. hlhlf' = hl' + hlf \<and>
+          hl' ## hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<and>
+          safe n c' (Inl (hl', hs')) r g q S F) \<and>
+        (\<alpha> = Vis () \<longrightarrow> g hs hs')))\<close>
+    by fast
+  also have \<open>... = ?lhs\<close>
+    apply (intro iff_allI imp_cong[OF refl] imp_cong[OF refl])
+    apply (rule iffI, blast)
+    apply clarsimp
+    apply (rule conjI[rotated], blast)
+    apply clarsimp
+    apply (drule_tac x=\<alpha> in spec)
+    apply (drule_tac x=c' in spec)
+    apply (drule_tac x=\<open>hl' + hlf\<close> in spec)
+    apply (drule_tac x=hs' in spec)
+    apply (case_tac \<alpha>, blast)
+    apply clarsimp
+
+    sorry
+
+  note helper = \<open>?this\<close>[symmetric]
+
+  show ?thesis
+    apply (simp add: safe_suc_iff)
+    apply (rule conj_cong, rule refl)+
+    apply (simp add: fr_opstep_def all_conj_distrib imp_conjL)
+    apply (rule conj_cong, rule refl)
+    apply (subst helper)
+    apply (simp add: all_conj_distrib imp_conjR imp_ex conj.assoc del: all_simps(5))
+    apply (rule conj_cong, blast)
+    apply meson
+    done
+qed
+
+
+lemma exact_security:
+  fixes hl1 hl2 :: \<open>'l :: pre_perm_alg\<close>
+    and hs1 hs2 :: 's
+    and c :: \<open>('l \<times> 's, unit) comm\<close>
+    and p q :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
+    and r g :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
+  shows
+  \<open>trace_step_align t1 t2 \<Longrightarrow>
+    safe
+      (max (alength t1) (alength t2))
+      (liftC \<oo> c)
+      (Inl (exch4 (fst (ahd t1), fst (ahd t2))))
+      (liftR r) (liftR g)
+      (liftP q \<circ> exch4)
+      (liftP S \<circ> exch4) (liftP F \<circ> exch4) \<Longrightarrow>
+    t1 \<in> trsem p q r g S F c \<Longrightarrow>
+    t2 \<in> trsem p q r g S F c \<Longrightarrow>
+    \<lblot> p \<rblot> \<le> \<bbbA> \<oo> \<Longrightarrow>
+    trace_agree (apfst \<oo>) t1 t2\<close>
+proof (induct rule: trace_step_align.inducts)
+  case (init s1 s2)
+  then show ?case
+    apply (clarsimp simp add: trsem_def sec_agree_def le_fun_def
+        apfst_eq_conv2)
+    apply (metis surj_pair)
+    done
+next
+  case (step_left_tau t1 t2 s1)
+  then show ?case
+    apply (clarsimp simp add: trsem_def sec_agree_def le_fun_def
+        apfst_eq_conv2)
+    apply (frule fr_opstep_tau_preserves_state_simp)
+    apply (case_tac t2)
+     apply (simp, meson safe_step_SucD; fail)
+    apply clarsimp
+    apply (clarsimp simp add: safe_suc_iff)
+    apply (rule tragree_step_left_tau)
+    sledgehammer
+    by (smt (verit) ahd.simps(2) alength_simps(2) fst_conv max.cobounded2 max.orderE max_def_raw mem_Collect_eq not_less_eq_eq safe_step_SucD step_left_tau.hyps(2) step_left_tau.prems(1) step_left_tau.prems(3) step_left_tau.prems(4) trsem_def)
+    sorry
+    apply (metis (no_types, lifting) le_Suc_eq max_def)
+    done
+next
+  case (step_right_tau t1 t2 s2)
+  then show ?case
+    apply (clarsimp simp add: trsem_def sec_agree_def le_fun_def
+        apfst_eq_conv2)
+    apply (frule fr_opstep_tau_preserves_state_simp)
+    apply (case_tac t1)
+     apply (simp, meson safe_step_SucD; fail)
+    apply (clarsimp simp add: safe_suc_iff)
+    apply (rule tragree_step_right_tau)
+    thm max.orderE max.orderI max_def_raw not_less_eq_eq
+    done
+next
+  case (step_env t1 t2 s1 s2)
+  then show ?case
+    apply (clarsimp simp add: trsem_def sec_agree_def le_fun_def
+        apfst_eq_conv2)
+    apply (rule tragree_step_env, blast)
+    apply (clarsimp simp add: trsem_def sec_agree_def le_fun_def
+        apfst_eq_conv2)
+    apply (simp add: rely_preserves_agree_def)
+    oops
+next
+  case (step_vis t1 t2 s1 a1 s2 a2)
+  then show ?case sorry
+qed
 
 lemma security:
   fixes hl1 hl2 :: \<open>'l :: pre_perm_alg\<close>
@@ -204,7 +542,8 @@ lemma security:
     and p q :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
     and r g :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
   shows
-  \<open>(\<And>n s.
+  \<open>trace_step_align t1 t2 \<Longrightarrow>
+    (\<And>n s.
       (liftP p \<circ> exch4) s \<Longrightarrow>
       safe n (liftC \<oo> c) (Inl s)
         (liftR r) (liftR g)
@@ -212,14 +551,8 @@ lemma security:
         (liftP S \<circ> exch4) (liftP F \<circ> exch4)) \<Longrightarrow>
     t1 \<in> trsem p q r g S F c \<Longrightarrow>
     t2 \<in> trsem p q r g S F c \<Longrightarrow>
-    size t1 \<le> size t2 \<Longrightarrow> \<comment> \<open> wlog \<close>
+    \<lblot> p \<rblot> \<le> \<bbbA> \<oo> \<Longrightarrow>
     trace_agree (apfst \<oo>) t1 t2\<close>
-  apply (induct t2 arbitrary: t1)
-   apply (clarsimp simp add: trsem_def if_bool_eq_conj)
-   apply (drule_tac x=\<open>1\<close> in meta_spec)
-   apply clarsimp
-
-
-  oops
+  sorry
 
 end
