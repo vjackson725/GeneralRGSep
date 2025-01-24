@@ -217,7 +217,10 @@ inductive safe
         hl' ## hlf \<Longrightarrow>
         ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<Longrightarrow>
         F (hlf, hs) \<Longrightarrow>
-        safe n c' (Inl (hl', hs')) r g q S F \<and>
+        (\<forall>hlx'.
+          hl' \<preceq> hlx' \<longrightarrow>
+          hlx' \<preceq> hl' + hlf \<longrightarrow>
+          safe n c' (Inl (hlx',hs')) r g q S F) \<and>
         (\<alpha> \<noteq> Tau \<longrightarrow> g hs hs')) \<Longrightarrow>
     \<comment> \<open> frame property \<close>
     (\<And>\<alpha> c' hlf hlhlf' hs'.
@@ -252,10 +255,12 @@ lemma safe_suc_iff:
     (\<forall>\<alpha> c' hlf hlhlf' hl' hs'.
         hl ## hlf \<longrightarrow>
         hl' ## hlf \<longrightarrow>
-        ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
-        hlhlf' = hl' + hlf \<longrightarrow>
+        ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf,hs'), c') \<longrightarrow>
         F (hlf, hs) \<longrightarrow>
-        safe n c' (Inl (hl',hs')) r g q S F \<and>
+        (\<forall>hlx'.
+          hl' \<preceq> hlx' \<longrightarrow>
+          hlx' \<preceq> hl' + hlf \<longrightarrow>
+          safe n c' (Inl (hlx',hs')) r g q S F) \<and>
         (\<alpha> \<noteq> Tau \<longrightarrow> g hs hs')) \<and>
     (\<forall>\<alpha> c' hlf hlhlf' hs'.
         hl ## hlf \<longrightarrow>
@@ -288,7 +293,9 @@ lemma safe_sucD:
     hl' ## hlf \<Longrightarrow>
     ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf,hs'), c') \<Longrightarrow>
     F (hlf, hs) \<Longrightarrow>
-    safe n c' (Inl (hl', hs')) r g q S F\<close>
+    hl' \<preceq> hlx' \<Longrightarrow>
+    hlx' \<preceq> hl' + hlf \<Longrightarrow>
+    safe n c' (Inl (hlx', hs')) r g q S F\<close>
   \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
@@ -474,6 +481,17 @@ lemma safe_skip:
 
 subsection \<open> Safety of frame \<close>
 
+definition
+  \<open>weak_split a \<equiv>
+    \<forall>b c::'a::pre_perm_alg. b ## c \<longrightarrow> b \<preceq> a \<longrightarrow> a \<preceq> b + c \<longrightarrow> (\<exists>c'. b ## c' \<and> a = b + c')\<close>
+
+definition
+  \<open>cross_split a b c d \<equiv>
+    a ## b \<longrightarrow> c ## d \<longrightarrow> a + b = c + d \<longrightarrow>
+    (\<exists>ac ad bc bd.
+      ac ## ad \<and> bc ## bd \<and> ac ## bc \<and> ad ## bd \<and>
+      ac + ad = a \<and> bc + bd = b \<and> ac + bc = c \<and> ad + bd = d)\<close>
+
 lemma safe_frame':
   \<open>safe n c s r g q S F \<Longrightarrow>
     s = Inl (hl, hs) \<Longrightarrow>
@@ -506,14 +524,14 @@ next
       apply (clarsimp simp del: sup_apply)
       apply (rename_tac hl')
       apply (frule_tac hl'=hl' in hyps(6), blast, blast, blast)
-      apply (clarsimp simp del: sup_apply)
+      apply (clarsimp simp add: imp_conjR all_conj_distrib simp del: sup_apply)
       apply (erule opstep_act_cases)
-       apply (simp; fail)
-      apply (clarsimp simp del: sup_apply)
-      apply (meson sswa_stepD sup2I2; fail)
+       apply (simp add: partial_le_plus; fail)
+      apply (clarsimp simp add: all_simps[symmetric] simp del: all_simps)
+      apply (drule_tac x=hl' and y=hlf in spec2)
+      apply (metis less_eq_sepadd_def sswa_stepD sup2CI)
       (* subgoal: local framed opstep *)
      apply (rename_tac hlf2 hl' hs')
-    thm hyps(6)[simplified sum.simps(1) prod.inject imp_conjL all_simps HOL.simp_thms]
      apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply)
      apply (frule hyps(7)[rotated])
        apply (metis disjoint_add_leftL disjoint_add_leftR disjoint_add_left_commute2
@@ -521,6 +539,19 @@ next
       apply (simp add: disjoint_add_swap_lr; fail)
      apply (clarsimp simp del: sup_apply)
      apply (rename_tac hl'')
+     apply (frule_tac hyps(6)[rotated 2])
+        apply (metis disjoint_add_leftR disjoint_sym_iff partial_add_commute sepimp_conj_apply)
+       apply (metis disjoint_add_swap_lr)
+      apply blast
+     apply (clarsimp simp del: sup_apply)
+     apply (subgoal_tac \<open>\<exists>hlf'. hl' ## hlf' \<and> hlf' \<preceq> hlf2 \<and> hlx' = hl' + hlf'\<close>)
+      prefer 2
+    subgoal sorry
+     apply (clarsimp simp del: sup_apply)
+     apply (drule_tac x=hl' in spec)
+     apply (drule mp[of \<open>_ \<preceq> _\<close>])
+
+oops
       apply (case_tac \<open>hl' = hl'' + hlf\<close>)
        apply (clarsimp simp add: partial_add_assoc2[of _ hlf] simp del: sup_apply)
        apply (frule_tac hyps(6)[rotated 2])

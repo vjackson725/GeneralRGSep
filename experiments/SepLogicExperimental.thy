@@ -914,9 +914,8 @@ qed
 
 lemma (in multiunit_sep_alg)
   \<open>\<forall>p q. p \<le> p \<^emph> \<top>\<close>
-  by auto
-
-
+  by (metis order.refl emp_sepconj_unit_right sepconj_middle_monotone_lhsR
+      top_greatest)
 
 
 section \<open> Extractive shared state (2024-10-23) \<close>
@@ -948,5 +947,136 @@ lemma
   oops
 
 
+section \<open> Axiom strength \<close>
+
+definition (in pre_perm_alg)
+  \<open>cross_split a b c d \<equiv>
+    a ## b \<longrightarrow> c ## d \<longrightarrow> a + b = c + d \<longrightarrow>
+    (\<exists>ac ad bc bd.
+      ac ## ad \<and> bc ## bd \<and> ac ## bc \<and> ad ## bd \<and>
+      ac + ad = a \<and> bc + bd = b \<and> ac + bc = c \<and> ad + bd = d)\<close>
+
+lemma
+  fixes x :: \<open>'a :: multiunit_sep_alg\<close>
+  shows
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    L = {(a::'a,b). a \<preceq> b} \<Longrightarrow>
+    \<forall>a::'a. weak_split a \<Longrightarrow>
+    \<forall>a b c d::'a. cross_split a b c d\<close>
+  nitpick[card 'a=4]
+  oops
+
+
+lemma
+  fixes x :: \<open>'a :: sep_alg\<close>
+  shows
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    L = {(a::'a,b). a \<preceq> b} \<Longrightarrow>
+    \<forall>a b c d::'a. cross_split a b c d \<Longrightarrow>
+    \<forall>a::'a. weak_split a\<close>
+  nitpick[card 'a=2]
+  oops
+
+definition
+  \<open>positivity a \<equiv>
+    \<forall>b c1 c2.
+      a ## c1 \<longrightarrow> a + c1 = b \<longrightarrow>
+      b ## c2 \<longrightarrow> b + c2 = a \<longrightarrow>
+      a = b\<close>
+
+definition
+  \<open>subdup_closed c \<equiv>
+    c ## c \<longrightarrow>
+    c + c = c \<longrightarrow>
+    (\<forall>a b.
+      a ## b \<longrightarrow>
+      c = a + b \<longrightarrow>
+      a + a = a)\<close>
+
+definition
+  \<open>cancellative a \<equiv>
+    \<forall>c. a ## c \<longrightarrow>
+    (\<forall>b. b ## c \<longrightarrow>
+      (a + c = b + c) = (a = b))\<close>
+
+definition
+  \<open>left_cancellative a \<equiv>
+    \<forall>c. c ## a \<longrightarrow>
+    (\<forall>b. c ## b \<longrightarrow>
+      (c + a = c + b) = (a = b))\<close>
+
+lemma cancel_right_impl_left:
+  fixes a :: \<open>'a::pre_perm_alg\<close>
+  shows \<open>cancellative a \<Longrightarrow> left_cancellative a\<close>
+  by (simp add: cancellative_def left_cancellative_def
+      disjoint_sym_iff partial_add_commute)
+
+lemma
+  assumes cancellative: \<open>\<forall>a::'a::pre_perm_alg. cancellative a\<close>
+    and subdup_cl: \<open>\<forall>a::'a. subdup_closed a\<close>
+  shows \<open>\<forall>a::'a. positivity a\<close>
+proof -
+  note left_cancellative = all_forward[OF cancellative, where P=\<open>left_cancellative\<close>, OF cancel_right_impl_left, simplified]
+
+  show ?thesis
+    using subdup_cl
+    unfolding subdup_closed_def positivity_def
+    apply clarsimp
+    apply (subgoal_tac \<open>c1 ## c1 \<and> c2 ## c2\<close>)
+     prefer 2
+     apply (metis disjoint_add_leftL disjoint_add_leftR)
+    apply clarsimp
+    apply (subgoal_tac \<open>a + (c1 + c2) + (c1 + c2) = a + (c1 + c2)\<close>)
+     prefer 2
+     apply (simp add: partial_add_assoc2)
+    apply (subgoal_tac \<open>(c1 + c2) + (c1 + c2) = (c1 + c2)\<close>)
+     prefer 2
+     apply (cut_tac left_cancellative)
+     apply (metis disjoint_add_swap_lr partial_add_assoc2 left_cancellative_def)
+    apply (metis disjoint_add_leftR disjoint_add_swap_lr partial_add_assoc2
+        partial_add_assoc_commute_right)
+    done
+qed
+
+(*
+  \mathbf{definition}\ \mathrm{compatible} &= ((\preceq) \cup (\succeq))^* \\
+  \textrm{all-compatible:}\ &
+    \mathrm{compatible}\ a\ b \\
+  \textrm{strong-separation:}\ &
+    a \disjoint a \Implies \mathrm{sepadd\_unit}\ a \\
+  \textrm{disjoint-parts:}\ &
+    a \disjoint b \Implies
+    a \disjoint c \Implies
+    b \disjoint c \Implies
+    a + b \disjoint c \\
+  \textrm{trivial-selfsep:}\ &
+    a \disjoint a \Implies
+    a + a = b \Implies
+    a = b \\
+  \textrm{no-units:}\ & \neg \mathrm{sepadd\_unit}\ a \\
+  \textrm{halving:}\ &
+    \todo{todo} \\
+  \textrm{all-disjoint:}\ & a \disjoint b \\
+*)
+
+
+definition (in perm_alg)
+  \<open>weak_split a \<equiv>
+    \<forall>b c1 c2.
+      b ## c1 \<longrightarrow>
+      b ## c2 \<longrightarrow>
+      b + c1 \<preceq> a \<longrightarrow> a \<preceq> b + c2 \<longrightarrow>
+      (\<exists>c'. b ## c' \<and> a = b + c' \<and> c1 \<preceq> c' \<and> c' \<preceq> c2)\<close>
+
+lemma weak_split_implies_cancellative_counterex:
+  \<open>\<forall>a::'a::perm_alg. weak_split a \<Longrightarrow>
+    \<forall>a::'a. left_cancellative a\<close>
+  unfolding weak_split_def left_cancellative_def less_eq_sepadd_def
+  apply (clarsimp simp del: all_simps(5-) simp add: all_conj_distrib imp_conjR)
+  apply (rule iffI[rotated], blast)
+  apply (thin_tac \<open>\<forall>x y z. _ x y z \<longrightarrow> _ x y z \<longrightarrow> Ex (_ x y z) \<longrightarrow> _ x y z\<close>)+
+  apply (thin_tac \<open>\<forall>x y z w. _ x y z w \<longrightarrow> _ x y z w\<close>)
+  apply (metis partial_le_part_left resource_ordering.eq_iff)
+  done
 
 end
