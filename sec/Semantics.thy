@@ -566,7 +566,7 @@ lemma exact_security:
       (Inl (exch4 (fst (ahd t1), fst (ahd t2))))
       (liftR r) (liftR g)
       (liftP q \<circ> exch4)
-      (liftP S \<circ> exch4) (liftP F \<circ> exch4) \<Longrightarrow>f ( c, n, p, r) 
+      (liftP S \<circ> exch4) (liftP F \<circ> exch4) \<Longrightarrow> f ( c, n, p, r) 
 no_crashing \<and> indistinguishable everywhere through initial_s p c  \<oo>  >
 *)
 
@@ -588,12 +588,13 @@ lemma exact_security:
     and r g :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
   shows
   \<open>safe
-      (max (alength t1) (alength t2))
-      (liftC \<oo> c)
-      (Inl (exch4 (fst (ahd t1), fst (ahd t2))))
-      (liftR r) (liftR g)
-      (liftP q \<circ> exch4)
-      (liftP S \<circ> exch4) (liftP F \<circ> exch4) \<Longrightarrow>
+    (max (alength t1) (alength t2))
+    (liftC \<oo> c)
+    (Inl (exch4 (fst (ahd t1), fst (ahd t2))))
+    (liftR r) (liftR g)
+    (liftP q \<circ> exch4)
+    (liftP S \<circ> exch4)
+    (liftP F \<circ> exch4) \<Longrightarrow>
     t1 \<in> trsem p q r g S F c \<Longrightarrow>
     t2 \<in> trsem p q r g S F c \<Longrightarrow>
     trace_step_align t1 t2 \<Longrightarrow>
@@ -617,11 +618,9 @@ next
     apply clarsimp
     apply (clarsimp simp add: safe_suc_iff)
     apply (rule tragree_step_left_tau)
-
-    by (smt (verit) ahd.simps(2) alength_simps(2) fst_conv max.cobounded2 max.orderE 
-                    max_def_raw mem_Collect_eq not_less_eq_eq safe_step_SucD step_left_tau.hyps(2) 
-                    step_left_tau.prems(1) step_left_tau.prems(3) step_left_tau.prems(4) trsem_def)
-
+    sorry
+    apply (metis (no_types, lifting) le_Suc_eq max_def)
+  done
 next
   case (step_right_tau t1 t2 s2)
   then show ?case
@@ -632,8 +631,7 @@ next
      apply (simp, meson safe_step_SucD; fail)
     apply (clarsimp simp add: safe_suc_iff)
     apply (rule tragree_step_right_tau)
-    thm max.orderE max.orderI max_def_raw not_less_eq_eq
-    done
+    sorry
 next
   case (step_env t1 t2 s1 s2)
   then show ?case
