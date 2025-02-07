@@ -1,6 +1,110 @@
 theory Semantics
-  imports "../Soundness"
+  imports "../TreeSem"
 begin
+
+lemma eqrel_times_eqrel_eq[simp]:
+  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
+  by (force simp add: rel_Times_def)
+
+type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
+
+type_synonym ('a,'b) secstate = \<open>(('a \<times> 'b) \<times> ('a \<times> 'b))\<close>
+
+section \<open> Double-state lifting \<close>
+
+subsection \<open> relational lifting \<close>
+
+definition
+  \<open>exch4 \<equiv> \<lambda>((a,b),(c,d)). ((a,c),(b,d))\<close>
+
+lemma exch4_apply[simp]:
+  \<open>exch4 ((a,b),(c,d)) = ((a,c),(b,d))\<close>
+  by (simp add: exch4_def)
+
+lemma exch4_idem[simp]:
+  \<open>exch4 (exch4 x) = x\<close>
+  by (simp add: exch4_def split: prod.splits)
+
+
+definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
+  \<open>twoPredLift p q \<equiv> \<lambda>(x,y). p x \<and> q y\<close>
+
+nonterminal twoPredLiftL
+
+syntax
+  "_twoPredLiftS"  :: "('a \<Rightarrow> bool) \<Rightarrow> twoPredLiftL"  ("\<lblot> _" [0] 1000)
+  "_twoPredLiftC"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("_ \<rblot>" [0] 1000)
+  "_twoPredLiftL"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar>" [0] 1000)
+  "_twoPredLiftLR"  :: "twoPredLiftL \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar> _ \<rblot>" [0] 1000)
+  "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 1000)
+
+translations
+  "_twoPredLiftC (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p p"
+  "_twoPredLiftLR (_twoPredLiftS p) q" \<rightleftharpoons> "(CONST twoPredLift) p q"
+  "_twoPredLiftL (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p \<top>"
+  "_twoPredLiftR q" \<rightharpoonup> "(CONST twoPredLift) \<top> q"
+
+lemma twoPredLift_apply[simp]:
+  \<open>twoPredLift p q (x, y) \<longleftrightarrow> p x \<and> q y\<close>
+  by (simp add: twoPredLift_def)
+
+lemma twoPredLiftI[intro]:
+  \<open>p x \<Longrightarrow> q y \<Longrightarrow> twoPredLift p q (x, y)\<close>
+  by (simp add: twoPredLift_def)
+
+subsection \<open> Agreement \<close>
+
+definition sec_agree
+  :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool\<close> (\<open>\<bbbA>\<close>)
+  where
+    \<open>\<bbbA> vf \<equiv> (\<lambda>(x,y). vf x = vf y)\<close>
+
+lemma conj_agree_iff:
+  \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
+  by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
+
+subsection \<open> Double-state Lifting \<close>
+
+abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
+definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
+definition \<open>liftC f \<equiv> map_comm (\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close>
+
+
+section \<open> Tree Noninterference \<close>
+
+lemma agree_nocrash_step:
+  \<open>(s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (Inl s', ob') \<Longrightarrow>
+    \<bbbA> \<oo> (exch4 s) \<Longrightarrow>
+   \<bbbA> \<oo> (exch4 s')\<close>
+  unfolding liftC_def
+  apply (induct c arbitrary: s \<alpha> s' ob')
+        apply force
+       apply (clarsimp simp add: map_comm_rev_iff, blast)
+      apply (clarsimp simp add: map_comm_rev_iff, blast)
+     apply (clarsimp simp add: map_comm_rev_iff, blast)
+  apply (clarsimp simp add: map_comm_rev_iff, blast)
+  apply (clarsimp simp add: liftR_def split: if_splits)
+  oops
+
+theorem tree_noninterference:
+  fixes sa sb :: \<open>'l::pre_perm_alg \<times> 's\<close>
+  shows
+  \<open>t = bounded_treesem r F (exch4 (sa, sb), liftC \<oo> c) n \<Longrightarrow>
+    \<bbbA> \<oo> (sa, sb) \<Longrightarrow>
+    sem_tree_nocrash t \<Longrightarrow>
+    pred_sem_tree (\<bbbA> \<oo> \<circ> exch4 \<circ> fst) t\<close>
+  apply (induct n arbitrary: t sa sb)
+   apply force
+  apply (clarsimp simp add: sem_tree_nocrash_def bset.pred_map le_fun_def all_conj_distrib
+      imp_ex_conjL split: prod.splits sum.splits unit.splits)
+  apply (rule conjI)
+   apply clarsimp
+    (* not true? *)
+  oops
+
+
+
+section \<open> [OLD] Noninterference \<close>
 
 datatype run_st = Running | Terminated | Crashed
 
@@ -13,10 +117,6 @@ lemma run_st_neq_iff:
 
 type_synonym 's ptrace = \<open>'s list \<times> run_st\<close>
 
-
-type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
-
-type_synonym ('a,'b) secstate = \<open>(('a \<times> 'b) \<times> ('a \<times> 'b))\<close>
 
 datatype 'a rgact = Loc 'a | Env
 
@@ -54,68 +154,6 @@ lemma alength_leq_rev_iff[simp]:
   by (cases xs; simp)
   
 
-
-section \<open> relational lifting \<close>
-
-definition
-  \<open>exch4 \<equiv> \<lambda>((a,b),(c,d)). ((a,c),(b,d))\<close>
-
-lemma exch4_apply[simp]:
-  \<open>exch4 ((a,b),(c,d)) = ((a,c),(b,d))\<close>
-  by (simp add: exch4_def)
-
-
-definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
-  \<open>twoPredLift p q \<equiv> \<lambda>(x,y). p x \<and> q y\<close>
-
-nonterminal twoPredLiftL
-
-syntax
-  "_twoPredLiftS"  :: "('a \<Rightarrow> bool) \<Rightarrow> twoPredLiftL"  ("\<lblot> _" [0] 1000)
-  "_twoPredLiftC"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("_ \<rblot>" [0] 1000)
-  "_twoPredLiftL"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar>" [0] 1000)
-  "_twoPredLiftLR"  :: "twoPredLiftL \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar> _ \<rblot>" [0] 1000)
-  "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 1000)
-
-translations
-  "_twoPredLiftC (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p p"
-  "_twoPredLiftLR (_twoPredLiftS p) q" \<rightleftharpoons> "(CONST twoPredLift) p q"
-  "_twoPredLiftL (_twoPredLiftS p)" \<rightharpoonup> "(CONST twoPredLift) p \<top>"
-  "_twoPredLiftR q" \<rightharpoonup> "(CONST twoPredLift) \<top> q"
-
-lemma twoPredLift_apply[simp]:
-  \<open>twoPredLift p q (x, y) \<longleftrightarrow> p x \<and> q y\<close>
-  by (simp add: twoPredLift_def)
-
-lemma twoPredLiftI[intro]:
-  \<open>p x \<Longrightarrow> q y \<Longrightarrow> twoPredLift p q (x, y)\<close>
-  by (simp add: twoPredLift_def)
-
-
-definition sec_agree
-  :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool\<close> (\<open>\<bbbA>\<close>)
-  where
-    \<open>\<bbbA> vf \<equiv> (\<lambda>(x,y). vf x = vf y)\<close>
-
-lemma conj_agree_iff:
-  \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
-  by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
-
-lemma eqrel_times_eqrel_eq[simp]:
-  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
-  by (force simp add: rel_Times_def)
-
-abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
-definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
-
-fun liftC :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l \<times> 's, 'a) comm \<Rightarrow> (('l, 's) rgstate, unit) comm\<close> where
-  \<open>liftC f Skip = Skip\<close>
-| \<open>liftC f (c1 ;; c2) = liftC f c1 ;; liftC f c2\<close>
-| \<open>liftC f (c1 \<parallel> c2) = liftC f c1 \<parallel> liftC f c2\<close>
-| \<open>liftC f (c1 \<^bold>+ c2) = liftC f c1 \<^bold>+ liftC f c2\<close>
-| \<open>liftC f (c1 \<box> c2) = liftC f c1 \<box> liftC f c2\<close>
-| \<open>liftC f \<langle>p, q\<rangle> = \<langle>(liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4\<rangle>\<close>
-| \<open>liftC f (DO c OD) = DO liftC f c OD\<close>
 
 definition fr_opstep
   :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
