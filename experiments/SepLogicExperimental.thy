@@ -884,7 +884,7 @@ sublocale is_ie_perm_alg2: ie_perm_alg2
   apply standard
      apply (simp; fail)
     apply (simp add: plus_comm; fail)
-   apply (metis local.disjoint2 invalidL invalidR
+   apply (metis disjoint2 invalidL invalidR
       is_perm_alg.partial_add_assoc3)
   apply (metis invalidR is_perm_alg.unit_sub_closure2' plus_comm)
   done
@@ -902,14 +902,14 @@ proof -
   {
     fix p
     have \<open>p \<le> p \<^emph> p \<squnion> p \<^emph> (-p)\<close>
-      by (metis assms(2) boolean_algebra.disj_cancel_right local.sepconj_pdisj_distrib_left)
+      by (metis assms(2) boolean_algebra.disj_cancel_right sepconj_pdisj_distrib_left)
     moreover have \<open>p \<^emph> (-p) \<le> \<bottom>\<close>
-      by (metis assms(1) boolean_algebra.conj_cancel_left le_infI local.sepconj_comm)
+      by (metis assms(1) boolean_algebra.conj_cancel_left le_infI sepconj_comm)
     ultimately have \<open>p \<le> p \<^emph> p\<close>
       by blast
   }
   then show ?thesis
-    by (meson le_infE local.sepconj_mono order_eq_refl order_trans)
+    by (meson le_infE sepconj_mono order_eq_refl order_trans)
 qed
 
 lemma (in multiunit_sep_alg)
@@ -948,5 +948,103 @@ lemma
   oops
 
 
+definition (in perm_alg)
+  \<open>weak_cancellative a \<equiv>
+    \<forall>b c. a ## c \<longrightarrow> a \<prec> b \<longrightarrow> b \<prec> a + c \<longrightarrow>
+      (\<exists>cy. a ## cy \<and> b = a + cy \<and> cy \<preceq> c)\<close>
+
+definition (in perm_alg)
+  \<open>weak_cancellative2 a \<equiv>
+    \<forall>b cx cz. a ## cx \<longrightarrow> a ## cz \<longrightarrow> a + cx \<prec> b \<longrightarrow> b \<prec> a + cz \<longrightarrow>
+      (\<exists>cy. a ## cy \<and> b = a + cy \<and> cx \<preceq> cy \<and> cy \<preceq> cz)\<close>
+
+definition (in pre_perm_alg)
+  \<open>cancellative c \<equiv>
+    \<forall>a b. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
+
+lemma cancellative_def2:
+  \<open>cancellative c \<longleftrightarrow> (\<forall>a b. c ## a \<longrightarrow> c ## b \<longrightarrow> c + a = c + b \<longrightarrow> a = b)\<close>
+  by (metis cancellative_def disjoint_sym partial_add_commute)
+
+
+lemma (in perm_alg)
+  \<open>All cancellative \<longrightarrow> All weak_cancellative\<close>
+  unfolding cancellative_def weak_cancellative_def
+  apply (clarsimp simp add: less_sepadd_def')
+  apply (metis disjoint_add_leftR disjoint_add_left_commute disjoint_sym
+      partial_add_assoc_commute_right partial_add_commute partial_le_plus)
+  done
+
+lemma (in sep_alg)
+  \<open>All weak_cancellative \<longrightarrow> All cancellative\<close>
+  unfolding cancellative_def weak_cancellative_def
+  apply (clarsimp simp add: less_sepadd_def')
+  nitpick
+  oops
+
+lemma (in perm_alg)
+  \<open>All cancellative \<longrightarrow> All weak_cancellative2\<close>
+  unfolding weak_cancellative2_def
+  apply (clarsimp simp add: less_sepadd_def' less_eq_sepadd_def)
+  apply (metis cancellative_def disjoint_add_leftR disjoint_add_rightL
+      disjoint_add_rightR disjoint_add_swap_lr disjoint_add_swap_lr2 disjoint_sym
+      partial_add_assoc2 partial_add_assoc3 partial_add_commute)
+  done
+
+lemma (in sep_alg)
+  \<open>All weak_cancellative2 \<longrightarrow> All cancellative\<close>
+  unfolding cancellative_def weak_cancellative2_def
+  apply (clarsimp simp add: less_sepadd_def')
+  nitpick
+  oops
+
+lemma (in sep_alg)
+  \<open>All weak_cancellative \<longrightarrow>
+    All weak_cancellative2 \<longrightarrow>
+    All cancellative\<close>
+  nitpick
+  oops
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative \<longrightarrow> All weak_cancellative2\<close>
+  nitpick[card 'a=5]
+  oops
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative2 \<longrightarrow> All weak_cancellative\<close>
+  nitpick[card 'a=4]
+  oops
+
+
+lemma (in multiunit_sep_alg)
+  \<open>All weak_cancellative2 \<longrightarrow> All weak_cancellative\<close>
+  unfolding weak_cancellative_def weak_cancellative2_def
+  apply clarsimp
+  apply (drule_tac x=a and y=\<open>unitof a\<close> in spec2)
+  apply auto
+  done
+
+lemma (in multiunit_sep_alg)
+  \<open>All weak_cancellative \<longrightarrow> All weak_cancellative2\<close>
+  unfolding weak_cancellative_def weak_cancellative2_def
+  apply (clarsimp simp add: less_sepadd_def' ex_simps(1-2)[symmetric]
+      imp_ex_conjL simp del: ex_simps(1-2))
+  apply (subst (asm) eq_commute[of \<open>a + b\<close> \<open>c\<close> for a b c])
+  apply clarsimp
+  apply (simp only: all_simps(5-6)[symmetric])
+  apply (subst (asm)(3) all_comm)
+  apply simp
+  oops
+
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative\<close>
+  nitpick[card 'a=4]
+  oops
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative2\<close>
+  nitpick[card 'a=4]
+  oops
 
 end
