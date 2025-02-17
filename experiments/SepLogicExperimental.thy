@@ -912,12 +912,6 @@ proof -
     by (meson le_infE sepconj_mono order_eq_refl order_trans)
 qed
 
-lemma (in multiunit_sep_alg)
-  \<open>\<forall>p q. p \<le> p \<^emph> \<top>\<close>
-  by auto
-
-
-
 
 section \<open> Extractive shared state (2024-10-23) \<close>
 
@@ -966,6 +960,19 @@ lemma cancellative_def2:
   \<open>cancellative c \<longleftrightarrow> (\<forall>a b. c ## a \<longrightarrow> c ## b \<longrightarrow> c + a = c + b \<longrightarrow> a = b)\<close>
   by (metis cancellative_def disjoint_sym partial_add_commute)
 
+text \<open> The weak cancellative laws are not trivially implied by perm_alg \<close>
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative\<close>
+  nitpick[card 'a=4]
+  oops
+
+lemma (in perm_alg)
+  \<open>All weak_cancellative2\<close>
+  nitpick[card 'a=4]
+  oops
+
+text \<open> Cancellative implies the weak cancellative laws \<close>
 
 lemma (in perm_alg)
   \<open>All cancellative \<longrightarrow> All weak_cancellative\<close>
@@ -975,13 +982,6 @@ lemma (in perm_alg)
       partial_add_assoc_commute_right partial_add_commute partial_le_plus)
   done
 
-lemma (in sep_alg)
-  \<open>All weak_cancellative \<longrightarrow> All cancellative\<close>
-  unfolding cancellative_def weak_cancellative_def
-  apply (clarsimp simp add: less_sepadd_def')
-  nitpick
-  oops
-
 lemma (in perm_alg)
   \<open>All cancellative \<longrightarrow> All weak_cancellative2\<close>
   unfolding weak_cancellative2_def
@@ -990,6 +990,15 @@ lemma (in perm_alg)
       disjoint_add_rightR disjoint_add_swap_lr disjoint_add_swap_lr2 disjoint_sym
       partial_add_assoc2 partial_add_assoc3 partial_add_commute)
   done
+
+text \<open> The weak cancellative laws do not imply cancellative \<close>
+
+lemma (in sep_alg)
+  \<open>All weak_cancellative \<longrightarrow> All cancellative\<close>
+  unfolding cancellative_def weak_cancellative_def
+  apply (clarsimp simp add: less_sepadd_def')
+  nitpick
+  oops
 
 lemma (in sep_alg)
   \<open>All weak_cancellative2 \<longrightarrow> All cancellative\<close>
@@ -1005,6 +1014,11 @@ lemma (in sep_alg)
   nitpick
   oops
 
+text \<open>
+  The weak cancellative laws do not imply each other, unless units exist,
+  in which case, weak_cancellative2 is stronger.
+\<close>
+
 lemma (in perm_alg)
   \<open>All weak_cancellative \<longrightarrow> All weak_cancellative2\<close>
   nitpick[card 'a=5]
@@ -1014,7 +1028,6 @@ lemma (in perm_alg)
   \<open>All weak_cancellative2 \<longrightarrow> All weak_cancellative\<close>
   nitpick[card 'a=4]
   oops
-
 
 lemma (in multiunit_sep_alg)
   \<open>All weak_cancellative2 \<longrightarrow> All weak_cancellative\<close>
@@ -1026,25 +1039,7 @@ lemma (in multiunit_sep_alg)
 
 lemma (in multiunit_sep_alg)
   \<open>All weak_cancellative \<longrightarrow> All weak_cancellative2\<close>
-  unfolding weak_cancellative_def weak_cancellative2_def
-  apply (clarsimp simp add: less_sepadd_def' ex_simps(1-2)[symmetric]
-      imp_ex_conjL simp del: ex_simps(1-2))
-  apply (subst (asm) eq_commute[of \<open>a + b\<close> \<open>c\<close> for a b c])
-  apply clarsimp
-  apply (simp only: all_simps(5-6)[symmetric])
-  apply (subst (asm)(3) all_comm)
-  apply simp
-  oops
-
-
-lemma (in perm_alg)
-  \<open>All weak_cancellative\<close>
-  nitpick[card 'a=4]
-  oops
-
-lemma (in perm_alg)
-  \<open>All weak_cancellative2\<close>
-  nitpick[card 'a=4]
+  nitpick[card 'a=6]
   oops
 
 end
