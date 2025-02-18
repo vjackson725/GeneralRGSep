@@ -106,7 +106,7 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
-  \<open>('l::perm_alg \<times> 's, 'a) comm \<Rightarrow>
+  \<open>('l::perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
@@ -116,32 +116,32 @@ inductive rgsat ::
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa r p \<le> q \<Longrightarrow> sswa r p \<le> L \<Longrightarrow> rgsat Skip r g p q L F\<close>
+  \<open>sswa r p \<le> q \<Longrightarrow> sswa r p \<le> S \<Longrightarrow> rgsat Skip r g p q S F\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r L) F \<Longrightarrow>
+  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r S) F \<Longrightarrow>
     p \<le> wssa r i \<Longrightarrow>
     sswa r i \<le> q \<Longrightarrow>
-    sswa r L \<le> L' \<Longrightarrow>
-    rgsat (Iter c) r g p q L' F\<close>
+    sswa r S \<le> S' \<Longrightarrow>
+    rgsat (Iter c) r g p q S' F\<close>
 | rgsat_seq:
   \<open>rgsat c1 r g p1 p2 S1 F \<Longrightarrow>
     rgsat c2 r g p2 p3 S2 F \<Longrightarrow>
     S1 \<squnion> S2 \<le> S \<Longrightarrow>
     rgsat (c1 ;; c2) r g p1 p3 S F\<close>
 | rgsat_indet:
-  \<open>rgsat c1 r g1 p q1 L1 F \<Longrightarrow>
-    rgsat c2 r g2 p q2 L2 F \<Longrightarrow>
+  \<open>rgsat c1 r g1 p q1 S1 F \<Longrightarrow>
+    rgsat c2 r g2 p q2 S2 F \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
-    L1 \<squnion> L2 \<le> L \<Longrightarrow>
-    rgsat (c1 \<^bold>+ c2) r g p q L F\<close>
+    S1 \<squnion> S2 \<le> S \<Longrightarrow>
+    rgsat (c1 \<^bold>+ c2) r g p q S F\<close>
 | rgsat_endet:
-  \<open>rgsat c1 r g1 p q1 L1 F \<Longrightarrow>
-    rgsat c2 r g2 p q2 L2 F \<Longrightarrow>
+  \<open>rgsat c1 r g1 p q1 S1 F \<Longrightarrow>
+    rgsat c2 r g2 p q2 S2 F \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
-    L1 \<squnion> L2 \<le> L \<Longrightarrow>
-    rgsat (c1 \<box> c2) r g p q L F\<close>
+    S1 \<squnion> S2 \<le> S \<Longrightarrow>
+    rgsat (c1 \<box> c2) r g p q S F\<close>
 | rgsat_par:
   \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 S1 (S2 \<squnion> S2 \<^emph>\<and> F) \<Longrightarrow>
     rgsat s2 (r \<squnion> g1) g2 p2 q2 S2 (S1 \<squnion> S1 \<^emph>\<and> F) \<Longrightarrow>
@@ -153,42 +153,42 @@ inductive rgsat ::
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
-    wssa r p \<le> L \<Longrightarrow>
-    sswa r q \<le> L \<Longrightarrow>
+    wssa r p \<le> S \<Longrightarrow>
+    sswa r q \<le> S \<Longrightarrow>
     wssa r p \<le> ap \<Longrightarrow>
     \<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap \<Longrightarrow>
     sp aq (wssa r p) \<le> q \<Longrightarrow>
     \<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
     rel_liftL (wssa r p) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     \<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
-    rgsat (Atomic ap aq) r g p' q' L F\<close>
+    rgsat (Atomic ap aq) r g p' q' S F\<close>
 | rgsat_frame:
-  \<open>rgsat c r g p q L F \<Longrightarrow>
+  \<open>rgsat c r g p q S F \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
     q \<^emph>\<and> sswa (r \<squnion> g) f \<le> q' \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
     F' \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F \<Longrightarrow>
-    L \<^emph>\<and> F \<le> L' \<Longrightarrow>
-    rgsat c r g p' q' L' F'\<close>
+    S \<^emph>\<and> F \<le> S' \<Longrightarrow>
+    rgsat c r g p' q' S' F'\<close>
 | rgsat_weaken:
-  \<open>rgsat c r' g' p' q' L' F' \<Longrightarrow>
+  \<open>rgsat c r' g' p' q' S' F' \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
     q' \<le> q \<Longrightarrow>
     r \<le> r' \<Longrightarrow>
     g' \<le> g \<Longrightarrow>
-    L' \<le> L \<Longrightarrow>
+    S' \<le> S \<Longrightarrow>
     F \<le> F' \<Longrightarrow>
-    rgsat c r g p q L F\<close>
+    rgsat c r g p q S F\<close>
 | rgsat_Disj:
   \<open>p' \<le> \<Squnion>P \<Longrightarrow>
-    \<forall>p\<in>P. rgsat c r g p q L F \<Longrightarrow>
-    rgsat c r g p' q L F\<close>
+    \<forall>p\<in>P. rgsat c r g p q S F \<Longrightarrow>
+    rgsat c r g p' q S F\<close>
 | rgsat_Conj:
-  \<open>\<forall>q\<in>Q. rgsat c r g p q L F \<Longrightarrow>
+  \<open>\<forall>q\<in>Q. rgsat c r g p q S F \<Longrightarrow>
     Q \<noteq> {} \<Longrightarrow>
     \<forall>z a b c. F (c, z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     \<Sqinter>Q \<le> q' \<Longrightarrow>
-    rgsat c r g p q' L F\<close>
+    rgsat c r g p q' S F\<close>
 
 abbreviation rgsat_pretty
   :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
@@ -207,7 +207,7 @@ inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q L F\<clo
 lemma backwards_done:
   \<open>rgsat Skip r g (wssa r p) p (wssa r p) F\<close>
   by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
-        where p'=\<open>wssa r p\<close> and q'=p and L'=\<open>wssa r p\<close> and F'=F])
+        where p'=\<open>wssa r p\<close> and q'=p and S'=\<open>wssa r p\<close> and F'=F])
       (clarsimp simp add: sp_def wlp_def le_fun_def split: sum.split; meson rtranclp_trans)+
 
 lemma rgsat_impossible[intro]:
@@ -358,7 +358,6 @@ section \<open> Specialised Rules \<close>
 
 subsection \<open> Assert \<close>
 
-
 lemma rgsat_assert:
   assumes
     \<open>\<forall>f\<le>F. (sswa r p \<sqinter> wssa r px) \<^emph>\<and> f \<le> px\<close>
@@ -484,7 +483,7 @@ lemma rgsat_while_stable:
   shows
     \<open>r, g \<turnstile>\<^bsub>sswa r (i \<squnion> L), F\<^esub> { i } WhileLoop px c { sswa r i }\<close>
   unfolding WhileLoop_def
-  apply (rule rgsat_iter[where i=\<open>sswa r i\<close> and L=\<open>i \<squnion> L\<close>])
+  apply (rule rgsat_iter[where i=\<open>sswa r i\<close> and S=\<open>i \<squnion> L\<close>])
      apply (rule rgsat_seq)
        apply (rule rgsat_weaken[OF rgsat_await'[where p=\<open>sswa r i\<close> and r=r] _ order.refl order.refl order.refl _ order.refl])
            apply (simp, rule frame_assms)
@@ -493,13 +492,10 @@ lemma rgsat_while_stable:
         apply force
        apply (simp, rule order.refl)
       apply (simp, rule rgsat_assms)
-  sorry
-(*
-     apply (simp add: predicate1I sswa_trivial; fail)
+     apply (meson le_sup_iff sp_pred_mono sswa_stronger sup.cobounded1)
     apply force
    apply force
   apply force
   done
-*)
 
 end

@@ -5,9 +5,9 @@ begin
 
 section \<open> Operational Semantics \<close>
 
-type_synonym ('s, 'a) pstate = \<open>'s \<times> ('s, 'a) comm\<close>
+type_synonym ('s, 'a) pstate = \<open>'s \<times> 's comm\<close>
 
-type_synonym ('s, 'a) cpstate = \<open>('s + unit) \<times> ('s, 'a) comm\<close>
+type_synonym ('s, 'a) cpstate = \<open>('s + unit) \<times> 's comm\<close>
 
 subsection \<open> Actions \<close>
 
@@ -187,7 +187,7 @@ section \<open> Safe \<close>
 
 inductive safe
   :: \<open>nat \<Rightarrow>
-      ('l::pre_perm_alg \<times> 's, unit) comm \<Rightarrow>
+      ('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
       'l \<times> 's + unit \<Rightarrow>
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>

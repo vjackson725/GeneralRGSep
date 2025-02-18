@@ -1,5 +1,5 @@
 theory Semantics
-  imports "../TreeSem"
+  imports "../Soundness"
 begin
 
 lemma eqrel_times_eqrel_eq[simp]:
@@ -69,39 +69,278 @@ abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
 definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
 definition \<open>liftC f \<equiv> map_comm (\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close>
 
+lemmas liftC_simps[simp] =
+  map_comm.simps[of \<open>(\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
+    simplified liftC_def[symmetric]]
+
+lemmas liftC_rev_iff =
+  map_comm_rev_iff[of \<open>(\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
+    simplified liftC_def[symmetric]]
+
+lemma liftC_cancel[simp]:
+  \<open>liftC \<oo> ca = liftC \<oo> cb \<longleftrightarrow> ca = cb\<close>
+  apply (induct cb arbitrary: ca)
+        apply (metis liftC_rev_iff(1))
+       apply (metis liftC_rev_iff(2))
+      apply (metis liftC_rev_iff(3))
+     apply (metis liftC_rev_iff(4))
+    apply (metis liftC_rev_iff(5))
+   apply (fastforce simp add: liftC_rev_iff fun_eq_iff sec_agree_def liftR_def)
+  apply (metis liftC_rev_iff(6))
+  done
+
+
+definition \<open>unliftC \<equiv> map_comm (\<lambda>p q. (\<lambda>x. p (exch4 (x,x)), \<lambda>x y. q (exch4 (x,x)) (exch4 (y,y))))\<close>
+
+lemma unlift_lift_cancel[simp]:
+  \<open>unliftC (liftC f c) = c\<close>
+  unfolding unliftC_def liftC_def
+  by (induct c) (simp add: liftR_def sec_agree_def)+
+
+
+definition \<open>liftC' \<equiv> map_comm (\<lambda>p q. (liftP p \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close>
+
+lemmas liftC'_simps[simp] =
+  map_comm.simps[of \<open>(\<lambda>p q. (liftP p \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
+    simplified liftC'_def[symmetric]]
+
+lemmas liftC'_rev_iff =
+  map_comm_rev_iff[of \<open>(\<lambda>p q. (liftP p \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
+    simplified liftC'_def[symmetric]]
+
+lemma liftC'_cancel[simp]:
+  \<open>liftC' ca = liftC' cb \<longleftrightarrow> ca = cb\<close>
+  apply (induct cb arbitrary: ca)
+        apply (metis liftC'_rev_iff(1))
+       apply (metis liftC'_rev_iff(2))
+      apply (metis liftC'_rev_iff(3))
+     apply (metis liftC'_rev_iff(4))
+    apply (metis liftC'_rev_iff(5))
+   apply (fastforce simp add: liftC'_rev_iff fun_eq_iff sec_agree_def liftR_def)
+  apply (metis liftC'_rev_iff(6))
+  done
+
+lemma unlift_lift'_cancel[simp]:
+  \<open>unliftC (liftC' c) = c\<close>
+  unfolding unliftC_def liftC'_def
+  by (induct c) (simp add: liftR_def sec_agree_def)+
+
 
 section \<open> Tree Noninterference \<close>
 
-lemma agree_nocrash_step:
-  \<open>(s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (Inl s', ob') \<Longrightarrow>
+section \<open> Safe \<close>
+
+inductive tree_noninterference
+  :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> 'v) \<Rightarrow>
+      nat \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
+      ('l \<times> 'l) \<times> ('s \<times> 's) + unit \<Rightarrow>
+      bool\<close>
+  where
+  tree_noninterference_nil[intro!]: \<open>tree_noninterference r F \<oo> 0 c (Inl s)\<close>
+| tree_noninterference_suc[intro]:
+  \<open>\<bbbA> \<oo> (exch4 (hl, hs)) \<Longrightarrow>
+    \<comment> \<open> closed under rely steps \<close>
+    (\<And>hs'. r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<Longrightarrow>
+    \<comment> \<open> closed under opsteps \<close>
+    (\<And>\<alpha> c' hl' hs'.
+        ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
+        tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))) \<Longrightarrow>
+    \<comment> \<open> closed under framed opsteps \<close>
+    (\<And>\<alpha> c' hlf hlhlf' hs'.
+        hl ## hlf \<Longrightarrow>
+        ((hl + hlf, hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<Longrightarrow>
+        F (hlf, hs) \<Longrightarrow>
+        (\<exists>hl'.
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))) \<Longrightarrow>
+    tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs))\<close>
+
+
+subsection \<open> Proofs about safe \<close>
+
+inductive_cases tree_noninterference_zeroE[elim!]: \<open>tree_noninterference r F \<oo> 0 c s\<close>
+inductive_cases tree_noninterference_sucE[elim]: \<open>tree_noninterference r F \<oo> (Suc n) c s\<close>
+
+lemma safe_nil_iff[simp]:
+  \<open>tree_noninterference r F \<oo> 0 c s \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
+  by force
+
+lemma tree_noninterference_suc_iff:
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<longleftrightarrow>
+    \<bbbA> \<oo> (exch4 (hl, hs)) \<and>
+    (\<forall>hs'. r hs hs' \<longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<and>
+    (\<forall>\<alpha> c' hl' hs'.
+        ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
+        tree_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))) \<and>
+    (\<forall>\<alpha> c' hlf hlhlf' hs'.
+        hl ## hlf \<longrightarrow>
+        ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
+        F (hlf, hs) \<longrightarrow>
+        (\<exists>hl'.
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          tree_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))))\<close>
+  apply (rule iffI)
+   apply (erule tree_noninterference_sucE, force)
+  apply (rule tree_noninterference_suc; presburger)
+  done
+
+lemma safe_sucD:
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow> \<bbbA> \<oo> (exch4 (hl, hs))\<close>
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))\<close>
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
+    tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))\<close>
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    hl ## hlf \<Longrightarrow>
+    ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
+    F (hlf, hs) \<Longrightarrow>
+    (\<exists>hl'.
+      hl' ## hlf \<and>
+      hlhlf' = hl' + hlf \<and>
+      (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+      tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))\<close>
+  by (erule tree_noninterference_sucE, simp; fail)+
+
+lemma opstep_preserves_liftC':
+  \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl s', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
+proof (induct c arbitrary: s s' cx' \<alpha>)
+  case Skip
+  then show ?case by force
+next
+  case (Seq c1 c2)
+  show ?case
+    using Seq.prems
+    apply clarsimp
+    apply (erule disjE)
+     apply force
+    apply (metis Seq.hyps(1) liftC'_simps(2))
+    done
+next
+  case (Par c1 c2)
+  show ?case
+    using Par.prems
+    apply clarsimp
+    apply (elim disjE, metis)
+     apply (metis Par.hyps(1) liftC'_simps(3))
+    apply (metis Par.hyps(2) liftC'_simps(3))
+    done
+next
+  case (Indet c1 c2)
+  then show ?case sorry
+next
+  case (Endet c1 c2)
+  then show ?case sorry
+next
+  case (Atomic x1 x2)
+  then show ?case
+    apply (clarsimp split: if_splits)
+    apply (metis liftC'_simps(1))
+    done
+next
+  case (Iter c)
+  then show ?case sorry
+qed
+
+lemma opstep_prestate_liftC'_to_liftC:
+  \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl s', liftC' c') \<Longrightarrow>
     \<bbbA> \<oo> (exch4 s) \<Longrightarrow>
-   \<bbbA> \<oo> (exch4 s')\<close>
-  unfolding liftC_def
-  apply (induct c arbitrary: s \<alpha> s' ob')
-        apply force
-       apply (clarsimp simp add: map_comm_rev_iff, blast)
-      apply (clarsimp simp add: map_comm_rev_iff, blast)
-     apply (clarsimp simp add: map_comm_rev_iff, blast)
-  apply (clarsimp simp add: map_comm_rev_iff, blast)
-  apply (clarsimp simp add: liftR_def split: if_splits)
-  oops
+    (s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (Inl s', liftC \<oo> c')\<close>
+proof (induct c arbitrary: s s' \<alpha> c')
+  case Skip then show ?case
+    by force
+next
+  case (Seq c1 c2)
+  show ?case
+    using Seq.prems
+    by (clarsimp simp add: Seq.hyps(1) liftC_rev_iff liftC'_rev_iff)
+next
+  case (Par c1 c2)
+  show ?case
+    using Par.prems
+    apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff)
+    apply (metis Par.hyps)
+    done
+next
+  case (Indet c1 c2)
+  show ?case
+    using Indet.prems
+    by (clarsimp simp add: liftC_rev_iff liftC'_rev_iff)
+next
+  case (Endet c1 c2)
+  show ?case
+    using Endet.prems
+    apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff)
+    sorry
+next
+  case (Atomic x1 x2)
+  show ?case 
+    using Atomic.prems
+    by (clarsimp simp add: liftC_rev_iff liftC'_rev_iff split: if_splits)
+next
+  case (Iter c)
+  then show ?case sorry
+qed
+
+
+definition
+  \<open>preserves_indist \<oo> \<equiv>
+    (\<lambda>p q. \<forall>xx yy. p xx \<longrightarrow> q xx yy \<longrightarrow> (\<bbbA> \<oo> \<circ> exch4) xx \<longrightarrow> (\<bbbA> \<oo> \<circ> exch4) yy)\<close>
 
 theorem tree_noninterference:
-  fixes sa sb :: \<open>'l::pre_perm_alg \<times> 's\<close>
-  shows
-  \<open>t = bounded_treesem r F (exch4 (sa, sb), liftC \<oo> c) n \<Longrightarrow>
-    \<bbbA> \<oo> (sa, sb) \<Longrightarrow>
-    sem_tree_nocrash t \<Longrightarrow>
-    pred_sem_tree (\<bbbA> \<oo> \<circ> exch4 \<circ> fst) t\<close>
-  apply (induct n arbitrary: t sa sb)
+  \<open>safe n cc z r g q S F \<Longrightarrow>
+    cc = liftC \<oo> c \<Longrightarrow>
+    z = Inl s \<Longrightarrow>
+    \<bbbA> \<oo> \<circ> exch4 \<le> wssa r (\<bbbA> \<oo> \<circ> exch4) \<Longrightarrow>
+    q \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    \<bbbA> \<oo> (exch4 s) \<Longrightarrow>
+    all_atom_comm (preserves_indist \<oo>) (liftC' c) \<Longrightarrow>
+    tree_noninterference r F \<oo> n c z\<close>
+  apply (induct arbitrary: c s rule: safe.inducts)
    apply force
-  apply (clarsimp simp add: sem_tree_nocrash_def bset.pred_map le_fun_def all_conj_distrib
-      imp_ex_conjL split: prod.splits sum.splits unit.splits)
-  apply (rule conjI)
+  apply (clarsimp simp add: liftC_rev_iff tree_noninterference_suc_iff)
+  apply (rename_tac c hla hlb hsa hsb)
+  apply (intro conjI)
+    apply (metis (no_types, lifting) antisym comp_apply exch4_apply wssa_stepD wssa_weaker)
    apply clarsimp
-    (* not true? *)
+   apply (frule opstep_preserves_liftC')
+   apply clarsimp
+   apply (frule opstep_prestate_liftC'_to_liftC, force)
+   apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_mp, assumption)
+   apply clarsimp
   oops
 
+theorem tree_noninterference2:
+  \<open>safe n cc z r g q S F \<Longrightarrow>
+    cc = liftC' c \<Longrightarrow>
+    z = Inl s \<Longrightarrow>
+    S \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    S \<^emph>\<and> F \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    tree_noninterference r F \<oo> n c z\<close>
+  apply (induct arbitrary: c s rule: safe.inducts)
+   apply force
+  apply (clarsimp simp add: liftC_rev_iff tree_noninterference_suc_iff)
+  apply (rename_tac c hla hlb hsa hsb)
+  apply (intro conjI)
+    apply (force simp add: le_fun_def)
+   apply clarsimp
+   apply (frule opstep_preserves_liftC')
+   apply force
+  apply clarsimp
+  apply (frule opstep_preserves_liftC')
+  apply clarsimp
+  apply (frule opstep_prestate_liftC'_to_liftC[of _ _ _ _ _ \<oo>])
+   apply (clarsimp simp add: le_fun_def sepconj_conj_def)
+   apply metis
+  apply metis
+  done
 
 
 section \<open> [OLD] Noninterference \<close>
@@ -226,8 +465,8 @@ inductive trsem'
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
       ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
       ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's, unit) comm \<Rightarrow>
-      ('l \<times> 's, unit) comm \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
       (('l \<times> 's) \<times> run_st, unit act rgact) alist1 \<Rightarrow>
       bool\<close>
   where
@@ -374,134 +613,6 @@ lemma apsnd_eq_conv2:
   "apsnd f x = apsnd g y \<longleftrightarrow> f (snd x) = g (snd y) \<and> fst x = fst y"
   by (cases x; cases y) force
 
-
-lemma safe_suc_iff2:
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<longleftrightarrow>
-    (c = Skip \<longrightarrow> q (hl, hs)) \<and>
-    S (hl, hs) \<and>
-    (\<forall>hs'. r hs hs' \<longrightarrow> safe n c (Inl (hl, hs')) r g q S F) \<and>
-    (\<forall>\<alpha> c' hl' hs'.
-        ((hl,hs), c) \<midarrow>F, \<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
-        safe n c' (Inl (hl',hs')) r g q S F \<and>
-        (\<alpha> \<noteq> Tau \<longrightarrow> g hs hs')) \<and>
-    (\<forall>\<alpha> c' hlf hlhlf' hs'.
-      hl ## hlf \<longrightarrow>
-      F (hlf, hs) \<longrightarrow>
-      ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
-      (\<exists>hl'.
-        hlhlf' = hl' + hlf \<and>
-        hl' ## hlf \<and>
-        (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c')))\<close>
-proof -
-  let ?lhs = \<open>
-    (\<forall>hlf. hl ## hlf \<longrightarrow>
-      (\<forall>\<alpha> c' hlhlf' hs'.
-        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
-        F (hlf, hs) \<longrightarrow>
-        (\<exists>hl'. hl' ## hlf \<and>
-          hlhlf' = hl' + hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          safe n c' (Inl (hl', hs')) r g q S F) \<and>
-        (\<alpha> = Vis () \<longrightarrow> g hs hs')))\<close>
-  let ?rhs1 = \<open>
-    (\<forall>hlf. F (hlf, hs) \<longrightarrow>
-            hl ## hlf \<longrightarrow>
-            (\<forall>hl'. hl' ## hlf \<longrightarrow>
-                   (\<forall>\<alpha>. (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
-                         (\<forall>c' hs'.
-                             ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
-                             safe n c' (Inl (hl', hs')) r g q S F \<and> (\<alpha> = Vis () \<longrightarrow> g hs hs')))))\<close>
-  let ?rhs2 = \<open>
-     (\<forall>hlf. hl ## hlf \<longrightarrow>
-            F (hlf, hs) \<longrightarrow>
-            (\<forall>\<alpha> c' hlhlf' hs'.
-                ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
-                (\<exists>hl'. hlhlf' = hl' + hlf \<and>
-                       hl' ## hlf \<and>
-                       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and> ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c'))))\<close>
-
-  have \<open>
-    ((\<forall>hlf. F (hlf, hs) \<longrightarrow>
-            hl ## hlf \<longrightarrow>
-            (\<forall>hl'. hl' ## hlf \<longrightarrow>
-                   (\<forall>\<alpha>. (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
-                         (\<forall>c' hs'.
-                             ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
-                             safe n c' (Inl (hl', hs')) r g q S F \<and> (\<alpha> = Vis () \<longrightarrow> g hs hs'))))) \<and>
-    (\<forall>hlf. hl ## hlf \<longrightarrow>
-            F (hlf, hs) \<longrightarrow>
-            (\<forall>\<alpha> c' hlhlf' hs'.
-                ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
-                (\<exists>hl'. hlhlf' = hl' + hlf \<and>
-                       hl' ## hlf \<and>
-                       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and> ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c')))))
-    = (?rhs1 \<and> ?rhs2)\<close>
-    by blast
-  also have \<open>... = 
-    (\<forall>hlf \<alpha> c'.
-      hl ## hlf \<longrightarrow>
-      F (hlf, hs) \<longrightarrow>
-      (\<forall>hl' hs'. hl' ## hlf \<longrightarrow>
-            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
-            ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
-            safe n c' (Inl (hl', hs')) r g q S F \<and>
-              (\<alpha> = Vis () \<longrightarrow> g hs hs')) \<and>
-      (\<forall>hlhlf' hs'.
-        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
-        (\<exists>hl'. hlhlf' = hl' + hlf \<and>
-          hl' ## hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c'))))\<close>
-    apply (simp only: all_conj_distrib imp_conjR)
-    apply (rule conj_cong; fast)
-    done
-  also have \<open>... =
-    (\<forall>hlf \<alpha> c'.
-      hl ## hlf \<longrightarrow>
-      F (hlf, hs) \<longrightarrow>
-      (\<forall>hl' hs'. hl' ## hlf \<longrightarrow>
-            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<longrightarrow>
-            ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<longrightarrow>
-            safe n c' (Inl (hl', hs')) r g q S F \<and>
-              (\<alpha> = Vis () \<longrightarrow> g hs hs')) \<and>
-      (\<forall>hlhlf' hs'.
-        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<longrightarrow>
-        (\<exists>hl'. hlhlf' = hl' + hlf \<and>
-          hl' ## hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl' + hlf, hs'), c') \<and>
-          safe n c' (Inl (hl', hs')) r g q S F) \<and>
-        (\<alpha> = Vis () \<longrightarrow> g hs hs')))\<close>
-    by fast
-  also have \<open>... = ?lhs\<close>
-    apply (intro iff_allI imp_cong[OF refl] imp_cong[OF refl])
-    apply (rule iffI, blast)
-    apply clarsimp
-    apply (rule conjI[rotated], blast)
-    apply clarsimp
-    apply (drule_tac x=\<alpha> in spec)
-    apply (drule_tac x=c' in spec)
-    apply (drule_tac x=\<open>hl' + hlf\<close> in spec)
-    apply (drule_tac x=hs' in spec)
-    apply (case_tac \<alpha>, blast)
-    apply clarsimp
-
-    sorry
-
-  note helper = \<open>?this\<close>[symmetric]
-
-  show ?thesis
-    apply (simp add: safe_suc_iff)
-    apply (rule conj_cong, rule refl)+
-    apply (simp add: fr_opstep_def all_conj_distrib imp_conjL)
-    apply (rule conj_cong, rule refl)
-    apply (subst helper)
-    apply (simp add: all_conj_distrib imp_conjR imp_ex conj.assoc del: all_simps(5))
-    apply (rule conj_cong, blast)
-    apply meson
-    done
-qed
 
 (* 
 Let c be a simple program that operates on a single state and 

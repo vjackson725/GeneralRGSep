@@ -7,18 +7,18 @@ section \<open> Language Definition \<close>
 
 subsection \<open> Commands \<close>
 
-datatype ('s, 'a) comm =
+datatype 's comm =
   Skip
-  | Seq \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>;;\<close> 75)
-  | Par \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<parallel>\<close> 65)
-  | Indet \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<^bold>+\<close> 65)
-  | Endet \<open>('s, 'a) comm\<close> \<open>('s, 'a) comm\<close> (infixr \<open>\<box>\<close> 65)
+  | Seq \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>;;\<close> 75)
+  | Par \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<parallel>\<close> 65)
+  | Indet \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<^bold>+\<close> 65)
+  | Endet \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<box>\<close> 65)
   \<comment> \<open> An atomic action is represented by a precondition and a (relational) post-condition.
        Trying to evaluate the action outside the precondition results in a crash.
        Trying to evaluate the action outside the domain of the postcondition results in deadlock,
        until a state in the domain is reached. \<close>
   | Atomic \<open>'s \<Rightarrow> bool\<close> \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0,0] 1000)
-  | Iter \<open>('s, 'a) comm\<close> (\<open>DO _ OD\<close> [0] 999)
+  | Iter \<open>'s comm\<close> (\<open>DO _ OD\<close> [0] 999)
 
 
 subsection \<open> substitution \<close>
@@ -27,7 +27,7 @@ subsection \<open> Map atomic commands \<close>
 
 fun map_comm
   :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('u \<Rightarrow> bool) \<times> ('u \<Rightarrow> 'u \<Rightarrow> bool)) \<Rightarrow>
-      ('s, 'a) comm \<Rightarrow> ('u, 'b) comm\<close>
+      's comm \<Rightarrow> 'u comm\<close>
   where
   \<open>map_comm f Skip = Skip\<close>
 | \<open>map_comm f (a ;; b) = map_comm f a ;; map_comm f b\<close>
@@ -61,7 +61,7 @@ subsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-inductive all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> ('s, 'a) comm \<Rightarrow> bool\<close> where
+inductive all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
   skip[iff]: \<open>all_atom_comm P Skip\<close>
 | seq[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 ;; c2)\<close>
 | par[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<parallel> c2)\<close>
