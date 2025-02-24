@@ -8,6 +8,10 @@ lemma disjCE:
   \<open>P \<or> Q \<Longrightarrow> (P \<Longrightarrow> R) \<Longrightarrow> (\<not> P \<Longrightarrow> Q \<Longrightarrow> R) \<Longrightarrow> R\<close>
   by blast
 
+lemma map_sum_rev_iff[simp]:
+  \<open>map_sum f g s = Inl a' \<longleftrightarrow> (\<exists>a. s = Inl a \<and> a' = f a)\<close>
+  \<open>map_sum f g s = Inr b' \<longleftrightarrow> (\<exists>b. s = Inr b \<and> b' = g b)\<close>
+  by (metis Inl_Inr_False isl_def isl_map_sum map_sum_sel sum.exhaust_sel sum.sel)+
 
 section \<open> Bounded Set Utils \<close>
 
@@ -67,8 +71,7 @@ function pred_sem_tree
   \<open>pred_sem_tree p (Branch sc S) =
     (p sc S \<and>
       pred_bset
-        (\<lambda>v. case v of (s,l,mst') \<Rightarrow>
-          case_sum (pred_sem_tree p \<circ> snd) (\<lambda>_. True) mst')
+        (\<lambda>(s,l,mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> pred_sem_tree p t')
         S)\<close>
   by pat_completeness auto
 termination
@@ -83,7 +86,7 @@ termination
 definition config_pred_sem_tree
   :: \<open>('s \<times> 'c \<Rightarrow> bool) \<Rightarrow> ('c, 's, 'l) sem_tree \<Rightarrow> bool\<close>
   where
-    \<open>config_pred_sem_tree p t \<equiv> pred_sem_tree (\<lambda>sc _. p sc) t\<close>
+    \<open>config_pred_sem_tree p t \<equiv> pred_sem_tree (\<lambda>sc S. S \<noteq> bempty \<longrightarrow> p sc) t\<close>
 
 definition precond_pred_sem_tree
   :: \<open>('s set \<Rightarrow> bool) \<Rightarrow> ('c, 's, 'l) sem_tree \<Rightarrow> bool\<close>
@@ -150,9 +153,9 @@ lemma sem_tree_contains_no_loop:
 fun bounded_treesem
   :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
       ('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's) \<times> ('l \<times> 's, unit) comm \<Rightarrow>
+      ('l \<times> 's) \<times> ('l \<times> 's) comm \<Rightarrow>
       nat \<Rightarrow>
-      (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree\<close>
+      (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree\<close>
   where
   \<open>bounded_treesem r F sc 0 = Branch sc bempty\<close>
 | \<open>bounded_treesem r F ((hl,hs), c) (Suc n) =
@@ -197,68 +200,132 @@ lemma bounded_treesem_least_state:
 (*
 definition treesem
   :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's, unit) comm \<Rightarrow>
-      (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree set\<close> where
+      ('l \<times> 's) comm \<Rightarrow>
+      (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree set\<close> where
   \<open>treesem r c \<equiv> range (bounded_treesem r c)\<close>
 *)
 
 
 definition sem_tree_nocrash
-  :: \<open>(('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
+  :: \<open>(('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
   where
     \<open>sem_tree_nocrash \<equiv> step_rel_sem_tree (\<lambda>_ _ z'. z' \<noteq> Inr ())\<close>
 
 definition sem_tree_postcond
-  :: \<open>('s \<Rightarrow> bool) \<Rightarrow> (('s, unit) comm, 's, unit label) sem_tree \<Rightarrow> bool\<close>
+  :: \<open>('s \<Rightarrow> bool) \<Rightarrow> ('s comm, 's, unit label) sem_tree \<Rightarrow> bool\<close>
   where
     \<open>sem_tree_postcond q \<equiv> config_pred_sem_tree (\<lambda>(s,c). c = Skip \<longrightarrow> q s)\<close>
 
 definition sem_tree_guar
-  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
   where
     \<open>sem_tree_guar g \<equiv>
       step_rel_sem_tree (\<lambda>l s z'. \<forall>\<alpha> s'. l = Local \<alpha> \<longrightarrow> z' = Inl s' \<longrightarrow> g (snd s) (snd s'))\<close>
 
-(*
 definition sem_tree_states
-  :: \<open>('l \<times> 's \<Rightarrow> bool) \<Rightarrow> (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
+  :: \<open>('l \<times> 's \<Rightarrow> bool) \<Rightarrow> (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow> bool\<close>
   where
-    \<open>sem_tree_states S \<equiv> config_pred_sem_tree (\<lambda>_. S)\<close>
+    \<open>sem_tree_states S \<equiv> config_pred_sem_tree (S \<circ> fst)\<close>
 
 definition sem_tree_frame_cond
   :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow>
+      (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow>
       bool\<close>
   where
   \<open>sem_tree_frame_cond F \<equiv>
-    steps_pred_sem_tree (\<lambda>S.
-      \<forall>\<alpha> hl hs hl' hs'.
-        ((hl, hs), Local \<alpha>, (Inl (hl', hs'))) \<in> S \<longrightarrow>
+    steps_pred_sem_tree (\<lambda>(hl,hs) B.
+      \<forall>\<alpha> hl' hs'.
+        ((hl, hs), Local \<alpha>, Inl (hl', hs')) \<in> B \<longrightarrow>
         (\<forall>hlf hlhlf'.
           F (hlf, hs) \<longrightarrow>
-          hl ## hlf \<longrightarrow>
-          ((hl + hlf, hs), Local \<alpha>, (Inl (hlhlf', hs'))) \<in> S \<longrightarrow>
+          hl ## hlf \<longrightarrow> 
+          ((hl + hlf, hs), Local \<alpha>, Inl (hlhlf', hs')) \<in> B \<longrightarrow>
           (\<exists>hl'. hl' ## hlf \<and> hlhlf' = hl' + hlf)))\<close>
 
 definition sem_tree_safe
   :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
       ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
       ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      (('l \<times> 's, unit) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow>
+      (('l \<times> 's) comm, 'l \<times> 's, unit label) sem_tree \<Rightarrow>
       bool\<close>
   where
   \<open>sem_tree_safe q g S \<equiv>
     sem_tree_nocrash \<sqinter>
-    sem_tree_post q \<sqinter>
+    sem_tree_postcond q \<sqinter>
     sem_tree_guar g \<sqinter>
     sem_tree_states S\<close>
-*)
+
+paragraph \<open> defined tree predicate simp thms \<close>
+
+lemma config_pred_sem_tree_simps[simp]:
+  \<open>config_pred_sem_tree p (Branch sc S) =
+    ((S \<noteq> bempty \<longrightarrow> p sc) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> config_pred_sem_tree p t')
+        S)\<close>
+  unfolding config_pred_sem_tree_def
+  by simp
+
+lemma step_rel_sem_tree_simps[simp]:
+  \<open>step_rel_sem_tree r (Branch sc S) =
+    ((\<forall>s l mst'. (s, l, mst') \<in> set_bset S \<longrightarrow> r l s (map_sum fst id mst')) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> step_rel_sem_tree r t')
+        S)\<close>
+  unfolding step_rel_sem_tree_def
+  by simp
+
+lemma sem_tree_nocrash_simps[simp]:
+  \<open>sem_tree_nocrash (Branch sc S) =
+    ((\<forall>s l mst'. (s, l, mst') \<in> set_bset S \<longrightarrow> mst' \<noteq> Inr ()) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> sem_tree_nocrash t')
+      S)\<close>
+  unfolding sem_tree_nocrash_def
+  by simp
+
+lemma sem_tree_postcond_simps[simp]:
+  \<open>sem_tree_postcond q (Branch sc S) =
+    ((S \<noteq> bempty \<longrightarrow> snd sc = Skip \<longrightarrow> q (fst sc)) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> sem_tree_postcond q t')
+      S)\<close>
+  unfolding sem_tree_postcond_def
+  by force
+
+lemma sem_tree_guar_simps[simp]:
+  \<open>sem_tree_guar g (Branch sc S) =
+    ((\<forall>s \<alpha> s' t'. (s, Local \<alpha>, Inl (s', t')) \<in> set_bset S \<longrightarrow> g (snd s) (snd s')) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> sem_tree_guar g t')
+      S)\<close>
+  unfolding sem_tree_guar_def
+  by force
+
+lemma sem_tree_states_simps[simp]:
+  \<open>sem_tree_states ss (Branch sc S) =
+    ((S \<noteq> bempty \<longrightarrow> ss (fst sc)) \<and>
+      pred_bset
+        (\<lambda>(s, l, mst'). \<forall>s' t'. mst' = Inl (s', t') \<longrightarrow> sem_tree_states ss t')
+      S)\<close>
+  unfolding sem_tree_states_def
+  by force
+
+
+subsection \<open> equivalence with safe \<close>
 
 lemma safe_then_sem_tree_safe:
   \<open>safe n c z r g q S F \<Longrightarrow>
     z = Inl s \<Longrightarrow>
-    sem_tree_safe q g S (bounded_treesem r F c s n)\<close>
+    sem_tree_safe q g S (bounded_treesem r F (s, c) n)\<close>
+  unfolding sem_tree_safe_def sem_tree_nocrash_def sem_tree_postcond_def sem_tree_guar_def
+    sem_tree_states_def step_rel_sem_tree_def config_pred_sem_tree_def
   apply (induct arbitrary: s rule: safe.inducts)
+   apply force
+  apply (clarsimp simp add: bset.pred_map split: prod.splits)
+  apply (intro conjI allI impI)
+       apply (clarsimp simp add: image_def)
+
   sorry
 
 lemma sem_tree_safe_then_safe:
