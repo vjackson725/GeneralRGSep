@@ -5,9 +5,9 @@ begin
 
 section \<open> Operational Semantics \<close>
 
-type_synonym ('s, 'a) pstate = \<open>'s \<times> 's comm\<close>
+type_synonym ('s, 'a) pconfig = \<open>'s \<times> 's comm\<close>
 
-type_synonym ('s, 'a) cpstate = \<open>('s + unit) \<times> 's comm\<close>
+type_synonym ('s, 'a) cpconfig = \<open>('s + unit) \<times> 's comm\<close>
 
 subsection \<open> Actions \<close>
 
@@ -20,7 +20,7 @@ lemma act_not_eq_iff[simp]:
 
 subsection \<open> Operational semantics steps \<close>
 
-fun opstep :: \<open>unit act \<Rightarrow> ('s, unit) pstate \<Rightarrow> ('s, unit) cpstate \<Rightarrow> bool\<close> where
+fun opstep :: \<open>unit act \<Rightarrow> ('s, unit) pconfig \<Rightarrow> ('s, unit) cpconfig \<Rightarrow> bool\<close> where
   \<open>opstep \<alpha> (h, Skip) s' \<longleftrightarrow> False\<close>
 | \<open>opstep \<alpha> (h, c1 ;; c2) s' \<longleftrightarrow>
     \<alpha> = Tau \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
