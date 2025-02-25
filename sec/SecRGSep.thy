@@ -25,6 +25,8 @@ lemma RR_apply[simp]:
 
 
 
+definition box (\<open>\<^bold>\<box>\<close>) where
+  \<open>box p \<equiv> \<lambda>(x,y). p (x,y) \<and> p (x,x) \<and> p (y,y)\<close>
 
 
 definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
@@ -109,8 +111,8 @@ lemma neg_quasireflp:
   oops
 
 lemma both_quasireflp:
-  \<open>quasireflp (curry (\<bool> p))\<close>
-  unfolding sec_both_def reflp_on_def prepost_state_def' curry_def
+  \<open>quasireflp (curry (\<lblot> p \<rblot>))\<close>
+  unfolding twoPredLift_def reflp_on_def prepost_state_def' curry_def
   by blast
 
 lemma agree_quasireflp:
@@ -141,8 +143,8 @@ lemma not_symp:
   by (clarsimp simp add: symp_def sepconj_def)
 
 lemma both_symp:
-  \<open>symp (curry (\<bool> p))\<close>
-  unfolding sec_both_def symp_def prepost_state_def' curry_def
+  \<open>symp (curry (\<lblot> p \<rblot>))\<close>
+  unfolding twoPredLift_def symp_def prepost_state_def' curry_def
   by blast
 
 lemma agree_symp:
@@ -178,8 +180,8 @@ lemma not_transp:
   oops
 
 lemma both_transp:
-  \<open>transp (curry (\<bool> p))\<close>
-  unfolding sec_both_def transp_def prepost_state_def' curry_def
+  \<open>transp (curry (\<lblot> p \<rblot>))\<close>
+  unfolding twoPredLift_def transp_def prepost_state_def' curry_def
   by blast
 
 lemma agree_transp:
@@ -387,6 +389,11 @@ lemma split_as:
   \<open>\<bbbA> p = \<lblot> p \<rblot> \<squnion> \<lblot> -p \<rblot>\<close>
   by (force simp add: twoPredLift_def sec_agree_def fun_eq_iff)
 
+lemma twoLift_implies_box_closed:
+  \<open>(\<exists>px. p = \<lblot> px \<rblot>) \<Longrightarrow> \<^bold>\<box>p = p\<close>
+  unfolding box_def twoPredLift_def
+  by force
+
 
 section \<open> Program \<close>
 
@@ -402,7 +409,7 @@ section \<open> relational lifting \<close>
 abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
 definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
 
-fun liftC :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> ('s, 'a) comm \<Rightarrow> ('s \<times> 's, 'a) comm\<close> where
+fun liftC :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> 's comm \<Rightarrow> ('s \<times> 's) comm\<close> where
   \<open>liftC f Skip = Skip\<close>
 | \<open>liftC f (c1 ;; c2) = liftC f c1 ;; liftC f c2\<close>
 | \<open>liftC f (c1 \<parallel> c2) = liftC f c1 \<parallel> liftC f c2\<close>

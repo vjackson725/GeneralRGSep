@@ -25,6 +25,10 @@ lemma exch4_idem[simp]:
   \<open>exch4 (exch4 x) = x\<close>
   by (simp add: exch4_def split: prod.splits)
 
+lemma comp_exch4_eq_iff[simp]:
+  \<open>f \<circ> exch4 = g \<circ> exch4 \<longleftrightarrow> f = g\<close>
+  by (simp add: fun_eq_iff, blast)
+
 
 definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
   \<open>twoPredLift p q \<equiv> \<lambda>(x,y). p x \<and> q y\<close>
@@ -142,6 +146,15 @@ inductive tree_noninterference
   tree_noninterference_nil[intro!]: \<open>tree_noninterference r F \<oo> 0 c (Inl s)\<close>
 | tree_noninterference_suc[intro]:
   \<open>\<bbbA> \<oo> (exch4 (hl, hs)) \<Longrightarrow>
+    \<comment> \<open> when there is a non-determinism, the branches must be guarded and the branch taken
+          deterministic (for the current state). \<close>
+    (\<forall>c1 c2. c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<longrightarrow>
+      (\<exists>p1 q1 p2 q2.
+        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
+        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
+        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))) \<Longrightarrow>
     \<comment> \<open> closed under rely steps \<close>
     (\<And>hs'. r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<Longrightarrow>
     \<comment> \<open> closed under opsteps \<close>
@@ -160,6 +173,19 @@ inductive tree_noninterference
           tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))) \<Longrightarrow>
     tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs))\<close>
 
+definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where
+  \<open>quasirefl_cl p \<equiv> \<lambda>(x,y). p (x,y) \<and> p (x,x) \<and> p (y,y)\<close>
+
+lemma quasirefl_cl_mono:
+  \<open>p \<le> q \<Longrightarrow> \<^bold>\<box>p \<le> \<^bold>\<box>q\<close>
+  unfolding quasirefl_cl_def
+  by blast
+
+lemma
+  \<open>\<^bold>\<box>p = p \<longleftrightarrow> (\<forall>x y. p (x,y) \<longrightarrow> p (x,x) \<and> p (y,y))\<close>
+  unfolding quasirefl_cl_def
+  by (force simp add: fun_eq_iff)
+
 
 subsection \<open> Proofs about safe \<close>
 
@@ -173,6 +199,13 @@ lemma safe_nil_iff[simp]:
 lemma tree_noninterference_suc_iff:
   \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<longleftrightarrow>
     \<bbbA> \<oo> (exch4 (hl, hs)) \<and>
+    (\<forall>c1 c2. c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<longrightarrow>
+      (\<exists>p1 q1 p2 q2.
+        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
+        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
+        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))) \<and>
     (\<forall>hs'. r hs hs' \<longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<and>
     (\<forall>\<alpha> c' hl' hs'.
         ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
@@ -194,6 +227,14 @@ lemma tree_noninterference_suc_iff:
 lemma safe_sucD:
   \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow> \<bbbA> \<oo> (exch4 (hl, hs))\<close>
   \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<Longrightarrow>
+      (\<exists>p1 q1 p2 q2.
+        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
+        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
+        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))\<close>
+  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
     r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))\<close>
   \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
     ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
@@ -207,60 +248,92 @@ lemma safe_sucD:
       hlhlf' = hl' + hlf \<and>
       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
       tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))\<close>
-  by (erule tree_noninterference_sucE, simp; fail)+
+  by (erule tree_noninterference_sucE, (simp; blast))+
 
 lemma opstep_preserves_liftC':
-  \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl s', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
-proof (induct c arbitrary: s s' cx' \<alpha>)
+  \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
+proof (induct c arbitrary: s z' cx' \<alpha>)
   case Skip
   then show ?case by force
 next
   case (Seq c1 c2)
-  show ?case
-    using Seq.prems
-    apply clarsimp
-    apply (erule disjE)
-     apply force
-    apply (metis Seq.hyps(1) liftC'_simps(2))
-    done
+  then show ?case
+    by (simp, metis liftC'_simps(2))
 next
   case (Par c1 c2)
-  show ?case
-    using Par.prems
-    apply clarsimp
-    apply (elim disjE, metis)
-     apply (metis Par.hyps(1) liftC'_simps(3))
-    apply (metis Par.hyps(2) liftC'_simps(3))
-    done
+  then show ?case
+    by (simp, metis liftC'_simps(3))
 next
   case (Indet c1 c2)
-  then show ?case sorry
+  then show ?case
+    by force
 next
   case (Endet c1 c2)
-  then show ?case sorry
+  then show ?case
+    using Endet.prems
+    by (simp, metis Endet.hyps(2) liftC'_simps(5))
 next
   case (Atomic x1 x2)
   then show ?case
     apply (clarsimp split: if_splits)
-    apply (metis liftC'_simps(1))
+     apply (metis liftC'_simps(1))
+    apply (metis liftC'_rev_iff(7))
     done
 next
   case (Iter c)
-  then show ?case sorry
+  then show ?case
+    by (clarsimp split: if_splits, metis liftC'_simps(1), metis liftC'_simps(2,7))
 qed
 
-lemma opstep_prestate_liftC'_to_liftC:
-  \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl s', liftC' c') \<Longrightarrow>
-    \<bbbA> \<oo> (exch4 s) \<Longrightarrow>
-    (s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (Inl s', liftC \<oo> c')\<close>
-proof (induct c arbitrary: s s' \<alpha> c')
+lemma opstep_preserves_liftC:
+  \<open>(s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (z', lc') \<Longrightarrow> \<exists>c'. lc' = liftC \<oo> c'\<close>
+proof (induct c arbitrary: s \<alpha> z' lc')
+  case Skip
+  then show ?case
+    by simp
+next
+  case (Seq c1 c2)
+  then show ?case
+    by (simp, metis liftC_simps(2))
+next
+  case (Par c1 c2)
+  then show ?case
+    by (simp, metis liftC_simps(3))
+next
+  case (Indet c1 c2)
+  then show ?case
+    by (simp, metis)
+next
+  case (Endet c1 c2)
+  then show ?case
+    by (simp, metis liftC_simps(5))
+next
+  case (Atomic x1 x2)
+  then show ?case
+    apply (clarsimp split: if_splits)
+     apply (metis liftC_simps(1))
+    apply (metis liftC_rev_iff(7))
+    done
+next
+  case (Iter c)
+  then show ?case
+    by (simp split: if_splits, metis liftC_simps(1), metis liftC_simps(2,7))
+qed
+
+lemma opstep_prestate_liftC'_iff_liftC:
+  \<open>\<bbbA> \<oo> (exch4 s) \<Longrightarrow>
+    (s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', liftC' c') \<longleftrightarrow>
+      (s, liftC \<oo> c) \<midarrow>\<alpha>\<rightarrow> (z', liftC \<oo> c')\<close>
+proof (induct c arbitrary: s z' \<alpha> c')
   case Skip then show ?case
     by force
 next
   case (Seq c1 c2)
   show ?case
     using Seq.prems
-    by (clarsimp simp add: Seq.hyps(1) liftC_rev_iff liftC'_rev_iff)
+    apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff)
+    apply (metis Seq.hyps(1))
+    done
 next
   case (Par c1 c2)
   show ?case
@@ -278,15 +351,32 @@ next
   show ?case
     using Endet.prems
     apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff)
-    sorry
+    apply (metis Endet.hyps(1-2))
+    done
 next
   case (Atomic x1 x2)
   show ?case 
     using Atomic.prems
-    by (clarsimp simp add: liftC_rev_iff liftC'_rev_iff split: if_splits)
+    apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff split: if_splits)
+    apply (rule iffI)
+     apply clarsimp
+    apply clarsimp
+    apply (clarsimp simp add: sec_agree_def fun_eq_iff split: prod.splits)
+    apply blast
+    done
 next
   case (Iter c)
-  then show ?case sorry
+  show ?case
+    using Iter.prems
+    apply (clarsimp simp add: liftC_rev_iff liftC'_rev_iff split: if_splits)
+    apply (intro conjI allI impI)
+      apply clarsimp
+      apply (metis Iter.hyps opstep_preserves_liftC)
+     apply clarsimp
+     apply (metis Iter.hyps opstep_preserves_liftC')
+    apply clarsimp
+    apply (metis liftC'_cancel liftC'_simps(7) liftC_cancel liftC_simps(7))
+    done
 qed
 
 

@@ -325,7 +325,7 @@ lemma safe_then_sem_tree_safe:
   apply (clarsimp simp add: bset.pred_map split: prod.splits)
   apply (intro conjI allI impI)
        apply (clarsimp simp add: image_def)
-
+       apply blast
   sorry
 
 lemma sem_tree_safe_then_safe:
