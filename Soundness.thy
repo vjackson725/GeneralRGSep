@@ -18,6 +18,7 @@ lemma act_not_eq_iff[simp]:
   \<open>(\<forall>x. \<alpha> \<noteq> Vis x) \<longleftrightarrow> \<alpha> = Tau\<close>
   by (meson act.distinct act.exhaust)+
 
+
 subsection \<open> Operational semantics steps \<close>
 
 fun opstep :: \<open>unit act \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig \<Rightarrow> bool\<close> where
@@ -102,6 +103,11 @@ qed
 
 lemmas all_atom_comm_opstepD =
   all_atom_comm_opstep[rotated]
+
+lemma ex_act_neq[simp]:
+  \<open>\<exists>\<alpha>. \<alpha> \<noteq> Vis x\<close>
+  \<open>\<exists>\<alpha>. \<alpha> \<noteq> Tau\<close>
+  by blast+
 
 
 subsubsection \<open> adding parallel \<close>

@@ -392,125 +392,160 @@ theorem weak_noninterference:
 
 section \<open> Aligned Traces \<close>
 
-subsection \<open> Extended Opstep \<close>
+subsection \<open> Parallel-labelled actions \<close>
 
 text \<open> Extended Actions \<close>
 
-datatype ctrl_act =
-  INDetL
-  | INDetR
-  | ENDetL
-  | ENDetR
-  \<comment> \<open>
-    NOTE: we don't observe the scheduling of parallel, because it acts directly on the parts,
-    rather than performing a control move before actually doing the step.
-    One way to change this would be to add a "current process" state, and a switching action.
-    FIXME: the fact we have chosen a double skip exit, rather than a one-sided skip exit, might
-    have implications on the observables.
-  \<close>
-  | ParExit
-  | DoLoop
-  | DoExit
-  | Misc
+datatype 'a pact = PL \<open>'a pact\<close> | PR \<open>'a pact\<close> | Act 'a
 
-datatype ('a, 'b) eact = Ctrl 'a | Vis 'b
+fun strip_pact :: \<open>'a act pact \<Rightarrow> 'a act\<close> where
+  \<open>strip_pact (Act \<alpha>) = \<alpha>\<close>
+| \<open>strip_pact (PL \<beta>) = strip_pact \<beta>\<close>
+| \<open>strip_pact (PR \<beta>) = strip_pact \<beta>\<close>
 
-abbreviation \<open>CtrlINDetL \<equiv> Ctrl INDetL\<close>
-abbreviation \<open>CtrlINDetR \<equiv> Ctrl INDetR\<close>
-abbreviation \<open>CtrlENDetL \<equiv> Ctrl ENDetL\<close>
-abbreviation \<open>CtrlENDetR \<equiv> Ctrl ENDetR\<close>
-abbreviation \<open>CtrlParExit \<equiv> Ctrl ParExit\<close>
-abbreviation \<open>CtrlDoLoop \<equiv> Ctrl DoLoop\<close>
-abbreviation \<open>CtrlDoExit \<equiv> Ctrl DoExit\<close>
-abbreviation \<open>CtrlMisc \<equiv> Ctrl Misc\<close>
+fun act_pact :: \<open>'a act pact \<Rightarrow> 'a act\<close> where
+  \<open>act_pact (Act \<alpha>) = \<alpha>\<close>
+| \<open>act_pact _ = undefined\<close>
 
 
-paragraph \<open> Extended Opstep \<close>
+text \<open>
+  In a pact, a tau move may be buried under parallel synchronisation labels.
+  In programs where sub-programs may take actions (\<box>), we need an
+  inductive test for whether an action is internal, as the sub-program may be a parallel.
+\<close>
+abbreviation \<open>pact_tau \<beta> \<equiv> strip_pact \<beta> = Tau\<close>
 
-fun eopstep :: \<open>(ctrl_act, unit) eact \<Rightarrow> ('s, unit) pconfig \<Rightarrow> ('s, unit) cpconfig \<Rightarrow> bool\<close> where
-  \<open>eopstep \<alpha> (h, Skip) s' \<longleftrightarrow> False\<close>
-| \<open>eopstep \<alpha> (h, c1 ;; c2) s' \<longleftrightarrow>
-    \<alpha> = CtrlMisc \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
-    (\<exists>h' c1'. eopstep \<alpha> (h,c1) (h',c1') \<and> s' = (h', c1' ;; c2))\<close>
-| \<open>eopstep \<alpha> (h, c1 \<^bold>+ c2) s' \<longleftrightarrow>
-    \<alpha> = CtrlINDetL \<and> s' = (Inl h, c1) \<or>
-    \<alpha> = CtrlINDetR \<and> s' = (Inl h, c2)\<close>
-| \<open>eopstep \<alpha> (h, c1 \<box> c2) s' \<longleftrightarrow>
-    (\<forall>x. \<alpha> \<noteq> Ctrl x) \<and> eopstep \<alpha> (h, c1) s' \<or>
-    (\<forall>x. \<alpha> \<noteq> Ctrl x) \<and> eopstep \<alpha> (h, c2) s' \<or>
-    (\<exists>x. \<alpha> \<noteq> Ctrl x) \<and> (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> eopstep \<alpha> (h, c1) (h', c1')) \<or>
-    (\<exists>x. \<alpha> \<noteq> Ctrl x) \<and> (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> eopstep \<alpha> (h, c2) (h', c2')) \<or>
-    \<alpha> = CtrlENDetL \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
-    \<alpha> = CtrlENDetR \<and> c2 = Skip \<and> s' = (Inl h, c1)\<close>
-| \<open>eopstep \<alpha> (h, c1 \<parallel> c2) s' \<longleftrightarrow>
-    \<alpha> = CtrlParExit \<and> c1 = Skip \<and> c2 = Skip \<and> s' = (Inl h, Skip) \<or>
-    (\<exists>h' c1'. eopstep \<alpha> (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2)) \<or>
-    (\<exists>h' c2'. eopstep \<alpha> (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2'))\<close>
-| \<open>eopstep \<alpha> (h, DO c OD) s' \<longleftrightarrow>
-      (if \<forall>\<alpha>' s'. \<not> eopstep \<alpha>' (h, c) s' then
-        \<alpha> = CtrlDoExit \<and> s' = (Inl h, Skip)
+
+subsection \<open> Extended Opstep \<close>
+
+fun eopstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig \<Rightarrow> bool\<close> where
+  \<open>eopstep \<beta> (h, Skip) s' \<longleftrightarrow> False\<close>
+| \<open>eopstep \<beta> (h, c1 ;; c2) s' \<longleftrightarrow>
+    \<beta> = Act Tau \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
+    (\<exists>h' c1'. eopstep \<beta> (h,c1) (h',c1') \<and> s' = (h', c1' ;; c2))\<close>
+| \<open>eopstep \<beta> (h, c1 \<^bold>+ c2) s' \<longleftrightarrow>
+    \<beta> = Act Tau \<and> s' = (Inl h, c1) \<or>
+    \<beta> = Act Tau \<and> s' = (Inl h, c2)\<close>
+| \<open>eopstep \<beta> (h, c1 \<box> c2) s' \<longleftrightarrow>
+    (if pact_tau \<beta> then
+      (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> eopstep \<beta> (h, c1) (h', c1')) \<or>
+      (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> eopstep \<beta> (h, c2) (h', c2')) \<or>
+      c1 = Skip \<and> s' = (Inl h, c2) \<or>
+      c2 = Skip \<and> s' = (Inl h, c1)
+    else
+      eopstep \<beta> (h, c1) s' \<or> eopstep \<beta> (h, c2) s')\<close>
+| \<open>eopstep \<beta> (h, c1 \<parallel> c2) s' \<longleftrightarrow>
+    \<beta> = Act Tau \<and> c1 = Skip \<and> c2 = Skip \<and> s' = (Inl h, Skip) \<or>
+    (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. eopstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
+    (\<exists>\<beta>x. \<beta> = PR \<beta>x \<and> (\<exists>h' c2'. eopstep \<beta>x (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2')))\<close>
+| \<open>eopstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
+      (if \<forall>\<beta>x s'. \<not> eopstep \<beta>x (h, c) s' then
+        \<beta> = Act Tau \<and> s' = (Inl h, Skip)
       else
-        \<alpha> = CtrlDoLoop \<and> s' = (Inl h, c ;; DO c OD))\<close>
-| \<open>eopstep \<alpha> (h, Atomic ap aq) s' \<longleftrightarrow>
-    (\<exists>a. \<alpha> = Vis a \<and> (if ap h
-                  then \<exists>h'. aq h h' \<and> fst s' = Inl h' \<and> snd s' = Skip
-                  else fst s' = Inr () \<and> snd s' = Atomic ap aq))\<close>
+        \<beta> = Act Tau \<and> s' = (Inl h, c ;; DO c OD))\<close>
+| \<open>eopstep \<beta> (h, Atomic ap aq) s' \<longleftrightarrow>
+    (\<exists>a. \<beta> = Act (Vis a) \<and>
+          (if ap h
+            then \<exists>h'. aq h h' \<and> fst s' = Inl h' \<and> snd s' = Skip
+            else fst s' = Inr () \<and> snd s' = Atomic ap aq))\<close>
 
 
 paragraph \<open> Pretty extended operational semantics \<close>
 
 abbreviation pretty_eopstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow>\<^sub>e _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>\<alpha>\<rightarrow>\<^sub>e ht \<equiv> eopstep \<alpha> hs ht\<close>
+  \<open>hs \<midarrow>\<beta>\<rightarrow>\<^sub>e ht \<equiv> eopstep \<beta> hs ht\<close>
 
-abbreviation pretty_no_eopstep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<^sub>e\<close> [60] 60) where
-  \<open>hs \<midarrow>|\<rightarrow>\<^sub>e \<equiv> \<forall>\<alpha> ht. \<not> eopstep \<alpha> hs ht\<close>
+abbreviation pretty_no_eopstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<^sub>e\<close> [60] 60) where
+  \<open>hs \<midarrow>|\<rightarrow>\<^sub>e \<equiv> \<forall>\<beta> ht. \<not> eopstep \<beta> hs ht\<close>
 
 
-subsection \<open> Lemmas about opstep \<close>
-
-named_theorems opstep_iff
+subsubsection \<open> eopstep lemmas \<close>
 
 lemma eopstep_tau_preserves_heap:
-  assumes \<open>s \<midarrow>Ctrl x\<rightarrow>\<^sub>e s'\<close>
-  shows \<open>fst s' = Inl (fst s)\<close>
-proof -
-  { fix \<alpha>
-    have \<open>s \<midarrow>\<alpha>\<rightarrow>\<^sub>e s' \<Longrightarrow> \<alpha> = Ctrl x \<Longrightarrow> fst s' = Inl (fst s)\<close>
-      by (induct \<alpha> s s' arbitrary: x rule: eopstep.induct) (force split: if_splits)+
-  }
-  then show ?thesis
-    using assms by force
-qed
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>e zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
+  by (induct rule: eopstep.induct) (force split: if_splits)+
 
-lemma eopstep_act_cases:
-  \<open>s \<midarrow>\<alpha>\<rightarrow>\<^sub>e s' \<Longrightarrow>
-    (\<And>x. \<alpha> = Ctrl x \<Longrightarrow> s \<midarrow>Ctrl x\<rightarrow>\<^sub>e s' \<Longrightarrow> fst s' = Inl (fst s) \<Longrightarrow> P) \<Longrightarrow>
-    (\<And>x. \<alpha> = Vis x \<Longrightarrow> s \<midarrow>Vis x\<rightarrow>\<^sub>e s' \<Longrightarrow> P) \<Longrightarrow>
-    P\<close>
-  by (metis eact.exhaust eopstep_tau_preserves_heap)
+lemma no_opstep_then_no_eopstep:
+  \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>e\<close>
+  apply (induct rule: eopstep.induct)
+        apply (clarsimp split: if_splits; fail)
+       apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
+      apply fastforce
+     apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits)
+     apply (subgoal_tac \<open>(\<forall>\<alpha> a b. \<not> (h, c1) \<midarrow>\<alpha>\<rightarrow> (a, b)) \<and> (\<forall>\<alpha> a b. \<not> (h, c2) \<midarrow>\<alpha>\<rightarrow> (a, b))\<close>)
+      prefer 2
+      apply (metis (full_types) unit.exhaust opstep_act_cases)
+     apply (case_tac \<open>strip_pact \<beta>\<close>; force)
+    apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
+   apply (clarsimp simp add: all_conj_distrib split: if_splits, blast)
+  apply (simp; fail)
+  done
 
-lemma eopstep_preserves_all_atom_comm:
-  assumes
-    \<open>(h, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>e (h', c')\<close>
-    \<open>all_atom_comm p c\<close>
-  shows
-    \<open>all_atom_comm p c'\<close>
-proof -
-  { fix s s'
-    assume \<open>eopstep \<alpha> s s'\<close>
-      and \<open>all_atom_comm p (snd s)\<close>
-    then have \<open>all_atom_comm p (snd s')\<close>
-      by (induct \<alpha> s s' rule: eopstep.induct) (force split: if_splits)+
-  }
-  then show ?thesis
-    using assms
-    by (metis snd_conv)
-qed
+lemma no_eopstep_then_no_opstep:
+  \<open>sc \<midarrow>|\<rightarrow>\<^sub>e \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
+  apply (induct rule: eopstep.induct)
+        apply (clarsimp split: if_splits; fail)
+       apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
+      apply fastforce
+     apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits)
+     apply (case_tac \<open>strip_pact \<beta>\<close>)
+      apply (metis act.distinct(1))
+     apply (simp, metis act.distinct(1) strip_pact.simps(1))
+    apply (clarsimp, metis)
+   apply (clarsimp, metis)
+  apply force
+  done
 
-lemmas eopstep_preserves_all_atom_commD =
-  eopstep_preserves_all_atom_comm[rotated]
+lemma strip_eopstep:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>e zc' \<Longrightarrow> sc \<midarrow>strip_pact \<beta>\<rightarrow> zc'\<close>
+  apply (induct \<beta> sc zc' rule: eopstep.induct)
+        apply fastforce
+       apply fastforce
+      apply fastforce
+     apply (clarsimp split: if_splits)
+      apply blast
+     apply blast
+    apply (clarsimp, metis act.distinct(1) strip_pact.simps(1-3))
+   apply (force simp add: no_eopstep_then_no_opstep split: if_splits)
+  apply force
+  done
 
-subsection \<open> Trace Semantics \<close>
+
+subsection \<open> Full step \<close>
+
+datatype 'a fact = Loc 'a | Env
+
+fun fstep
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        unit act pact fact \<Rightarrow>
+        ('l \<times> 's) pconfig \<Rightarrow>
+        ('l \<times> 's) cpconfig \<Rightarrow>
+        bool\<close>
+  where
+  \<open>fstep r F Env sc zc' =
+    (\<exists>hl hs hs' c. sc = ((hl,hs),c) \<and> zc' = (Inl (hl,hs'), c) \<and> r hs hs')\<close>
+| \<open>fstep r F (Loc \<alpha>) sc zc' =
+    (eopstep \<alpha> sc zc' \<or>
+      eopstep \<alpha> sc zc' \<and> undefined)\<close>
+
+
+paragraph \<open> Pretty extended operational semantics \<close>
+
+abbreviation pretty_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f _\<close> [60,0,0,0,60] 60) where
+  \<open>sc \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>f zc' \<equiv> fstep r F \<gamma> sc zc'\<close>
+
+abbreviation pretty_no_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>f\<close> [60] 60) where
+  \<open>sc \<midarrow>r, F, |\<rightarrow>\<^sub>f \<equiv> \<forall>\<gamma> zc'. \<not> fstep r F \<gamma> sc zc'\<close>
+
+
+subsubsection \<open> Lemmas about fstep \<close>
+
+
+
+
+
+section \<open> Trace Semantics \<close>
 
 
 paragraph \<open> Pretty extended operational semantics \<close>
@@ -519,32 +554,48 @@ paragraph \<open> Pretty extended operational semantics \<close>
 text \<open>
   NOTE: the most recent action is at the *end* of the list
 \<close>
-inductive eopsteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> where
-  eopsteps_base: \<open>eopstep \<alpha> sc zc' \<Longrightarrow> eopsteps [\<alpha>] sc zc'\<close>
-| eopsteps_step:
-    \<open>eopstep \<alpha> sc (Inl s', c') \<Longrightarrow>
-      eopsteps \<alpha>s (s', c') zc'' \<Longrightarrow>
-      eopsteps (\<alpha>#\<alpha>s) sc zc''\<close>
+inductive fsteps
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      _ list \<Rightarrow>
+      ('l \<times> 's) pconfig \<Rightarrow>
+      ('l \<times> 's) cpconfig \<Rightarrow>
+      bool\<close>
+  where
+  eopsteps_nil[intro!]: \<open>zc' = (Inl (fst sc), snd sc) \<Longrightarrow> fsteps r F [] sc zc'\<close>
+| eopsteps_step[intro!]:
+    \<open>fstep r F \<alpha> sc (Inl s', c') \<Longrightarrow>
+      fsteps r F \<alpha>s (s', c') zc'' \<Longrightarrow>
+      fsteps r F (\<alpha>#\<alpha>s) sc zc''\<close>
 
-abbreviation pretty_eopsteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow>\<^sub>e\<^sup>+ _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>\<alpha>s\<rightarrow>\<^sub>e\<^sup>+ ht \<equiv> eopsteps \<alpha>s hs ht\<close>
+inductive_cases fsteps_nil[elim!]: \<open>fsteps r F [] sc zc'\<close>
+inductive_cases fsteps_step[elim!]: \<open>fsteps r F (\<alpha> # \<alpha>s) sc zc'\<close>
+
+abbreviation pretty_fsteps (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f\<^sup>+ _\<close> [60,0,60] 60) where
+  \<open>hs \<midarrow>r, F, \<alpha>s\<rightarrow>\<^sub>f\<^sup>+ ht \<equiv> fsteps r F \<alpha>s hs ht\<close>
 
 
-subsection \<open> Aligned \<close>
+subsection \<open> Alignment \<close>
 
-inductive trace_alignment :: \<open>(ctrl_act, 'b) eact list \<Rightarrow> (ctrl_act, 'b) eact list \<Rightarrow> bool\<close> where
-  align_base: \<open>trace_alignment [] []\<close>
-| align_indetl: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlINDetL # xs) (CtrlINDetL # ys)\<close>
-| align_indetr: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlINDetR # xs) (CtrlINDetR # ys)\<close>
-| align_endetl: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlENDetL # xs) (CtrlENDetL # ys)\<close>
-| align_endetr: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlENDetR # xs) (CtrlENDetR # ys)\<close>
-| align_parexit: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlParExit # xs) (CtrlParExit # ys)\<close>
-| align_doloop: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlDoLoop # xs) (CtrlDoLoop # ys)\<close>
-| align_doexit: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlDoExit # xs) (CtrlDoExit # ys)\<close>
-| align_miscA: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (CtrlMisc # xs) ys\<close>
-| align_miscB: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment xs (CtrlMisc # ys)\<close>
-| align_visA: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment (Vis b # xs) ys\<close>
-| align_visB: \<open>trace_alignment xs ys \<Longrightarrow> trace_alignment xs (Vis b # ys)\<close>
+fun pact_aligned :: \<open>'a pact \<Rightarrow> 'a pact \<Rightarrow> bool\<close> where
+  \<open>pact_aligned (PL \<beta>x) (PL \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
+| \<open>pact_aligned (PR \<beta>x) (PR \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
+| \<open>pact_aligned (Act \<alpha>x) (Act \<alpha>y) \<longleftrightarrow> True\<close>
+| \<open>pact_aligned _ _ \<longleftrightarrow> False\<close>
+
+fun fact_aligned :: \<open>'a pact fact \<Rightarrow> 'a pact fact \<Rightarrow> bool\<close> where
+  \<open>fact_aligned Env Env \<longleftrightarrow> True\<close>
+| \<open>fact_aligned (Loc \<beta>x) (Loc \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
+| \<open>fact_aligned _ _ \<longleftrightarrow> False\<close>
+
+lemma fact_aligned_iff:
+  \<open>fact_aligned \<gamma>x \<gamma>y \<longleftrightarrow>
+    \<gamma>x = Env \<and> \<gamma>y = Env \<or>
+    (\<exists>\<beta>x \<beta>y. \<gamma>x = Loc \<beta>x \<and> \<gamma>y = Loc \<beta>y \<and> pact_aligned \<beta>x \<beta>y)\<close>
+  by (meson fact_aligned.elims(2) fact_aligned.simps(1-2))
+
+
+abbreviation \<open>parallel_aligned \<equiv> list_all2 fact_aligned\<close>
 
 
 section \<open> (Strong) Non-interference \<close>
@@ -573,22 +624,86 @@ inductive noleak_wf :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> 's comm \<Righ
     noleak_wf \<oo> (DO c OD)\<close>
 | noleak_wf_atom[intro!]: \<open>noleak_wf \<oo> (Atomic p q)\<close>
 
+
+definition
+  \<open>rely_obs_safe \<oo> r \<equiv>
+    \<forall>hlx hly hsx hsy hs'x hs'y.
+      \<bbbA> \<oo> ((hlx,hsx), (hly,hsy)) \<longrightarrow>
+      r hsx hs'x \<longrightarrow>
+      r hsy hs'y \<longrightarrow>
+      \<bbbA> \<oo> ((hlx,hs'x), (hly,hs'y))\<close>
+
+lemma noninterference_step:
+  fixes n :: nat
+    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and sx sy :: \<open>'l \<times> 's\<close>
+    and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
+    and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
+  shows
+  \<open>(sx, c) \<midarrow>r, F, \<gamma>x\<rightarrow>\<^sub>f (Inl sx', cx') \<Longrightarrow>
+    (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
+    fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
+    rely_obs_safe \<oo> r \<Longrightarrow>
+    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
+    \<bbbA> \<oo> (sx', sy')\<close>
+  apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
+  apply (erule disjE)
+   apply (force simp del: comp_apply simp add: rely_obs_safe_def)
+  apply clarsimp
+  sorry
+
+
 theorem noninterference:
-  \<open>safe n cc zz r g q S F \<Longrightarrow>
+  fixes n :: nat
+    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and sx sy :: \<open>'l \<times> 's\<close>
+    and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
+    and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
+  shows
+  \<open>safe n cc zz rr gg qq SS FF \<Longrightarrow>
     cc = liftC' c \<Longrightarrow>
-    zz = Inl (sx, sy) \<Longrightarrow>
-    S \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
-    S \<^emph>\<and> F \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    zz = Inl (exch4 (sx, sy)) \<Longrightarrow>
+    rr = liftR r \<Longrightarrow>
+    FF = (liftP F \<circ> exch4) \<Longrightarrow>
+    SS \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     noleak_wf \<oo> c \<Longrightarrow>
-    (sx, c) \<midarrow>\<alpha>sx\<rightarrow>\<^sub>e\<^sup>+ (zx', cx') \<Longrightarrow>
-    (sy, c) \<midarrow>\<alpha>sy\<rightarrow>\<^sub>e\<^sup>+ (zy', cy') \<Longrightarrow>
-    trace_alignment \<alpha>sx \<alpha>sy \<Longrightarrow>
-    \<exists>sx' sy'.
-      zx' = Inl sx' \<and>
-      zy' = Inl sy' \<and>
-      \<bbbA> \<oo> (sx', sy')\<close>
-  apply (induct arbitrary: c sx sy rule: safe.inducts)
+    \<alpha>sx \<noteq> [] \<Longrightarrow>
+    \<alpha>sy \<noteq> [] \<Longrightarrow>
+    length \<alpha>sx \<le> n \<Longrightarrow>
+    length \<alpha>sy \<le> n \<Longrightarrow>
+    (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f\<^sup>+ (Inl sx', cx') \<Longrightarrow>
+    (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f\<^sup>+ (Inl sy', cy') \<Longrightarrow>
+    parallel_aligned \<alpha>sx \<alpha>sy \<Longrightarrow>
+    \<bbbA> \<oo> (sx', sy')\<close>
+proof (induct arbitrary: c sx sy \<alpha>sx \<alpha>sy r F rule: safe.inducts)
+  case (safe_nil c hl hs r g q S F)
+  then show ?case by force
+next
+  case (safe_suc cc qq hl hs SS rr n gg FF)
+  
+  show ?case
+    using safe_suc.prems
+    apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
+    apply (erule fsteps.cases, force)
+    apply (erule fsteps.cases, force)
+    apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
+    apply (erule disjE)
+     apply (clarsimp simp del: comp_apply)
+     apply (rename_tac x1 hsx hsx' \<alpha>sx y1 hsy hsy' \<alpha>sy)
+    sorry
+qed
+  
+  
+
   oops
+
+
+
+
+
+
+
 
 
 section \<open> [OLD] Noninterference \<close>
