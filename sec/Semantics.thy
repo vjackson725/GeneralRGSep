@@ -134,7 +134,7 @@ section \<open> Tree Noninterference \<close>
 
 section \<open> Safe \<close>
 
-inductive tree_noninterference
+inductive tree_weak_noninterference
   :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
       (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
       ('l \<times> 's \<Rightarrow> 'v) \<Rightarrow>
@@ -143,24 +143,15 @@ inductive tree_noninterference
       ('l \<times> 'l) \<times> ('s \<times> 's) + unit \<Rightarrow>
       bool\<close>
   where
-  tree_noninterference_nil[intro!]: \<open>tree_noninterference r F \<oo> 0 c (Inl s)\<close>
-| tree_noninterference_suc[intro]:
+  tree_weak_noninterference_nil[intro!]: \<open>tree_weak_noninterference r F \<oo> 0 c (Inl s)\<close>
+| tree_weak_noninterference_suc[intro]:
   \<open>\<bbbA> \<oo> (exch4 (hl, hs)) \<Longrightarrow>
-    \<comment> \<open> when there is a non-determinism, the branches must be guarded and the branch taken
-          deterministic (for the current state). \<close>
-    (\<forall>c1 c2. c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<longrightarrow>
-      (\<exists>p1 q1 p2 q2.
-        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
-        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
-        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))) \<Longrightarrow>
     \<comment> \<open> closed under rely steps \<close>
-    (\<And>hs'. r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<Longrightarrow>
+    (\<And>hs'. r hs hs' \<Longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))) \<Longrightarrow>
     \<comment> \<open> closed under opsteps \<close>
     (\<And>\<alpha> c' hl' hs'.
         ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
-        tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))) \<Longrightarrow>
+        tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))) \<Longrightarrow>
     \<comment> \<open> closed under framed opsteps \<close>
     (\<And>\<alpha> c' hlf hlhlf' hs'.
         hl ## hlf \<Longrightarrow>
@@ -170,8 +161,8 @@ inductive tree_noninterference
           hl' ## hlf \<and>
           hlhlf' = hl' + hlf \<and>
           (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))) \<Longrightarrow>
-    tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs))\<close>
+          tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))) \<Longrightarrow>
+    tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs))\<close>
 
 definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where
   \<open>quasirefl_cl p \<equiv> \<lambda>(x,y). p (x,y) \<and> p (x,x) \<and> p (y,y)\<close>
@@ -189,27 +180,20 @@ lemma
 
 subsection \<open> Proofs about safe \<close>
 
-inductive_cases tree_noninterference_zeroE[elim!]: \<open>tree_noninterference r F \<oo> 0 c s\<close>
-inductive_cases tree_noninterference_sucE[elim]: \<open>tree_noninterference r F \<oo> (Suc n) c s\<close>
+inductive_cases tree_weak_noninterference_zeroE[elim!]: \<open>tree_weak_noninterference r F \<oo> 0 c s\<close>
+inductive_cases tree_weak_noninterference_sucE[elim]: \<open>tree_weak_noninterference r F \<oo> (Suc n) c s\<close>
 
 lemma safe_nil_iff[simp]:
-  \<open>tree_noninterference r F \<oo> 0 c s \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
+  \<open>tree_weak_noninterference r F \<oo> 0 c s \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
   by force
 
-lemma tree_noninterference_suc_iff:
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<longleftrightarrow>
+lemma tree_weak_noninterference_suc_iff:
+  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<longleftrightarrow>
     \<bbbA> \<oo> (exch4 (hl, hs)) \<and>
-    (\<forall>c1 c2. c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<longrightarrow>
-      (\<exists>p1 q1 p2 q2.
-        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
-        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
-        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))) \<and>
-    (\<forall>hs'. r hs hs' \<longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))) \<and>
+    (\<forall>hs'. r hs hs' \<longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))) \<and>
     (\<forall>\<alpha> c' hl' hs'.
         ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
-        tree_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))) \<and>
+        tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))) \<and>
     (\<forall>\<alpha> c' hlf hlhlf' hs'.
         hl ## hlf \<longrightarrow>
         ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
@@ -218,28 +202,20 @@ lemma tree_noninterference_suc_iff:
           hl' ## hlf \<and>
           hlhlf' = hl' + hlf \<and>
           (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          tree_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))))\<close>
+          tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))))\<close>
   apply (rule iffI)
-   apply (erule tree_noninterference_sucE, force)
-  apply (rule tree_noninterference_suc; presburger)
+   apply (erule tree_weak_noninterference_sucE, force)
+  apply (rule tree_weak_noninterference_suc; presburger)
   done
 
 lemma safe_sucD:
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow> \<bbbA> \<oo> (exch4 (hl, hs))\<close>
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
-    c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<Longrightarrow>
-      (\<exists>p1 q1 p2 q2.
-        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
-        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
-        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
-          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))\<close>
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
-    r hs hs' \<Longrightarrow> tree_noninterference r F \<oo> n c (Inl (hl, hs'))\<close>
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow> \<bbbA> \<oo> (exch4 (hl, hs))\<close>
+  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    r hs hs' \<Longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))\<close>
+  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
     ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
-    tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))\<close>
-  \<open>tree_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
+    tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))\<close>
+  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
     F (hlf, hs) \<Longrightarrow>
@@ -247,8 +223,8 @@ lemma safe_sucD:
       hl' ## hlf \<and>
       hlhlf' = hl' + hlf \<and>
       (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-      tree_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))\<close>
-  by (erule tree_noninterference_sucE, (simp; blast))+
+      tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))\<close>
+  by (erule tree_weak_noninterference_sucE, (simp; blast))+
 
 lemma opstep_preserves_liftC':
   \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
@@ -379,58 +355,40 @@ next
     done
 qed
 
-
-definition
-  \<open>preserves_indist \<oo> \<equiv>
-    (\<lambda>p q. \<forall>xx yy. p xx \<longrightarrow> q xx yy \<longrightarrow> (\<bbbA> \<oo> \<circ> exch4) xx \<longrightarrow> (\<bbbA> \<oo> \<circ> exch4) yy)\<close>
-
-theorem tree_noninterference:
-  \<open>safe n cc z r g q S F \<Longrightarrow>
-    cc = liftC \<oo> c \<Longrightarrow>
-    z = Inl s \<Longrightarrow>
-    \<bbbA> \<oo> \<circ> exch4 \<le> wssa r (\<bbbA> \<oo> \<circ> exch4) \<Longrightarrow>
-    q \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
-    \<bbbA> \<oo> (exch4 s) \<Longrightarrow>
-    all_atom_comm (preserves_indist \<oo>) (liftC' c) \<Longrightarrow>
-    tree_noninterference r F \<oo> n c z\<close>
-  apply (induct arbitrary: c s rule: safe.inducts)
-   apply force
-  apply (clarsimp simp add: liftC_rev_iff tree_noninterference_suc_iff)
-  apply (rename_tac c hla hlb hsa hsb)
-  apply (intro conjI)
-    apply (metis (no_types, lifting) antisym comp_apply exch4_apply wssa_stepD wssa_weaker)
-   apply clarsimp
-   apply (frule opstep_preserves_liftC')
-   apply clarsimp
-   apply (frule opstep_prestate_liftC'_to_liftC, force)
-   apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_mp, assumption)
-   apply clarsimp
-  oops
-
-theorem tree_noninterference2:
+theorem weak_noninterference:
   \<open>safe n cc z r g q S F \<Longrightarrow>
     cc = liftC' c \<Longrightarrow>
     z = Inl s \<Longrightarrow>
     S \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     S \<^emph>\<and> F \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
-    tree_noninterference r F \<oo> n c z\<close>
+    tree_weak_noninterference r F \<oo> n c z\<close>
   apply (induct arbitrary: c s rule: safe.inducts)
    apply force
-  apply (clarsimp simp add: liftC_rev_iff tree_noninterference_suc_iff)
+  apply (clarsimp simp add: liftC_rev_iff tree_weak_noninterference_suc_iff)
   apply (rename_tac c hla hlb hsa hsb)
   apply (intro conjI)
     apply (force simp add: le_fun_def)
    apply clarsimp
    apply (frule opstep_preserves_liftC')
-   apply force
+   apply (metis unlift_lift'_cancel)
   apply clarsimp
   apply (frule opstep_preserves_liftC')
   apply clarsimp
-  apply (frule opstep_prestate_liftC'_to_liftC[of _ _ _ _ _ \<oo>])
-   apply (clarsimp simp add: le_fun_def sepconj_conj_def)
-   apply metis
-  apply metis
+  apply (drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, rule conjI, assumption, assumption , drule meta_mp, assumption)
+  apply blast
   done
+
+
+(*
+    (\<forall>c1 c2. c = c1 \<box> c2 \<or> c = c1 \<^bold>+ c2 \<longrightarrow>
+      (\<exists>p1 q1 p2 q2.
+        (\<exists>c1'. c1 = \<langle> p1, q1 \<rangle> ;; c1') \<and>
+        (\<exists>c2'. c2 = \<langle> p2, q2 \<rangle> ;; c2') \<and>
+        (\<forall>x y. exch4 (hl, hs) = (x, y) \<longrightarrow>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) x \<and>
+          \<not> (p1 \<sqinter> pre_state q1 \<sqinter> p2 \<sqinter> pre_state q2) y))) \<and>
+*)
 
 
 section \<open> [OLD] Noninterference \<close>
