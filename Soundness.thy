@@ -9,6 +9,7 @@ type_synonym 's pconfig = \<open>'s \<times> 's comm\<close>
 
 type_synonym 's cpconfig = \<open>('s + unit) \<times> 's comm\<close>
 
+
 subsection \<open> Actions \<close>
 
 datatype 'a act = Tau | Vis 'a
@@ -74,6 +75,40 @@ proof -
   }
   then show ?thesis
     using assms by force
+qed
+
+lemma vis_step_impl_atom:
+  assumes
+    \<open>(s, c) \<midarrow>Vis x\<rightarrow> (z', c')\<close>
+  shows
+    \<open>\<exists>p q.
+      (p, q) \<in> head_atoms c \<and>
+      ((p s \<longrightarrow> (\<exists>s'. z' = Inl s' \<and> q s s')) \<and>
+        (\<not> p s \<longrightarrow> z' = Inr ()))\<close>
+proof -
+  { fix \<alpha> sc zc'
+    have
+      \<open>sc \<midarrow>\<alpha>\<rightarrow> zc' \<Longrightarrow>
+        sc = (s, c) \<Longrightarrow>
+        zc' = (z', c') \<Longrightarrow>
+        \<alpha> = Vis x \<Longrightarrow>
+        \<exists>p q.
+          (p, q) \<in> head_atoms c \<and>
+          ((p s \<longrightarrow> (\<exists>s'. z' = Inl s' \<and> q s s')) \<and>
+            (\<not> p s \<longrightarrow> z' = Inr ()))\<close>
+      apply (induct \<alpha> sc zc' arbitrary: c s z' c' rule: opstep.induct)
+            apply force
+           apply (clarsimp; fail)
+          apply force
+         apply (clarsimp, metis)
+        apply (clarsimp, metis)
+       apply (clarsimp split: if_splits; fail)
+      apply force
+      done
+  }
+  then show ?thesis
+    using assms
+    by blast
 qed
 
 lemma opstep_act_cases:

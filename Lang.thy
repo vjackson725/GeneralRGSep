@@ -57,51 +57,73 @@ lemma map_comm_rev_iff:
 
 lemmas map_comm_rev_iff2 = map_comm_rev_iff[THEN trans[OF eq_commute]]
 
-subsection \<open> All atom commands predicate \<close>
+
+subsection \<open> All Atoms \<close>
+
+fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
+  \<open>all_atoms Skip = {}\<close>
+| \<open>all_atoms (ca ;; cb) = all_atoms ca \<union> all_atoms cb\<close>
+| \<open>all_atoms (ca \<parallel> cb) = (all_atoms ca \<union> all_atoms cb)\<close>
+| \<open>all_atoms (ca \<^bold>+ cb) = (all_atoms ca \<union> all_atoms cb)\<close>
+| \<open>all_atoms (ca \<box> cb) = (all_atoms ca \<union> all_atoms cb)\<close>
+| \<open>all_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
+| \<open>all_atoms (DO c OD) = all_atoms c\<close>
+
+
+subsubsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-inductive all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
-  skip[iff]: \<open>all_atom_comm P Skip\<close>
-| seq[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 ;; c2)\<close>
-| par[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<parallel> c2)\<close>
-| indet[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<^bold>+ c2)\<close>
-| endet[intro!]: \<open>all_atom_comm P c1 \<Longrightarrow> all_atom_comm P c2 \<Longrightarrow> all_atom_comm P (c1 \<box> c2)\<close>
-| iter[intro!]: \<open>all_atom_comm P c \<Longrightarrow> all_atom_comm P (DO c OD)\<close>
-| atom[intro!]: \<open>P p q \<Longrightarrow> all_atom_comm P (Atomic p q)\<close>
-
-inductive_cases all_atom_comm_seqE[elim!]: \<open>all_atom_comm P (c1 ;; c2)\<close>
-inductive_cases all_atom_comm_indetE[elim!]: \<open>all_atom_comm P (c1 \<^bold>+ c2)\<close>
-inductive_cases all_atom_comm_endetE[elim!]: \<open>all_atom_comm P (c1 \<box> c2)\<close>
-inductive_cases all_atom_comm_parE[elim!]: \<open>all_atom_comm P (c1 \<parallel> c2)\<close>
-inductive_cases all_atom_comm_iterE[elim!]: \<open>all_atom_comm P (DO c OD)\<close>
-inductive_cases all_atom_comm_atomE[elim!]: \<open>all_atom_comm P (Atomic ap aq)\<close>
+definition all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
+  \<open>all_atom_comm P c \<equiv> \<forall>p q. (p,q) \<in> all_atoms c \<longrightarrow> P p q\<close>
 
 lemma all_atom_comm_simps[simp]:
+  \<open>all_atom_comm p Skip\<close>
   \<open>all_atom_comm P (c1 ;; c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<^bold>+ c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<box> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (DO c OD) \<longleftrightarrow> all_atom_comm P c\<close>
   \<open>all_atom_comm P (Atomic ap aq) \<longleftrightarrow> P ap aq\<close>
-  by fastforce+
+  by (simp add: all_atom_comm_def all_conj_distrib)+
 
 lemma all_atom_comm_pred_mono:
   \<open>P \<le> Q \<Longrightarrow> all_atom_comm P c \<Longrightarrow> all_atom_comm Q c\<close>
-  by (induct c) force+
+  unfolding all_atom_comm_def
+  by force
 
 lemma all_atom_comm_pred_mono':
   \<open>P \<le> Q \<Longrightarrow> all_atom_comm P \<le> all_atom_comm Q\<close>
-  using all_atom_comm_pred_mono by auto
+  unfolding all_atom_comm_def
+  by force
 
 lemmas all_atom_comm_pred_monoD = all_atom_comm_pred_mono[rotated]
 
 lemma all_atom_comm_conj_eq[simp]:
   \<open>all_atom_comm (P \<sqinter> Q) c \<longleftrightarrow> all_atom_comm P c \<and> all_atom_comm Q c\<close>
-  by (induct c) force+
+  unfolding all_atom_comm_def
+  by force
 
 lemma all_atom_comm_top_eq[simp]:
   \<open>all_atom_comm \<top> c\<close>
+  unfolding all_atom_comm_def
+  by force
+
+
+subsection \<open> Head Atoms \<close>
+
+fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
+  \<open>head_atoms Skip = {}\<close>
+| \<open>head_atoms (ca ;; cb) = head_atoms ca\<close>
+| \<open>head_atoms (ca \<parallel> cb) = (head_atoms ca \<union> head_atoms cb)\<close>
+| \<open>head_atoms (ca \<^bold>+ cb) = {}\<close>
+| \<open>head_atoms (ca \<box> cb) = (head_atoms ca \<union> head_atoms cb)\<close>
+| \<open>head_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
+| \<open>head_atoms (DO c OD) = {}\<close>
+
+
+lemma head_atoms_subseteq_all_atoms:
+  \<open>head_atoms c \<subseteq> all_atoms c\<close>
   by (induct c) force+
 
 
