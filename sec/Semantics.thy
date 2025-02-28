@@ -517,7 +517,7 @@ datatype 'a fact = Loc 'a | Env
 
 fun fstep
   :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-        ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
         unit act pact fact \<Rightarrow>
         ('l \<times> 's) pconfig \<Rightarrow>
         ('l \<times> 's) cpconfig \<Rightarrow>
@@ -527,7 +527,20 @@ fun fstep
     (\<exists>hl hs hs' c. sc = ((hl,hs),c) \<and> zc' = (Inl (hl,hs'), c) \<and> r hs hs')\<close>
 | \<open>fstep r F (Loc \<alpha>) sc zc' =
     (eopstep \<alpha> sc zc' \<or>
-      eopstep \<alpha> sc zc' \<and> undefined)\<close>
+      (\<exists>hl hs c.
+        sc = ((hl,hs),c) \<and>
+        (\<comment> \<open> non-crashing step \<close>
+          (\<exists>hl' hs' c' hlf.
+            zc' = (Inl (hl',hs'),c') \<and>
+            F (hlf, hs) \<and>
+            hl ## hlf \<and>
+            hl' ## hlf \<and>
+            eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
+        \<comment> \<open> crashing step \<close>
+          (\<exists>u c' hlf. zc' = (Inr u, c') \<and>
+            F (hlf, hs) \<and>
+            hl ## hlf \<and>
+            eopstep \<alpha> ((hl + hlf, hs), c) zc'))))\<close>
 
 
 paragraph \<open> Pretty extended operational semantics \<close>
@@ -556,7 +569,7 @@ text \<open>
 \<close>
 inductive fsteps
   :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
       _ list \<Rightarrow>
       ('l \<times> 's) pconfig \<Rightarrow>
       ('l \<times> 's) cpconfig \<Rightarrow>
@@ -633,6 +646,7 @@ definition
       r hsy hs'y \<longrightarrow>
       \<bbbA> \<oo> ((hlx,hs'x), (hly,hs'y))\<close>
 
+
 lemma noninterference_step:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
@@ -644,13 +658,24 @@ lemma noninterference_step:
     (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
+    all_atom_comm (\<lambda>p q. (p sx \<longleftrightarrow> p sy) \<and> (q sx sx' \<longleftrightarrow> q sy sy')) c \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
   apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
   apply (erule disjE)
    apply (force simp del: comp_apply simp add: rely_obs_safe_def)
   apply clarsimp
-  sorry
+  apply (elim disjE)
+     apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
+     apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
+     apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'])
+      apply (erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
+       apply force
+      apply (frule vis_step_impl_atom)
+      apply clarsimp
+      apply (simp add: all_atom_comm_def)
+      apply (cut_tac head_atoms_subseteq_all_atoms[of c])
+  oops
 
 
 theorem noninterference:
