@@ -646,6 +646,14 @@ definition
       r hsy hs'y \<longrightarrow>
       \<bbbA> \<oo> ((hlx,hs'x), (hly,hs'y))\<close>
 
+definition
+  \<open>head_obs_determ \<oo> c \<equiv>
+    (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
+      (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
+        (\<forall>x. px x \<longrightarrow> Ex (qx x) \<longrightarrow>
+          (\<forall>y. py y \<longrightarrow> Ex (qy y) \<longrightarrow>
+            \<bbbA> \<oo> (x,y) \<longrightarrow>
+            px = py \<and> qx = qy))))\<close>
 
 lemma noninterference_step:
   fixes n :: nat
@@ -658,7 +666,14 @@ lemma noninterference_step:
     (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    all_atom_comm (\<lambda>p q. (p sx \<longleftrightarrow> p sy) \<and> (q sx sx' \<longleftrightarrow> q sy sy')) c \<Longrightarrow>
+    all_atom_comm
+      (\<lambda>p q.
+        (\<forall>y'. \<bbbA> \<oo> (sx,sy) \<longrightarrow> p sy \<longrightarrow> q sy y' \<longrightarrow> \<bbbA> \<oo> (sx,y')) \<and>
+        (\<forall>x'. \<bbbA> \<oo> (sx,sy) \<longrightarrow> p sx \<longrightarrow> q sx x' \<longrightarrow> \<bbbA> \<oo> (x',sy)) \<and>
+        (\<forall>x' y'.
+          \<bbbA> \<oo> (sx,sy) \<longrightarrow> p sx \<longrightarrow> q sx x' \<longrightarrow> p sy \<longrightarrow> q sy y' \<longrightarrow> \<bbbA> \<oo> (x',y')))
+      c \<Longrightarrow>
+    head_obs_determ \<oo> c \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
   apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
@@ -666,15 +681,29 @@ lemma noninterference_step:
    apply (force simp del: comp_apply simp add: rely_obs_safe_def)
   apply clarsimp
   apply (elim disjE)
+     apply (clarsimp simp add: all_atom_comm_def)
      apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
      apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
-     apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'])
-      apply (erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
-       apply force
-      apply (frule vis_step_impl_atom)
-      apply clarsimp
-      apply (simp add: all_atom_comm_def)
-      apply (cut_tac head_atoms_subseteq_all_atoms[of c])
+     apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
+      erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
+        apply force
+       apply (frule vis_step_impl_atom, clarsimp)
+       apply (metis prod.collapse subsetD head_atoms_subseteq_all_atoms[of c])
+      apply (frule vis_step_impl_atom, clarsimp)
+      apply (metis prod.collapse subsetD head_atoms_subseteq_all_atoms[of c])
+     apply (frule vis_step_impl_atom[of _ sx], frule vis_step_impl_atom[of _ sy], clarsimp)
+     apply (cut_tac head_atoms_subseteq_all_atoms[of c])
+     apply (subgoal_tac \<open>pa = p \<and> qa = q\<close>)
+      prefer 2
+      apply (simp add: head_obs_determ_def del: split_paired_All split_paired_Ex)
+      apply (drule spec2, drule_tac P=\<open>(p,q) \<in> _\<close> in mp, assumption)
+      apply (drule spec2, drule_tac P=\<open>(pa,qa) \<in> _\<close> in mp, assumption)
+      apply metis
+     apply clarsimp
+     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], blast)
+     apply (metis prod.collapse)
+
+
   oops
 
 
