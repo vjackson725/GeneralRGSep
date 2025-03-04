@@ -1327,6 +1327,10 @@ class crosssplit_sep_alg = sep_alg + crosssplit_multiunit_sep_alg
 
 section \<open> Cancellative Separation Algebras\<close>
 
+definition (in pre_perm_alg)
+  \<open>cancellative c \<equiv>
+    \<forall>a b. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
+
 class cancel_perm_alg = perm_alg +
   assumes partial_right_cancel[simp]: \<open>\<And>a b c. a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b)\<close>
 begin

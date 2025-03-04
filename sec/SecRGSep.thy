@@ -385,14 +385,22 @@ lemma qrefl_then_symp:
   by (simp add: lr_implies_def symp_def, blast)
 
 
-lemma split_as:
+lemma boolean_split_as_both:
   \<open>\<bbbA> p = \<lblot> p \<rblot> \<squnion> \<lblot> -p \<rblot>\<close>
+  by (force simp add: twoPredLift_def sec_agree_def fun_eq_iff)
+
+lemma split_as_both:
+  \<open>\<bbbA> \<oo> = (\<Squnion>v. \<lblot> ((=) v) \<circ> \<oo> \<rblot>)\<close>
   by (force simp add: twoPredLift_def sec_agree_def fun_eq_iff)
 
 lemma twoLift_implies_box_closed:
   \<open>(\<exists>px. p = \<lblot> px \<rblot>) \<Longrightarrow> \<^bold>\<box>p = p\<close>
   unfolding box_def twoPredLift_def
   by force
+
+lemma agree_equivp:
+  \<open>equivp (curry (\<bbbA> \<oo>))\<close>
+  by (force simp add: equivp_def sec_agree_def fun_eq_iff)
 
 
 section \<open> Program \<close>
