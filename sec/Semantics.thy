@@ -658,34 +658,34 @@ definition
 abbreviation (input) plusL (infixl \<open>+\<^sub>1\<close> 60) where
   \<open>s +\<^sub>1 f \<equiv> (fst s + f, snd s)\<close>
 
-definition \<open>tau_step_obs_safe F \<oo> \<equiv>
-  all_atom_comm
-    (\<lambda>p q.
-      \<forall>sx sy.
-        \<bbbA> \<oo> (sx,sy) \<longrightarrow> 
-        (\<forall>x'. p sx \<longrightarrow> q sx x' \<longrightarrow> \<bbbA> \<oo> (x',sy)) \<and>
-        (\<forall>y'. p sy \<longrightarrow> q sy y' \<longrightarrow> \<bbbA> \<oo> (sx,y')) \<and>
+definition
+  \<open>tau_step_obs_safe F \<oo> c \<equiv> \<lambda>(x,y).
+    \<bbbA> \<oo> (x,y) \<longrightarrow>
+    all_atom_comm
+      (\<lambda>p q.
+        (\<forall>x'. p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x',y)) \<and>
+        (\<forall>y'. p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x,y')) \<and>
         (\<forall>f xf'.
-            F (f, snd sx) \<longrightarrow>
-            fst sx ## f \<longrightarrow>
-            p (sx +\<^sub>1 f) \<longrightarrow>
-            q (sx +\<^sub>1 f) xf' \<longrightarrow>
-            (\<forall>x'. xf' = x' +\<^sub>1 f \<longrightarrow> fst x' ## f \<longrightarrow> \<bbbA> \<oo> (x',sy))) \<and>
+            F (f, snd x) \<longrightarrow>
+            fst x ## f \<longrightarrow>
+            p (x +\<^sub>1 f) \<longrightarrow>
+            q (x +\<^sub>1 f) xf' \<longrightarrow>
+            (\<forall>x'. xf' = x' +\<^sub>1 f \<longrightarrow> fst x' ## f \<longrightarrow> \<bbbA> \<oo> (x',y))) \<and>
         (\<forall>f yf'.
-            F (f, snd sy) \<longrightarrow>
-            fst sy ## f \<longrightarrow>
-            p (sy +\<^sub>1 f) \<longrightarrow>
-            q (sy +\<^sub>1 f) yf' \<longrightarrow>
-            (\<forall>y'. yf' = y' +\<^sub>1 f \<longrightarrow> fst y' ## f \<longrightarrow> \<bbbA> \<oo> (sx,y'))))\<close>
+            F (f, snd y) \<longrightarrow>
+            fst y ## f \<longrightarrow>
+            p (y +\<^sub>1 f) \<longrightarrow>
+            q (y +\<^sub>1 f) yf' \<longrightarrow>
+            (\<forall>y'. yf' = y' +\<^sub>1 f \<longrightarrow> fst y' ## f \<longrightarrow> \<bbbA> \<oo> (x,y')))) c\<close>
 
 definition                                                                      
-  \<open>head_step_obs_safe \<oo> c \<equiv>
+  \<open>head_step_obs_safe \<oo> c \<equiv> \<lambda>(x,y).
+    \<bbbA> \<oo> (x,y) \<longrightarrow>
     (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
     (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
-      (\<forall>x x'. px x \<longrightarrow> qx x x' \<longrightarrow>
-      (\<forall>y y'. py y \<longrightarrow> qy y y' \<longrightarrow>
-          \<bbbA> \<oo> (x,y) \<longrightarrow>
-          \<bbbA> \<oo> (x',y')))))\<close>
+    (\<forall>x'. px x \<longrightarrow> qx x x' \<longrightarrow>
+    (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
+        \<bbbA> \<oo> (x',y')))))\<close>
 
 lemma noninterference_step:
   fixes n :: nat
@@ -698,8 +698,8 @@ lemma noninterference_step:
     (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    tau_step_obs_safe F \<oo> c \<Longrightarrow>
-    head_step_obs_safe \<oo> c \<Longrightarrow>
+    tau_step_obs_safe F \<oo> c (sx,sy) \<Longrightarrow>
+    head_step_obs_safe \<oo> c (sx,sy) \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
@@ -724,11 +724,8 @@ lemma noninterference_step:
      apply (simp add: head_step_obs_safe_def)
      apply (drule spec2, drule_tac P=\<open>(p,q) \<in> _\<close> in mp, assumption)
      apply (drule spec2, drule_tac P=\<open>(pa,qa) \<in> _\<close> in mp, assumption)
-     apply (drule spec2, drule_tac P=\<open>p (fst x, snd x)\<close> for x in mp, force)
-     apply (drule spec2, drule_tac P=\<open>q _ (fst x, snd x)\<close> for x in mp, force)
-     apply (drule spec2, drule_tac P=\<open>pa (fst x, snd x)\<close> for x in mp, force)
-     apply (drule spec2, drule_tac P=\<open>qa _ (fst x, snd x)\<close> for x in mp, force)
-     apply force
+
+  oops
     (* framed / unframed *)
     apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
     apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
