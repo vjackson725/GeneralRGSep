@@ -80,7 +80,6 @@ lemma eqrel_times_eqrel_eq[simp]:
 
 section \<open> relational logic  \<close>
 
-
 subsection \<open> quasirefl \<close>
 
 lemma sepconj_quasireflp:
@@ -164,7 +163,7 @@ lemma conj_transp:
   \<open>transp (curry p) \<Longrightarrow> transp (curry q) \<Longrightarrow> transp (curry (p \<sqinter> q))\<close>
   by (simp add: transp_def, blast)
 
-lemma disj_symp:
+lemma disj_transp:
   \<open>transp (curry p) \<Longrightarrow> transp (curry q) \<Longrightarrow> transp (curry (p \<squnion> q))\<close>
   nitpick[card 'a=2]
   oops
@@ -188,6 +187,36 @@ lemma agree_transp:
   \<open>transp (curry (\<bbbA> p))\<close>
   unfolding sec_agree_def transp_def curry_def
   by force
+
+
+subsection \<open> quasiequiv \<close>
+
+definition \<open>quasiequivp \<equiv> quasireflp \<sqinter> symp \<sqinter> transp\<close>
+
+lemma conj_quasiequivp:
+  \<open>quasiequivp (curry p) \<Longrightarrow> quasiequivp (curry q) \<Longrightarrow> quasiequivp (curry (p \<sqinter> q))\<close>
+  unfolding quasiequivp_def
+  by (clarsimp simp add: conj_quasireflp conj_symp conj_transp)
+
+lemma not_transp:
+  \<open>quasiequivp (curry p) \<Longrightarrow> quasiequivp (curry (\<^bold>\<box>(-p)))\<close>
+  unfolding quasiequivp_def
+  apply clarsimp
+  apply (intro conjI)
+    apply (clarsimp simp add: reflp_on_def box_def prepost_state_def', blast)
+   apply (force simp add: symp_on_def box_def)
+  apply (simp add: transp_on_def box_def, blast)
+  done
+
+lemma both_quasiequivp:
+  \<open>quasiequivp (curry (\<lblot> p \<rblot>))\<close>
+  unfolding quasiequivp_def
+  by (simp add: both_quasireflp both_symp both_transp)
+
+lemma agree_quasiequivp:
+  \<open>quasiequivp (curry (\<bbbA> p))\<close>
+  unfolding quasiequivp_def
+  by (simp add: agree_quasireflp agree_symp agree_transp)
 
 
 subsection \<open> completions \<close>
@@ -401,6 +430,17 @@ lemma twoLift_implies_box_closed:
 lemma agree_equivp:
   \<open>equivp (curry (\<bbbA> \<oo>))\<close>
   by (force simp add: equivp_def sec_agree_def fun_eq_iff)
+
+lemma modal_distribution:
+  \<open>\<top> \<le> \<^bold>\<box>(p \<leadsto> q) \<leadsto> (\<^bold>\<box>p \<leadsto> \<^bold>\<box>q)\<close>
+  unfolding box_def impl_def le_fun_def
+  by simp
+
+lemma disj_weakening:
+  \<open>\<lblot> p \<rblot> \<squnion> \<lblot> q \<rblot> \<le> \<lblot> p \<squnion> q \<rblot>\<close>
+  unfolding le_fun_def
+  by (simp add: twoPredLift_def)
+
 
 
 section \<open> Program \<close>
