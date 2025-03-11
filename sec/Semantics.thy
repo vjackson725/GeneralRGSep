@@ -10,6 +10,78 @@ type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b
 
 type_synonym ('a,'b) secstate = \<open>(('a \<times> 'b) \<times> ('a \<times> 'b))\<close>
 
+
+section \<open> Pred-executions \<close>
+
+text \<open>
+  Predicate over all states of all executions.
+  (N.B. This does not avoid crashes.)
+\<close>
+
+type_synonym 's config = \<open>'s \<times> 's comm\<close>
+
+inductive pred_executions
+  :: \<open>(('l::pre_perm_alg  \<times> 's) config \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
+      'l \<times> 's + unit \<Rightarrow>
+      nat \<Rightarrow>
+      bool\<close>
+  where
+  pred_executions_nil[intro!]: \<open>pred_executions P F r c (Inl (hl, hs)) 0\<close>
+| pred_executions_step[intro]:
+  \<open>\<comment> \<open> The config predicate holds \<close>
+    P ((hl, hs), c) \<Longrightarrow>
+    \<comment> \<open> rely steps generate states \<close>
+    (\<And>hs'. r hs hs' \<Longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<Longrightarrow>
+    \<comment> \<open> opsteps generate states \<close>
+    (\<And>\<alpha> z' c'.
+        ((hl,hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
+        pred_executions P F r c' z' n) \<Longrightarrow>
+    \<comment> \<open> framed opsteps generate states \<close>
+    (\<And>\<alpha> hlhlf' hs' c' hlf.
+        hl ## hlf \<Longrightarrow>
+        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<Longrightarrow>
+        F (hlf, hs) \<Longrightarrow>
+        (\<exists>hl'.
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          pred_executions P F r c' (Inl (hl', hs')) n)) \<Longrightarrow>
+    \<comment> \<open> conclude a step can be made \<close>
+    pred_executions P F r c (Inl (hl, hs)) (Suc n)\<close>
+
+subsection \<open> Proofs about safe \<close>
+
+inductive_cases pred_executions_zeroE[elim!]: \<open>pred_executions P F r c s 0\<close>
+inductive_cases pred_executions_sucE[elim]: \<open>pred_executions P F r c s (Suc n)\<close>
+
+lemma pred_executions_nil_iff[simp]:
+  \<open>pred_executions P F r c s 0 \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
+  by force
+
+lemma pred_executions_suc_iff:
+  \<open>pred_executions P F r c (Inl (hl, hs)) (Suc n) \<longleftrightarrow>
+    P ((hl, hs), c) \<and>
+    (\<forall>hs'. r hs hs' \<longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<and>
+    (\<forall>\<alpha> z' c'.
+        ((hl,hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow> pred_executions P F r c' z' n) \<and>
+    (\<forall>\<alpha> hlhlf' hs' c' hlf.
+        hl ## hlf \<longrightarrow>
+        ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
+        F (hlf, hs) \<longrightarrow>
+        (\<exists>hl'.
+          hl' ## hlf \<and>
+          hlhlf' = hl' + hlf \<and>
+          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+          pred_executions P F r c' (Inl (hl', hs')) n))\<close>
+  apply (rule iffI)
+   apply (erule pred_executions_sucE; force)
+  apply (rule pred_executions_step; force)
+  done
+
+
 section \<open> Double-state lifting \<close>
 
 subsection \<open> relational lifting \<close>
@@ -134,97 +206,8 @@ section \<open> Tree Noninterference \<close>
 
 section \<open> Safe \<close>
 
-inductive tree_weak_noninterference
-  :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's \<Rightarrow> 'v) \<Rightarrow>
-      nat \<Rightarrow>
-      ('l \<times> 's) comm \<Rightarrow>
-      ('l \<times> 'l) \<times> ('s \<times> 's) + unit \<Rightarrow>
-      bool\<close>
-  where
-  tree_weak_noninterference_nil[intro!]: \<open>tree_weak_noninterference r F \<oo> 0 c (Inl s)\<close>
-| tree_weak_noninterference_suc[intro]:
-  \<open>\<bbbA> \<oo> (exch4 (hl, hs)) \<Longrightarrow>
-    \<comment> \<open> closed under rely steps \<close>
-    (\<And>hs'. r hs hs' \<Longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))) \<Longrightarrow>
-    \<comment> \<open> closed under opsteps \<close>
-    (\<And>\<alpha> c' hl' hs'.
-        ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
-        tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))) \<Longrightarrow>
-    \<comment> \<open> closed under framed opsteps \<close>
-    (\<And>\<alpha> c' hlf hlhlf' hs'.
-        hl ## hlf \<Longrightarrow>
-        ((hl + hlf, hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf', hs'), c') \<Longrightarrow>
-        F (hlf, hs) \<Longrightarrow>
-        (\<exists>hl'.
-          hl' ## hlf \<and>
-          hlhlf' = hl' + hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))) \<Longrightarrow>
-    tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs))\<close>
-
-definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where
-  \<open>quasirefl_cl p \<equiv> \<lambda>(x,y). p (x,y) \<and> p (x,x) \<and> p (y,y)\<close>
-
-lemma quasirefl_cl_mono:
-  \<open>p \<le> q \<Longrightarrow> \<^bold>\<box>p \<le> \<^bold>\<box>q\<close>
-  unfolding quasirefl_cl_def
-  by blast
-
-lemma
-  \<open>\<^bold>\<box>p = p \<longleftrightarrow> (\<forall>x y. p (x,y) \<longrightarrow> p (x,x) \<and> p (y,y))\<close>
-  unfolding quasirefl_cl_def
-  by (force simp add: fun_eq_iff)
-
-
-subsection \<open> Proofs about safe \<close>
-
-inductive_cases tree_weak_noninterference_zeroE[elim!]: \<open>tree_weak_noninterference r F \<oo> 0 c s\<close>
-inductive_cases tree_weak_noninterference_sucE[elim]: \<open>tree_weak_noninterference r F \<oo> (Suc n) c s\<close>
-
-lemma safe_nil_iff[simp]:
-  \<open>tree_weak_noninterference r F \<oo> 0 c s \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
-  by force
-
-lemma tree_weak_noninterference_suc_iff:
-  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<longleftrightarrow>
-    \<bbbA> \<oo> (exch4 (hl, hs)) \<and>
-    (\<forall>hs'. r hs hs' \<longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))) \<and>
-    (\<forall>\<alpha> c' hl' hs'.
-        ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<longrightarrow>
-        tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))) \<and>
-    (\<forall>\<alpha> c' hlf hlhlf' hs'.
-        hl ## hlf \<longrightarrow>
-        ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
-        F (hlf, hs) \<longrightarrow>
-        (\<exists>hl'.
-          hl' ## hlf \<and>
-          hlhlf' = hl' + hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl',hs'))))\<close>
-  apply (rule iffI)
-   apply (erule tree_weak_noninterference_sucE, force)
-  apply (rule tree_weak_noninterference_suc; presburger)
-  done
-
-lemma safe_sucD:
-  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow> \<bbbA> \<oo> (exch4 (hl, hs))\<close>
-  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
-    r hs hs' \<Longrightarrow> tree_weak_noninterference r F \<oo> n c (Inl (hl, hs'))\<close>
-  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
-    ((hl,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hl',hs'), c') \<Longrightarrow>
-    tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs'))\<close>
-  \<open>tree_weak_noninterference r F \<oo> (Suc n) c (Inl (hl, hs)) \<Longrightarrow>
-    hl ## hlf \<Longrightarrow>
-    ((hl + hlf,hs), liftC' c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<Longrightarrow>
-    F (hlf, hs) \<Longrightarrow>
-    (\<exists>hl'.
-      hl' ## hlf \<and>
-      hlhlf' = hl' + hlf \<and>
-      (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-      tree_weak_noninterference r F \<oo> n (unliftC c') (Inl (hl', hs')))\<close>
-  by (erule tree_weak_noninterference_sucE, (simp; blast))+
+abbreviation tree_weak_noninterference where
+  \<open>tree_weak_noninterference \<oo> \<equiv> pred_executions (\<lambda>(s,c). \<bbbA> \<oo> (exch4 s) \<and> (\<exists>cx. c = liftC' cx))\<close>
 
 lemma opstep_preserves_liftC':
   \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
@@ -356,21 +339,21 @@ next
 qed
 
 theorem weak_noninterference:
-  \<open>safe n cc z r g q S F \<Longrightarrow>
-    cc = liftC' c \<Longrightarrow>
+  \<open>safe n c z r g q S F \<Longrightarrow>
     z = Inl s \<Longrightarrow>
+    c = liftC' cx \<Longrightarrow>
     S \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     S \<^emph>\<and> F \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
-    tree_weak_noninterference r F \<oo> n c z\<close>
-  apply (induct arbitrary: c s rule: safe.inducts)
+    tree_weak_noninterference \<oo> F r c z n\<close>
+  apply (induct arbitrary: s cx rule: safe.inducts)
    apply force
-  apply (clarsimp simp add: liftC_rev_iff tree_weak_noninterference_suc_iff)
+  apply (clarsimp simp add: liftC_rev_iff pred_executions_suc_iff)
   apply (rename_tac c hla hlb hsa hsb)
   apply (intro conjI)
     apply (force simp add: le_fun_def)
    apply clarsimp
    apply (frule opstep_preserves_liftC')
-   apply (metis unlift_lift'_cancel)
+   apply blast
   apply clarsimp
   apply (frule opstep_preserves_liftC')
   apply clarsimp
@@ -584,8 +567,8 @@ inductive fsteps
 inductive_cases fsteps_nil[elim!]: \<open>fsteps r F [] sc zc'\<close>
 inductive_cases fsteps_step[elim!]: \<open>fsteps r F (\<alpha> # \<alpha>s) sc zc'\<close>
 
-abbreviation pretty_fsteps (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f\<^sup>+ _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>r, F, \<alpha>s\<rightarrow>\<^sub>f\<^sup>+ ht \<equiv> fsteps r F \<alpha>s hs ht\<close>
+abbreviation pretty_fsteps (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f* _\<close> [60,0,60] 60) where
+  \<open>hs \<midarrow>r, F, \<alpha>s\<rightarrow>\<^sub>f* ht \<equiv> fsteps r F \<alpha>s hs ht\<close>
 
 
 subsection \<open> Alignment \<close>
@@ -659,7 +642,7 @@ abbreviation (input) plusL (infixl \<open>+\<^sub>1\<close> 60) where
   \<open>s +\<^sub>1 f \<equiv> (fst s + f, snd s)\<close>
 
 definition
-  \<open>tau_step_obs_safe F \<oo> c \<equiv> \<lambda>(x,y).
+  \<open>tau_step_obs_safe \<oo> F c \<equiv> \<lambda>(x,y).
     \<bbbA> \<oo> (x,y) \<longrightarrow>
     all_atom_comm
       (\<lambda>p q.
@@ -693,12 +676,13 @@ lemma noninterference_step:
     and sx sy :: \<open>'l \<times> 's\<close>
     and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
     and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
+    and \<oo> :: \<open>'l \<times> 's \<Rightarrow> 'v\<close>
   shows
   \<open>(sx, c) \<midarrow>r, F, \<gamma>x\<rightarrow>\<^sub>f (Inl sx', cx') \<Longrightarrow>
     (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    tau_step_obs_safe F \<oo> c (sx,sy) \<Longrightarrow>
+    tau_step_obs_safe \<oo> F c (sx,sy) \<Longrightarrow>
     head_step_obs_safe \<oo> c (sx,sy) \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
@@ -724,8 +708,7 @@ lemma noninterference_step:
      apply (simp add: head_step_obs_safe_def)
      apply (drule spec2, drule_tac P=\<open>(p,q) \<in> _\<close> in mp, assumption)
      apply (drule spec2, drule_tac P=\<open>(pa,qa) \<in> _\<close> in mp, assumption)
-
-  oops
+     apply (metis surjective_pairing)
     (* framed / unframed *)
     apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
     apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
@@ -738,12 +721,10 @@ lemma noninterference_step:
     (** tau / vis **)
       apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
       apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-      apply (drule spec2, drule mp, assumption)
       apply presburger
     (** vis / tau **)
      apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
      apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-     apply (drule spec2, drule mp, assumption)
      apply (metis cancellative_def prod.collapse)
     (** vis / vis **)
   subgoal sorry
@@ -759,12 +740,10 @@ lemma noninterference_step:
     (** tau / vis **)
      apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
      apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-     apply (drule spec2, drule mp, assumption)
      apply (metis cancellative_def prod.collapse)
     (** vis / tau **)
     apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-    apply (drule spec2, drule mp, assumption)
     apply presburger
     (** vis / vis **)
   subgoal sorry
@@ -780,16 +759,15 @@ lemma noninterference_step:
     (** tau / vis **)
     apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-    apply (drule spec2, drule mp, assumption)
     apply (metis cancellative_def prod.collapse)
     (** vis / tau **)
    apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
    apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-   apply (drule spec2, drule mp, assumption)
    apply (metis cancellative_def prod.collapse)
     (** vis / vis **)
   subgoal sorry
   sorry
+
 
 
 theorem noninterference:
@@ -811,9 +789,16 @@ theorem noninterference:
     \<alpha>sy \<noteq> [] \<Longrightarrow>
     length \<alpha>sx \<le> n \<Longrightarrow>
     length \<alpha>sy \<le> n \<Longrightarrow>
-    (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f\<^sup>+ (Inl sx', cx') \<Longrightarrow>
-    (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f\<^sup>+ (Inl sy', cy') \<Longrightarrow>
+    (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f* (Inl sx', cx') \<Longrightarrow>
+    (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f* (Inl sy', cy') \<Longrightarrow>
     parallel_aligned \<alpha>sx \<alpha>sy \<Longrightarrow>
+    pred_executions
+      (\<lambda>(s,c).
+        head_step_obs_safe \<oo> (unliftC c) (exch4 s) \<and>
+        tau_step_obs_safe \<oo> F (unliftC c) (exch4 s))
+      FF rr cc zz n \<Longrightarrow>
+    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
+    rely_obs_safe \<oo> r \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
 proof (induct arbitrary: c sx sy \<alpha>sx \<alpha>sy r F rule: safe.inducts)
   case (safe_nil c hl hs r g q S F)
@@ -826,13 +811,30 @@ next
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
     apply (erule fsteps.cases, force)
     apply (erule fsteps.cases, force)
-    apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
-    apply (erule disjE)
-     apply (clarsimp simp del: comp_apply)
-     apply (rename_tac x1 hsx hsx' \<alpha>sx y1 hsy hsy' \<alpha>sy)
+    apply (clarsimp simp del: comp_apply)
+    apply (rename_tac \<alpha>x lxx sxx lxx' sxx' cxx' \<alpha>sx \<alpha>y lyy syy lyy' syy' cyy' \<alpha>sy)
+    apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
+    apply (drule(1) noninterference_step, blast, assumption, assumption, assumption)
+      apply presburger
+     apply (cut_tac safe_suc.hyps(2), simp add: le_fun_def; fail)
+    apply clarsimp
+
     sorry
 qed
 
+
+definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where
+  \<open>quasirefl_cl p \<equiv> \<lambda>(x,y). p (x,y) \<and> p (x,x) \<and> p (y,y)\<close>
+
+lemma quasirefl_cl_mono:
+  \<open>p \<le> q \<Longrightarrow> \<^bold>\<box>p \<le> \<^bold>\<box>q\<close>
+  unfolding quasirefl_cl_def
+  by blast
+
+lemma
+  \<open>\<^bold>\<box>p = p \<longleftrightarrow> (\<forall>x y. p (x,y) \<longrightarrow> p (x,x) \<and> p (y,y))\<close>
+  unfolding quasirefl_cl_def
+  by (force simp add: fun_eq_iff)
 
 
 
