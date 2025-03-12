@@ -641,34 +641,43 @@ definition
 abbreviation (input) plusL (infixl \<open>+\<^sub>1\<close> 60) where
   \<open>s +\<^sub>1 f \<equiv> (fst s + f, snd s)\<close>
 
-definition
-  \<open>tau_step_obs_safe \<oo> F c \<equiv> \<lambda>(x,y).
-    \<bbbA> \<oo> (x,y) \<longrightarrow>
-    all_atom_comm
-      (\<lambda>p q.
-        (\<forall>x'. p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x',y)) \<and>
-        (\<forall>y'. p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x,y')) \<and>
-        (\<forall>f xf'.
-            F (f, snd x) \<longrightarrow>
-            fst x ## f \<longrightarrow>
-            p (x +\<^sub>1 f) \<longrightarrow>
-            q (x +\<^sub>1 f) xf' \<longrightarrow>
-            (\<forall>x'. xf' = x' +\<^sub>1 f \<longrightarrow> fst x' ## f \<longrightarrow> \<bbbA> \<oo> (x',y))) \<and>
-        (\<forall>f yf'.
-            F (f, snd y) \<longrightarrow>
-            fst y ## f \<longrightarrow>
-            p (y +\<^sub>1 f) \<longrightarrow>
-            q (y +\<^sub>1 f) yf' \<longrightarrow>
-            (\<forall>y'. yf' = y' +\<^sub>1 f \<longrightarrow> fst y' ## f \<longrightarrow> \<bbbA> \<oo> (x,y')))) c\<close>
-
 definition                                                                      
   \<open>head_step_obs_safe \<oo> c \<equiv> \<lambda>(x,y).
     \<bbbA> \<oo> (x,y) \<longrightarrow>
+    (\<forall>p q. (p,q) \<in> head_atoms c \<longrightarrow>
+      (\<forall>x'. p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x',y)) \<and>
+      (\<forall>y'. p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x,y'))) \<and>
     (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
     (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
     (\<forall>x'. px x \<longrightarrow> qx x x' \<longrightarrow>
     (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
-        \<bbbA> \<oo> (x',y')))))\<close>
+      \<bbbA> \<oo> (x',y')))))\<close>
+(*
+(\<forall>f xf'.
+            F (f, snd x) \<longrightarrow>
+            fst x ## f \<longrightarrow>
+            p (x +\<^sub>1 f) \<longrightarrow>
+            q (x +\<^sub>1 f) xf' \<longrightarrow>
+            (\<forall>x'. xf' = x' +\<^sub>1 f \<longrightarrow> fst x' ## f \<longrightarrow> \<bbbA> \<oo> (x',y)))
+*)
+
+definition                                                                      
+  \<open>determ_steps \<oo> r F c \<equiv> \<lambda>(x,y).
+    \<bbbA> \<oo> (x,y) \<longrightarrow>
+    (\<forall>cx' x' cy' y'.
+      (\<exists>\<alpha>x. (x, c) \<midarrow>r, F, \<alpha>x\<rightarrow>\<^sub>f (Inl x', cx')) \<longrightarrow>
+      (\<exists>\<alpha>y. (y, c) \<midarrow>r, F, \<alpha>y\<rightarrow>\<^sub>f (Inl y', cy')) \<longrightarrow>
+      cx' = cy' \<and> \<bbbA> \<oo> (x',y'))\<close>
+
+lemma determ_stepsD:
+  \<open>determ_steps \<oo> r F c (x,y) \<Longrightarrow>
+    (x, c) \<midarrow>r, F, \<alpha>x\<rightarrow>\<^sub>f (Inl x', cx') \<Longrightarrow>
+    (y, c) \<midarrow>r, F, \<alpha>y\<rightarrow>\<^sub>f (Inl y', cy') \<Longrightarrow>
+    \<bbbA> \<oo> (x, y) \<Longrightarrow>
+    cx' = cy' \<and> \<bbbA> \<oo> (x', y')\<close>
+  unfolding determ_steps_def
+  by (simp, metis surj_pair)
+
 
 lemma noninterference_step:
   fixes n :: nat
@@ -682,34 +691,37 @@ lemma noninterference_step:
     (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    tau_step_obs_safe \<oo> F c (sx,sy) \<Longrightarrow>
+    \<comment> \<open>
+      tau_step_obs_safe \<oo> F c (sx,sy) \<Longrightarrow>
+    \<close>
     head_step_obs_safe \<oo> c (sx,sy) \<Longrightarrow>
+    determ_steps \<oo> r F c (sx, sy) \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
-  apply (clarsimp simp add: fact_aligned_iff simp del: comp_apply)
+  apply (clarsimp simp del: comp_apply simp add: fact_aligned_iff)
   apply (erule disjE)
-   apply (force simp del: comp_apply simp add: rely_obs_safe_def)
-  apply clarsimp
+   apply (clarsimp simp del: comp_apply  simp add: rely_obs_safe_def)
+   apply (drule spec2[of _ \<open>fst sx\<close> \<open>fst sy\<close>], drule spec2[of _ \<open>snd sx\<close> \<open>snd sy\<close>])
+   apply force
+  apply (clarsimp simp del: split_paired_All simp add: head_step_obs_safe_def)
   apply (elim disjE)
     (* unframed / unframed *)
-     apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def)
      apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
      apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
      apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
       erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
+    (** tau / tau **)
         apply force
-       apply (frule vis_step_impl_atom, clarsimp)
-       apply (metis prod.collapse subsetD[OF head_atoms_subseteq_all_atoms[of c]])
-      apply (frule vis_step_impl_atom, clarsimp)
-      apply (metis prod.collapse subsetD[OF head_atoms_subseteq_all_atoms[of c]])
-     apply (frule vis_step_impl_atom[of _ sx], frule vis_step_impl_atom[of _ sy], clarsimp)
-     apply (cut_tac head_atoms_subseteq_all_atoms[of c])
-     apply (simp add: head_step_obs_safe_def)
-     apply (drule spec2, drule_tac P=\<open>(p,q) \<in> _\<close> in mp, assumption)
-     apply (drule spec2, drule_tac P=\<open>(pa,qa) \<in> _\<close> in mp, assumption)
-     apply (metis surjective_pairing)
+    (** tau / vis **)
+       apply (frule vis_step_impl_atom, force simp del: split_paired_All)
+    (** vis / tau **)
+      apply (frule vis_step_impl_atom, force simp del: split_paired_All)
+    (** vis / vis **)
+     apply (frule vis_step_impl_atom[of _ sx],
+      frule vis_step_impl_atom[of _ sy], force simp del: split_paired_All)
     (* framed / unframed *)
+  sorry
     apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
     apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
     apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
@@ -785,27 +797,25 @@ theorem noninterference:
     SS \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     noleak_wf \<oo> c \<Longrightarrow>
-    \<alpha>sx \<noteq> [] \<Longrightarrow>
-    \<alpha>sy \<noteq> [] \<Longrightarrow>
     length \<alpha>sx \<le> n \<Longrightarrow>
     length \<alpha>sy \<le> n \<Longrightarrow>
+    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f* (Inl sx', cx') \<Longrightarrow>
     (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f* (Inl sy', cy') \<Longrightarrow>
     parallel_aligned \<alpha>sx \<alpha>sy \<Longrightarrow>
     pred_executions
-      (\<lambda>(s,c).
-        head_step_obs_safe \<oo> (unliftC c) (exch4 s) \<and>
-        tau_step_obs_safe \<oo> F (unliftC c) (exch4 s))
+      (\<lambda>(s,c). determ_steps \<oo> r F (unliftC c) (exch4 s))
       FF rr cc zz n \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
 proof (induct arbitrary: c sx sy \<alpha>sx \<alpha>sy r F rule: safe.inducts)
   case (safe_nil c hl hs r g q S F)
-  then show ?case by force
+  then show ?case
+    by force
 next
   case (safe_suc cc qq hl hs SS rr n gg FF)
-  
+
   show ?case
     using safe_suc.prems
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
@@ -814,9 +824,13 @@ next
     apply (clarsimp simp del: comp_apply)
     apply (rename_tac \<alpha>x lxx sxx lxx' sxx' cxx' \<alpha>sx \<alpha>y lyy syy lyy' syy' cyy' \<alpha>sy)
     apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
-    apply (drule(1) noninterference_step, blast, assumption, assumption, assumption)
-      apply presburger
+    apply (frule(2) determ_stepsD)
      apply (cut_tac safe_suc.hyps(2), simp add: le_fun_def; fail)
+    apply (clarsimp simp del: comp_apply)
+    apply (subgoal_tac \<open>\<alpha>sx = [] \<and> \<alpha>sy = [] \<or> \<alpha>sx \<noteq> [] \<and> \<alpha>sy \<noteq> []\<close>)
+     prefer 2
+     apply blast
+    apply (erule disjE, force)
     apply clarsimp
 
     sorry
