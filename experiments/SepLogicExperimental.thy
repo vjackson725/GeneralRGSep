@@ -952,10 +952,6 @@ definition (in perm_alg)
     \<forall>b cx cz. a ## cx \<longrightarrow> a ## cz \<longrightarrow> a + cx \<prec> b \<longrightarrow> b \<prec> a + cz \<longrightarrow>
       (\<exists>cy. a ## cy \<and> b = a + cy \<and> cx \<preceq> cy \<and> cy \<preceq> cz)\<close>
 
-definition (in pre_perm_alg)
-  \<open>cancellative c \<equiv>
-    \<forall>a b. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
-
 lemma cancellative_def2:
   \<open>cancellative c \<longleftrightarrow> (\<forall>a b. c ## a \<longrightarrow> c ## b \<longrightarrow> c + a = c + b \<longrightarrow> a = b)\<close>
   by (metis cancellative_def disjoint_sym partial_add_commute)
@@ -1041,5 +1037,31 @@ lemma (in multiunit_sep_alg)
   \<open>All weak_cancellative \<longrightarrow> All weak_cancellative2\<close>
   nitpick[card 'a=6]
   oops
+
+definition
+  \<open>overlap a b \<equiv>
+    THE x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+
+lemma (in multiunit_sep_alg)
+  shows
+  \<open>a ## b \<Longrightarrow>
+    Lt = {(a,b). a \<prec> b \<and> (\<nexists>x. a \<prec> x \<and> x \<prec> b)} \<Longrightarrow>
+    R = {(a,b,a+b)|a b. a##b} \<Longrightarrow>
+    Ov = {(a,b,A). A = {x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> \<not> y \<succ> x)} \<and> A \<noteq> {a} \<and> A \<noteq> {b}} \<Longrightarrow>
+    \<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+  nitpick[card 'a=6]
+  oops
+
+text \<open>
+  This fails because, while all additions are bounded, this doesn't imply that
+  there is a glb. Consider 1 - 1/2^n as n \<rightarrow> \<infinity>, with a hole at 1.
+\<close>
+lemma (in multiunit_sep_alg)
+  assumes sepadd_bound_preserving:
+    \<open>\<forall>a b x::'a. a \<preceq> x \<longrightarrow> b \<preceq> x \<longrightarrow> a ## b \<longrightarrow> a + b \<preceq> x\<close>
+  shows
+    \<open>a ## b \<Longrightarrow> \<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+  oops
+  
 
 end
