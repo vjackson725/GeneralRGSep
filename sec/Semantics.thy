@@ -145,6 +145,11 @@ abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
 definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
 definition \<open>liftC f \<equiv> map_comm (\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close>
 
+lemma liftR_apply[simp]:
+  \<open>liftR r (x,x') (y,y') \<longleftrightarrow> r x y \<and> r x' y'\<close>
+  unfolding liftR_def
+  by simp
+
 lemmas liftC_simps[simp] =
   map_comm.simps[of \<open>(\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
     simplified liftC_def[symmetric]]
@@ -520,7 +525,8 @@ fun fstep
             hl' ## hlf \<and>
             eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
         \<comment> \<open> crashing step \<close>
-          (\<exists>u c' hlf. zc' = (Inr u, c') \<and>
+          (\<exists>u c' hlf.
+            zc' = (Inr u, c') \<and>
             F (hlf, hs) \<and>
             hl ## hlf \<and>
             eopstep \<alpha> ((hl + hlf, hs), c) zc'))))\<close>
@@ -595,31 +601,6 @@ abbreviation \<open>parallel_aligned \<equiv> list_all2 fact_aligned\<close>
 
 
 section \<open> (Strong) Non-interference \<close>
-
-inductive noleak_wf :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
-  noleak_wf_skip[intro!]: \<open>noleak_wf \<oo> Skip\<close>
-| noleak_wf_seq[intro!]:
-  \<open>noleak_wf \<oo> c1 \<Longrightarrow> noleak_wf \<oo> c2 \<Longrightarrow> noleak_wf \<oo> (c1 ;; c2)\<close>
-| noleak_wf_par[intro!]:
-  \<open>noleak_wf \<oo> c1 \<Longrightarrow> noleak_wf \<oo> c2 \<Longrightarrow> noleak_wf \<oo> (c1 \<parallel> c2)\<close>
-| noleak_wf_indet[intro!]:
-  \<open>c1 = \<langle>p1, q1\<rangle> \<or> c1 = \<langle>p1, q1\<rangle> ;; c1' \<and> noleak_wf \<oo> c1' \<Longrightarrow>
-    c2 = \<langle>p2, q2\<rangle> \<or> c2 = \<langle>p2, q2\<rangle> ;; c2' \<and> noleak_wf \<oo> c2' \<Longrightarrow>
-    \<forall>sx sy. p1 sx \<longrightarrow> p2 sy \<longrightarrow> \<oo> sx \<noteq> \<oo> sy \<Longrightarrow>
-    noleak_wf \<oo> (c1 \<^bold>+ c2)\<close>
-| noleak_wf_endet[intro!]:
-  \<open>c1 = \<langle>p1, q1\<rangle> \<or> c1 = \<langle>p1, q1\<rangle> ;; c1' \<and> noleak_wf \<oo> c1' \<Longrightarrow>
-    c2 = \<langle>p2, q2\<rangle> \<or> c2 = \<langle>p2, q2\<rangle> ;; c2' \<and> noleak_wf \<oo> c2' \<Longrightarrow>
-    \<comment> \<open> indistinguishable \<close>
-    \<forall>sx sy. p1 sx \<longrightarrow> p2 sy \<longrightarrow> \<oo> sx \<noteq> \<oo> sy \<Longrightarrow>
-    noleak_wf \<oo> (c1 \<box> c2)\<close>
-| noleak_wf_iter[intro!]:
-  \<open>c = \<langle>p, q\<rangle> \<or> c = \<langle>p, q\<rangle> ;; c' \<and> noleak_wf \<oo> c' \<Longrightarrow>
-  \<comment> \<open> indistinguishable \<close>
-    \<forall>sx sy. p sx \<longrightarrow> \<not> p sy \<longrightarrow> \<oo> sx \<noteq> \<oo> sy \<Longrightarrow>
-    noleak_wf \<oo> (DO c OD)\<close>
-| noleak_wf_atom[intro!]: \<open>noleak_wf \<oo> (Atomic p q)\<close>
-
 
 definition
   \<open>rely_obs_safe \<oo> r \<equiv>
@@ -781,6 +762,58 @@ lemma noninterference_step:
   sorry
 
 
+lemma fstep_preserves_safe:
+  \<open>(s, c) \<midarrow>r, F, \<beta>\<rightarrow>\<^sub>f (Inl s', c') \<Longrightarrow>
+    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
+    safe (Suc n) c (Inl s) r g q S F \<Longrightarrow>
+    safe n c' (Inl s') r g q S F\<close>
+  apply (cases n)
+   apply force
+  apply (erule safe_sucE)
+  apply (case_tac \<beta>)
+   prefer 2
+   apply force
+  apply clarsimp
+  apply (elim disjE exE conjE)
+   apply (frule strip_eopstep)
+   apply (drule meta_spec2, drule meta_spec, drule meta_mp, assumption)
+   apply force
+  apply (frule strip_eopstep)
+  apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption, drule meta_mp, assumption)
+  apply clarsimp
+  apply (metis cancellative_def prod.collapse)
+  done
+
+lemma double_fstep_preserves_safe:
+  fixes sx sy :: \<open>'l::pre_perm_alg \<times> 's\<close>
+  shows
+  \<open>(sx, c) \<midarrow>r, F, \<gamma>x\<rightarrow>\<^sub>f (Inl sx', c') \<Longrightarrow>
+    (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', c') \<Longrightarrow>
+    fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
+    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
+    rr = liftR r \<Longrightarrow>
+    FF = liftP F \<circ> exch4 \<Longrightarrow>
+    cc = liftC' c \<Longrightarrow>
+    cc' = liftC' c' \<Longrightarrow>
+    ss = exch4 (sx, sy) \<Longrightarrow>
+    ss' = exch4 (sx', sy') \<Longrightarrow>
+    n \<le> m \<Longrightarrow>
+    safe m cc (Inl ss) rr gg qq SS FF \<Longrightarrow>
+    safe n cc' (Inl ss') rr gg qq SS FF\<close>
+  apply (cases n)
+   apply (clarsimp simp add: exch4_def split: prod.splits; fail)
+  apply clarsimp
+  apply (frule Suc_le_D)
+  apply clarsimp
+  apply (rename_tac n' m')
+  apply (erule safe_sucE)
+  apply (simp add: fact_aligned_iff)
+  apply (cases sx, cases sy, clarsimp)
+  apply (rename_tac sxl syl sxs sys)
+  apply (erule disjE conjE exE)
+   apply clarsimp
+  sorry
+
 
 theorem noninterference:
   fixes n :: nat
@@ -796,7 +829,6 @@ theorem noninterference:
     FF = (liftP F \<circ> exch4) \<Longrightarrow>
     SS \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
-    noleak_wf \<oo> c \<Longrightarrow>
     length \<alpha>sx \<le> n \<Longrightarrow>
     length \<alpha>sy \<le> n \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
@@ -809,15 +841,61 @@ theorem noninterference:
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
-proof (induct arbitrary: c sx sy \<alpha>sx \<alpha>sy r F rule: safe.inducts)
-  case (safe_nil c hl hs r g q S F)
-  then show ?case
-    by force
+proof (induct n arbitrary: cc zz c sx sy \<alpha>sx \<alpha>sy)
+  case 0
+  then show ?case by force
 next
-  case (safe_suc cc qq hl hs SS rr n gg FF)
+  case (Suc n cc zz)
+
+  have state_pred: \<open>\<forall>ss. zz = Inl ss \<longrightarrow> SS ss\<close>
+    using Suc.prems(1)
+    by (clarsimp simp add: safe_suc_iff)
+
+  have simple_ih:
+    \<open>\<And>c' lxx' sxx' \<alpha>x \<alpha>sx' lyy' syy' \<alpha>y \<alpha>sy'.
+      \<alpha>sx = \<alpha>x # \<alpha>sx' \<Longrightarrow>
+      (sx, c) \<midarrow>r, F, \<alpha>x\<rightarrow>\<^sub>f (Inl (lxx', sxx'), c') \<Longrightarrow>
+      ((lxx', sxx'), c') \<midarrow>r, F, \<alpha>sx'\<rightarrow>\<^sub>f* (Inl sx', cx') \<Longrightarrow>
+      \<alpha>sy = \<alpha>y # \<alpha>sy' \<Longrightarrow>
+      (sy, c) \<midarrow>r, F, \<alpha>y\<rightarrow>\<^sub>f (Inl (lyy', syy'), c') \<Longrightarrow>
+      ((lyy', syy'), c') \<midarrow>r, F, \<alpha>sy'\<rightarrow>\<^sub>f* (Inl sy', cy') \<Longrightarrow>
+      fact_aligned \<alpha>x \<alpha>y \<Longrightarrow>
+      \<bbbA> \<oo> ((lxx', sxx'), lyy', syy') \<Longrightarrow>
+      pred_executions (\<lambda>(s, c). determ_steps \<oo> r F (unliftC c) (exch4 s)) FF rr (liftC' c')
+        (Inl ((lxx', lyy'), sxx', syy')) n \<Longrightarrow>
+      \<bbbA> \<oo> (sx', sy')\<close>
+    using Suc.prems(6-10,13-)
+    apply (clarsimp simp del: comp_apply)
+    apply (frule(2) Suc.hyps[rotated 10])
+                 apply assumption
+                apply blast
+               apply blast
+              apply (cut_tac Suc.prems(1))
+              apply (clarsimp simp add: Suc.prems(3))
+              apply (frule(3) double_fstep_preserves_safe[rotated -1])
+                      apply blast
+                     apply (metis Suc.prems(4))
+                    apply (metis Suc.prems(5))
+                   apply (metis Suc.prems(2))
+                  apply blast
+                 apply blast
+                apply blast
+               apply (rule le_SucI, rule order.refl)
+              apply (simp add: exch4_def; fail)
+             apply blast
+            apply (simp add: exch4_def; fail)
+           apply (metis Suc.prems(4))
+          apply (metis Suc.prems(5))
+         apply blast
+        apply blast
+       apply blast
+      apply blast
+     apply blast
+    apply blast
+    done
 
   show ?case
-    using safe_suc.prems
+    using Suc.prems(2-)
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
     apply (erule fsteps.cases, force)
     apply (erule fsteps.cases, force)
@@ -825,15 +903,19 @@ next
     apply (rename_tac \<alpha>x lxx sxx lxx' sxx' cxx' \<alpha>sx \<alpha>y lyy syy lyy' syy' cyy' \<alpha>sy)
     apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
     apply (frule(2) determ_stepsD)
-     apply (cut_tac safe_suc.hyps(2), simp add: le_fun_def; fail)
+     apply (cut_tac state_pred, simp add: le_fun_def; fail)
     apply (clarsimp simp del: comp_apply)
-    apply (subgoal_tac \<open>\<alpha>sx = [] \<and> \<alpha>sy = [] \<or> \<alpha>sx \<noteq> [] \<and> \<alpha>sy \<noteq> []\<close>)
-     prefer 2
-     apply blast
-    apply (erule disjE, force)
-    apply clarsimp
-
-    sorry
+    apply (frule simple_ih)
+            apply blast
+           apply blast
+          apply blast
+         apply blast
+        apply blast
+       apply blast
+      apply blast
+    subgoal sorry
+    apply blast
+    done
 qed
 
 
