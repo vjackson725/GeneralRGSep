@@ -164,9 +164,8 @@ inductive rgsat ::
   \<open>rgsat c r g p q S F \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
     q \<^emph>\<and> sswa (r \<squnion> g) f \<le> q' \<Longrightarrow>
-    sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
-    F' \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F \<Longrightarrow>
-    S \<^emph>\<and> F \<le> S' \<Longrightarrow>
+    F' \<^emph>\<and> sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
+    S \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> S' \<Longrightarrow>
     rgsat c r g p' q' S' F'\<close>
 | rgsat_weaken:
   \<open>rgsat c r' g' p' q' S' F' \<Longrightarrow>
@@ -409,7 +408,7 @@ lemmas rgsat_await =
 subsection \<open> If-then-else \<close>
 
 lemma rgsat_precond_in_localst:
-  \<open>r, g \<turnstile>\<^bsub>L, F\<^esub> { p } c { q } \<Longrightarrow> p \<le> L\<close>
+  \<open>r, g \<turnstile>\<^bsub>S, F\<^esub> { p } c { q } \<Longrightarrow> p \<le> S\<close>
   apply (induct rule: rgsat.inducts)
             apply blast
            apply blast
@@ -417,9 +416,10 @@ lemma rgsat_precond_in_localst:
          apply blast
         apply blast
        apply (meson order_trans sepconj_conj_monoL sepconj_conj_monoR sswa_stronger; fail)
-      apply (metis order.trans)
-     apply (meson order_trans sepconj_conj_mono sswa_stronger; fail)
-    apply blast
+      apply blast
+     apply (simp add: sepimp_conj_sepconj_conj_shunt)
+     apply (meson order.trans sepconj_conj_mono sswa_stronger; fail)
+    apply (meson order_trans sepconj_conj_mono sswa_stronger; fail)
    apply fast
   apply blast
   done

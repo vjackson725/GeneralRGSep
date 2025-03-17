@@ -241,6 +241,12 @@ lemma sepimp_conj_mono:
   \<open>p' \<le> p \<Longrightarrow> q \<le> q' \<Longrightarrow> p \<midarrow>\<^emph>\<^sub>\<and> q \<le> p' \<midarrow>\<^emph>\<^sub>\<and> q'\<close>
   by (force simp add: sepimp_conj_def)
 
+lemma sepconj_conj_sepimp_conj_shunt:
+  \<open>p \<^emph>\<and> q \<le> r \<longleftrightarrow> p \<le> q \<midarrow>\<^emph>\<^sub>\<and> r\<close>
+  by (force simp add: sepconj_conj_def sepimp_conj_def le_fun_def)
+
+lemmas sepimp_conj_sepconj_conj_shunt = sepconj_conj_sepimp_conj_shunt[symmetric]
+
 
 section \<open> (additive) unit \<close>
 

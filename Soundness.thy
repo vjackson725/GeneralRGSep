@@ -486,7 +486,6 @@ lemma safe_frame':
   \<open>safe n c s r g q S F \<Longrightarrow>
     s = Inl (hl, hs) \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
-    sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
     sswa (r \<squnion> g) f (hlf, hs) \<Longrightarrow>
     safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (S \<^emph>\<and> sswa (r \<squnion> g) f) (sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F)\<close>
 proof (induct arbitrary: hl hs hlf rule: safe.induct)
@@ -508,7 +507,7 @@ next
       (* subgoal: stateset *)
        apply (meson hyps(2) predicate1D sepconj_conjI; fail)
       (* subgoal: rely step *)
-      apply (rule hyps(4), blast, blast, blast, blast)
+      apply (rule hyps(4), blast, blast, blast)
       apply (rule sswa_step, rule sup2I1, blast, blast)
       (* subgoal: local framed opstep *)
     apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply)
@@ -534,7 +533,6 @@ lemma safe_frame:
   \<open>safe n c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     f (hlf, hs) \<Longrightarrow>
-    sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
     sswa (r \<squnion> g) f \<le> f' \<Longrightarrow>
     F' \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F \<Longrightarrow>
     s = (Inl (hl + hlf, hs)) \<Longrightarrow>
@@ -1124,21 +1122,21 @@ next
   then show ?case
     by (intro safe_atom[where p=p and q=q]; blast)
 next
-  case (rgsat_frame c r g p q S F p' f f' q' S')
+  case (rgsat_frame c r g p q S F p' f q' F' S')
   then show ?case
     apply -
     apply (frule(1) predicate1D)
-    apply (clarsimp simp add: sepconj_conj_def[of p] simp del: sup_apply)
+    apply (clarsimp simp del: sup_apply simp add: 
+        sepconj_conj_apply)
     apply (rule safe_postpred_mono[OF _ safe_frame[where f=f]])
-            apply blast
            apply blast
           apply blast
          apply blast
         apply blast
        apply blast
-      apply blast
+      apply (simp add: sepimp_conj_sepconj_conj_shunt; fail)
      apply blast
-    apply (meson order.trans sepconj_conj_monoR)
+    apply (simp add: sepimp_conj_sepconj_conj_shunt)
     done
 next
   case (rgsat_weaken c r' g' p' q' F' S' p q r g F S)

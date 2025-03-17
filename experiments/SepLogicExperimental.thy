@@ -1062,6 +1062,99 @@ lemma (in multiunit_sep_alg)
   shows
     \<open>a ## b \<Longrightarrow> \<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
   oops
+
+lemma (in multiunit_sep_alg)
+  fixes a b c d :: 'a
+  assumes glb_ex:
+    \<open>\<And>a b::'a. a ## b \<Longrightarrow> \<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+  assumes
+    \<open>a ## b\<close>
+    \<open>c ## d\<close>
+    \<open>a + b = c + d\<close>
+  shows
+    \<open>\<exists>ac ad bc bd.
+        ac ## ad \<and> bc ## bd \<and> ac ## bc \<and> ad ## bd \<and>
+        ac + ad = a \<and> bc + bd = b \<and> ac + bc = c \<and> ad + bd = d\<close>
+  nitpick[card 'a=3]
+  oops
+
+
+lemma (in cancel_sep_alg)
+  assumes
+    \<open>\<forall>a b::'a. a ## b \<longrightarrow> (\<exists>a' b'. a ## a' \<and> b ## b' \<and> a + a' = b + b')\<close>
+  shows
+    \<open>\<forall>a b::'a. a ## b \<longrightarrow>
+      (\<exists>a' b'. a ## a' \<and> b ## b' \<and> a + a' = b + b' \<and>
+        (\<forall>a'' b''.
+          a ## a'' \<longrightarrow> b ## b'' \<longrightarrow>
+          a + a'' = b + b'' \<longrightarrow> a'' = a' \<and> b'' = b'))\<close>
+  nitpick[card 'a=2]
+  sorry
+
+lemma (in sep_alg)
+  assumes
+    \<open>\<forall>a b::'a. a ## b \<longrightarrow>
+      (\<exists>a' b'. a ## a' \<and> b ## b' \<and> a + a' = b + b' \<and>
+        (\<forall>a'' b''.
+          a ## a'' \<longrightarrow> b ## b'' \<longrightarrow>
+          a + a'' = b + b'' \<longrightarrow> a'' = a' \<and> b'' = b'))\<close>
+  shows
+    \<open>cancellative a\<close>
+  by (metis assms cancellative_def zero_disjoint)
+
+lemma (in sep_alg)
+  assumes
+    \<open>\<forall>a::'a. cancellative a\<close>
+  shows
+    \<open>a ## b \<Longrightarrow> \<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+  nitpick[card 'a=8]
+  oops
+
+lemma (in crosssplit_sep_alg)
+  assumes
+    \<open>\<forall>a b::'a. a ## b \<longrightarrow>
+      (\<exists>a' b'. a ## a' \<and> b ## b' \<and> a + a' = b + b' \<and>
+        (\<forall>a'' b''.
+          a ## a'' \<longrightarrow> b ## b'' \<longrightarrow>
+          a + a'' = b + b'' \<longrightarrow> a'' = a' \<and> b'' = b'))\<close>
+    \<open>a ## b\<close>
+  shows
+    \<open>\<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+proof -
+  obtain a' b' where lemA:
+    \<open>a ## a'\<close>
+    \<open>b ## b'\<close>
+    \<open>a + a' = b + b'\<close>
+    using assms by blast
   
+  obtain ab ab' a'b a'b' where lemB:
+    \<open>ab ## ab'\<close>
+    \<open>ab ## a'b\<close>
+    \<open>ab' ## a'b'\<close>
+    \<open>a'b ## a'b'\<close>
+    \<open>a = ab + ab'\<close>
+    \<open>a' = a'b + a'b'\<close>
+    \<open>b = ab + a'b\<close>
+    \<open>b' = ab' + a'b'\<close>
+    using lemA(1-3) cross_split
+    by metis
+
+  show ?thesis
+    using lemA(1-3) lemB
+    by (metis assms(1) assms(2) disjoint_add_rightL disjoint_sym_iff
+        resource_preorder.le_disj_eq_absorb)
+qed
+
+
+lemma (in crosssplit_sep_alg)
+  assumes
+    \<open>\<forall>a::'a. cancellative a\<close>
+    \<open>a ## b\<close>
+  shows
+    \<open>\<exists>x. x \<preceq> a \<and> x \<preceq> b \<and> (\<forall>y. y \<preceq> a \<longrightarrow> y \<preceq> b \<longrightarrow> y \<preceq> x)\<close>
+  sledgehammer
+  sorry
+
+
 
 end
