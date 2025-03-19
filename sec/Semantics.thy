@@ -35,10 +35,6 @@ inductive pred_executions
     P ((hl, hs), c) \<Longrightarrow>
     \<comment> \<open> rely steps generate states \<close>
     (\<And>hs'. r hs hs' \<Longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<Longrightarrow>
-    \<comment> \<open> opsteps generate states \<close>
-    (\<And>\<alpha> z' c'.
-        ((hl,hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
-        pred_executions P F r c' z' n) \<Longrightarrow>
     \<comment> \<open> framed opsteps generate states \<close>
     (\<And>\<alpha> hlhlf' hs' c' hlf.
         hl ## hlf \<Longrightarrow>
@@ -65,8 +61,6 @@ lemma pred_executions_suc_iff:
   \<open>pred_executions P F r c (Inl (hl, hs)) (Suc n) \<longleftrightarrow>
     P ((hl, hs), c) \<and>
     (\<forall>hs'. r hs hs' \<longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<and>
-    (\<forall>\<alpha> z' c'.
-        ((hl,hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow> pred_executions P F r c' z' n) \<and>
     (\<forall>\<alpha> hlhlf' hs' c' hlf.
         hl ## hlf \<longrightarrow>
         ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
@@ -212,7 +206,12 @@ section \<open> Tree Noninterference \<close>
 section \<open> Safe \<close>
 
 abbreviation tree_weak_noninterference where
-  \<open>tree_weak_noninterference \<oo> \<equiv> pred_executions (\<lambda>(s,c). \<bbbA> \<oo> (exch4 s) \<and> (\<exists>cx. c = liftC' cx))\<close>
+  \<open>tree_weak_noninterference \<oo> F \<equiv>
+    pred_executions
+      (\<lambda>((hl,hs),c).
+        (\<forall>hlf. F (hlf,hs) \<longrightarrow> hl ## hlf \<longrightarrow> \<bbbA> \<oo> (exch4 (hl + hlf, hs))) \<and>
+        (\<exists>cx. c = liftC' cx))
+      F\<close>
 
 lemma opstep_preserves_liftC':
   \<open>(s, liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', cx') \<Longrightarrow> \<exists>c'. cx' = liftC' c'\<close>
@@ -347,7 +346,6 @@ theorem weak_noninterference:
   \<open>safe n c z r g q S F \<Longrightarrow>
     z = Inl s \<Longrightarrow>
     c = liftC' cx \<Longrightarrow>
-    S \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     S \<^emph>\<and> F \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     tree_weak_noninterference \<oo> F r c z n\<close>
   apply (induct arbitrary: s cx rule: safe.inducts)
@@ -355,15 +353,12 @@ theorem weak_noninterference:
   apply (clarsimp simp add: liftC_rev_iff pred_executions_suc_iff)
   apply (rename_tac c hla hlb hsa hsb)
   apply (intro conjI)
-    apply (force simp add: le_fun_def)
-   apply clarsimp
-   apply (frule opstep_preserves_liftC')
-   apply blast
+   apply (clarsimp simp add: le_fun_def sepconj_conj_def, blast)
   apply clarsimp
   apply (frule opstep_preserves_liftC')
   apply clarsimp
-  apply (drule meta_spec2, drule meta_spec2, drule meta_spec,
-      drule meta_mp, rule conjI, assumption, assumption , drule meta_mp, assumption)
+  apply (drule meta_spec2, drule meta_spec2, drule meta_spec, drule meta_mp,
+      rule conjI, assumption, assumption, drule meta_mp, assumption, drule meta_mp, assumption)
   apply blast
   done
 
@@ -503,7 +498,7 @@ subsection \<open> Full step \<close>
 
 datatype 'a fact = Loc 'a | Env
 
-fun fstep
+definition fstep
   :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
         ('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
         unit act pact fact \<Rightarrow>
@@ -511,25 +506,21 @@ fun fstep
         ('l \<times> 's) cpconfig \<Rightarrow>
         bool\<close>
   where
-  \<open>fstep r F Env sc zc' =
-    (\<exists>hl hs hs' c. sc = ((hl,hs),c) \<and> zc' = (Inl (hl,hs'), c) \<and> r hs hs')\<close>
-| \<open>fstep r F (Loc \<alpha>) sc zc' =
-    (eopstep \<alpha> sc zc' \<or>
+    \<open>fstep r F \<beta> sc zc' \<equiv>
       (\<exists>hl hs c.
-        sc = ((hl,hs),c) \<and>
-        (\<comment> \<open> non-crashing step \<close>
-          (\<exists>hl' hs' c' hlf.
-            zc' = (Inl (hl',hs'),c') \<and>
-            F (hlf, hs) \<and>
-            hl ## hlf \<and>
-            hl' ## hlf \<and>
-            eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
-        \<comment> \<open> crashing step \<close>
-          (\<exists>u c' hlf.
-            zc' = (Inr u, c') \<and>
-            F (hlf, hs) \<and>
-            hl ## hlf \<and>
-            eopstep \<alpha> ((hl + hlf, hs), c) zc'))))\<close>
+        sc = ((hl, hs), c) \<and>
+        (\<beta> = Env \<and> (\<exists>hs' c. zc' = (Inl (hl, hs'), c) \<and> r hs hs')
+        \<or> (\<exists>hlf. F (hlf, hs) \<and> hl ## hlf \<and>
+            (\<exists>\<alpha>. \<beta> = (Loc \<alpha>) \<and>
+              \<comment> \<open> non-crashing step \<close>
+              (\<exists>hl' hs' c'.
+                zc' = (Inl (hl',hs'),c') \<and>
+                hl' ## hlf \<and>
+                eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
+              \<comment> \<open> crashing step \<close>
+              (\<exists>u c'.
+                zc' = (Inr u, c') \<and>
+                eopstep \<alpha> ((hl + hlf, hs), c) zc')))))\<close>
 
 
 paragraph \<open> Pretty extended operational semantics \<close>
@@ -623,24 +614,15 @@ abbreviation (input) plusL (infixl \<open>+\<^sub>1\<close> 60) where
   \<open>s +\<^sub>1 f \<equiv> (fst s + f, snd s)\<close>
 
 definition                                                                      
-  \<open>head_step_obs_safe \<oo> c \<equiv> \<lambda>(x,y).
-    \<bbbA> \<oo> (x,y) \<longrightarrow>
-    (\<forall>p q. (p,q) \<in> head_atoms c \<longrightarrow>
-      (\<forall>x'. p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x',y)) \<and>
-      (\<forall>y'. p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x,y'))) \<and>
-    (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
-    (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
-    (\<forall>x'. px x \<longrightarrow> qx x x' \<longrightarrow>
-    (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
-      \<bbbA> \<oo> (x',y')))))\<close>
-(*
-(\<forall>f xf'.
-            F (f, snd x) \<longrightarrow>
-            fst x ## f \<longrightarrow>
-            p (x +\<^sub>1 f) \<longrightarrow>
-            q (x +\<^sub>1 f) xf' \<longrightarrow>
-            (\<forall>x'. xf' = x' +\<^sub>1 f \<longrightarrow> fst x' ## f \<longrightarrow> \<bbbA> \<oo> (x',y)))
-*)
+  \<open>head_step_obs_safe \<oo> F c \<equiv> \<lambda>(x, y).
+      \<bbbA> \<oo> (x, y) \<longrightarrow>
+        (\<forall>p q x'. (p,q) \<in> head_atoms c \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x', y)) \<and>
+        (\<forall>p q y'. (p,q) \<in> head_atoms c \<longrightarrow> p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x, y')) \<and>
+        (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
+          (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
+          (\<forall>x'. px x \<longrightarrow> qx x x' \<longrightarrow>
+          (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
+            \<bbbA> \<oo> (x',y')))))\<close>
 
 definition                                                                      
   \<open>determ_steps \<oo> r F c \<equiv> \<lambda>(x,y).
@@ -659,6 +641,10 @@ lemma determ_stepsD:
   unfolding determ_steps_def
   by (simp, metis surj_pair)
 
+definition
+  \<open>sec_framed_with F \<equiv> \<lambda>(x, y).
+    {((fst x + fx, snd x), (fst y + fy, snd y))|fx fy.
+        F (fx, snd x) \<and> fst x ## fx \<and> F (fy, snd y) \<and> fst y ## fy}\<close>
 
 lemma noninterference_step:
   fixes n :: nat
@@ -675,73 +661,19 @@ lemma noninterference_step:
     \<comment> \<open>
       tau_step_obs_safe \<oo> F c (sx,sy) \<Longrightarrow>
     \<close>
-    head_step_obs_safe \<oo> c (sx,sy) \<Longrightarrow>
+    \<forall>xy\<in>sec_framed_with F (sx, sy). head_step_obs_safe \<oo> F c xy \<Longrightarrow>
     determ_steps \<oo> r F c (sx, sy) \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
-    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
+    \<forall>xy\<in>sec_framed_with F (sx, sy). \<bbbA> \<oo> xy  \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
   apply (clarsimp simp del: comp_apply simp add: fact_aligned_iff)
   apply (erule disjE)
-   apply (clarsimp simp del: comp_apply  simp add: rely_obs_safe_def)
+   apply (clarsimp simp del: comp_apply simp add: rely_obs_safe_def)
    apply (drule spec2[of _ \<open>fst sx\<close> \<open>fst sy\<close>], drule spec2[of _ \<open>snd sx\<close> \<open>snd sy\<close>])
-   apply force
-  apply (clarsimp simp del: split_paired_All simp add: head_step_obs_safe_def)
-  apply (elim disjE)
-    (* unframed / unframed *)
-     apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
-     apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
-     apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
-      erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
-    (** tau / tau **)
-        apply force
-    (** tau / vis **)
-       apply (frule vis_step_impl_atom, force simp del: split_paired_All)
-    (** vis / tau **)
-      apply (frule vis_step_impl_atom, force simp del: split_paired_All)
-    (** vis / vis **)
-     apply (frule vis_step_impl_atom[of _ sx],
-      frule vis_step_impl_atom[of _ sy], force simp del: split_paired_All)
-    (* framed / unframed *)
-  sorry
-    apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
-    apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
-    apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
-    apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
-      erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
-    (** tau / tau **)
-       apply clarsimp
-       apply (metis cancellative_def prod.collapse)
-    (** tau / vis **)
-      apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
-      apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-      apply presburger
-    (** vis / tau **)
-     apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
-     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-     apply (metis cancellative_def prod.collapse)
-    (** vis / vis **)
-  subgoal sorry
-      (* unframed / framed *)
-   apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
-   apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
-   apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
-   apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
-      erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
-    (** tau / tau **)
-      apply clarsimp
-      apply (metis cancellative_def prod.collapse)
-    (** tau / vis **)
-     apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
-     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-     apply (metis cancellative_def prod.collapse)
-    (** vis / tau **)
-    apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
-    apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-    apply presburger
-    (** vis / vis **)
-  subgoal sorry
-      (* framed / framed *)
-  apply (clarsimp simp add: tau_step_obs_safe_def all_atom_comm_def simp del: split_paired_All)
+
+  oops
+    (* framed / framed steps *)
+  apply (clarsimp simp del: split_paired_All)
   apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
   apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
   apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
@@ -750,7 +682,16 @@ lemma noninterference_step:
      apply clarsimp
      apply (metis cancellative_def prod.collapse)
     (** tau / vis **)
-    apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
+    apply (clarsimp simp del: split_paired_All)
+    apply (frule vis_step_impl_atom)
+    apply (clarsimp simp del: split_paired_All)
+    apply (unfold head_step_obs_safe_def, clarify)
+    apply (drule spec, drule mp, assumption, drule mp, assumption,
+      drule spec, drule mp, assumption, drule mp, assumption)
+    apply (elim conjE)
+
+
+  oops
     apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
     apply (metis cancellative_def prod.collapse)
     (** vis / tau **)

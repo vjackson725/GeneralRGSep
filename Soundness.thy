@@ -980,10 +980,10 @@ lemma safe_parallel:
 subsection \<open> Safety of conj \<close>
 
 lemma safe_conj':
-  \<open>safe n c (Inl (hl, hs)) r g q1 S F1 \<Longrightarrow>
-    safe n c (Inl (hl, hs)) r g q2 S F2 \<Longrightarrow>
-    \<forall>z a b c. F1 (c,z) \<longrightarrow> F2 (c,z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
-    safe n c (Inl (hl, hs)) r g (q1 \<sqinter> q2) S (F1 \<sqinter> F2)\<close>
+  \<open>safe n c (Inl (hl, hs)) r g q1 S F \<Longrightarrow>
+    safe n c (Inl (hl, hs)) r g q2 S F \<Longrightarrow>
+    \<forall>z a b c. F (c,z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+    safe n c (Inl (hl, hs)) r g (q1 \<sqinter> q2) S F\<close>
 proof (induct n arbitrary: c hl hs r g q1 q2)
   case 0
   then show ?case by blast
@@ -1012,11 +1012,9 @@ next
 qed
 
 lemma safe_conj:
-  \<open>safe n c (Inl (hl, hs)) r g q1 S F1 \<Longrightarrow>
-    safe n c (Inl (hl, hs)) r g q2 S F2 \<Longrightarrow>
-    F \<le> F1 \<Longrightarrow>
-    F \<le> F2 \<Longrightarrow>
-    \<forall>z a b c. F1 (c,z) \<longrightarrow> F2 (c,z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
+  \<open>safe n c (Inl (hl, hs)) r g q1 S F \<Longrightarrow>
+    safe n c (Inl (hl, hs)) r g q2 S F \<Longrightarrow>
+    \<forall>z a b c. F (c,z) \<longrightarrow> a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b \<Longrightarrow>
     safe n c (Inl (hl, hs)) r g (q1 \<sqinter> q2) S F\<close>
   using safe_conj'
   by (rule safe_frameset_antimonoD) blast+
