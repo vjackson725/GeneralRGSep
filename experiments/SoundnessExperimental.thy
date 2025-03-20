@@ -2,6 +2,63 @@ theory SoundnessExperimental
   imports "../Soundness"
 begin
 
+section \<open> Alternate safe with restricted rely condition \<close>
+
+subsubsection \<open> Safe alternates \<close>
+
+lemma safe_suc_iff_frame_alt:
+  \<open>safe (Suc n) c (Inl s) r g q S F \<Longrightarrow>
+    (c = Skip \<longrightarrow> q s) \<and>
+    S s \<and>
+    \<comment> \<open> note the assumption here \<close>
+    ((\<exists>hlf. F (hlf, snd s) \<and> fst s ## hlf) \<longrightarrow>
+      (\<forall>hs'. r (snd s) hs' \<longrightarrow> safe n c (Inl (fst s, hs')) r g q S F)) \<and>
+    (\<forall>hlf.
+      F (hlf, snd s) \<longrightarrow>
+      fst s ## hlf \<longrightarrow>
+      (\<forall>\<alpha> z' c'.
+        ((fst s + hlf, snd s), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow>
+        (\<exists>hlhlf' hs'.
+          z' = Inl (hlhlf',hs') \<and>
+          (\<alpha> \<noteq> Tau \<longrightarrow> g (snd s) hs') \<and>
+          (\<exists>hl'.
+            hl' ## hlf \<and>
+            hlhlf' = hl' + hlf \<and>
+            (\<alpha> = Tau \<longrightarrow> hl' = fst s) \<and>
+            safe n c' (Inl (hl',hs')) r g q S F))))\<close>
+  by (simp add: safe_suc_iff)
+  \<comment> \<open> this is obviously only weaker than the original \<close>
+
+\<comment> \<open> this is probably the one we actually want \<close>
+lemma safe_iff_frame_alt2:
+    \<open>(c = Skip \<longrightarrow> q s) \<and>
+      S s \<and>
+      \<comment> \<open> note the additional test \<close>
+      (\<exists>hlf. F (hlf, snd s) \<and> fst s ## hlf) \<and>
+      (0 < n \<longrightarrow>
+        (\<forall>hs'. r (snd s) hs' \<longrightarrow> safe (n-1) c (Inl (fst s, hs')) r g q S F) \<and>
+        (\<forall>hlf.
+          F (hlf, snd s) \<longrightarrow>
+          fst s ## hlf \<longrightarrow>
+          (\<forall>\<alpha> z' c'.
+            ((fst s + hlf, snd s), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow>
+            (\<exists>hlhlf' hs'.
+              z' = Inl (hlhlf',hs') \<and>
+              (\<alpha> \<noteq> Tau \<longrightarrow> g (snd s) hs') \<and>
+              (\<exists>hl'.
+                hl' ## hlf \<and>
+                hlhlf' = hl' + hlf \<and>
+                (\<alpha> = Tau \<longrightarrow> hl' = fst s) \<and>
+                safe (n-1) c' (Inl (hl',hs')) r g q S F))))) \<Longrightarrow>
+    safe n c (Inl s) r g q S F\<close>
+  apply (induct n arbitrary: s r)
+   apply force
+  apply (simp add: safe_suc_iff)
+  done
+
+
+section \<open> Alternate safe including forall steps property too \<close>
+
 lemma safe_suc_iff2:
   fixes hl :: \<open>'l::pre_perm_alg\<close>
     and hs :: 's
