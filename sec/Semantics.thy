@@ -509,15 +509,15 @@ definition fstep
     \<open>fstep r F \<beta> sc zc' \<equiv>
       (\<exists>hl hs c.
         sc = ((hl, hs), c) \<and>
-        (\<beta> = Env \<and> (\<exists>hs' c. zc' = (Inl (hl, hs'), c) \<and> r hs hs')
-        \<or> (\<exists>hlf. F (hlf, hs) \<and> hl ## hlf \<and>
-            (\<exists>\<alpha>. \<beta> = (Loc \<alpha>) \<and>
-              \<comment> \<open> non-crashing step \<close>
+        ((\<beta> = Env \<and> (\<exists>hs'. zc' = (Inl (hl, hs'), c) \<and> r hs hs'))
+        \<or> (\<exists>hlf \<alpha>.
+            F (hlf, hs) \<and> hl ## hlf \<and> \<beta> = Loc \<alpha> \<and>
+            (\<comment> \<open> non-crashing step \<close>
               (\<exists>hl' hs' c'.
                 zc' = (Inl (hl',hs'),c') \<and>
                 hl' ## hlf \<and>
                 eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
-              \<comment> \<open> crashing step \<close>
+            \<comment> \<open> crashing step \<close>
               (\<exists>u c'.
                 zc' = (Inr u, c') \<and>
                 eopstep \<alpha> ((hl + hlf, hs), c) zc')))))\<close>
@@ -534,8 +534,23 @@ abbreviation pretty_no_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Right
 
 subsubsection \<open> Lemmas about fstep \<close>
 
-
-
+lemma fstep_simps[simp]:
+  \<open>fstep r F Env sc zc' =
+    (\<exists>hl hs c hs'. sc = ((hl, hs), c) \<and> zc' = (Inl (hl, hs'), c) \<and> r hs hs')\<close>
+  \<open>fstep r F (Loc \<alpha>) sc zc' =
+    (\<exists>hl hs c hlf.
+      sc = ((hl, hs), c) \<and>
+      F (hlf, hs) \<and> hl ## hlf \<and>
+      (\<comment> \<open> non-crashing step \<close>
+        (\<exists>hl' hs' c'.
+          zc' = (Inl (hl',hs'),c') \<and>
+          hl' ## hlf \<and>
+          eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
+      \<comment> \<open> crashing step \<close>
+        (\<exists>u c'.
+          zc' = (Inr u, c') \<and>
+          eopstep \<alpha> ((hl + hlf, hs), c) zc')))\<close>
+  by (simp add: fstep_def; fail)+
 
 
 section \<open> Trace Semantics \<close>
@@ -610,9 +625,6 @@ definition
             \<bbbA> \<oo> (x,y) \<longrightarrow>
             px = py \<and> qx = qy))))\<close>
 
-abbreviation (input) plusL (infixl \<open>+\<^sub>1\<close> 60) where
-  \<open>s +\<^sub>1 f \<equiv> (fst s + f, snd s)\<close>
-
 definition                                                                      
   \<open>head_step_obs_safe \<oo> F c \<equiv> \<lambda>(x, y).
       \<bbbA> \<oo> (x, y) \<longrightarrow>
@@ -646,6 +658,23 @@ definition
     {((fst x + fx, snd x), (fst y + fy, snd y))|fx fy.
         F (fx, snd x) \<and> fst x ## fx \<and> F (fy, snd y) \<and> fst y ## fy}\<close>
 
+
+subsection \<open> Separation Respecting Agreement \<close>
+
+definition sec_sepsafe_agree
+  :: \<open>(_ \<Rightarrow> 'v) \<Rightarrow>('a::pre_perm_alg \<times> 'b) \<times> ('a \<times> 'b) \<Rightarrow> bool\<close> (\<open>\<bbbS>\<close>)
+  where
+    \<open>\<bbbS> \<oo> \<equiv> \<lambda>(x,y).
+      \<forall>x' y'. x' \<preceq> fst x \<longrightarrow> y' \<preceq> fst y \<longrightarrow> sepdomeq x' y' \<longrightarrow> \<oo> (x', snd x) = \<oo> (y', snd y)\<close>
+
+lemma sec_sepsafe_agree_conj:
+  \<open>\<bbbS> f \<sqinter> \<bbbS> g = \<bbbS> (\<lambda>x. (f x, g x))\<close>
+  unfolding sec_sepsafe_agree_def
+  by blast
+
+
+section \<open> Noninterference \<close>
+
 lemma noninterference_step:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
@@ -670,6 +699,7 @@ lemma noninterference_step:
   apply (erule disjE)
    apply (clarsimp simp del: comp_apply simp add: rely_obs_safe_def)
    apply (drule spec2[of _ \<open>fst sx\<close> \<open>fst sy\<close>], drule spec2[of _ \<open>snd sx\<close> \<open>snd sy\<close>])
+
 
   oops
     (* framed / framed steps *)
