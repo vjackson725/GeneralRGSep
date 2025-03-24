@@ -237,10 +237,7 @@ inductive safe
       ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
       bool\<close>
   where
-  safe_nil[intro!]: \<open>
-    (c = Skip \<longrightarrow> q (hl, hs)) \<Longrightarrow>
-    S (hl, hs) \<Longrightarrow>
-    safe 0 c (Inl (hl, hs)) r g q S F\<close>
+  safe_nil[intro!]: \<open>safe 0 c (Inl (hl, hs)) r g q S F\<close>
 | safe_suc[intro]:
   \<open>\<comment> \<open> if the command is Skip, the postcondition is established \<close>
     \<comment> \<open> TODO: This requires termination is represented as infinite stuttering past the end.
@@ -272,18 +269,18 @@ inductive_cases safe_zeroE[elim!]: \<open>safe 0 c s r g q S F\<close>
 inductive_cases safe_sucE[elim]: \<open>safe (Suc n) c s r g q S F\<close>
 
 lemma safe_then_state:
-  assumes \<open>safe n c (Inl (hl, hs)) r g q S F\<close>
+  assumes \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F\<close>
   shows \<open>S (hl, hs)\<close>
 proof -
-  { fix z
-    have \<open>safe n c z r g q S F \<Longrightarrow> z = Inl (hl, hs) \<Longrightarrow> S (hl, hs)\<close>
+  { fix m z
+    have \<open>safe m c z r g q S F \<Longrightarrow> 0 < (m::nat) \<Longrightarrow> z = Inl (hl, hs) \<Longrightarrow> S (hl, hs)\<close>
       by (induct rule: safe.inducts) blast+
   } then show ?thesis
     using assms by blast
 qed
 
 lemma safe_nil_iff[simp]:
-  \<open>safe 0 c s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs) \<and> (c = Skip \<longrightarrow> q (hl, hs)) \<and> S (hl, hs))\<close>
+  \<open>safe 0 c s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
   by force
 
 lemma safe_suc_iff:
@@ -420,20 +417,18 @@ subsection \<open> Safety of Skip \<close>
 
 lemma safe_skip_iff:
   \<open>safe n Skip s r g q S F \<longleftrightarrow>
-    (\<exists>hl hs. s = Inl (hl, hs) \<and> (\<forall>k\<le>n. (\<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs'))))\<close>
+    (\<exists>hl hs. s = Inl (hl, hs) \<and> (\<forall>k<n. (\<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs'))))\<close>
   apply (induct n arbitrary: s)
    apply (simp; fail)
   apply (rule iffI)
    apply (erule safe.cases, blast)
-   apply (clarsimp simp add: less_Suc_eq_0_disj relpowp_simp_alt simp del: relpowp.simps(2))
-   apply (metis Suc_le_mono relpowp_E2)
+   apply (force simp add: less_Suc_eq_0_disj relpowp_simp_alt simp del: relpowp.simps(2))
   apply clarsimp
   apply (rule safe_suc)
      apply force
     apply force
-   apply (clarsimp simp add: less_Suc_eq_0_disj all_conj_distrib imp_ex_conjL
+   apply (force simp add: less_Suc_eq_0_disj all_conj_distrib imp_ex_conjL
       relpowp_commute[symmetric] relcompp_apply del: disjCI)
-   apply (metis not_less_eq_eq relpowp_Suc_I2)
   apply force
   done
 
@@ -443,13 +438,15 @@ lemma safe_skip_stable_iff:
     \<open>sswa r S \<le> S\<close>
     \<open>sswa r q \<le> q\<close>
   shows
-    \<open>safe n Skip s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs) \<and> q (hl, hs) \<and> S (hl, hs))\<close>
+    \<open>safe n Skip s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs) \<and> (0 < n \<longrightarrow> q (hl, hs) \<and> S (hl, hs)))\<close>
 proof -
   have \<open>\<And>n' hl hs.
           (\<forall>k\<le>n'. \<forall>hs'. (r ^^ k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs')) \<longleftrightarrow>
             q (hl, hs) \<and> S (hl, hs)\<close>
     using assms
-    by (simp add: le_fun_def sp_def imp_ex_conjL rtranclp_power, fastforce)
+    apply (simp add: le_fun_def sp_def imp_ex_conjL rtranclp_power)
+    apply (metis le0 relpowp_0_I)
+    done
   then show ?thesis
     apply (cases n, force)
     apply (rule trans[OF safe_skip_iff])
@@ -1047,9 +1044,6 @@ next
     apply (frule_tac q=q in safe_sucD(4)[OF bspec[of _ \<open>\<lambda>q. safe _ _ _ _ _ q _ _\<close>]],
         blast, blast, blast, blast)
     apply (clarsimp simp del: inf_apply Inf_apply)
-    apply (subgoal_tac \<open>S  (hl', hs')\<close>)
-     prefer 2
-     apply (metis safe_then_state)
     apply (subgoal_tac \<open>\<forall>q\<in>Q. safe n c' (Inl (hl', hs')) r g q S F\<close>)
      prefer 2
      apply clarsimp
