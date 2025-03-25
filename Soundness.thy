@@ -284,25 +284,26 @@ lemma safe_nil_iff[simp]:
   by force
 
 lemma safe_suc_iff:
-  \<open>safe (Suc n) c (Inl s) r g q S F \<longleftrightarrow>
-    (c = Skip \<longrightarrow> q s) \<and>
-    S s \<and>
-    (\<forall>hs'. r (snd s) hs' \<longrightarrow> safe n c (Inl (fst s, hs')) r g q S F) \<and>
-    (\<forall>\<alpha> z' c' hlf.
-        fst s ## hlf \<longrightarrow>
-        ((fst s + hlf, snd s), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow>
-        F (hlf, snd s) \<longrightarrow>
-        (\<exists>hlhlf' hs'.
-          z' = Inl (hlhlf',hs') \<and>
-          (\<alpha> \<noteq> Tau \<longrightarrow> g (snd s) hs') \<and>
-          (\<exists>hl'.
-            hl' ## hlf \<and>
-            hlhlf' = hl' + hlf \<and>
-            (\<alpha> = Tau \<longrightarrow> hl' = fst s) \<and>
-            safe n c' (Inl (hl',hs')) r g q S F)))\<close>
+  \<open>safe (Suc n) c z r g q S F \<longleftrightarrow>
+    (\<exists>s. z = Inl s \<and>
+      (c = Skip \<longrightarrow> q s) \<and>
+      S s \<and>
+      (\<forall>hs'. r (snd s) hs' \<longrightarrow> safe n c (Inl (fst s, hs')) r g q S F) \<and>
+      (\<forall>\<alpha> z' c' hlf.
+          fst s ## hlf \<longrightarrow>
+          ((fst s + hlf, snd s), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow>
+          F (hlf, snd s) \<longrightarrow>
+          (\<exists>hlhlf' hs'.
+            z' = Inl (hlhlf',hs') \<and>
+            (\<alpha> \<noteq> Tau \<longrightarrow> g (snd s) hs') \<and>
+            (\<exists>hl'.
+              hl' ## hlf \<and>
+              hlhlf' = hl' + hlf \<and>
+              (\<alpha> = Tau \<longrightarrow> hl' = fst s) \<and>
+              safe n c' (Inl (hl',hs')) r g q S F))))\<close>
   apply (rule iffI)
    apply (erule safe_sucE, (simp; fail))
-  apply (cases s, force del: safe_suc intro!: safe_suc)
+  apply (force del: safe_suc intro!: safe_suc)
   done
 
 lemma safe_sucD:

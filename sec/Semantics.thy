@@ -399,58 +399,58 @@ text \<open>
 abbreviation \<open>pact_tau \<beta> \<equiv> strip_pact \<beta> = Tau\<close>
 
 
-subsection \<open> Extended Opstep \<close>
+subsection \<open> Parallel Opstep \<close>
 
-fun eopstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig \<Rightarrow> bool\<close> where
-  \<open>eopstep \<beta> (h, Skip) s' \<longleftrightarrow> False\<close>
-| \<open>eopstep \<beta> (h, c1 ;; c2) s' \<longleftrightarrow>
+fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig \<Rightarrow> bool\<close> where
+  \<open>popstep \<beta> (h, Skip) s' \<longleftrightarrow> False\<close>
+| \<open>popstep \<beta> (h, c1 ;; c2) s' \<longleftrightarrow>
     \<beta> = Act Tau \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
-    (\<exists>h' c1'. eopstep \<beta> (h,c1) (h',c1') \<and> s' = (h', c1' ;; c2))\<close>
-| \<open>eopstep \<beta> (h, c1 \<^bold>+ c2) s' \<longleftrightarrow>
+    (\<exists>h' c1'. popstep \<beta> (h,c1) (h',c1') \<and> s' = (h', c1' ;; c2))\<close>
+| \<open>popstep \<beta> (h, c1 \<^bold>+ c2) s' \<longleftrightarrow>
     \<beta> = Act Tau \<and> s' = (Inl h, c1) \<or>
     \<beta> = Act Tau \<and> s' = (Inl h, c2)\<close>
-| \<open>eopstep \<beta> (h, c1 \<box> c2) s' \<longleftrightarrow>
+| \<open>popstep \<beta> (h, c1 \<box> c2) s' \<longleftrightarrow>
     (if pact_tau \<beta> then
-      (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> eopstep \<beta> (h, c1) (h', c1')) \<or>
-      (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> eopstep \<beta> (h, c2) (h', c2')) \<or>
+      (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> popstep \<beta> (h, c1) (h', c1')) \<or>
+      (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> popstep \<beta> (h, c2) (h', c2')) \<or>
       c1 = Skip \<and> s' = (Inl h, c2) \<or>
       c2 = Skip \<and> s' = (Inl h, c1)
     else
-      eopstep \<beta> (h, c1) s' \<or> eopstep \<beta> (h, c2) s')\<close>
-| \<open>eopstep \<beta> (h, c1 \<parallel> c2) s' \<longleftrightarrow>
+      popstep \<beta> (h, c1) s' \<or> popstep \<beta> (h, c2) s')\<close>
+| \<open>popstep \<beta> (h, c1 \<parallel> c2) s' \<longleftrightarrow>
     \<beta> = Act Tau \<and> c1 = Skip \<and> c2 = Skip \<and> s' = (Inl h, Skip) \<or>
-    (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. eopstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
-    (\<exists>\<beta>x. \<beta> = PR \<beta>x \<and> (\<exists>h' c2'. eopstep \<beta>x (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2')))\<close>
-| \<open>eopstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
-      (if \<forall>\<beta>x s'. \<not> eopstep \<beta>x (h, c) s' then
+    (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. popstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
+    (\<exists>\<beta>x. \<beta> = PR \<beta>x \<and> (\<exists>h' c2'. popstep \<beta>x (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2')))\<close>
+| \<open>popstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
+      (if \<forall>\<beta>x s'. \<not> popstep \<beta>x (h, c) s' then
         \<beta> = Act Tau \<and> s' = (Inl h, Skip)
       else
         \<beta> = Act Tau \<and> s' = (Inl h, c ;; DO c OD))\<close>
-| \<open>eopstep \<beta> (h, Atomic ap aq) s' \<longleftrightarrow>
+| \<open>popstep \<beta> (h, Atomic ap aq) s' \<longleftrightarrow>
     (\<exists>a. \<beta> = Act (Vis a) \<and>
           (if ap h
             then \<exists>h'. aq h h' \<and> fst s' = Inl h' \<and> snd s' = Skip
             else fst s' = Inr () \<and> snd s' = Atomic ap aq))\<close>
 
 
-paragraph \<open> Pretty extended operational semantics \<close>
+paragraph \<open> Pretty parallel operational semantics \<close>
 
-abbreviation pretty_eopstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow>\<^sub>e _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>\<beta>\<rightarrow>\<^sub>e ht \<equiv> eopstep \<beta> hs ht\<close>
+abbreviation pretty_popstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow>\<^sub>p _\<close> [60,0,60] 60) where
+  \<open>hs \<midarrow>\<beta>\<rightarrow>\<^sub>p ht \<equiv> popstep \<beta> hs ht\<close>
 
-abbreviation pretty_no_eopstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<^sub>e\<close> [60] 60) where
-  \<open>hs \<midarrow>|\<rightarrow>\<^sub>e \<equiv> \<forall>\<beta> ht. \<not> eopstep \<beta> hs ht\<close>
+abbreviation pretty_no_popstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<^sub>p\<close> [60] 60) where
+  \<open>hs \<midarrow>|\<rightarrow>\<^sub>p \<equiv> \<forall>\<beta> ht. \<not> popstep \<beta> hs ht\<close>
 
 
-subsubsection \<open> eopstep lemmas \<close>
+subsubsection \<open> popstep lemmas \<close>
 
-lemma eopstep_tau_preserves_heap:
-  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>e zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
-  by (induct rule: eopstep.induct) (force split: if_splits)+
+lemma popstep_tau_preserves_heap:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
+  by (induct rule: popstep.induct) (force split: if_splits)+
 
-lemma no_opstep_then_no_eopstep:
-  \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>e\<close>
-  apply (induct rule: eopstep.induct)
+lemma no_opstep_then_no_popstep:
+  \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>p\<close>
+  apply (induct rule: popstep.induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
       apply fastforce
@@ -464,9 +464,9 @@ lemma no_opstep_then_no_eopstep:
   apply (simp; fail)
   done
 
-lemma no_eopstep_then_no_opstep:
-  \<open>sc \<midarrow>|\<rightarrow>\<^sub>e \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
-  apply (induct rule: eopstep.induct)
+lemma no_popstep_then_no_opstep:
+  \<open>sc \<midarrow>|\<rightarrow>\<^sub>p \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
+  apply (induct rule: popstep.induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
       apply fastforce
@@ -479,9 +479,9 @@ lemma no_eopstep_then_no_opstep:
   apply force
   done
 
-lemma strip_eopstep:
-  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>e zc' \<Longrightarrow> sc \<midarrow>strip_pact \<beta>\<rightarrow> zc'\<close>
-  apply (induct \<beta> sc zc' rule: eopstep.induct)
+lemma strip_popstep:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> sc \<midarrow>strip_pact \<beta>\<rightarrow> zc'\<close>
+  apply (induct \<beta> sc zc' rule: popstep.induct)
         apply fastforce
        apply fastforce
       apply fastforce
@@ -489,46 +489,45 @@ lemma strip_eopstep:
       apply blast
      apply blast
     apply (clarsimp, metis act.distinct(1) strip_pact.simps(1-3))
-   apply (force simp add: no_eopstep_then_no_opstep split: if_splits)
+   apply (force simp add: no_popstep_then_no_opstep split: if_splits)
   apply force
   done
 
 
 subsection \<open> Full step \<close>
 
-datatype 'a fact = Loc 'a | Env
-
-definition fstep
-  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-        ('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
-        unit act pact fact \<Rightarrow>
-        ('l \<times> 's) pconfig \<Rightarrow>
-        ('l \<times> 's) cpconfig \<Rightarrow>
-        bool\<close>
+definition rel3_merge
+  :: \<open>('a \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> bool) \<Rightarrow>
+        ('b \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> bool) \<Rightarrow>
+        ('a + 'b \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> bool)\<close>
   where
-    \<open>fstep r F \<beta> sc zc' \<equiv>
-      (\<exists>hl hs c.
-        sc = ((hl, hs), c) \<and>
-        ((\<beta> = Env \<and> (\<exists>hs'. zc' = (Inl (hl, hs'), c) \<and> r hs hs'))
-        \<or> (\<exists>hlf \<alpha>.
-            F (hlf, hs) \<and> hl ## hlf \<and> \<beta> = Loc \<alpha> \<and>
-            (\<comment> \<open> non-crashing step \<close>
-              (\<exists>hl' hs' c'.
-                zc' = (Inl (hl',hs'),c') \<and>
-                hl' ## hlf \<and>
-                eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
-            \<comment> \<open> crashing step \<close>
-              (\<exists>u c'.
-                zc' = (Inr u, c') \<and>
-                eopstep \<alpha> ((hl + hlf, hs), c) zc')))))\<close>
+  \<open>rel3_merge u w \<equiv> \<lambda>\<beta>. case \<beta> of Inl \<alpha> \<Rightarrow> u \<alpha> | Inr \<alpha> \<Rightarrow> w \<alpha>\<close>
 
+abbreviation(input) \<open>Env \<equiv> Inl ()\<close>
+abbreviation(input) \<open>Loc a \<equiv> Inr a\<close>
 
-paragraph \<open> Pretty extended operational semantics \<close>
+definition
+  \<open>fstep r F \<equiv>
+    rel3_merge
+      (\<lambda>() ((hl,hs),c) (h', c').
+        c' = c \<and> (\<exists>hs'. h' = Inl (hl, hs') \<and> r hs hs'))
+      (\<lambda>\<beta> ((hl,hs), c) (z', c').
+        (\<exists>fl.
+          F (fl, hs) \<and>
+          hl ## fl \<and>
+          (case z' of
+            Inl (hl', hs') \<Rightarrow>
+              F (fl, hs') \<and> hl' ## fl \<and>
+              popstep \<beta> ((hl + fl,hs), c) (Inl (hl' + fl,hs'), c')
+          | Inr u \<Rightarrow> popstep \<beta> ((hl + fl,hs), c) (Inr u, c'))
+        ))\<close>
+
+paragraph \<open> Pretty extended extended opsem \<close>
 
 abbreviation pretty_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f _\<close> [60,0,0,0,60] 60) where
   \<open>sc \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>f zc' \<equiv> fstep r F \<gamma> sc zc'\<close>
 
-abbreviation pretty_no_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>f\<close> [60] 60) where
+abbreviation pretty_no_fstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>f\<close> [60, 0, 0] 60) where
   \<open>sc \<midarrow>r, F, |\<rightarrow>\<^sub>f \<equiv> \<forall>\<gamma> zc'. \<not> fstep r F \<gamma> sc zc'\<close>
 
 
@@ -537,27 +536,56 @@ subsubsection \<open> Lemmas about fstep \<close>
 lemma fstep_simps[simp]:
   \<open>fstep r F Env sc zc' =
     (\<exists>hl hs c hs'. sc = ((hl, hs), c) \<and> zc' = (Inl (hl, hs'), c) \<and> r hs hs')\<close>
-  \<open>fstep r F (Loc \<alpha>) sc zc' =
-    (\<exists>hl hs c hlf.
-      sc = ((hl, hs), c) \<and>
-      F (hlf, hs) \<and> hl ## hlf \<and>
-      (\<comment> \<open> non-crashing step \<close>
-        (\<exists>hl' hs' c'.
-          zc' = (Inl (hl',hs'),c') \<and>
-          hl' ## hlf \<and>
-          eopstep \<alpha> ((hl + hlf, hs), c) (Inl (hl' + hlf, hs'), c')) \<or>
-      \<comment> \<open> crashing step \<close>
-        (\<exists>u c'.
-          zc' = (Inr u, c') \<and>
-          eopstep \<alpha> ((hl + hlf, hs), c) zc')))\<close>
-  by (simp add: fstep_def; fail)+
+  \<open>fstep r F (Loc \<beta>) sc zc' =
+    (\<exists>hl hs c.
+      sc = ((hl,hs), c) \<and>
+    (\<exists>z' c'.
+      zc' = (z', c') \<and>
+      (\<forall>hl' hs'.
+        z' = Inl (hl', hs') \<longrightarrow>
+        (\<exists>fl.
+          F (fl, hs) \<and> hl ## fl \<and>
+          F (fl, hs') \<and> hl' ## fl \<and>
+          popstep \<beta> ((hl + fl,hs), c) (Inl (hl' + fl,hs'), c'))) \<and>
+      (\<forall>u. z' = Inr u \<longrightarrow>
+        (\<exists>fl. F (fl, hs) \<and> hl ## fl \<and> popstep \<beta> ((hl + fl,hs), c) (Inr u, c'))
+    )))\<close>
+   apply (force simp add: fstep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+  apply (clarsimp simp add: fstep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+  apply auto
+  done
+
+
+subsection \<open> Extended step \<close>
+
+definition
+  \<open>estep r \<equiv>
+    rel3_merge
+      (\<lambda>() ((hl,hs),c) (h', c').
+        c' = c \<and> (\<exists>hs'. h' = Inl (hl, hs') \<and> r hs hs'))
+      popstep\<close>
+
+paragraph \<open> Pretty extended extended opsem \<close>
+
+abbreviation pretty_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>(_, _)\<rightarrow>\<^sub>e _\<close> [60,0,0,60] 60) where
+  \<open>sc \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e zc' \<equiv> estep r \<gamma> sc zc'\<close>
+
+abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, |\<rightarrow>\<^sub>e\<close> [60, 0] 60) where
+  \<open>sc \<midarrow>r, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r \<gamma> sc zc'\<close>
+
+
+subsubsection \<open> Lemmas about fstep \<close>
+
+lemma estep_simps[simp]:
+  \<open>estep r Env sc zc' =
+    (\<exists>hl hs c hs'. sc = ((hl, hs), c) \<and> zc' = (Inl (hl, hs'), c) \<and> r hs hs')\<close>
+  \<open>estep r (Loc \<beta>) sc zc' = popstep \<beta> sc zc'\<close>
+  by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)+
 
 
 section \<open> Trace Semantics \<close>
 
-
 paragraph \<open> Pretty extended operational semantics \<close>
-
 
 text \<open>
   NOTE: the most recent action is at the *end* of the list
@@ -570,8 +598,8 @@ inductive fsteps
       ('l \<times> 's) cpconfig \<Rightarrow>
       bool\<close>
   where
-  eopsteps_nil[intro!]: \<open>zc' = (Inl (fst sc), snd sc) \<Longrightarrow> fsteps r F [] sc zc'\<close>
-| eopsteps_step[intro!]:
+  epopsteps_nil[intro!]: \<open>zc' = (Inl (fst sc), snd sc) \<Longrightarrow> fsteps r F [] sc zc'\<close>
+| epopsteps_step[intro!]:
     \<open>fstep r F \<alpha> sc (Inl s', c') \<Longrightarrow>
       fsteps r F \<alpha>s (s', c') zc'' \<Longrightarrow>
       fsteps r F (\<alpha>#\<alpha>s) sc zc''\<close>
@@ -579,8 +607,8 @@ inductive fsteps
 inductive_cases fsteps_nil[elim!]: \<open>fsteps r F [] sc zc'\<close>
 inductive_cases fsteps_step[elim!]: \<open>fsteps r F (\<alpha> # \<alpha>s) sc zc'\<close>
 
-abbreviation pretty_fsteps (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f* _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>r, F, \<alpha>s\<rightarrow>\<^sub>f* ht \<equiv> fsteps r F \<alpha>s hs ht\<close>
+abbreviation pretty_fsteps (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>f\<^sup>* _\<close> [60,0,0,0,60] 60) where
+  \<open>hs \<midarrow>r, F, \<alpha>s\<rightarrow>\<^sub>f\<^sup>* ht \<equiv> fsteps r F \<alpha>s hs ht\<close>
 
 
 subsection \<open> Alignment \<close>
@@ -591,7 +619,7 @@ fun pact_aligned :: \<open>'a pact \<Rightarrow> 'a pact \<Rightarrow> bool\<clo
 | \<open>pact_aligned (Act \<alpha>x) (Act \<alpha>y) \<longleftrightarrow> True\<close>
 | \<open>pact_aligned _ _ \<longleftrightarrow> False\<close>
 
-fun fact_aligned :: \<open>'a pact fact \<Rightarrow> 'a pact fact \<Rightarrow> bool\<close> where
+fun fact_aligned :: \<open>unit + 'a pact \<Rightarrow> unit + 'a pact \<Rightarrow> bool\<close> where
   \<open>fact_aligned Env Env \<longleftrightarrow> True\<close>
 | \<open>fact_aligned (Loc \<beta>x) (Loc \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
 | \<open>fact_aligned _ _ \<longleftrightarrow> False\<close>
@@ -626,7 +654,7 @@ definition
             px = py \<and> qx = qy))))\<close>
 
 definition                                                                      
-  \<open>head_step_obs_safe \<oo> F c \<equiv> \<lambda>(x, y).
+  \<open>head_step_obs_safe \<oo> c \<equiv> \<lambda>(x, y).
       \<bbbA> \<oo> (x, y) \<longrightarrow>
         (\<forall>p q x'. (p,q) \<in> head_atoms c \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x', y)) \<and>
         (\<forall>p q y'. (p,q) \<in> head_atoms c \<longrightarrow> p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x, y')) \<and>
@@ -653,11 +681,6 @@ lemma determ_stepsD:
   unfolding determ_steps_def
   by (simp, metis surj_pair)
 
-definition
-  \<open>sec_framed_with F \<equiv> \<lambda>(x, y).
-    {((fst x + fx, snd x), (fst y + fy, snd y))|fx fy.
-        F (fx, snd x) \<and> fst x ## fx \<and> F (fy, snd y) \<and> fst y ## fy}\<close>
-
 
 subsection \<open> Separation Respecting Agreement \<close>
 
@@ -680,76 +703,82 @@ lemma noninterference_step:
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
     and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
-    and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
     and \<oo> :: \<open>'l \<times> 's \<Rightarrow> 'v\<close>
   shows
-  \<open>(sx, c) \<midarrow>r, F, \<gamma>x\<rightarrow>\<^sub>f (Inl sx', cx') \<Longrightarrow>
-    (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', cy') \<Longrightarrow>
+  \<open>(sx, c) \<midarrow>r, \<gamma>x\<rightarrow>\<^sub>e (Inl sx', cx') \<Longrightarrow>
+    (sy, c) \<midarrow>r, \<gamma>y\<rightarrow>\<^sub>e (Inl sy', cy') \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    \<comment> \<open>
-      tau_step_obs_safe \<oo> F c (sx,sy) \<Longrightarrow>
-    \<close>
-    \<forall>xy\<in>sec_framed_with F (sx, sy). head_step_obs_safe \<oo> F c xy \<Longrightarrow>
+    head_step_obs_safe \<oo> c (sx, sy) \<Longrightarrow>
     determ_steps \<oo> r F c (sx, sy) \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
-    \<forall>xy\<in>sec_framed_with F (sx, sy). \<bbbA> \<oo> xy  \<Longrightarrow>
+    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
   apply (clarsimp simp del: comp_apply simp add: fact_aligned_iff)
   apply (erule disjE)
    apply (clarsimp simp del: comp_apply simp add: rely_obs_safe_def)
    apply (drule spec2[of _ \<open>fst sx\<close> \<open>fst sy\<close>], drule spec2[of _ \<open>snd sx\<close> \<open>snd sy\<close>])
-
-
-  oops
-    (* framed / framed steps *)
-  apply (clarsimp simp del: split_paired_All)
-  apply (frule strip_eopstep[of _ _ \<open>(z', cx')\<close> for z'])
-  apply (frule strip_eopstep[of _ _ \<open>(z', cy')\<close> for z'])
+   apply force
+  apply clarsimp
+  apply (frule strip_popstep[of _ _ \<open>(z', cx')\<close> for z'])
+  apply (frule strip_popstep[of _ _ \<open>(z', cy')\<close> for z'])
   apply (erule opstep_act_cases[of _ _ \<open>(z', cx')\<close> for z'];
       erule opstep_act_cases[of _ _ \<open>(z', cy')\<close> for z'])
     (** tau / tau **)
-     apply clarsimp
-     apply (metis cancellative_def prod.collapse)
+     apply force
     (** tau / vis **)
     apply (clarsimp simp del: split_paired_All)
     apply (frule vis_step_impl_atom)
     apply (clarsimp simp del: split_paired_All)
     apply (unfold head_step_obs_safe_def, clarify)
-    apply (drule spec, drule mp, assumption, drule mp, assumption,
-      drule spec, drule mp, assumption, drule mp, assumption)
-    apply (elim conjE)
-
-
-  oops
-    apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-    apply (metis cancellative_def prod.collapse)
+    apply blast
     (** vis / tau **)
-   apply (frule vis_step_impl_atom, clarsimp simp del: split_paired_All)
-   apply (drule spec2, drule mp, rule subsetD[OF head_atoms_subseteq_all_atoms[of c]], assumption)
-   apply (metis cancellative_def prod.collapse)
+   apply (clarsimp simp del: split_paired_All)
+   apply (frule vis_step_impl_atom)
+   apply (force simp del: split_paired_All split: prod.splits)
     (** vis / vis **)
-  subgoal sorry
-  sorry
-
+  apply (clarsimp simp del: split_paired_All)
+  apply (frule vis_step_impl_atom[of _ sx])
+  apply (frule vis_step_impl_atom[of _ sy])
+  apply fastforce
+  done
 
 lemma fstep_preserves_safe:
-  \<open>(s, c) \<midarrow>r, F, \<beta>\<rightarrow>\<^sub>f (Inl s', c') \<Longrightarrow>
-    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
-    safe (Suc n) c (Inl s) r g q S F \<Longrightarrow>
-    safe n c' (Inl s') r g q S F\<close>
+  \<open>\<forall>f. F (f, hs) \<longrightarrow> hl ## f \<longrightarrow>
+      F (f, hs') \<longrightarrow> hl' ## f \<longrightarrow>
+      ((hl + f, hs), c) \<midarrow>r, \<beta>\<rightarrow>\<^sub>e (Inl (hl' + f, hs'), c') \<Longrightarrow>
+    \<forall>f. F (f, hs) \<longrightarrow> F (f, hs') \<longrightarrow> cancellative f \<Longrightarrow>
+    \<exists>f. F (f, hs) \<and> hl ## f \<and> F (f, hs') \<and> hl' ## f \<Longrightarrow>
+    safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
+    safe n c' (Inl (hl', hs')) r g q S F\<close>
   apply (cases n)
-   apply force
+   apply (force simp add: safe_suc_iff fstep_def rel3_merge_def split: sum.splits unit.splits)
+  apply (clarsimp simp add: safe_suc_iff estep_def rel3_merge_def split: sum.splits unit.splits)
+    (* rely step *)
+   apply (intro conjI; metis cancellative_def)
+    (* opstep step *)
+  apply (intro conjI)
+     apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
+    apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
+   apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
+  apply (drule spec, drule mp, assumption, drule mp, assumption,
+      drule mp, assumption, drule mp, assumption,
+      frule strip_popstep)
+  apply clarsimp
+  apply (drule spec, drule mp, assumption, drule mp, assumption)
+  sledgehammer
+
+  oops
   apply (erule safe_sucE)
   apply (case_tac \<beta>)
    prefer 2
    apply force
   apply clarsimp
   apply (elim disjE exE conjE)
-   apply (frule strip_eopstep)
+   apply (frule strip_popstep)
    apply (drule meta_spec2, drule meta_spec, drule meta_mp, assumption)
    apply force
-  apply (frule strip_eopstep)
+  apply (frule strip_popstep)
   apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption, drule meta_mp, assumption)
   apply clarsimp
   apply (metis cancellative_def prod.collapse)
@@ -802,15 +831,15 @@ theorem noninterference:
     SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
     length \<alpha>sx \<le> n \<Longrightarrow>
     length \<alpha>sy \<le> n \<Longrightarrow>
-    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
-    (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f* (Inl sx', cx') \<Longrightarrow>
-    (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f* (Inl sy', cy') \<Longrightarrow>
+    (sx, c) \<midarrow>r, F, \<alpha>sx\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx') \<Longrightarrow>
+    (sy, c) \<midarrow>r, F, \<alpha>sy\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy') \<Longrightarrow>
     parallel_aligned \<alpha>sx \<alpha>sy \<Longrightarrow>
     pred_executions
       (\<lambda>(s,c). determ_steps \<oo> r F (unliftC c) (exch4 s))
       FF rr cc zz n \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
+    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
 proof (induct n arbitrary: cc zz c sx sy \<alpha>sx \<alpha>sy)
   case 0
