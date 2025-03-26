@@ -78,7 +78,7 @@ lemma pred_executions_suc_iff:
 
 section \<open> Double-state lifting \<close>
 
-subsection \<open> relational lifting \<close>
+subsection \<open> exchange \<close>
 
 definition
   \<open>exch4 \<equiv> \<lambda>((a,b),(c,d)). ((a,c),(b,d))\<close>
@@ -95,6 +95,21 @@ lemma comp_exch4_eq_iff[simp]:
   \<open>f \<circ> exch4 = g \<circ> exch4 \<longleftrightarrow> f = g\<close>
   by (simp add: fun_eq_iff, blast)
 
+lemma prod_destruct_exch4_eq[simp]:
+  \<open>fst (fst (exch4 x)) = fst (fst x)\<close>
+  \<open>fst (snd (exch4 x)) = snd (fst x)\<close>
+  \<open>snd (fst (exch4 x)) = fst (snd x)\<close>
+  \<open>snd (snd (exch4 x)) = snd (snd x)\<close>
+  unfolding exch4_def
+  by (clarsimp split: prod.splits)+
+
+lemma prod_part_destruct_exch4_eq[simp]:
+  \<open>fst (exch4 (ab, cd)) = (fst ab, fst cd)\<close>
+  \<open>snd (exch4 (ab, cd)) = (snd ab, snd cd)\<close>
+  by (simp add: exch4_def split: prod.splits)+
+
+
+subsection \<open> relational lifting \<close>
 
 definition twoPredLift :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> where
   \<open>twoPredLift p q \<equiv> \<lambda>(x,y). p x \<and> q y\<close>
@@ -401,6 +416,12 @@ abbreviation \<open>pact_tau \<beta> \<equiv> strip_pact \<beta> = Tau\<close>
 
 subsection \<open> Parallel Opstep \<close>
 
+text \<open>
+  Unfortunately, because acts are often universally quantified,
+  using a general type variable becomes prohibitively unwieldy.
+  (Due to \<open>itself\<close> types and schematics type vars in \<open>induct\<close>.)
+  Thus we just use unit.
+\<close>
 fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig \<Rightarrow> bool\<close> where
   \<open>popstep \<beta> (h, Skip) s' \<longleftrightarrow> False\<close>
 | \<open>popstep \<beta> (h, c1 ;; c2) s' \<longleftrightarrow>
@@ -616,8 +637,49 @@ subsection \<open> Alignment \<close>
 fun pact_aligned :: \<open>'a pact \<Rightarrow> 'a pact \<Rightarrow> bool\<close> where
   \<open>pact_aligned (PL \<beta>x) (PL \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
 | \<open>pact_aligned (PR \<beta>x) (PR \<beta>y) \<longleftrightarrow> pact_aligned \<beta>x \<beta>y\<close>
-| \<open>pact_aligned (Act \<alpha>x) (Act \<alpha>y) \<longleftrightarrow> True\<close>
+| \<open>pact_aligned (Act \<alpha>x) (Act \<alpha>y) \<longleftrightarrow> \<alpha>x = \<alpha>y\<close>
 | \<open>pact_aligned _ _ \<longleftrightarrow> False\<close>
+
+text \<open> We use unit here; see comment on popstep. \<close>
+fun pact_merge :: \<open>unit act pact \<Rightarrow> unit act pact \<Rightarrow> unit act pact\<close> where
+  \<open>pact_merge (Act Tau) (Act Tau) = Act Tau\<close>
+| \<open>pact_merge (Act (Vis ())) (Act (Vis ())) = Act (Vis ())\<close>
+| \<open>pact_merge (PL \<beta>x) (PL \<beta>y) = PL (pact_merge \<beta>x \<beta>y)\<close>
+| \<open>pact_merge (PR \<beta>x) (PR \<beta>y) = PR (pact_merge \<beta>x \<beta>y)\<close>
+| \<open>pact_merge _ _ = undefined\<close>
+
+lemma pact_merge_rev_act:
+  \<open>pact_aligned \<beta>x \<beta>y \<Longrightarrow>
+    pact_merge \<beta>x \<beta>y = Act \<alpha> \<longleftrightarrow> \<beta>x = Act \<alpha> \<and> \<beta>y = Act \<alpha>\<close>
+  apply (induct \<beta>x \<beta>y arbitrary: \<alpha> rule: pact_aligned.induct)
+            apply (simp; force)+
+          apply (case_tac \<alpha>x; force)
+         apply (simp; force)+
+  done
+
+lemma pact_merge_rev_pl:
+  \<open>pact_aligned \<beta>x \<beta>y \<Longrightarrow>
+    pact_merge \<beta>x \<beta>y = PL \<beta>' \<longleftrightarrow>
+      (\<exists>\<beta>x' \<beta>y'. \<beta>x = PL \<beta>x' \<and> \<beta>y = PL \<beta>y' \<and> pact_merge \<beta>x' \<beta>y' = \<beta>')\<close>
+  apply (induct \<beta>x \<beta>y arbitrary: \<beta>' rule: pact_aligned.induct)
+            apply (simp; force)+
+          apply (case_tac \<alpha>x; force)
+         apply (simp; force)+
+  done
+
+lemma pact_merge_rev_pr:
+  \<open>pact_aligned \<beta>x \<beta>y \<Longrightarrow>
+    pact_merge \<beta>x \<beta>y = PR \<beta>' \<longleftrightarrow>
+      (\<exists>\<beta>x' \<beta>y'. \<beta>x = PR \<beta>x' \<and> \<beta>y = PR \<beta>y' \<and> pact_merge \<beta>x' \<beta>y' = \<beta>')\<close>
+  apply (induct \<beta>x \<beta>y arbitrary: \<beta>' rule: pact_aligned.induct)
+            apply (simp; force)+
+          apply (case_tac \<alpha>x; force)
+         apply (simp; force)+
+  done
+
+lemmas pact_merge_rev =
+  pact_merge_rev_act pact_merge_rev_pl pact_merge_rev_pr
+
 
 fun fact_aligned :: \<open>unit + 'a pact \<Rightarrow> unit + 'a pact \<Rightarrow> bool\<close> where
   \<open>fact_aligned Env Env \<longleftrightarrow> True\<close>
@@ -766,53 +828,84 @@ lemma fstep_preserves_safe:
       frule strip_popstep)
   apply clarsimp
   apply (drule spec, drule mp, assumption, drule mp, assumption)
-  sledgehammer
-
-  oops
-  apply (erule safe_sucE)
-  apply (case_tac \<beta>)
-   prefer 2
-   apply force
+  apply (drule spec, drule mp, assumption)
+  apply (drule spec2, drule spec, drule mp, assumption, drule mp, assumption)
   apply clarsimp
-  apply (elim disjE exE conjE)
-   apply (frule strip_popstep)
-   apply (drule meta_spec2, drule meta_spec, drule meta_mp, assumption)
-   apply force
-  apply (frule strip_popstep)
-  apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption, drule meta_mp, assumption)
-  apply clarsimp
-  apply (metis cancellative_def prod.collapse)
+  apply (metis cancellative_def)
   done
+
+lemma double_stepI:
+  \<open>((sxl, sxs), c) \<midarrow>\<beta>x\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c') \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>\<beta>y\<rightarrow>\<^sub>p (Inl (syl', sys'), c') \<Longrightarrow>
+    pact_aligned \<beta>x \<beta>y \<Longrightarrow>
+    (((sxl, syl), (sxs, sys)), liftC' c)
+      \<midarrow>pact_merge \<beta>x \<beta>y\<rightarrow>\<^sub>p
+      (Inl ((sxl', syl'), (sxs', sys')), liftC' c')\<close>
+  apply (induct c arbitrary: sxl syl sxs sys sxl' syl' sxs' sys' c' \<beta>x \<beta>y)
+        apply force
+       apply clarsimp
+       apply (elim disjE)
+          apply (simp add: pact_merge_rev; fail)
+         apply (simp add: pact_merge_rev; fail)
+        apply (simp add: pact_merge_rev; fail)
+       apply (clarsimp simp add: pact_merge_rev, metis)
+      apply clarsimp
+      apply (elim disjE)
+              apply force
+             apply force
+            apply force
+           apply force
+          apply force
+         apply force
+        apply force
+       apply force
+      apply (clarsimp simp add: pact_merge_rev, metis)
+     apply (clarsimp, (elim disjE; force))
+  
+  oops
 
 lemma double_fstep_preserves_safe:
   fixes sx sy :: \<open>'l::pre_perm_alg \<times> 's\<close>
   shows
-  \<open>(sx, c) \<midarrow>r, F, \<gamma>x\<rightarrow>\<^sub>f (Inl sx', c') \<Longrightarrow>
-    (sy, c) \<midarrow>r, F, \<gamma>y\<rightarrow>\<^sub>f (Inl sy', c') \<Longrightarrow>
+  \<open>\<forall>f. F (f, snd sx) \<longrightarrow> fst sx ## f \<longrightarrow>
+      F (f, snd sx') \<longrightarrow> fst sx' ## f \<longrightarrow>
+      ((fst sx + f, snd sx), c) \<midarrow>r, \<gamma>x\<rightarrow>\<^sub>e (Inl (fst sx' + f, snd sx'), c') \<Longrightarrow>
+    \<forall>f. F (f, snd sy) \<longrightarrow> fst sy ## f \<longrightarrow>
+      F (f, snd sy') \<longrightarrow> fst sy' ## f \<longrightarrow>
+      ((fst sy + f, snd sy), c) \<midarrow>r, \<gamma>y\<rightarrow>\<^sub>e (Inl (fst sy' + f, snd sy'), c') \<Longrightarrow>
+    \<forall>f. F (f, snd sx) \<longrightarrow> F (f, snd sx') \<longrightarrow> cancellative f \<Longrightarrow>
+    \<forall>f. F (f, snd sy) \<longrightarrow> F (f, snd sy') \<longrightarrow> cancellative f \<Longrightarrow>
+    \<exists>f. F (f, snd sx) \<and> fst sx ## f \<and> F (f, snd sx') \<and> fst sx' ## f \<Longrightarrow>
+    \<exists>f. F (f, snd sy) \<and> fst sy ## f \<and> F (f, snd sy') \<and> fst sy' ## f \<Longrightarrow>
     fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
-    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rr = liftR r \<Longrightarrow>
     FF = liftP F \<circ> exch4 \<Longrightarrow>
     cc = liftC' c \<Longrightarrow>
     cc' = liftC' c' \<Longrightarrow>
     ss = exch4 (sx, sy) \<Longrightarrow>
     ss' = exch4 (sx', sy') \<Longrightarrow>
-    n \<le> m \<Longrightarrow>
-    safe m cc (Inl ss) rr gg qq SS FF \<Longrightarrow>
+    safe (Suc n) cc (Inl ss) rr gg qq SS FF \<Longrightarrow>
     safe n cc' (Inl ss') rr gg qq SS FF\<close>
-  apply (cases n)
-   apply (clarsimp simp add: exch4_def split: prod.splits; fail)
-  apply clarsimp
-  apply (frule Suc_le_D)
-  apply clarsimp
-  apply (rename_tac n' m')
-  apply (erule safe_sucE)
-  apply (simp add: fact_aligned_iff)
-  apply (cases sx, cases sy, clarsimp)
-  apply (rename_tac sxl syl sxs sys)
-  apply (erule disjE conjE exE)
-   apply clarsimp
-  sorry
+  apply (clarsimp simp add: safe_suc_iff)
+  apply (cases sx, cases sy, cases sx', cases sy')
+  apply (rename_tac fx fy sxl sxs syl sys sxl' sxs' syl' sys')
+  apply (simp add: estep_def rel3_merge_def)
+  apply (case_tac \<gamma>x; case_tac \<gamma>y;
+      clarsimp simp only: sum.case split: unit.splits; clarsimp)
+    (* rely/rely step *)
+   apply (metis cancellative_def)
+    (* opstep/opstep step *)
+  apply (rename_tac \<beta>x \<beta>y)
+  apply (drule spec, drule mp, assumption, drule mp, assumption,
+      drule mp, assumption, drule mp, assumption)
+  apply (drule spec, drule mp, assumption, drule mp, assumption,
+      drule mp, assumption, drule mp, assumption)
+  apply (frule_tac \<beta>=\<beta>x in strip_popstep)
+  apply (frule_tac \<beta>=\<beta>y in strip_popstep)
+  apply (frule spec2, drule spec2, drule spec,
+      drule mp, (rule conjI; assumption))
+
+  oops
 
 
 theorem noninterference:
