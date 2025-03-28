@@ -58,6 +58,146 @@ lemma map_comm_rev_iff:
 lemmas map_comm_rev_iff2 = map_comm_rev_iff[THEN trans[OF eq_commute]]
 
 
+
+subsection \<open> All Sub-commands \<close>
+
+fun all_subcomm_eq :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
+  \<open>all_subcomm_eq Skip = {Skip}\<close>
+| \<open>all_subcomm_eq (ca ;; cb) =
+    insert (ca ;; cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm_eq (ca \<parallel> cb) =
+    insert (ca \<parallel> cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm_eq (ca \<^bold>+ cb) =
+    insert (ca \<^bold>+ cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm_eq (ca \<box> cb) =
+    insert (ca \<box> cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm_eq (\<langle>p, q\<rangle>) = {\<langle>p, q\<rangle>}\<close>
+| \<open>all_subcomm_eq (DO c OD) = insert (DO c OD) (all_subcomm_eq c)\<close>
+
+fun all_subcomm :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
+  \<open>all_subcomm Skip = {}\<close>
+| \<open>all_subcomm (ca ;; cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm (ca \<parallel> cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm (ca \<^bold>+ cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm (ca \<box> cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
+| \<open>all_subcomm (\<langle>p, q\<rangle>) = {}\<close>
+| \<open>all_subcomm (DO c OD) = (all_subcomm_eq c)\<close>
+
+
+lemma all_subcomm_eq_eq:
+  \<open>all_subcomm_eq c = insert c (all_subcomm c)\<close>
+  by (induct c) force+
+
+lemma all_subcomm_eq_trans:
+  \<open>x \<in> all_subcomm_eq y \<Longrightarrow> y \<in> all_subcomm_eq z \<Longrightarrow> x \<in> all_subcomm_eq z\<close>
+  by (induct z arbitrary: x y) force+
+
+lemma all_subcomm_trans:
+  \<open>x \<in> all_subcomm y \<Longrightarrow> y \<in> all_subcomm z \<Longrightarrow> x \<in> all_subcomm z\<close>
+  by (induct z arbitrary: x y)
+    (simp; metis all_subcomm_eq_eq insert_iff)+
+
+lemma all_subcomm_all_subcomm_eq_trans:
+  \<open>x \<in> all_subcomm y \<Longrightarrow> y \<in> all_subcomm_eq z \<Longrightarrow> x \<in> all_subcomm z\<close>
+  by (induct z arbitrary: x y)
+    (fastforce simp add: all_subcomm_eq_eq)+
+
+lemma all_subcomm_eq_all_subcomm_trans:
+  \<open>x \<in> all_subcomm_eq y \<Longrightarrow> y \<in> all_subcomm z \<Longrightarrow> x \<in> all_subcomm z\<close>
+  by (induct z arbitrary: x y)
+    (fastforce simp add: all_subcomm_eq_eq)+
+
+lemma all_subcomm_irrefl:
+  \<open>x \<notin> all_subcomm x\<close>
+  apply (induct x)
+        apply force
+       apply (simp, metis UnCI all_subcomm.simps(2)
+      all_subcomm_all_subcomm_eq_trans all_subcomm_eq_eq insertCI)
+      apply (simp, metis UnCI all_subcomm.simps(3)
+      all_subcomm_all_subcomm_eq_trans all_subcomm_eq_eq insertCI)
+     apply (simp, metis UnCI all_subcomm.simps(4)
+      all_subcomm_all_subcomm_eq_trans all_subcomm_eq_eq insertCI)
+    apply (simp, metis UnCI all_subcomm.simps(5)
+      all_subcomm_all_subcomm_eq_trans all_subcomm_eq_eq insertCI)
+   apply force
+  apply (simp, metis all_subcomm.simps(7)
+      all_subcomm_all_subcomm_eq_trans all_subcomm_eq_eq insertCI)
+  done
+
+lemma in_all_subcomm_iff_in_allsubcomm_eq_neq:
+  \<open>(x \<in> all_subcomm y) = (x \<in> all_subcomm_eq y \<and> x \<noteq> y)\<close>
+  using all_subcomm_eq_eq all_subcomm_irrefl by blast
+
+lemma all_subcomm_eq_loop_then_eq:
+  \<open>x \<in> all_subcomm_eq y \<Longrightarrow> y \<in> all_subcomm_eq x \<Longrightarrow> x = y\<close>
+  apply (induct y arbitrary: x)
+        apply force
+       apply (simp, metis UnCI all_subcomm.simps(2) all_subcomm_irrefl
+      all_subcomm_all_subcomm_eq_trans)
+      apply (simp, metis UnCI all_subcomm.simps(3) all_subcomm_irrefl
+      all_subcomm_all_subcomm_eq_trans)
+     apply (simp, metis UnCI all_subcomm.simps(4) all_subcomm_irrefl
+      all_subcomm_all_subcomm_eq_trans)
+    apply (simp, metis UnCI all_subcomm.simps(5) all_subcomm_irrefl
+      all_subcomm_all_subcomm_eq_trans)
+   apply force
+  apply (simp, metis all_subcomm.simps(7) all_subcomm_irrefl
+      all_subcomm_all_subcomm_eq_trans)
+  done
+
+lemma all_subcomm_no_loops:
+  \<open>x \<in> all_subcomm y \<Longrightarrow> y \<in> all_subcomm x \<Longrightarrow> False\<close>
+  using all_subcomm_irrefl all_subcomm_trans by blast
+
+
+subsubsection \<open> Command ordering \<close>
+
+instantiation comm :: (type) order
+begin
+
+definition less_eq_comm :: \<open>'a comm \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
+  \<open>less_eq_comm x y \<equiv> \<exists>c\<in>all_subcomm_eq y. x = c\<close>
+
+definition less_comm :: \<open>'a comm \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
+  \<open>less_comm x y \<equiv> \<exists>c\<in>all_subcomm y. x = c\<close>
+
+lemma less_comm_less_eq_comm_le_not:
+  \<open>(x \<in> all_subcomm y) = (x \<in> all_subcomm_eq y \<and> y \<notin> all_subcomm_eq x)\<close>
+  using all_subcomm_eq_all_subcomm_trans in_all_subcomm_iff_in_allsubcomm_eq_neq
+  by blast
+
+instance
+  apply standard
+     apply (simp add: less_comm_def less_comm_less_eq_comm_le_not
+      less_eq_comm_def; fail)
+    apply (simp add: all_subcomm_eq_eq less_eq_comm_def; fail)
+   apply (simp add: less_eq_comm_def, metis all_subcomm_eq_trans)
+  apply (simp add: less_eq_comm_def all_subcomm_eq_loop_then_eq; fail)
+  done
+
+end
+
+lemma less_eq_comm_simps_right[simp]:
+  \<open>c \<le> Skip \<longleftrightarrow> c = Skip\<close>
+  \<open>c \<le> ca ;; cb \<longleftrightarrow> c = ca ;; cb \<or> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c \<le> ca \<parallel> cb \<longleftrightarrow> c = ca \<parallel> cb \<or> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c \<le> ca \<^bold>+ cb \<longleftrightarrow> c = ca \<^bold>+ cb \<or> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c \<le> ca \<box> cb \<longleftrightarrow> c = ca \<box> cb \<or> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c \<le> \<langle>p, q\<rangle> \<longleftrightarrow> c = \<langle>p, q\<rangle>\<close>
+  \<open>c \<le> DO cx OD \<longleftrightarrow> c = DO cx OD \<or> c \<le> cx\<close>
+  by (simp add: less_eq_comm_def)+
+
+lemma less_comm_simps_right[simp]:
+  \<open>c < Skip \<longleftrightarrow> False\<close>
+  \<open>c < ca ;; cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c < ca \<parallel> cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c < ca \<^bold>+ cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c < ca \<box> cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
+  \<open>c < \<langle>p, q\<rangle> \<longleftrightarrow> False\<close>
+  \<open>c < DO cx OD \<longleftrightarrow> c \<le> cx\<close>
+  by (simp add: less_comm_def less_eq_comm_def)+
+
+
 subsection \<open> All Atoms \<close>
 
 fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
