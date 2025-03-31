@@ -468,10 +468,13 @@ fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cp
     (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. popstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
     (\<exists>\<beta>x. \<beta> = PR \<beta>x \<and> (\<exists>h' c2'. popstep \<beta>x (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2')))\<close>
 | \<open>popstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
-      (if \<forall>\<beta>x s'. \<not> popstep \<beta>x (h, c) s' then
-        \<beta> = Act Tau \<and> s' = (Inl h, Skip)
-      else
-        \<beta> = Act Tau \<and> s' = (Inl h, c ;; DO c OD))\<close>
+      ((\<forall>h' c'. \<not> popstep \<beta> (h, c) (Inl h', c')) \<longrightarrow>
+        \<beta> = Act Tau \<and> s' = (Inl h, Skip)) \<and>
+      (\<forall>h' c'.
+        popstep \<beta> (h, c) (Inl h', c') \<longrightarrow>
+        s' = (Inl h', c' ;; DO c OD)) \<and>
+      ((\<exists>c'. popstep \<beta> (h, c) (Inr (), c')) \<longrightarrow>
+        s' = (Inr (), DO c OD))\<close>
 | \<open>popstep \<beta> (h, Atomic ap aq) s' \<longleftrightarrow>
     (\<exists>a. \<beta> = Act (Vis a) \<and>
           (if ap h
@@ -492,7 +495,8 @@ subsubsection \<open> popstep lemmas \<close>
 
 lemma popstep_tau_preserves_heap:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
-  by (induct rule: popstep.induct) (force split: if_splits)+
+  by (induct rule: popstep.induct)
+    (fastforce split: if_splits)+
 
 lemma no_opstep_then_no_popstep:
   \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>p\<close>
@@ -521,7 +525,8 @@ lemma no_popstep_then_no_opstep:
       apply (metis act.distinct(1))
      apply (simp, metis act.distinct(1) strip_pact.simps(1))
     apply (clarsimp, metis)
-   apply (clarsimp, metis)
+   apply (clarsimp)
+  subgoal sorry
   apply force
   done
 
@@ -535,7 +540,10 @@ lemma strip_popstep:
       apply blast
      apply blast
     apply (clarsimp, metis act.distinct(1) strip_pact.simps(1-3))
+(*
    apply (force simp add: no_popstep_then_no_opstep split: if_splits)
+*)
+  subgoal sorry
   apply force
   done
 
@@ -1006,11 +1014,43 @@ lemma all_doubled_atom_liftC'_iff[simp]:
   \<open>all_atom_comm doubled_atom (liftC' c)\<close>
   sorry
 
+
+lemma double_step_crashI:
+  \<open>((sxl, sxs), c) \<midarrow>\<beta>x\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>\<beta>y\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    pact_aligned \<beta>x \<beta>y \<Longrightarrow>
+    (((sxl, syl), (sxs, sys)), liftC' c)
+      \<midarrow>pact_merge \<beta>x \<beta>y\<rightarrow>\<^sub>p
+      (Inr (), liftC' c')\<close>
+  apply (induct c arbitrary: sxl syl sxs sys c' \<beta>x \<beta>y)
+        apply force
+       apply force
+      apply clarsimp
+    (* parallel *)
+  subgoal sorry
+     apply force
+    apply clarsimp
+    apply (subgoal_tac
+      \<open>pact_tau \<beta>x \<and> pact_tau \<beta>y \<or> \<not> pact_tau \<beta>x \<and> \<not> pact_tau \<beta>y\<close>)
+     prefer 2
+     apply (metis pact_aligned_then_strip_pact_eq)
+    apply (erule disjE)
+     apply (simp, metis Inl_not_Inr fst_eqD popstep_tau_preserves_heap)
+    apply (clarsimp del: disjCI)
+    (* endet *)
+  subgoal sorry
+   apply clarsimp
+   apply (metis Inl_Inr_False fst_conv liftC'_rev_iff(7) snd_conv)
+  apply force
+  done
+
 lemma double_stepI:
   \<open>((sxl, sxs), c) \<midarrow>\<beta>x\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>y\<rightarrow>\<^sub>p (Inl (syl', sys'), c') \<Longrightarrow>
     pact_aligned \<beta>x \<beta>y \<Longrightarrow>
     determ_steps \<oo> r F c ((sxl, syl), (sxs, sys)) \<Longrightarrow>
+    \<nexists>\<beta>b c'. ((sxl, sxs), c) \<midarrow>\<beta>b\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    \<nexists>\<beta>b c'. ((syl, sys), c) \<midarrow>\<beta>b\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     (((sxl, syl), (sxs, sys)), liftC' c)
       \<midarrow>pact_merge \<beta>x \<beta>y\<rightarrow>\<^sub>p
       (Inl ((sxl', syl'), (sxs', sys')), liftC' c')\<close>
@@ -1093,12 +1133,11 @@ lemma double_stepI:
       (* Atom *)
    apply (clarsimp split: if_splits; fail)
     (* Do-loop *)
-  apply (clarsimp del: disjCI split: if_splits)
-   apply (frule double_step_fstD, force)
-   apply (clarsimp split: sum.splits unit.splits; fail)
-  apply (rename_tac \<beta>x zx' cx' \<beta>y zy' cy')
-  apply (subgoal_tac \<open>cx' = cy'\<close>)
-   prefer 2
+  apply clarsimp
+  apply (case_tac \<open>(\<forall>a b c'. \<not> ((sxl, sxs), c) \<midarrow>\<beta>x\<rightarrow>\<^sub>p (Inl (a, b), c'))\<close>)
+   apply clarsimp
+    \<comment> \<open> CASE: complete deadlock
+          PROBLEM: we need to be able to combine the negative steps too. \<close>
   subgoal sorry
   apply clarsimp
   apply (subgoal_tac \<open>pact_aligned \<beta>x \<beta>y\<close>)
