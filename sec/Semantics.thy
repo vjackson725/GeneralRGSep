@@ -547,6 +547,15 @@ lemma strip_popstep:
   apply force
   done
 
+lemma vis_popstep_impl_atom:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    strip_pact \<beta> = Vis a \<Longrightarrow>
+    \<exists>p q.
+      (p, q) \<in> head_atoms (snd sc) \<and>
+      (p (fst sc) \<longrightarrow> (\<exists>s'. fst zc' = Inl s' \<and> q (fst sc) s')) \<and>
+      (\<not> p (fst sc) \<longrightarrow> fst zc' = Inr ())\<close>
+  by (cases sc, cases zc', clarsimp, metis strip_popstep vis_step_impl_atom)
+
 
 fun endet_cluster :: \<open>'a comm \<Rightarrow> 'a comm set\<close> where
   \<open>endet_cluster Skip = {Skip}\<close>
@@ -805,6 +814,58 @@ definition
           (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
             \<bbbA> \<oo> (x',y')))))\<close>
 
+
+subsubsection \<open> head domain \<close>
+
+definition                                                                      
+  \<open>heads_dom c \<equiv> \<Squnion>{p \<sqinter> pre_state q|p q. (p,q) \<in> head_atoms c}\<close>
+
+lemma heads_domD:
+  \<open>(p, q) \<in> head_atoms c \<Longrightarrow> p \<sqinter> pre_state q \<le> heads_dom c\<close>
+  unfolding heads_dom_def
+  by blast
+
+
+subsubsection \<open> head could crash domain \<close>
+
+definition                                                                      
+  \<open>heads_ccrash_dom c \<equiv> \<Squnion>{-p|p q. (p,q) \<in> head_atoms c}\<close>
+
+lemma heads_ccrash_domD:
+  \<open>(p, q) \<in> head_atoms c \<Longrightarrow> -p \<le> heads_ccrash_dom c\<close>
+  unfolding heads_ccrash_dom_def
+  by blast
+
+
+subsubsection \<open> security deterministic endent \<close>
+
+definition
+  \<open>sec_determ_endet c \<equiv> \<lambda>(sx,sy).
+    (\<forall>ca cb. ca \<box> cb \<in> all_subcomm_eq c \<longrightarrow>
+      \<not> (heads_dom ca sx \<and> heads_dom cb sy) \<and>
+      \<not> (heads_dom cb sx \<and> heads_dom ca sy) \<and>
+      \<not> (heads_ccrash_dom ca sx \<and> heads_ccrash_dom cb sy) \<and>
+      \<not> (heads_ccrash_dom cb sx \<and> heads_ccrash_dom ca sy))\<close>
+
+lemma sec_determ_endet_comm_simps[simp]:
+  \<open>sec_determ_endet Skip ss = True\<close>
+  \<open>sec_determ_endet (c1 ;; c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
+  \<open>sec_determ_endet (c1 \<parallel> c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
+  \<open>sec_determ_endet (c1 \<^bold>+ c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
+  \<open>sec_determ_endet (c1 \<box> c2) (sx, sy) =
+    (\<not> (heads_dom c1 sx \<and> heads_dom c2 sy) \<and>
+      \<not> (heads_dom c2 sx \<and> heads_dom c1 sy) \<and>
+      \<not> (heads_ccrash_dom c1 sx \<and> heads_ccrash_dom c2 sy) \<and>
+      \<not> (heads_ccrash_dom c2 sx \<and> heads_ccrash_dom c1 sy) \<and>
+      sec_determ_endet c1 (sx, sy) \<and>
+      sec_determ_endet c2 (sx, sy))\<close>
+  \<open>sec_determ_endet \<langle>p, q\<rangle> ss = True\<close>
+  \<open>sec_determ_endet (DO c OD) ss = sec_determ_endet c ss\<close>
+  by (simp add: sec_determ_endet_def all_conj_distrib ball_Un split: prod.splits)+
+
+
+subsubsection \<open> deterministic steps \<close>
+
 definition                                                                      
   \<open>determ_steps \<oo> r F c \<equiv> \<lambda>(x,y).
     \<bbbA> \<oo> (x,y) \<longrightarrow>
@@ -997,10 +1058,10 @@ lemma all_doubled_atom_liftC'_iff[simp]:
   \<open>all_atom_comm doubled_atom (liftC' c)\<close>
   sorry
 
-
 lemma double_step_crashI:
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), liftC' c')\<close>
   apply (induct c arbitrary: sxl syl sxs sys c' \<beta>)
         apply force
@@ -1017,12 +1078,18 @@ lemma double_step_crashI:
     (** 1/1 *)
        apply blast
     (** 1/2 *)
-  subgoal sorry
-      (** 2/1 *)
-  subgoal sorry
-      (** 2/2 *)
+      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (simp add: heads_ccrash_dom_def)
+      apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (** 2/1 *)
+     apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (simp add: heads_ccrash_dom_def)
+     apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (** 2/2 *)
     apply blast
-      (* atom *)
+    (* atom *)
    apply (clarsimp split: if_splits; fail)
     (* do-loop *)
   apply force
@@ -1035,6 +1102,7 @@ lemma double_stepI:
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c') \<Longrightarrow>
     determ_steps \<oo> r F c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     \<nexists>c'. ((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     \<nexists>c'. ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     (((sxl, syl), (sxs, sys)), liftC' c)
@@ -1080,16 +1148,22 @@ lemma double_stepI:
       apply (clarsimp, metis)
   subgoal sorry
       (** non-Tau *)
-    apply (elim disjE)
+    apply (elim disjE) (* +3 *)
     (*** 1/1 *)
        apply (metis determ_steps_commD(4))
     (*** 2/1 *)
-  subgoal sorry
-      (*** 1/2 *)
-  subgoal sorry
-      (*** 2/2 *)
+      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (simp add: heads_dom_def)
+      apply (metis (mono_tags) inf1I pre_state_def)
+    (*** 1/2 *)
+     apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (simp add: heads_dom_def)
+     apply (metis (mono_tags) inf1I pre_state_def)
+    (*** 2/2 *)
     apply (metis determ_steps_commD(5))
-      (* Atom *)
+    (* Atom *)
    apply (clarsimp split: if_splits; fail)
     (* Do-loop *)
   apply clarsimp
@@ -1180,7 +1254,9 @@ theorem noninterference:
     (sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy') \<Longrightarrow>
     length \<gamma>s \<le> n \<Longrightarrow>
     pred_executions
-      (\<lambda>(s,c). determ_steps \<oo> r F (unliftC c) (exch4 s))
+      (\<lambda>(s,c).
+        determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
+        sec_determ_endet (unliftC c) (exch4 s))
       FF rr cc zz n \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
@@ -1241,8 +1317,9 @@ next
       (* by determ step *)
     subgoal sorry
     apply clarsimp
-    apply (frule_tac sxs=sxs and sys=sys in double_stepI, blast)
-      (* from determ step *)
+    apply (frule_tac sxs=sxs and sys=sys and \<oo>=\<oo> and r=r and F=F in double_stepI, assumption)
+      (* from determ assms *)
+    subgoal sorry
     subgoal sorry
         (* from safe *)
     subgoal sorry
@@ -1267,7 +1344,7 @@ next
         drule mp, (rule conjI; assumption))
         apply (drule mp, assumption, drule mp, (rule conjI; assumption))
         apply clarsimp
-        apply (metis cancellative_def)
+    subgoal sorry
        apply blast
       apply blast
     subgoal sorry

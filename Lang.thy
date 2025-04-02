@@ -259,7 +259,7 @@ fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times>
 | \<open>head_atoms (ca \<^bold>+ cb) = {}\<close>
 | \<open>head_atoms (ca \<box> cb) = (head_atoms ca \<union> head_atoms cb)\<close>
 | \<open>head_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
-| \<open>head_atoms (DO c OD) = {}\<close>
+| \<open>head_atoms (DO c OD) = head_atoms c\<close>
 
 
 lemma head_atoms_subseteq_all_atoms:
