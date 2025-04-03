@@ -1331,6 +1331,10 @@ definition (in pre_perm_alg)
   \<open>cancellative c \<equiv>
     \<forall>a b. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
 
+lemma cancellativeD:
+  \<open>cancellative f \<Longrightarrow> x ## f \<Longrightarrow> y ## f \<Longrightarrow> x + f = y + f \<Longrightarrow> x = y\<close>
+  using cancellative_def by blast
+
 class cancel_perm_alg = perm_alg +
   assumes partial_right_cancel[simp]: \<open>\<And>a b c. a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b)\<close>
 begin

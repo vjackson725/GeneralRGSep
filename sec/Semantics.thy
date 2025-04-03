@@ -60,29 +60,38 @@ inductive pred_executions
 
 subsection \<open> Proofs about safe \<close>
 
-inductive_cases pred_executions_zeroE[elim!]: \<open>pred_executions P F r c s 0\<close>
-inductive_cases pred_executions_sucE[elim]: \<open>pred_executions P F r c s (Suc n)\<close>
+inductive_cases pred_executions_zeroE[elim!]: \<open>pred_executions P F r c z 0\<close>
+inductive_cases pred_executions_sucE[elim]: \<open>pred_executions P F r c z (Suc n)\<close>
 
 lemma pred_executions_nil_iff[simp]:
-  \<open>pred_executions P F r c s 0 \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
+  \<open>pred_executions P F r c z 0 \<longleftrightarrow> (\<exists>hl hs. z = Inl (hl, hs))\<close>
   by force
 
 lemma pred_executions_suc_iff:
-  \<open>pred_executions P F r c (Inl (hl, hs)) (Suc n) \<longleftrightarrow>
-    P ((hl, hs), c) \<and>
-    (\<forall>hs'. r hs hs' \<longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<and>
-    (\<forall>\<alpha> hlhlf' hs' c' hlf.
-        hl ## hlf \<longrightarrow>
-        ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
-        F (hlf, hs) \<longrightarrow>
-        (\<exists>hl'.
-          hl' ## hlf \<and>
-          hlhlf' = hl' + hlf \<and>
-          (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-          pred_executions P F r c' (Inl (hl', hs')) n))\<close>
+  \<open>pred_executions P F r c z (Suc n) \<longleftrightarrow>
+    (\<exists>hl hs. z = Inl (hl, hs) \<and>
+      P ((hl, hs), c) \<and>
+      (\<forall>hs'. r hs hs' \<longrightarrow> pred_executions P F r c (Inl (hl, hs')) n) \<and>
+      (\<forall>\<alpha> hlhlf' hs' c' hlf.
+          hl ## hlf \<longrightarrow>
+          ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (Inl (hlhlf',hs'), c') \<longrightarrow>
+          F (hlf, hs) \<longrightarrow>
+          (\<exists>hl'.
+            hl' ## hlf \<and>
+            hlhlf' = hl' + hlf \<and>
+            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
+            pred_executions P F r c' (Inl (hl', hs')) n)))\<close>
   apply (rule iffI)
    apply (erule pred_executions_sucE; force)
-  apply (rule pred_executions_step; force)
+  apply (case_tac z; force)
+  done
+
+lemma pred_executions_pred_mono:
+  \<open>p \<le> q \<Longrightarrow> pred_executions p F r c z n \<Longrightarrow> pred_executions q F r c z n\<close>
+  apply (induct n arbitrary: c z)
+   apply blast
+  apply (clarsimp simp add: pred_executions_suc_iff)
+  apply (intro conjI, blast, (meson; fail))
   done
 
 
@@ -118,6 +127,10 @@ lemma prod_part_destruct_exch4_eq[simp]:
   \<open>snd (exch4 (ab, cd)) = (snd ab, snd cd)\<close>
   by (simp add: exch4_def split: prod.splits)+
 
+lemma le_exch4_shunt:
+  \<open>p \<le> q \<circ> exch4 \<longleftrightarrow> p \<circ> exch4 \<le> q\<close>
+  by (metis comp_def exch4_idem le_fun_def)
+
 
 subsection \<open> relational lifting \<close>
 
@@ -146,6 +159,11 @@ lemma twoPredLift_apply[simp]:
 lemma twoPredLiftI[intro]:
   \<open>p x \<Longrightarrow> q y \<Longrightarrow> twoPredLift p q (x, y)\<close>
   by (simp add: twoPredLift_def)
+
+(* FIXME: redundancy *)
+lemma \<open>p \<times>\<^sub>P q = \<lblot> p \<bar> q \<rblot>\<close>
+  by (simp add: pred_Times_def twoPredLift_def)
+
 
 subsection \<open> Agreement \<close>
 
@@ -1039,6 +1057,9 @@ lemma double_step_fstD:
         apply fastforce
        apply (clarsimp split: unit.splits)
        apply (metis fst_conv sum.simps(6) old.unit.case prod_part_destruct_exch4_eq(1))
+      apply (clarsimp split: sum.splits unit.splits del: disjCI)
+      apply (rule conjI)
+       apply (clarsimp del: disjCI)
   sorry
 (*
    apply (cases ss, force simp add: unliftC_rev_iff doubled_atom_def
@@ -1193,51 +1214,7 @@ lemma double_stepI:
   apply (metis opstep_preserves_liftC' strip_popstep unlift_lift'_cancel)
   done
 
-(*
-lemma double_fstep_preserves_safe:
-  fixes sx sy :: \<open>'l::pre_perm_alg \<times> 's\<close>
-  shows
-  \<open>\<forall>f. F (f, snd sx) \<longrightarrow> fst sx ## f \<longrightarrow>
-      F (f, snd sx') \<longrightarrow> fst sx' ## f \<longrightarrow>
-      ((fst sx + f, snd sx), c) \<midarrow>r, \<gamma>x\<rightarrow>\<^sub>e (Inl (fst sx' + f, snd sx'), c') \<Longrightarrow>
-    \<forall>f. F (f, snd sy) \<longrightarrow> fst sy ## f \<longrightarrow>
-      F (f, snd sy') \<longrightarrow> fst sy' ## f \<longrightarrow>
-      ((fst sy + f, snd sy), c) \<midarrow>r, \<gamma>y\<rightarrow>\<^sub>e (Inl (fst sy' + f, snd sy'), c') \<Longrightarrow>
-    \<forall>f. F (f, snd sx) \<longrightarrow> F (f, snd sx') \<longrightarrow> cancellative f \<Longrightarrow>
-    \<forall>f. F (f, snd sy) \<longrightarrow> F (f, snd sy') \<longrightarrow> cancellative f \<Longrightarrow>
-    \<exists>f. F (f, snd sx) \<and> fst sx ## f \<and> F (f, snd sx') \<and> fst sx' ## f \<Longrightarrow>
-    \<exists>f. F (f, snd sy) \<and> fst sy ## f \<and> F (f, snd sy') \<and> fst sy' ## f \<Longrightarrow>
-    fact_aligned \<gamma>x \<gamma>y \<Longrightarrow>
-    rr = liftR r \<Longrightarrow>
-    FF = liftP F \<circ> exch4 \<Longrightarrow>
-    cc = liftC' c \<Longrightarrow>
-    cc' = liftC' c' \<Longrightarrow>
-    ss = exch4 (sx, sy) \<Longrightarrow>
-    ss' = exch4 (sx', sy') \<Longrightarrow>
-    safe (Suc n) cc (Inl ss) rr gg qq SS FF \<Longrightarrow>
-    safe n cc' (Inl ss') rr gg qq SS FF\<close>
-  apply (clarsimp simp add: safe_suc_iff)
-  apply (cases sx, cases sy, cases sx', cases sy')
-  apply (rename_tac fx fy sxl sxs syl sys sxl' sxs' syl' sys')
-  apply (simp add: estep_def rel3_merge_def)
-  apply (case_tac \<gamma>x; case_tac \<gamma>y;
-      clarsimp simp only: sum.case split: unit.splits; clarsimp)
-    (* rely/rely step *)
-   apply (metis cancellative_def)
-    (* opstep/opstep step *)
-  apply (rename_tac \<beta>x \<beta>y)
-  apply (drule spec, drule mp, assumption, drule mp, assumption,
-      drule mp, assumption, drule mp, assumption)
-  apply (drule spec, drule mp, assumption, drule mp, assumption,
-      drule mp, assumption, drule mp, assumption)
-  apply (frule_tac \<beta>=\<beta>x in strip_popstep)
-  apply (frule_tac \<beta>=\<beta>y in strip_popstep)
-  apply (frule spec2, drule spec2, drule spec,
-      drule mp, (rule conjI; assumption))
-  oops
-*)
-
-theorem noninterference:
+theorem double_determ_exec_then_safe_state:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
@@ -1248,11 +1225,10 @@ theorem noninterference:
     cc = liftC' c \<Longrightarrow>
     zz = Inl (exch4 (sx, sy)) \<Longrightarrow>
     rr = liftR r \<Longrightarrow>
-    FF = (liftP F \<circ> exch4) \<Longrightarrow>
-    SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4 \<Longrightarrow>
+    FF = liftP F \<circ> exch4 \<Longrightarrow>
     (sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx') \<Longrightarrow>
     (sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy') \<Longrightarrow>
-    length \<gamma>s \<le> n \<Longrightarrow>
+    length \<gamma>s < n \<Longrightarrow>
     pred_executions
       (\<lambda>(s,c).
         determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
@@ -1260,12 +1236,11 @@ theorem noninterference:
       FF rr cc zz n \<Longrightarrow>
     \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
-    \<bbbA> \<oo> (sx', sy')\<close>
+    SS (exch4 (sx', sy'))\<close>
 proof (induct n arbitrary: cc zz c sx sy \<gamma>s sx' sy')
   case 0
   then show ?case
-    by clarsimp
+    by (clarsimp simp add: le_fun_def)
 next
   case (Suc n)
 
@@ -1303,7 +1278,7 @@ next
     done
 
   show ?case
-    using Suc.prems(2-3,6-) safe_suc_conseq(1) sx_split sy_split
+    using Suc.prems(2-3,6-) safe_suc_conseq(1,2) sx_split sy_split
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
     apply (erule fsteps.cases, force)
     apply (erule fsteps.cases, force)
@@ -1331,26 +1306,52 @@ next
     apply clarsimp
     apply (frule_tac \<gamma>s=\<gamma>s in Suc.hyps[of _ _ _ \<open>(sxl,sxs)\<close> \<open>(syl,sys)\<close> _ sx' sy' for sxl sxs syl sys])
       (* from splitting safe Suc n and framed state *)
-                apply blast
-               apply (clarsimp, (intro conjI; rule refl))
-              apply (metis Suc.prems(4))
-             apply (metis Suc.prems(5))
-            apply (metis Suc.prems(6))
-           apply (metis cancellative_def)
+              apply blast
+             apply (clarsimp, (intro conjI; rule refl))
+            apply (metis Suc.prems(4))
+           apply (metis Suc.prems(5))
           apply (metis cancellative_def)
-         apply blast
-        apply (clarsimp simp add: Suc.prems(5))
-        apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2, drule spec2, drule spec,
+         apply (metis cancellative_def)
+        apply blast
+       apply (clarsimp simp add: Suc.prems(5))
+       apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2, drule spec2, drule spec,
         drule mp, (rule conjI; assumption))
-        apply (drule mp, assumption, drule mp, (rule conjI; assumption))
-        apply clarsimp
-    subgoal sorry
-       apply blast
+       apply (drule mp, assumption, drule mp, (rule conjI; assumption))
+       apply (metis (lifting) cancellativeD)
       apply blast
-    subgoal sorry
+     apply blast
     apply blast
     done
 qed
+
+
+theorem noninterference:
+  fixes n :: nat
+    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and sx sy :: \<open>'l \<times> 's\<close>
+    and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
+    and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
+  assumes
+    \<open>safe n cc zz rr gg qq SS FF\<close>
+    \<open>cc = liftC' c\<close>
+    \<open>zz = Inl (exch4 (sx, sy))\<close>
+    \<open>rr = liftR r\<close>
+    \<open>FF = liftP F \<circ> exch4\<close>
+    \<open>(sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
+    \<open>length \<gamma>s < n\<close>
+    \<open>pred_executions
+      (\<lambda>(s,c).
+        determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
+        sec_determ_endet (unliftC c) (exch4 s))
+      FF rr cc zz n\<close>
+    \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
+    \<open>rely_obs_safe \<oo> r \<close>
+    \<open>SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4\<close>
+  shows
+    \<open>\<lblot> (=) sx' \<^emph>\<and> F \<bar> (=) sy' \<^emph>\<and> F \<rblot> \<le> \<bbbA> \<oo>\<close>
+  using assms(12-) assms(5) double_determ_exec_then_safe_state[OF assms(1-11)]
+  by (clarsimp simp add: sepconj_conj_def le_fun_def imp_ex_conjL)
 
 (* TODO: write examples: (1) Arthur's nointerference, (2) observing local state *)
 
