@@ -1220,23 +1220,25 @@ theorem double_determ_exec_then_safe_state:
     and sx sy :: \<open>'l \<times> 's\<close>
     and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
     and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
-  shows
-  \<open>safe n cc zz rr gg qq SS FF \<Longrightarrow>
-    cc = liftC' c \<Longrightarrow>
-    zz = Inl (exch4 (sx, sy)) \<Longrightarrow>
-    rr = liftR r \<Longrightarrow>
-    FF = liftP F \<circ> exch4 \<Longrightarrow>
-    (sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx') \<Longrightarrow>
-    (sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy') \<Longrightarrow>
-    length \<gamma>s < n \<Longrightarrow>
-    pred_executions
+  assumes
+    \<open>safe n cc zz rr gg qq SS FF\<close>
+    \<open>cc = liftC' c\<close>
+    \<open>zz = Inl (exch4 (sx, sy))\<close>
+    \<open>rr = liftR r\<close>
+    \<open>FF = liftP F \<circ> exch4\<close>
+    \<open>(sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
+    \<open>length \<gamma>s < n\<close>
+    \<open>pred_executions
       (\<lambda>(s,c).
         determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
         sec_determ_endet (unliftC c) (exch4 s))
-      FF rr cc zz n \<Longrightarrow>
-    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
-    rely_obs_safe \<oo> r \<Longrightarrow>
-    SS (exch4 (sx', sy'))\<close>
+      FF rr cc zz n\<close>
+    \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
+    \<open>rely_obs_safe \<oo> r \<close>
+  shows
+    \<open>SS (exch4 (sx', sy'))\<close>
+  using assms
 proof (induct n arbitrary: cc zz c sx sy \<gamma>s sx' sy')
   case 0
   then show ?case
@@ -1286,7 +1288,14 @@ next
     apply (rename_tac \<gamma> lxx' sxx' cxx' \<gamma>s lyy' syy' cyy')
     apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
     apply (case_tac \<gamma>)
+      (* Env *)
+     apply clarsimp
+     apply (cut_tac safe_suc_conseq(3))
+      prefer 2
+      apply (simp add: Suc.prems(4) liftR_def, blast)
+     apply (simp add: exch4_def split: prod.splits)
     subgoal sorry
+        (* Local *)
     apply (subgoal_tac \<open>cyy' = cxx'\<close>)
      prefer 2
       (* by determ step *)
@@ -1354,6 +1363,37 @@ theorem noninterference:
   by (clarsimp simp add: sepconj_conj_def le_fun_def imp_ex_conjL)
 
 (* TODO: write examples: (1) Arthur's nointerference, (2) observing local state *)
+
+lemma eq_rtimes_R_iff:
+  \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
+  by (cases s, cases s', force)
+
+lemma top_rtimes_R_iff:
+  \<open>(\<top> \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s')\<close>
+  by (cases s, cases s', force)
+
+\<comment> \<open> note the instantiation of X to \<open>((\<bbbA> \<oo> \<circ> exch4) \<midarrow>\<^emph>\<^sub>\<and> FF)\<close> \<close>
+lemma agree_preserved_then_agree_everywhere:
+  fixes c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+  assumes
+    \<open>safe n c z r g q S F\<close>
+    \<open>0 < n\<close>
+    \<open>z = Inl s\<close>
+    \<open>\<forall>s s'. ((=) \<times>\<^sub>R r) s s' \<longrightarrow> X s \<longrightarrow> X s'\<close>
+    \<open>\<forall>p q . (p, q) \<in> all_atoms c \<longrightarrow> (\<forall>s s'. p s \<longrightarrow> q s s' \<longrightarrow> X s \<longrightarrow> X s')\<close>
+    \<open>X s\<close>
+  shows
+    \<open>S \<le> X\<close>
+  using assms
+proof (induct n arbitrary: s)
+  case 0
+  then show ?case
+    by force
+next
+  case (Suc n)
+  then show ?case
+    apply (clarsimp simp add: safe_suc_iff eq_rtimes_R_iff top_rtimes_R_iff)
+    oops
 
 
 definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where
