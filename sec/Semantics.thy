@@ -716,6 +716,14 @@ lemma estep_simps[simp]:
   \<open>estep r (Loc \<beta>) sc zc' = popstep \<beta> sc zc'\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)+
 
+lemma estepE[elim]:
+  \<open>estep r \<gamma> sc zc' \<Longrightarrow>
+    (\<And>hl hs c hs'.
+        \<gamma> = Env \<Longrightarrow> sc = ((hl, hs), c) \<Longrightarrow> zc' = (Inl (hl, hs'), c) \<Longrightarrow> r hs hs' \<Longrightarrow> P) \<Longrightarrow>
+    (\<And>\<beta>. \<gamma> = Loc \<beta> \<Longrightarrow> popstep \<beta> sc zc' \<Longrightarrow> P) \<Longrightarrow>
+    P\<close>
+  by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+
 
 section \<open> Trace Semantics \<close>
 
@@ -885,12 +893,12 @@ lemma sec_determ_endet_comm_simps[simp]:
 subsubsection \<open> deterministic steps \<close>
 
 definition                                                                      
-  \<open>determ_steps \<oo> r F c \<equiv> \<lambda>(x,y).
+  \<open>determ_steps \<oo> r c \<equiv> \<lambda>(x,y).
     \<bbbA> \<oo> (x,y) \<longrightarrow>
     (\<forall>\<gamma> x' cx'.
-      (x, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>f (Inl x', cx') \<longrightarrow>
+      (x, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl x', cx') \<longrightarrow>
       (\<forall>y' cy'.
-        (y, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>f (Inl y', cy') \<longrightarrow>
+        (y, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl y', cy') \<longrightarrow>
         cx' = cy' \<and> \<bbbA> \<oo> (x',y')))\<close>
 
 lemma determ_steps_simps[simp]:
@@ -900,14 +908,14 @@ lemma determ_steps_simps[simp]:
       r ssx ssx' \<longrightarrow>
       r ssy ssy' \<longrightarrow>
       \<bbbA> \<oo> ((slx, ssx'), (sly, ssy'))
-    ) \<Longrightarrow> determ_steps \<oo> r F Skip s = True\<close>
-  \<open>determ_steps \<oo> r F (c1 ;; c2) s = determ_steps \<oo> r F c1 s\<close>
-  \<open>determ_steps \<oo> r F \<langle>p, q\<rangle> s = True\<close>
+    ) \<Longrightarrow> determ_steps \<oo> r Skip s = True\<close>
+  \<open>determ_steps \<oo> r (c1 ;; c2) s = determ_steps \<oo> r c1 s\<close>
+  \<open>determ_steps \<oo> r \<langle>p, q\<rangle> s = True\<close>
 (*
-  \<open>determ_steps \<oo> r F (c1 \<^bold>+ c2) s = X\<close>
-  \<open>determ_steps \<oo> r F (c1 \<box> c2) s = X\<close>
-  \<open>determ_steps \<oo> r F (c1 \<parallel> c2) s = X\<close>
-  \<open>determ_steps \<oo> r F (DO c OD) s = X\<close>
+  \<open>determ_steps \<oo> r (c1 \<^bold>+ c2) s = X\<close>
+  \<open>determ_steps \<oo> r (c1 \<box> c2) s = X\<close>
+  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s = X\<close>
+  \<open>determ_steps \<oo> r (DO c OD) s = X\<close>
 *)
   unfolding determ_steps_def
     apply -
@@ -916,38 +924,34 @@ lemma determ_steps_simps[simp]:
    apply (intro iffI)
     apply (metis comm.inject(1))
    apply clarsimp
-   apply (elim disjE)
   oops
 
 lemma determ_steps_commD:
-  \<open>determ_steps \<oo> r F (c1 ;; c2) s \<Longrightarrow> determ_steps \<oo> r F c1 s\<close>
-  \<open>determ_steps \<oo> r F (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r F c1 s\<close>
-  \<open>determ_steps \<oo> r F (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r F c2 s\<close>
-  \<open>determ_steps \<oo> r F (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r F c1 s\<close>
-  \<open>determ_steps \<oo> r F (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r F c2 s\<close>
-  \<open>determ_steps \<oo> r F (DO c OD) s \<Longrightarrow> determ_steps \<oo> r F c s\<close>
+  \<open>determ_steps \<oo> r (c1 ;; c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
+  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
+  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r c2 s\<close>
+  \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
+  \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c2 s\<close>
+  \<open>determ_steps \<oo> r (DO c OD) s \<Longrightarrow> determ_steps \<oo> r c s\<close>
   sorry
 
-(*
-lemma determ_stepsD:
-  \<open>determ_steps \<oo> r F c (x,y) \<Longrightarrow>
-    (x, c) \<midarrow>r, F, \<alpha>x\<rightarrow>\<^sub>f (Inl x', cx') \<Longrightarrow>
-    (y, c) \<midarrow>r, F, \<alpha>y\<rightarrow>\<^sub>f (Inl y', cy') \<Longrightarrow>
+lemma determ_estepD:
+  \<open>determ_steps \<oo> r c (x,y) \<Longrightarrow>
+    (x, c) \<midarrow>r, \<beta>\<rightarrow>\<^sub>e (Inl x', cx') \<Longrightarrow>
+    (y, c) \<midarrow>r, \<beta>\<rightarrow>\<^sub>e (Inl y', cy') \<Longrightarrow>
     \<bbbA> \<oo> (x, y) \<Longrightarrow>
     cx' = cy' \<and> \<bbbA> \<oo> (x', y')\<close>
   unfolding determ_steps_def
   by (simp, metis surj_pair)
-*)
 
-lemma determ_pstepD:
-  \<open>determ_steps \<oo> r F c (x,y) \<Longrightarrow>
+lemma determ_popstepD:
+  \<open>determ_steps \<oo> r c (x,y) \<Longrightarrow>
     (x, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl x', cx') \<Longrightarrow>
     (y, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl y', cy') \<Longrightarrow>
     \<bbbA> \<oo> (x, y) \<Longrightarrow>
     cx' = cy' \<and> \<bbbA> \<oo> (x', y')\<close>
   unfolding determ_steps_def
-  apply clarsimp
-  oops
+  by (simp, metis estep_simps(2) surj_pair)
 
 
 subsection \<open> Separation Respecting Agreement \<close>
@@ -966,7 +970,7 @@ lemma sec_sepsafe_agree_conj:
 
 section \<open> Noninterference \<close>
 
-lemma noninterference_step:
+lemma noninterference_estep:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
@@ -976,59 +980,33 @@ lemma noninterference_step:
   \<open>(sx, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl sx', cx') \<Longrightarrow>
     (sy, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl sy', cy') \<Longrightarrow>
     rely_obs_safe \<oo> r \<Longrightarrow>
-    head_step_obs_safe \<oo> c (sx, sy) \<Longrightarrow>
-    determ_steps \<oo> r F c (sx, sy) \<Longrightarrow>
-    \<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl \<Longrightarrow>
+    determ_steps \<oo> r c (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx, sy) \<Longrightarrow>
     \<bbbA> \<oo> (sx', sy')\<close>
-  apply (clarsimp simp del: comp_apply)
   apply (case_tac \<gamma>)
    apply (clarsimp simp del: comp_apply simp add: rely_obs_safe_def)
    apply (drule spec2[of _ \<open>fst sx\<close> \<open>fst sy\<close>], drule spec2[of _ \<open>snd sx\<close> \<open>snd sy\<close>])
    apply force
   apply clarsimp
-  apply (frule strip_popstep[of _ _ \<open>(z', cx')\<close> for z'])
-  apply (frule strip_popstep[of _ _ \<open>(z', cy')\<close> for z'])
-  sorry
-
-lemma fstep_preserves_safe:
-  \<open>\<forall>f. F (f, hs) \<longrightarrow> hl ## f \<longrightarrow>
-      F (f, hs') \<longrightarrow> hl' ## f \<longrightarrow>
-      ((hl + f, hs), c) \<midarrow>r, \<beta>\<rightarrow>\<^sub>e (Inl (hl' + f, hs'), c') \<Longrightarrow>
-    \<forall>f. F (f, hs) \<longrightarrow> F (f, hs') \<longrightarrow> cancellative f \<Longrightarrow>
-    \<exists>f. F (f, hs) \<and> hl ## f \<and> F (f, hs') \<and> hl' ## f \<Longrightarrow>
-    safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
-    safe n c' (Inl (hl', hs')) r g q S F\<close>
-  apply (cases n)
-   apply (force simp add: safe_suc_iff fstep_def rel3_merge_def split: sum.splits unit.splits)
-  apply (clarsimp simp add: safe_suc_iff estep_def rel3_merge_def split: sum.splits unit.splits)
-    (* rely step *)
-   apply (intro conjI; metis cancellative_def)
-    (* opstep step *)
-  apply (intro conjI)
-     apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
-    apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
-   apply (metis Inl_inject Pair_inject cancellative_def strip_popstep)
-  apply (drule spec, drule mp, assumption, drule mp, assumption,
-      drule mp, assumption, drule mp, assumption,
-      frule strip_popstep)
-  apply clarsimp
-  apply (drule spec, drule mp, assumption, drule mp, assumption)
-  apply (drule spec, drule mp, assumption)
-  apply (drule spec2, drule spec, drule mp, assumption, drule mp, assumption)
-  apply clarsimp
-  apply (metis cancellative_def)
+  apply (metis determ_popstepD)
   done
 
-(*
-lemma pact_aligned_then_strip_pact_eq:
-  \<open>pact_aligned \<beta>x \<beta>y \<Longrightarrow> strip_pact \<beta>y = strip_pact \<beta>x\<close>
-  by (induct \<beta>x \<beta>y rule: pact_aligned.induct) force+
-
-lemma pact_aligned_strip_pact_merge_eq[simp]:
-  \<open>pact_aligned \<beta>x \<beta>y \<Longrightarrow> strip_pact (pact_merge \<beta>x \<beta>y) = strip_pact \<beta>x\<close>
-  by (induct \<beta>x \<beta>y rule: pact_aligned.induct) force+
-*)
+lemma fstep_preserves_safe:
+  \<open>((hl + f, hs), c) \<midarrow>r, \<beta>\<rightarrow>\<^sub>e (Inl (hl' + f, hs'), c') \<Longrightarrow>
+    \<forall>f. F (f, hs) \<longrightarrow> F (f, hs') \<longrightarrow> cancellative f \<Longrightarrow>
+    F (f, hs) \<Longrightarrow>
+    hl ## f \<Longrightarrow>
+    F (f, hs') \<Longrightarrow>
+    hl' ## f \<Longrightarrow>
+    safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
+    safe n c' (Inl (hl', hs')) r g q S F\<close>
+  apply (clarsimp simp add: safe_suc_iff)
+  apply (erule estepE)
+    (** Env *)
+   apply (metis Inl_inject Pair_inject cancellativeD)
+    (** Local *)
+  apply (metis Inl_inject Pair_inject cancellativeD strip_popstep)
+  done
 
 definition doubled_atom :: \<open>
     (('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
@@ -1122,7 +1100,7 @@ lemma double_stepI:
   shows
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c') \<Longrightarrow>
-    determ_steps \<oo> r F c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    determ_steps \<oo> r c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     \<nexists>c'. ((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     \<nexists>c'. ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
@@ -1149,11 +1127,11 @@ lemma double_stepI:
            apply force
           apply force
          apply clarsimp
-  subgoal sorry
+         apply (metis determ_steps_commD(2))
         apply fastforce
        apply fastforce
       apply clarsimp
-  subgoal sorry
+      apply (metis determ_steps_commD(3))
       (* INDet *)
      apply fastforce
       (* ENDet *)
@@ -1194,9 +1172,7 @@ lemma double_stepI:
           PROBLEM: we need to be able to combine the negative steps too. \<close>
   subgoal sorry
   apply clarsimp
-  apply (subgoal_tac \<open>determ_steps \<oo> r F c ((sxl, sxs), syl, sys)\<close>)
-   prefer 2
-   apply (metis determ_steps_commD(6))
+  apply (frule determ_steps_commD(6))
   apply (rename_tac sxl'' sxs'' cx'' syl'' sys'' cy'')
   apply (subgoal_tac \<open>(((sxl, syl), sxs, sys), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl ((sxl'', syl''), sxs'', sys''), liftC' cy'')\<close>)
    prefer 2
@@ -1214,7 +1190,7 @@ lemma double_stepI:
   apply (metis opstep_preserves_liftC' strip_popstep unlift_lift'_cancel)
   done
 
-theorem double_determ_exec_then_safe_state:
+theorem determ_double_exec_then_safe_state:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
@@ -1230,9 +1206,11 @@ theorem double_determ_exec_then_safe_state:
     \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
-      (\<lambda>(s,c).
-        determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
-        sec_determ_endet (unliftC c) (exch4 s))
+      (\<lambda>(((hlx, hly), (hsx, hsy)), c).
+        (\<forall>flx. F (flx, hsx) \<longrightarrow> hlx ## flx \<longrightarrow>
+        (\<forall>fly. F (fly, hsy) \<longrightarrow> hly ## fly \<longrightarrow>
+          determ_steps \<oo> r (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)) \<and>
+          sec_determ_endet (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)))))
       FF rr cc zz n\<close>
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
     \<open>rely_obs_safe \<oo> r \<close>
@@ -1301,10 +1279,10 @@ next
       (* by determ step *)
     subgoal sorry
     apply clarsimp
-    apply (frule_tac sxs=sxs and sys=sys and \<oo>=\<oo> and r=r and F=F in double_stepI, assumption)
+    apply (frule_tac sxs=sxs and sys=sys and \<oo>=\<oo> and r=r in double_stepI, assumption)
       (* from determ assms *)
-    subgoal sorry
-    subgoal sorry
+        apply blast
+       apply blast
         (* from safe *)
     subgoal sorry
         (* from safe *)
@@ -1333,8 +1311,7 @@ next
     done
 qed
 
-
-theorem noninterference:
+corollary noninterference:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
@@ -1350,16 +1327,18 @@ theorem noninterference:
     \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
-      (\<lambda>(s,c).
-        determ_steps \<oo> r F (unliftC c) (exch4 s) \<and>
-        sec_determ_endet (unliftC c) (exch4 s))
+      (\<lambda>(((hlx, hly), (hsx, hsy)), c).
+        (\<forall>flx. F (flx, hsx) \<longrightarrow> hlx ## flx \<longrightarrow>
+        (\<forall>fly. F (fly, hsy) \<longrightarrow> hly ## fly \<longrightarrow>
+          determ_steps \<oo> r (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)) \<and>
+          sec_determ_endet (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)))))
       FF rr cc zz n\<close>
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
     \<open>rely_obs_safe \<oo> r \<close>
     \<open>SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4\<close>
   shows
     \<open>\<lblot> (=) sx' \<^emph>\<and> F \<bar> (=) sy' \<^emph>\<and> F \<rblot> \<le> \<bbbA> \<oo>\<close>
-  using assms(12-) assms(5) double_determ_exec_then_safe_state[OF assms(1-11)]
+  using assms(12-) assms(5) determ_double_exec_then_safe_state[OF assms(1-11)]
   by (clarsimp simp add: sepconj_conj_def le_fun_def imp_ex_conjL)
 
 (* TODO: write examples: (1) Arthur's nointerference, (2) observing local state *)
@@ -1372,28 +1351,64 @@ lemma top_rtimes_R_iff:
   \<open>(\<top> \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s')\<close>
   by (cases s, cases s', force)
 
+
+lemma opstep_all_atoms_antimono:
+  \<open>sc \<midarrow>\<alpha>\<rightarrow> zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    all_atoms c' \<le> all_atoms c\<close>
+  apply (induct \<alpha> sc zc' arbitrary: s c s' c' rule: opstep.induct)
+        apply force
+       apply force
+      apply force
+     apply clarsimp
+     apply (elim disjE conjE; clarsimp; blast)
+    apply clarsimp
+    apply (elim disjE conjE; clarsimp; blast)
+   apply (clarsimp split: if_splits; fail)
+  apply (clarsimp split: if_splits; fail)
+  done
+
+
 \<comment> \<open> note the instantiation of X to \<open>((\<bbbA> \<oo> \<circ> exch4) \<midarrow>\<^emph>\<^sub>\<and> FF)\<close> \<close>
-lemma agree_preserved_then_agree_everywhere:
+lemma pred_preserved_then_pred_all_states:
   fixes c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
   assumes
     \<open>safe n c z r g q S F\<close>
-    \<open>0 < n\<close>
     \<open>z = Inl s\<close>
     \<open>\<forall>s s'. ((=) \<times>\<^sub>R r) s s' \<longrightarrow> X s \<longrightarrow> X s'\<close>
-    \<open>\<forall>p q . (p, q) \<in> all_atoms c \<longrightarrow> (\<forall>s s'. p s \<longrightarrow> q s s' \<longrightarrow> X s \<longrightarrow> X s')\<close>
+    \<open>\<forall>p q. (p, q) \<in> all_atoms c \<longrightarrow>
+      (\<forall>hl hs hl' hs'.
+        (\<forall>fl.
+          hl ## fl \<longrightarrow> F (fl, hs) \<longrightarrow> hl' ## fl \<longrightarrow>
+          p (hl + fl, hs) \<longrightarrow> q (hl + fl, hs) (hl' + fl, hs') \<longrightarrow>
+          X (hl, hs) \<longrightarrow> X (hl', hs')))\<close>
     \<open>X s\<close>
   shows
-    \<open>S \<le> X\<close>
+    \<open>safe n c z r g q X F\<close>
   using assms
-proof (induct n arbitrary: s)
-  case 0
-  then show ?case
-    by force
+proof (induct n c z r g q S F arbitrary: s rule: safe.induct)
+  case (safe_nil S hl hs c r g q F)
+  then show ?case by force
 next
-  case (Suc n)
+  case (safe_suc c q hl hs S r n g F)
   then show ?case
     apply (clarsimp simp add: safe_suc_iff eq_rtimes_R_iff top_rtimes_R_iff)
-    oops
+    apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption,
+        drule meta_mp, assumption, drule meta_mp, assumption)
+    apply clarsimp
+    apply (rule_tac x=hl' in exI)
+    apply clarsimp
+    apply (drule mp[of \<open>All _\<close>])
+     apply (meson opstep_all_atoms_antimono subsetD; fail)
+    apply clarsimp
+    apply (erule opstep_act_cases, force)
+    apply (frule vis_step_impl_atom)
+    apply clarsimp
+    apply (drule spec2, drule mp, rule set_mp[OF head_atoms_subseteq_all_atoms], assumption)
+    apply metis
+    done
+qed
 
 
 definition quasirefl_cl (\<open>\<^bold>\<box>\<close>) where

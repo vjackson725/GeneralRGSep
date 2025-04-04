@@ -418,18 +418,19 @@ subsection \<open> Safety of Skip \<close>
 
 lemma safe_skip_iff:
   \<open>safe n Skip s r g q S F \<longleftrightarrow>
-    (\<exists>hl hs. s = Inl (hl, hs) \<and> (\<forall>k<n. (\<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs'))))\<close>
+    (\<exists>hl hs. s = Inl (hl, hs) \<and> (\<forall>k<n. \<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs')))\<close>
   apply (induct n arbitrary: s)
    apply (simp; fail)
   apply (rule iffI)
    apply (erule safe.cases, blast)
-   apply (force simp add: less_Suc_eq_0_disj relpowp_simp_alt simp del: relpowp.simps(2))
+   apply (clarsimp simp add: less_Suc_eq_0_disj)
+   apply (metis relpowp_Suc_D2')
   apply clarsimp
   apply (rule safe_suc)
      apply force
     apply force
-   apply (force simp add: less_Suc_eq_0_disj all_conj_distrib imp_ex_conjL
-      relpowp_commute[symmetric] relcompp_apply del: disjCI)
+   apply (clarsimp simp add: less_Suc_eq_0_disj)
+   apply (metis relpowp_Suc_I2)
   apply force
   done
 
@@ -489,7 +490,7 @@ lemma safe_frame':
 proof (induct arbitrary: hl hs hlf rule: safe.induct)
   case (safe_nil c ls hs r g q S F)
   then show ?case
-    by (metis Inl_inject safe.safe_nil sepconj_conjI)
+    by (metis safe.safe_nil)
 next
   case (safe_suc c q lsx hsx S r n g F)
 
