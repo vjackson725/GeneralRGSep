@@ -980,6 +980,12 @@ definition rel_Times :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Righta
 lemma rel_Times_iff[simp]: \<open>(r1 \<times>\<^sub>R r2) (x1, x2) (y1, y2) \<longleftrightarrow> r1 x1 y1 \<and> r2 x2 y2\<close>
   by (force simp add: rel_Times_def)
 
+lemma rel_Times_left_iff: \<open>(r1 \<times>\<^sub>R r2) (x1, x2) y \<longleftrightarrow> r1 x1 (fst y) \<and> r2 x2 (snd y)\<close>
+  by (force simp add: rel_Times_def)
+
+lemma rel_Times_right_iff: \<open>(r1 \<times>\<^sub>R r2) x (y1, y2) \<longleftrightarrow> r1 (fst x) y1 \<and> r2 (snd x) y2\<close>
+  by (force simp add: rel_Times_def)
+
 lemma rel_Times_almost_assoc:
   \<open>((r1 \<times>\<^sub>R r2) \<times>\<^sub>R r3) ((a,b),c) ((a',b'),c') = (r1 \<times>\<^sub>R r2 \<times>\<^sub>R r3) (a,b,c) (a',b',c')\<close>
   by simp

@@ -94,6 +94,8 @@ lemma pred_executions_pred_mono:
   apply (intro conjI, blast, (meson; fail))
   done
 
+lemmas pred_executions_pred_monoD = pred_executions_pred_mono[rotated]
+
 
 section \<open> Double-state lifting \<close>
 
@@ -179,13 +181,8 @@ lemma conj_agree_iff:
 subsection \<open> Double-state Lifting \<close>
 
 abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
-definition \<open>liftR r \<equiv> \<lambda>(x,x') (y,y'). r x y \<and> r x' y'\<close>
+abbreviation(input) \<open>liftR r \<equiv> r \<times>\<^sub>R r\<close>
 definition \<open>liftC f \<equiv> map_comm (\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close>
-
-lemma liftR_apply[simp]:
-  \<open>liftR r (x,x') (y,y') \<longleftrightarrow> r x y \<and> r x' y'\<close>
-  unfolding liftR_def
-  by simp
 
 lemmas liftC_simps[simp] =
   map_comm.simps[of \<open>(\<lambda>p q. ((liftP p \<sqinter> \<bbbA> f) \<circ> exch4, liftR q \<circ>\<^sub>2 exch4))\<close> for f,
@@ -203,7 +200,7 @@ lemma liftC_cancel[simp]:
       apply (metis liftC_rev_iff(3))
      apply (metis liftC_rev_iff(4))
     apply (metis liftC_rev_iff(5))
-   apply (fastforce simp add: liftC_rev_iff fun_eq_iff sec_agree_def liftR_def)
+   apply (fastforce simp add: liftC_rev_iff fun_eq_iff sec_agree_def)
   apply (metis liftC_rev_iff(6))
   done
 
@@ -213,7 +210,7 @@ definition \<open>unliftC \<equiv> map_comm (\<lambda>p q. (\<lambda>x. p (exch4
 lemma unlift_lift_cancel[simp]:
   \<open>unliftC (liftC f c) = c\<close>
   unfolding unliftC_def liftC_def
-  by (induct c) (simp add: liftR_def sec_agree_def)+
+  by (induct c) (simp add: sec_agree_def)+
 
 lemma unliftC_atom_simp:
   \<open>unliftC \<langle>p, q\<rangle> = \<langle>\<lambda>x. p (exch4 (x, x)), \<lambda>x y. q (exch4 (x, x)) (exch4 (y, y))\<rangle>\<close>
@@ -249,14 +246,14 @@ lemma liftC'_cancel[simp]:
       apply (metis liftC'_rev_iff(3))
      apply (metis liftC'_rev_iff(4))
     apply (metis liftC'_rev_iff(5))
-   apply (fastforce simp add: liftC'_rev_iff fun_eq_iff sec_agree_def liftR_def)
+   apply (fastforce simp add: liftC'_rev_iff fun_eq_iff sec_agree_def)
   apply (metis liftC'_rev_iff(6))
   done
 
 lemma unlift_lift'_cancel[simp]:
   \<open>unliftC (liftC' c) = c\<close>
   unfolding unliftC_def liftC'_def
-  by (induct c) (simp add: liftR_def sec_agree_def)+
+  by (induct c) (simp add: sec_agree_def)+
 
 
 section \<open> Tree Noninterference \<close>
@@ -1190,6 +1187,10 @@ lemma double_stepI:
   apply (metis opstep_preserves_liftC' strip_popstep unlift_lift'_cancel)
   done
 
+lemma ex_exch4_iff[simp]:
+  \<open>((ax, bx), (ay, by)) = exch4 (a, b) \<longleftrightarrow> a = (ax, ay) \<and> b = (bx, by)\<close>
+  by (force simp add: exch4_def split: prod.splits)
+
 theorem determ_double_exec_then_safe_state:
   fixes n :: nat
     and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
@@ -1216,7 +1217,7 @@ theorem determ_double_exec_then_safe_state:
     \<open>rely_obs_safe \<oo> r \<close>
   shows
     \<open>SS (exch4 (sx', sy'))\<close>
-  using assms
+  using assms(1-3,6-10)
 proof (induct n arbitrary: cc zz c sx sy \<gamma>s sx' sy')
   case 0
   then show ?case
@@ -1250,15 +1251,18 @@ next
         (\<alpha> \<noteq> Tau \<longrightarrow> gg (sxs, sys) hs') \<and>
         (\<alpha> = Tau \<longrightarrow> hlx' = sxl \<and> hly' = syl) \<and>
         safe n c' (Inl ((hlx', hly'), hs')) rr gg qq SS FF)\<close>
-    using Suc.prems(1-3,5) sx_split sy_split
+    using Suc.prems sx_split sy_split
        apply -
        apply (simp add: safe_suc_iff)+
      apply force
-    apply (clarsimp simp add: safe_suc_iff, metis)
+    apply (clarsimp simp add: safe_suc_iff)
+    apply (simp add: assms(5))
+    apply (drule spec2, drule spec2, drule spec, drule mp, (rule conjI; assumption))
+    apply blast
     done
 
   show ?case
-    using Suc.prems(2-3,6-) safe_suc_conseq(1,2) sx_split sy_split
+    using Suc.prems safe_suc_conseq(1,2) sx_split sy_split
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
     apply (erule fsteps.cases, force)
     apply (erule fsteps.cases, force)
@@ -1267,13 +1271,12 @@ next
     apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
     apply (case_tac \<gamma>)
       (* Env *)
-     apply clarsimp
-     apply (cut_tac safe_suc_conseq(3))
+     apply (clarsimp simp add: assms(4))
+     apply (cut_tac safe_suc_conseq(3)[of \<open>(x', y')\<close> for x' y'])
       prefer 2
-      apply (simp add: Suc.prems(4) liftR_def, blast)
-     apply (simp add: exch4_def split: prod.splits)
-    subgoal sorry
-        (* Local *)
+      apply (simp add: assms(4); fail)
+     apply (rule Suc.hyps, fast, fast, force, fast, fast, fast, force simp add: assms(4), blast)
+      (* Local *)
     apply (subgoal_tac \<open>cyy' = cxx'\<close>)
      prefer 2
       (* by determ step *)
@@ -1293,19 +1296,16 @@ next
     apply clarsimp
     apply (frule_tac \<gamma>s=\<gamma>s in Suc.hyps[of _ _ _ \<open>(sxl,sxs)\<close> \<open>(syl,sys)\<close> _ sx' sy' for sxl sxs syl sys])
       (* from splitting safe Suc n and framed state *)
-              apply blast
-             apply (clarsimp, (intro conjI; rule refl))
-            apply (metis Suc.prems(4))
-           apply (metis Suc.prems(5))
-          apply (metis cancellative_def)
+           apply blast
+          apply (clarsimp, (intro conjI; rule refl))
          apply (metis cancellative_def)
-        apply blast
-       apply (clarsimp simp add: Suc.prems(5))
-       apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2, drule spec2, drule spec,
-        drule mp, (rule conjI; assumption))
-       apply (drule mp, assumption, drule mp, (rule conjI; assumption))
-       apply (metis (lifting) cancellativeD)
-      apply blast
+        apply (metis cancellative_def)
+       apply blast
+      apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2, drule spec2, drule spec,
+        drule mp, (rule conjI; assumption), drule mp, assumption)
+      apply (drule mp[of \<open>FF _\<close>], (simp add: assms(5); fail))
+      apply clarsimp
+      apply (metis (lifting) cancellativeD)
      apply blast
     apply blast
     done
@@ -1342,6 +1342,47 @@ corollary noninterference:
   by (clarsimp simp add: sepconj_conj_def le_fun_def imp_ex_conjL)
 
 (* TODO: write examples: (1) Arthur's nointerference, (2) observing local state *)
+
+lemma sepimp_conj_step_mp:
+  \<open>p \<le> p' \<Longrightarrow> (p' \<midarrow>\<^emph>\<^sub>\<and> q) \<^emph>\<and> p \<le> q\<close>
+  by (meson order_refl sepimp_conj_mono sepimp_conj_sepconj_conj_shunt)
+
+lemma comp2_exch4_over_rel_times[simp]:
+  fixes ra :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
+    and rb :: \<open>'b \<Rightarrow> 'b \<Rightarrow> bool\<close>
+  shows \<open>((ra \<times>\<^sub>R rb) \<times>\<^sub>R (rc \<times>\<^sub>R rd)) \<circ>\<^sub>2 exch4 = ((ra \<times>\<^sub>R rc) \<times>\<^sub>R (rb \<times>\<^sub>R rd))\<close>
+  by (force simp add: comp_rel_def exch4_def rel_Times_def)
+
+lemma example_observing_local_state:
+  fixes F :: \<open>(('p \<rightharpoonup> 'v::perm_alg) \<times> ('p \<rightharpoonup> 'v)) \<times> ('h \<times> 'h) \<Rightarrow> bool\<close>
+  assumes
+    \<open>x \<noteq> y\<close>
+  shows
+    \<open>(=), (=) \<turnstile>\<^bsub>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4), F\<^esub>
+    { (F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)) }
+      liftC' (\<langle>\<top>, (\<lambda>hl hl'. hl' = hl(x \<mapsto> v)) \<times>\<^sub>R (=)\<rangle>)
+    { (F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)) }\<close>
+  apply (simp add: liftC'_def)
+  apply (rule rgsat_atom[of _ _
+        \<open>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)\<close>
+        \<open>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)\<close>
+        ])
+        apply force
+       apply force
+      apply force
+     apply force
+    apply force
+   apply clarsimp
+   apply (clarsimp simp add: sp_def sepconj_conj_def sepimp_conj_def split: prod.splits)
+  sledgehammer
+  sorry
+
+
+lemma example_arthurs_noninterference:
+shows
+  \<open>r, g \<turnstile>\<^bsub>S \<sqinter> (\<bbbA> (\<lambda>(hl,hs). dom hl \<subseteq> A) \<circ> exch4), F\<^esub> { p } c { q }\<close>
+  sorry
+
 
 lemma eq_rtimes_R_iff:
   \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
