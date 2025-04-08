@@ -1,4 +1,4 @@
-theory Semantics
+ theory Semantics
   imports "../Soundness"
 begin
 
@@ -1374,13 +1374,12 @@ lemma example_observing_local_state:
     apply force
    apply clarsimp
    apply (clarsimp simp add: sp_def sepconj_conj_def sepimp_conj_def split: prod.splits)
-  sledgehammer
   sorry
 
 
 lemma example_arthurs_noninterference:
 shows
-  \<open>r, g \<turnstile>\<^bsub>S \<sqinter> (\<bbbA> (\<lambda>(hl,hs). dom hl \<subseteq> A) \<circ> exch4), F\<^esub> { p } c { q }\<close>
+  \<open>r, g \<turnstile>\<^bsub>(\<bbbA> (\<lambda>(hl,hs). dom hl \<subseteq> A) \<circ> exch4), F\<^esub> { p } c { q }\<close>
   sorry
 
 
@@ -1417,12 +1416,13 @@ lemma pred_preserved_then_pred_all_states:
   assumes
     \<open>safe n c z r g q S F\<close>
     \<open>z = Inl s\<close>
-    \<open>\<forall>s s'. ((=) \<times>\<^sub>R r) s s' \<longrightarrow> X s \<longrightarrow> X s'\<close>
+    \<open>\<forall>s s'. ((=) \<times>\<^sub>R r) s s' \<longrightarrow> S s \<longrightarrow> X s \<longrightarrow> X s'\<close>
     \<open>\<forall>p q. (p, q) \<in> all_atoms c \<longrightarrow>
       (\<forall>hl hs hl' hs'.
         (\<forall>fl.
           hl ## fl \<longrightarrow> F (fl, hs) \<longrightarrow> hl' ## fl \<longrightarrow>
           p (hl + fl, hs) \<longrightarrow> q (hl + fl, hs) (hl' + fl, hs') \<longrightarrow>
+          S (hl, hs) \<longrightarrow>
           X (hl, hs) \<longrightarrow> X (hl', hs')))\<close>
     \<open>X s\<close>
   shows
