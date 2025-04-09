@@ -1080,6 +1080,48 @@ definition doubled_atom :: \<open>
     \<open>doubled_atom pp qq \<equiv>
       (\<exists>p. pp = liftP p \<circ> exch4) \<and> (\<exists>q. qq = liftR q \<circ>\<^sub>2 exch4)\<close>
 
+lemma all_doubled_atom_liftC'_iff[simp]:
+  \<open>all_atom_comm doubled_atom (liftC' c)\<close>
+  by (induct c)
+    (force simp add: doubled_atom_def)+
+
+lemma double_step_crashI:
+  \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
+    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), liftC' c')\<close>
+  apply (induct c arbitrary: sxl syl sxs sys c' \<beta>)
+        apply force
+       apply force
+    (* parallel *)
+      apply fastforce
+    (* indet *)
+     apply force
+    (* endet *)
+    apply (clarsimp split: if_splits)
+     apply (metis Inl_not_Inr fst_eqD popstep_tau_preserves_heap)
+    apply (elim disjE) (* 1 \<rightarrow> 4 *)
+    (** 1/1 *)
+       apply blast
+    (** 1/2 *)
+      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (simp add: heads_ccrash_dom_def)
+      apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (** 2/1 *)
+     apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (simp add: heads_ccrash_dom_def)
+     apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (** 2/2 *)
+    apply blast
+    (* atom *)
+   apply (clarsimp split: if_splits; fail)
+    (* do-loop *)
+  apply force
+  done
+
+
 lemma double_step_fstD:
   fixes ss :: \<open>('l \<times> 'l) \<times> ('s \<times> 's)\<close>
     and cc :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm\<close>
@@ -1116,48 +1158,6 @@ lemma double_step_sndD:
         (snd (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (snd (exch4 ss')), unliftC cc')
     | Inr () \<Rightarrow> (snd (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), unliftC cc')\<close>
   sorry
-
-lemma all_doubled_atom_liftC'_iff[simp]:
-  \<open>all_atom_comm doubled_atom (liftC' c)\<close>
-  by (induct c)
-    (force simp add: doubled_atom_def)+
-
-lemma double_step_crashI:
-  \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
-    ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
-    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
-    (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), liftC' c')\<close>
-  apply (induct c arbitrary: sxl syl sxs sys c' \<beta>)
-        apply force
-       apply force
-    (* parallel *)
-      apply clarsimp
-  subgoal sorry
-      (* indet *)
-     apply force
-    (* endet *)
-    apply (clarsimp split: if_splits)
-     apply (metis Inl_not_Inr fst_eqD popstep_tau_preserves_heap)
-    apply (elim disjE) (* 1 \<rightarrow> 4 *)
-    (** 1/1 *)
-       apply blast
-    (** 1/2 *)
-      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-      apply (simp add: heads_ccrash_dom_def)
-      apply (metis ComplI Collect_neg_eq mem_Collect_eq)
-    (** 2/1 *)
-     apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-     apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-     apply (simp add: heads_ccrash_dom_def)
-     apply (metis ComplI Collect_neg_eq mem_Collect_eq)
-    (** 2/2 *)
-    apply blast
-    (* atom *)
-   apply (clarsimp split: if_splits; fail)
-    (* do-loop *)
-  apply force
-  done
 
 lemma double_stepI:
   fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
