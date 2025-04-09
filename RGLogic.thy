@@ -106,7 +106,7 @@ lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
 section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
-  \<open>('l::perm_alg \<times> 's) comm \<Rightarrow>
+  \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>

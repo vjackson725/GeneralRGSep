@@ -1440,9 +1440,35 @@ lemma example_observing_local_state:
   sorry
 
 
-lemma example_arthurs_noninterference:
-shows
-  \<open>r, g \<turnstile>\<^bsub>(\<bbbA> (\<lambda>(hl,hs). dom hl \<subseteq> A) \<circ> exch4), F\<^esub> { p } c { q }\<close>
+definition
+  \<open>location_independent Pt \<equiv> \<lambda>(p,q).
+    \<forall>h h' s s'.
+      p (h, s) \<longrightarrow>
+      q (h, s) (h', s') \<longrightarrow>
+      (\<forall>\<sigma>.
+        bij \<sigma> \<longrightarrow>
+        (\<forall>\<rho>. \<rho> \<notin> Pt \<longrightarrow> \<sigma> \<rho> = \<rho>) \<longrightarrow>
+        p (h \<circ> \<sigma>, s) \<and> q (h \<circ> \<sigma>, s) (h' \<circ> \<sigma>, s'))\<close>
+
+definition
+  \<open>value_independent Pt \<equiv> \<lambda>(p,q).
+    \<forall>h h' s s'.
+      p (h, s) \<longrightarrow>
+      q (h, s) (h', s') \<longrightarrow>
+      (\<forall>hx hx'.
+        (\<forall>\<rho>. \<rho> \<notin> Pt \<longrightarrow> hx \<rho> = hx' \<rho>) \<longrightarrow>
+        p (hx, s) \<and> q (hx, s) (hx', s'))\<close>
+
+lemma example_deAmorim_noninterference:
+  fixes S :: \<open>('p \<rightharpoonup> 'l::pre_perm_alg) \<times> 's \<Rightarrow> bool\<close>
+  assumes
+    \<open>r, g \<turnstile>\<^bsub>S, F\<^esub> { p } c { q }\<close>
+    \<open>\<forall>p q.
+        (p,q) \<in> all_atoms c \<longrightarrow>
+        (\<forall>x x'. (S \<^emph>\<and> F) x \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow>
+          {\<rho>. fst x \<rho> \<noteq> fst x' \<rho>} \<subseteq> V)\<close>
+  shows
+    \<open>liftR r, liftR g \<turnstile>\<^bsub>\<bbbA> f \<circ> exch4, liftP F \<circ> exch4\<^esub> { liftP p \<circ> exch4 } liftC' c { liftP q \<circ> exch4 }\<close>
   sorry
 
 
