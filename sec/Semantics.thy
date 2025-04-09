@@ -133,6 +133,10 @@ lemma le_exch4_shunt:
   \<open>p \<le> q \<circ> exch4 \<longleftrightarrow> p \<circ> exch4 \<le> q\<close>
   by (metis comp_def exch4_idem le_fun_def)
 
+lemma ex_exch4_iff[simp]:
+  \<open>((ax, bx), (ay, by)) = exch4 (a, b) \<longleftrightarrow> a = (ax, ay) \<and> b = (bx, by)\<close>
+  by (force simp add: exch4_def split: prod.splits)
+
 
 subsection \<open> relational lifting \<close>
 
@@ -496,6 +500,9 @@ fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cp
             then \<exists>h'. aq h h' \<and> fst s' = Inl h' \<and> snd s' = Skip
             else fst s' = Inr () \<and> snd s' = Atomic ap aq))\<close>
 
+lemmas popstep_induct = popstep.induct[case_names Skip Seq Indet Endet Par DoLoop Atom]
+hide_fact popstep.induct
+
 
 paragraph \<open> Pretty parallel operational semantics \<close>
 
@@ -510,12 +517,12 @@ subsubsection \<open> popstep lemmas \<close>
 
 lemma popstep_tau_preserves_heap:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
-  by (induct rule: popstep.induct)
+  by (induct rule: popstep_induct)
     (fastforce split: if_splits)+
 
 lemma no_opstep_then_no_popstep:
   \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>p\<close>
-  apply (induct rule: popstep.induct)
+  apply (induct rule: popstep_induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
       apply fastforce
@@ -531,7 +538,7 @@ lemma no_opstep_then_no_popstep:
 
 lemma no_popstep_then_no_opstep:
   \<open>sc \<midarrow>|\<rightarrow>\<^sub>p \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
-  apply (induct rule: popstep.induct)
+  apply (induct rule: popstep_induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
       apply fastforce
@@ -547,7 +554,7 @@ lemma no_popstep_then_no_opstep:
 
 lemma strip_popstep:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> sc \<midarrow>strip_pact \<beta>\<rightarrow> zc'\<close>
-  apply (induct \<beta> sc zc' rule: popstep.induct)
+  apply (induct \<beta> sc zc' rule: popstep_induct)
         apply fastforce
        apply fastforce
       apply fastforce
@@ -571,6 +578,31 @@ lemma vis_popstep_impl_atom:
       (\<not> p (fst sc) \<longrightarrow> fst zc' = Inr ())\<close>
   by (cases sc, cases zc', clarsimp, metis strip_popstep vis_step_impl_atom)
 
+lemma popstep_then_popstep_right_seqD:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    (s, c ;; cx) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' ;; cx)\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+
+lemma popstep_then_popstep_right_endetD:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    (strip_pact \<beta> = Vis u \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
+    (strip_pact \<beta> = Tau \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' \<box> cb))\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+
+lemma popstep_then_popstep_left_endetD:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    (strip_pact \<beta> = Vis u \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
+    (strip_pact \<beta> = Tau \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', ca \<box> c'))\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+
+
+subsection \<open> endet cluster \<close>
 
 fun endet_cluster :: \<open>'a comm \<Rightarrow> 'a comm set\<close> where
   \<open>endet_cluster Skip = {Skip}\<close>
@@ -600,7 +632,7 @@ proof -
     assume \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc'\<close>
     then have
       \<open>snd zc' \<noteq> snd sc \<and> snd sc \<notin> endet_cluster (snd zc')\<close>
-      apply (induct \<beta> sc zc' rule: popstep.induct)
+      apply (induct \<beta> sc zc' rule: popstep_induct)
             apply fastforce
            apply clarsimp
            apply (elim disjE)
@@ -705,7 +737,7 @@ abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> bool\<clo
   \<open>sc \<midarrow>r, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r \<gamma> sc zc'\<close>
 
 
-subsubsection \<open> Lemmas about fstep \<close>
+subsubsection \<open> Lemmas about estep \<close>
 
 lemma estep_simps[simp]:
   \<open>estep r Env sc zc' =
@@ -720,6 +752,27 @@ lemma estepE[elim]:
     (\<And>\<beta>. \<gamma> = Loc \<beta> \<Longrightarrow> popstep \<beta> sc zc' \<Longrightarrow> P) \<Longrightarrow>
     P\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+
+lemma estep_skip_iff[simp]:
+  \<open>estep r \<gamma> (s, Skip) zc' \<longleftrightarrow> 
+    \<gamma> = Env \<and> (\<exists>hl hs hs'. s = (hl, hs) \<and> zc' = (Inl (hl, hs'), Skip) \<and> r hs hs')\<close>
+  by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+
+lemma estep_then_estep_right_par:
+  \<open>sc \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    (s, c \<parallel> cb) \<midarrow>r, map_sum id PL \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<parallel> cb)\<close>
+  unfolding estep_def rel3_merge_def
+  by (clarsimp split: sum.splits unit.splits prod.splits)
+
+lemma estep_then_estep_left_par:
+  \<open>sc \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    (s, ca \<parallel> c) \<midarrow>r, map_sum id PR \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<parallel> c')\<close>
+  unfolding estep_def rel3_merge_def
+  by (clarsimp split: sum.splits unit.splits prod.splits)
 
 
 section \<open> Trace Semantics \<close>
@@ -898,30 +951,26 @@ definition
         (y, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl y', cy') \<longrightarrow>
         cx' = cy' \<and> \<bbbA> \<oo> (x',y')))\<close>
 
-lemma determ_steps_simps[simp]:
+lemma determ_steps_skip:
   \<open>(\<forall>slx ssx sly ssy. \<forall>ssx' ssy'.
       s = ((slx, ssx), (sly, ssy)) \<longrightarrow>
       \<bbbA> \<oo> ((slx, ssx), (sly, ssy)) \<longrightarrow>
       r ssx ssx' \<longrightarrow>
       r ssy ssy' \<longrightarrow>
       \<bbbA> \<oo> ((slx, ssx'), (sly, ssy'))
-    ) \<Longrightarrow> determ_steps \<oo> r Skip s = True\<close>
-  \<open>determ_steps \<oo> r (c1 ;; c2) s = determ_steps \<oo> r c1 s\<close>
-  \<open>determ_steps \<oo> r \<langle>p, q\<rangle> s = True\<close>
-(*
-  \<open>determ_steps \<oo> r (c1 \<^bold>+ c2) s = X\<close>
-  \<open>determ_steps \<oo> r (c1 \<box> c2) s = X\<close>
-  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s = X\<close>
-  \<open>determ_steps \<oo> r (DO c OD) s = X\<close>
-*)
-  unfolding determ_steps_def
-    apply -
-    apply (clarsimp simp add: split_sum_all; fail)
-   apply (clarsimp simp add: split_sum_all imp_iff_imp_iff split: prod.splits)
-   apply (intro iffI)
-    apply (metis comm.inject(1))
-   apply clarsimp
+    ) \<Longrightarrow> determ_steps \<oo> r Skip s\<close>
   oops
+
+lemma
+  \<open>determ_steps \<oo> r \<langle>p, q\<rangle> s = True\<close>
+  oops
+
+lemma determ_steps_seq_eq[simp]:
+  \<open>determ_steps \<oo> r (c1 ;; c2) s = determ_steps \<oo> r c1 s\<close>
+  unfolding determ_steps_def
+  apply (clarsimp simp add: split_sum_all imp_iff_imp_iff split: prod.splits)
+  apply (intro iffI, metis comm.inject(1), metis popstep.simps(1))
+  done
 
 lemma determ_steps_commD:
   \<open>determ_steps \<oo> r (c1 ;; c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
@@ -930,7 +979,25 @@ lemma determ_steps_commD:
   \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
   \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c2 s\<close>
   \<open>determ_steps \<oo> r (DO c OD) s \<Longrightarrow> determ_steps \<oo> r c s\<close>
-  sorry
+       apply -
+       apply (simp; fail)
+      apply (clarsimp simp add: determ_steps_def, metis comm.inject(2) estep_then_estep_right_par)
+     apply (clarsimp simp add: determ_steps_def, metis comm.inject(2) estep_then_estep_left_par)
+    apply (clarsimp simp add: determ_steps_def)
+    apply (elim estepE)
+       apply (clarsimp, metis estep_simps(1))
+      apply blast
+     apply blast
+    apply (metis act_not_eq_iff(1) comm.inject(4) estep_simps(2) popstep_then_popstep_right_endetD)
+   apply (clarsimp simp add: determ_steps_def)
+   apply (elim estepE)
+      apply (clarsimp, metis estep_simps(1))
+     apply blast
+    apply blast
+   apply (metis act_not_eq_iff(1) comm.inject(4) estep_simps(2) popstep_then_popstep_left_endetD)
+  apply (clarsimp simp add: determ_steps_def)
+  subgoal sorry
+  done
 
 lemma determ_estepD:
   \<open>determ_steps \<oo> r c (x,y) \<Longrightarrow>
@@ -1052,7 +1119,8 @@ lemma double_step_sndD:
 
 lemma all_doubled_atom_liftC'_iff[simp]:
   \<open>all_atom_comm doubled_atom (liftC' c)\<close>
-  sorry
+  by (induct c)
+    (force simp add: doubled_atom_def)+
 
 lemma double_step_crashI:
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
@@ -1113,8 +1181,7 @@ lemma double_stepI:
           apply force
          apply force
         apply force
-       apply clarsimp
-       apply (metis determ_steps_commD(1))
+       apply (clarsimp, metis)
     (* Parallel *)
       apply (clarsimp simp add: liftC'_rev_iff)
       apply (elim disjE)
@@ -1186,10 +1253,6 @@ lemma double_stepI:
   apply (clarsimp split: unit.splits)
   apply (metis opstep_preserves_liftC' strip_popstep unlift_lift'_cancel)
   done
-
-lemma ex_exch4_iff[simp]:
-  \<open>((ax, bx), (ay, by)) = exch4 (a, b) \<longleftrightarrow> a = (ax, ay) \<and> b = (bx, by)\<close>
-  by (force simp add: exch4_def split: prod.splits)
 
 theorem determ_double_exec_then_safe_state:
   fixes n :: nat
