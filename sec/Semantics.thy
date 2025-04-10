@@ -487,12 +487,12 @@ fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cp
     (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. popstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
     (\<exists>\<beta>x. \<beta> = PR \<beta>x \<and> (\<exists>h' c2'. popstep \<beta>x (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2')))\<close>
 | \<open>popstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
-      ((\<forall>h' c'. \<not> popstep \<beta> (h, c) (Inl h', c')) \<longrightarrow>
-        \<beta> = Act Tau \<and> s' = (Inl h, Skip)) \<and>
-      (\<forall>h' c'.
-        popstep \<beta> (h, c) (Inl h', c') \<longrightarrow>
-        s' = (Inl h', c' ;; DO c OD)) \<and>
-      ((\<exists>c'. popstep \<beta> (h, c) (Inr (), c')) \<longrightarrow>
+      ((\<forall>h' c'. \<not> popstep \<beta> (h, c) (Inl h', c')) \<and>
+        \<beta> = Act Tau \<and> s' = (Inl h, Skip)) \<or>
+      (\<exists>h' c'.
+        popstep \<beta> (h, c) (Inl h', c') \<and>
+        s' = (Inl h', c' ;; DO c OD)) \<or>
+      ((\<exists>c'. popstep \<beta> (h, c) (Inr (), c')) \<and>
         s' = (Inr (), DO c OD))\<close>
 | \<open>popstep \<beta> (h, Atomic ap aq) s' \<longleftrightarrow>
     (\<exists>a. \<beta> = Act (Vis a) \<and>
@@ -547,7 +547,7 @@ lemma no_popstep_then_no_opstep:
       apply (metis act.distinct(1))
      apply (simp, metis act.distinct(1) strip_pact.simps(1))
     apply (clarsimp, metis)
-   apply (clarsimp)
+   apply clarsimp
   subgoal sorry
   apply force
   done
@@ -600,6 +600,32 @@ lemma popstep_then_popstep_left_endetD:
     (strip_pact \<beta> = Vis u \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
     (strip_pact \<beta> = Tau \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', ca \<box> c'))\<close>
   by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+
+lemma popstep_then_popstep_doloop_endetD:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    zc' = (Inl s', c') \<Longrightarrow>
+    \<exists>cx. (s, DO c OD) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', cx)\<close>
+  apply (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
+    (* Skip *)
+        apply force
+    (* Seq *)
+       apply clarsimp
+       apply (erule disjE, force)
+       apply clarsimp
+       apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption,
+      drule meta_mp, rule refl, drule meta_mp, rule refl)
+       apply (metis (no_types, opaque_lifting) comm.inject(1) popstep.simps(1))
+    (* Indet *)
+      apply clarsimp
+      apply (erule disjE; clarsimp)
+
+
+  sorry
+      apply (elim disjE conjE)
+       apply (rule conjI, blast)
+        apply clarsimp
+  sorry
 
 
 subsection \<open> endet cluster \<close>
@@ -996,6 +1022,7 @@ lemma determ_steps_commD:
     apply blast
    apply (metis act_not_eq_iff(1) comm.inject(4) estep_simps(2) popstep_then_popstep_left_endetD)
   apply (clarsimp simp add: determ_steps_def)
+  apply (rename_tac hlx hsx hly hsy \<gamma> hlx' hsx' cx' hly' hsy' cy')
   subgoal sorry
   done
 
