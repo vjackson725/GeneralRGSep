@@ -547,8 +547,7 @@ lemma no_popstep_then_no_opstep:
       apply (metis act.distinct(1))
      apply (simp, metis act.distinct(1) strip_pact.simps(1))
     apply (clarsimp, metis)
-   apply clarsimp
-  subgoal sorry
+   apply (clarsimp, metis)
   apply force
   done
 
@@ -562,6 +561,8 @@ lemma strip_popstep:
       apply blast
      apply blast
     apply (clarsimp, metis act.distinct(1) strip_pact.simps(1-3))
+   apply clarsimp
+(* TODO: haven't updated the original definition yet *)
 (*
    apply (force simp add: no_popstep_then_no_opstep split: if_splits)
 *)
@@ -605,27 +606,9 @@ lemma popstep_then_popstep_doloop_endetD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
     sc = (s, c) \<Longrightarrow>
     zc' = (Inl s', c') \<Longrightarrow>
-    \<exists>cx. (s, DO c OD) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', cx)\<close>
-  apply (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
-    (* Skip *)
-        apply force
-    (* Seq *)
-       apply clarsimp
-       apply (erule disjE, force)
-       apply clarsimp
-       apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption,
-      drule meta_mp, rule refl, drule meta_mp, rule refl)
-       apply (metis (no_types, opaque_lifting) comm.inject(1) popstep.simps(1))
-    (* Indet *)
-      apply clarsimp
-      apply (erule disjE; clarsimp)
-
-
-  sorry
-      apply (elim disjE conjE)
-       apply (rule conjI, blast)
-        apply clarsimp
-  sorry
+    (s, DO c OD) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' ;; DO c OD)\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
+    (simp; fail)+
 
 
 subsection \<open> endet cluster \<close>
@@ -1022,8 +1005,12 @@ lemma determ_steps_commD:
     apply blast
    apply (metis act_not_eq_iff(1) comm.inject(4) estep_simps(2) popstep_then_popstep_left_endetD)
   apply (clarsimp simp add: determ_steps_def)
-  apply (rename_tac hlx hsx hly hsy \<gamma> hlx' hsx' cx' hly' hsy' cy')
-  subgoal sorry
+  apply (elim estepE)
+     apply (clarsimp, metis estep_simps(1))
+    apply blast
+   apply blast
+  apply clarsimp
+  apply (metis comm.inject(1) estep_simps(2) popstep_then_popstep_doloop_endetD)
   done
 
 lemma determ_estepD:
@@ -1145,10 +1132,17 @@ lemma double_step_crashI:
     (* atom *)
    apply (clarsimp split: if_splits; fail)
     (* do-loop *)
-  apply force
+  apply clarsimp
+  apply (rename_tac c' cx')
+  apply (subgoal_tac \<open>cx' = c'\<close>)
+   prefer 2
+   apply (case_tac \<open>strip_pact \<beta>\<close>)
+    apply (metis Inl_Inr_False fst_conv popstep_tau_preserves_heap)
+   apply (metis act_not_eq_iff(2) opstep.simps(6) popstep.simps(6) strip_popstep)
+  apply blast
   done
 
-
+(*
 lemma double_step_fstD:
   fixes ss :: \<open>('l \<times> 'l) \<times> ('s \<times> 's)\<close>
     and cc :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm\<close>
@@ -1160,7 +1154,9 @@ lemma double_step_fstD:
         (fst (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (fst (exch4 ss')), unliftC cc')
     | Inr () \<Rightarrow> (fst (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), unliftC cc')\<close>
   apply (induct cc arbitrary: \<beta> cc' ss zz')
+    (* Skip *)
         apply force
+    (* Seq *)
        apply (case_tac zz')
         apply clarsimp
         apply (erule disjE, force)
@@ -1168,14 +1164,47 @@ lemma double_step_fstD:
         apply fastforce
        apply (clarsimp split: unit.splits)
        apply (metis fst_conv sum.simps(6) old.unit.case prod_part_destruct_exch4_eq(1))
+    (* Par *)
       apply (clarsimp split: sum.splits unit.splits del: disjCI)
-      apply (rule conjI)
-       apply (clarsimp del: disjCI)
+      apply (elim disjE conjE exE)
+        apply force
+       apply clarsimp
+       apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+       apply (clarsimp split: sum.splits unit.splits; fail)
+      apply clarsimp
+      apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+      apply (clarsimp split: sum.splits unit.splits; fail)
+    (* Indet *)
+     apply force
+    (* Endet *)
+    apply (clarsimp split: sum.splits unit.splits if_splits)
+     apply (elim disjE)
+        apply clarsimp
+        apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+        apply (clarsimp split: sum.splits unit.splits; fail)
+       apply clarsimp
+       apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+       apply (clarsimp split: sum.splits unit.splits; fail)
+      apply force
+     apply force
+    apply (elim disjE)
+     apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+     apply (clarsimp split: sum.splits unit.splits; fail)
+    apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+    apply (clarsimp split: sum.splits unit.splits; fail)
+    (* Atom *)
+   apply (clarsimp split: if_splits sum.splits unit.splits
+      simp add: doubled_atom_def)
+  subgoal sorry
+  apply (clarsimp split: sum.splits unit.splits)
+  sledgehammer
   sorry
-(*
-   apply (cases ss, force simp add: unliftC_rev_iff doubled_atom_def
-      split: if_splits)
-*)
 
 lemma double_step_sndD:
   \<open>(ss, cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (zz', cc') \<Longrightarrow>
@@ -1185,6 +1214,7 @@ lemma double_step_sndD:
         (snd (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (snd (exch4 ss')), unliftC cc')
     | Inr () \<Rightarrow> (snd (exch4 ss), unliftC cc) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), unliftC cc')\<close>
   sorry
+*)
 
 lemma double_stepI:
   fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
@@ -1262,23 +1292,7 @@ lemma double_stepI:
     \<comment> \<open> CASE: complete deadlock
           PROBLEM: we need to be able to combine the negative steps too. \<close>
   subgoal sorry
-  apply clarsimp
-  apply (frule determ_steps_commD(6))
-  apply (rename_tac sxl'' sxs'' cx'' syl'' sys'' cy'')
-  apply (subgoal_tac \<open>(((sxl, syl), sxs, sys), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl ((sxl'', syl''), sxs'', sys''), liftC' cy'')\<close>)
-   prefer 2
-   apply blast
-  apply (intro conjI)
-    apply blast
-   prefer 2
-   apply clarsimp
-   apply (frule double_step_fstD, (simp; fail))
-   apply (clarsimp split: unit.splits; fail)
-  apply clarsimp
-  apply (frule double_step_fstD, (simp; fail))
-  apply (frule double_step_sndD, (simp; fail))
-  apply (clarsimp split: unit.splits)
-  apply (metis opstep_preserves_liftC' strip_popstep unlift_lift'_cancel)
+  apply (clarsimp, metis determ_steps_commD(6))
   done
 
 theorem determ_double_exec_then_safe_state:
