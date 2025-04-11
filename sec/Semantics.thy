@@ -506,22 +506,28 @@ hide_fact popstep.induct
 
 paragraph \<open> Pretty parallel operational semantics \<close>
 
+text \<open> \<open>sc\<close> can step to \<open>zc'\<close> \<close>
 abbreviation pretty_popstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow>\<^sub>p _\<close> [60,0,60] 60) where
-  \<open>hs \<midarrow>\<beta>\<rightarrow>\<^sub>p ht \<equiv> popstep \<beta> hs ht\<close>
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<equiv> popstep \<beta> sc zc'\<close>
 
-abbreviation pretty_no_popstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>|\<rightarrow>\<^sub>p\<close> [60] 60) where
-  \<open>hs \<midarrow>|\<rightarrow>\<^sub>p \<equiv> \<forall>\<beta> ht. \<not> popstep \<beta> hs ht\<close>
+text \<open> no steps from \<open>sc\<close> can take place, except perhaps crashes \<close>
+abbreviation pretty_no_good_popstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<^sub>p\<close> [60] 60) where
+  \<open>sc \<midarrow>/\<rightarrow>\<^sub>p \<equiv> \<forall>\<beta> s' c'. \<not> popstep \<beta> sc (Inl s', c')\<close>
+
+text \<open> no steps from \<open>sc\<close> can take place at all \<close>
+abbreviation pretty_no_popstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>\<sslash>\<rightarrow>\<^sub>p\<close> [60] 60) where
+  \<open>sc \<midarrow>\<sslash>\<rightarrow>\<^sub>p \<equiv> \<forall>\<beta> zc'. \<not> popstep \<beta> sc zc'\<close>
 
 
 subsubsection \<open> popstep lemmas \<close>
 
-lemma popstep_tau_preserves_heap:
+lemma popstep_tau_preserves_state:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
   by (induct rule: popstep_induct)
     (fastforce split: if_splits)+
 
 lemma no_opstep_then_no_popstep:
-  \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<^sub>p\<close>
+  \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>\<sslash>\<rightarrow>\<^sub>p\<close>
   apply (induct rule: popstep_induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
@@ -537,7 +543,7 @@ lemma no_opstep_then_no_popstep:
   done
 
 lemma no_popstep_then_no_opstep:
-  \<open>sc \<midarrow>|\<rightarrow>\<^sub>p \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
+  \<open>sc \<midarrow>\<sslash>\<rightarrow>\<^sub>p \<Longrightarrow> sc \<midarrow>|\<rightarrow>\<close>
   apply (induct rule: popstep_induct)
         apply (clarsimp split: if_splits; fail)
        apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits; fail)
@@ -569,6 +575,7 @@ lemma strip_popstep:
   subgoal sorry
   apply force
   done
+
 
 lemma vis_popstep_impl_atom:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
@@ -1113,7 +1120,7 @@ lemma double_step_crashI:
      apply force
     (* endet *)
     apply (clarsimp split: if_splits)
-     apply (metis Inl_not_Inr fst_eqD popstep_tau_preserves_heap)
+     apply (metis Inl_not_Inr fst_eqD popstep_tau_preserves_state)
     apply (elim disjE) (* 1 \<rightarrow> 4 *)
     (** 1/1 *)
        apply blast
@@ -1137,7 +1144,7 @@ lemma double_step_crashI:
   apply (subgoal_tac \<open>cx' = c'\<close>)
    prefer 2
    apply (case_tac \<open>strip_pact \<beta>\<close>)
-    apply (metis Inl_Inr_False fst_conv popstep_tau_preserves_heap)
+    apply (metis Inl_Inr_False fst_conv popstep_tau_preserves_state)
    apply (metis act_not_eq_iff(2) opstep.simps(6) popstep.simps(6) strip_popstep)
   apply blast
   done
@@ -1216,6 +1223,95 @@ lemma double_step_sndD:
   sorry
 *)
 
+lemma double_no_stepI:
+  fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
+    and sxs sys :: \<open>'s\<close>
+  shows
+    \<open>((sxl, sxs), c) \<midarrow>\<sslash>\<rightarrow>\<^sub>p \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>\<sslash>\<rightarrow>\<^sub>p \<Longrightarrow>
+    (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<sslash>\<rightarrow>\<^sub>p\<close>
+  apply (induct c arbitrary: sxl syl sxs sys)
+    (* Skip *)
+        apply force
+    (* Seq *)
+       apply (clarsimp simp add: liftC'_rev_iff, metis)
+    (* Parallel *)
+      apply simp
+      apply (intro allI conjI impI)
+        apply (metis liftC'_rev_iff(1))
+       apply metis
+      apply metis
+    (* INDet *)
+     apply (simp, fast)
+    (* ENDet *)
+    apply (clarsimp simp add: liftC'_rev_iff split: if_splits)
+    apply (case_tac \<open>strip_pact \<beta>\<close>)
+     apply (simp, metis act.distinct(1))
+    apply (simp, metis)
+    (* Atom *)
+   apply (simp, fastforce)
+    (* DoLoop *)
+  apply (simp, metis)
+  done
+
+
+lemma double_no_good_stepI:
+  fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
+    and sxs sys :: \<open>'s\<close>
+  shows
+    \<open>((sxl, sxs), c) \<midarrow>/\<rightarrow>\<^sub>p \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>/\<rightarrow>\<^sub>p \<Longrightarrow>
+    (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>/\<rightarrow>\<^sub>p\<close>
+  apply (induct c arbitrary: sxl syl sxs sys)
+    (* Skip *)
+        apply force
+    (* Seq *)
+       apply (clarsimp simp add: liftC'_rev_iff, metis)
+    (* Parallel *)
+      apply simp
+      apply (intro allI conjI impI)
+        apply (metis liftC'_rev_iff(1))
+       apply metis
+      apply metis
+    (* INDet *)
+     apply (simp, fast)
+    (* ENDet *)
+    apply (clarsimp simp add: liftC'_rev_iff split: if_splits)
+    apply (case_tac \<open>strip_pact \<beta>\<close>)
+     apply (simp, metis act.distinct(1))
+    apply (simp, metis)
+    (* Atom *)
+   apply (simp, fastforce)
+    (* DoLoop *)
+  apply (simp, metis)
+  done
+
+
+lemma double_no_tau_popstep:
+  fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
+    and sxs sys :: \<open>'s\<close>
+  shows
+    \<open>\<forall>s' c'. \<not> ((sxl, sxs), c) \<midarrow>Act Tau\<rightarrow>\<^sub>p (Inl s', c') \<Longrightarrow>
+    \<forall>s' c'. \<not> ((syl, sys), c) \<midarrow>Act Tau\<rightarrow>\<^sub>p (Inl s', c') \<Longrightarrow>
+    \<forall>s' c'. \<not> (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>Act Tau\<rightarrow>\<^sub>p (Inl s', c')\<close>
+  apply (induct c arbitrary: sxl syl sxs sys)
+    (* Skip *)
+        apply force
+    (* Seq *)
+       apply (clarsimp simp add: liftC'_rev_iff, metis)
+    (* Parallel *)
+      apply (clarsimp simp add: liftC'_rev_iff; fail)
+    (* INDet *)
+     apply (simp, fast)
+    (* ENDet *)
+    apply (simp add: liftC'_rev_iff, fast)
+    (* Atom *)
+   apply (simp; fail)
+    (* DoLoop *)
+  apply (simp, metis)
+  done
+
+
 lemma double_stepI:
   fixes sxl syl :: \<open>'l::pre_perm_alg\<close>
     and sxs sys :: \<open>'s\<close>
@@ -1226,8 +1322,7 @@ lemma double_stepI:
     sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     \<nexists>c'. ((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     \<nexists>c'. ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
-    (((sxl, syl), (sxs, sys)), liftC' c)
-      \<midarrow>\<beta>\<rightarrow>\<^sub>p
+    (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p
       (Inl ((sxl', syl'), (sxs', sys')), liftC' c')\<close>
   apply (induct c arbitrary: sxl syl sxs sys sxl' syl' sxs' sys' c' \<beta>)
     (* Skip *)
@@ -1258,14 +1353,15 @@ lemma double_stepI:
       (* ENDet *)
     apply (clarsimp del: disjCI split: if_splits)
     (** Tau *)
-     apply (subgoal_tac
-      \<open>c1 = Skip \<and> c2 = Skip \<and> c' = Skip \<or>
-        c1 = Skip \<and> c2 \<noteq> Skip \<and> c' = c2 \<or>
-        c1 \<noteq> Skip \<and> c2 = Skip \<and> c' = c1 \<or>
-        (\<exists>c1'. c' = c1' \<box> c2) \<or>
-        (\<exists>c2'. c' = c1 \<box> c2')\<close>)
-      prefer 2
-      apply (clarsimp, metis)
+     apply (simp add: liftC'_rev_iff)
+     apply (case_tac \<open>strip_pact \<beta>\<close>)
+      apply simp
+      apply (subgoal_tac \<open>syl' = syl \<and> sys' = sys\<close>)
+       prefer 2
+       apply (metis (no_types) Inl_inject Pair_inject fst_conv
+      popstep_tau_preserves_state) (* slow *)
+      apply (clarsimp del: disjCI)
+  oops
   subgoal sorry
       (** non-Tau *)
     apply (elim disjE) (* +3 *)
@@ -1286,13 +1382,15 @@ lemma double_stepI:
     (* Atom *)
    apply (clarsimp split: if_splits; fail)
     (* Do-loop *)
-  apply clarsimp
-  apply (case_tac \<open>(\<forall>a b c'. \<not> ((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (a, b), c'))\<close>)
-   apply clarsimp
-    \<comment> \<open> CASE: complete deadlock
-          PROBLEM: we need to be able to combine the negative steps too. \<close>
-  subgoal sorry
-  apply (clarsimp, metis determ_steps_commD(6))
+  apply (frule determ_steps_commD(6))
+  apply (clarsimp simp add: liftC'_rev_iff del: disjCI)
+  apply (elim disjE conjE exE)
+    (* in order to complete a do-loop, it must be impossible for the sub-program
+        to take a step. *)
+     apply (simp add: double_no_tau_popstep; fail)
+    apply force
+   apply force
+  apply force
   done
 
 theorem determ_double_exec_then_safe_state:
