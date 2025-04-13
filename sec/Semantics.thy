@@ -651,7 +651,7 @@ lemma popstep_endet_skip_reduce_iff:
       self_popstep_impossible)+
 
 
-subsection \<open> Extended step \<close>
+section \<open> Extended step \<close>
 
 definition rel3_merge
   :: \<open>('a \<Rightarrow> 'x \<Rightarrow> 'y \<Rightarrow> bool) \<Rightarrow>
@@ -679,7 +679,7 @@ abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> bool\<clo
   \<open>sc \<midarrow>r, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r \<gamma> sc zc'\<close>
 
 
-subsubsection \<open> Lemmas about estep \<close>
+subsection \<open> Lemmas about estep \<close>
 
 lemma estep_simps[simp]:
   \<open>estep r Env sc zc' =
@@ -740,6 +740,24 @@ lemma estep_then_estep_doloop:
   apply (drule popstep_then_popstep_doloopD, fast, fast)
   apply force
   done
+
+subsection \<open> Extended steps \<close>
+
+inductive esteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> where
+  \<open>c' = c \<Longrightarrow> z' = Inl s \<Longrightarrow> esteps r [] (s, c) (z', c')\<close>
+| \<open>((\<exists>s' c'.
+        estep r \<gamma> (s, c) (Inl s', c') \<and>
+        esteps r \<gamma>s (s', c') (z'', c'')) \<or>
+      (estep r \<gamma> (s, c) (Inr (), c'') \<and> z'' = Inr () \<and> \<gamma>s = [])) \<Longrightarrow>
+    esteps r (\<gamma> # \<gamma>s) (s, c) (z'', c'')\<close>
+
+inductive_cases esteps_nilE[elim!]: \<open>esteps r [] sc zc'\<close>
+inductive_cases esteps_consE[elim]: \<open>esteps r (\<gamma> # \<gamma>s) sc zc'\<close>
+
+abbreviation esteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ \<midarrow>_, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [50, 0, 0, 50])
+  where
+    \<open>sc \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* zc' \<equiv> esteps r \<gamma>s sc zc'\<close>
 
 
 section \<open> (Strong) Non-interference \<close>
@@ -1148,28 +1166,31 @@ theorem determ_double_exec_then_safe_state:
     and sx sy :: \<open>'l \<times> 's\<close>
     and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
     and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
-  assumes
+  assumes inductive_assms:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC' c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>rr = liftR r\<close>
-    \<open>FF = liftP F \<circ> exch4\<close>
-    \<open>(sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx')\<close>
-    \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
+    \<open>(sfx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
+    \<open>(sfy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
+    \<open>((=) sx \<^emph>\<and> F) sfx\<close>
+    \<open>((=) sy \<^emph>\<and> F) sfy\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
-      (\<lambda>(((hlx, hly), (hsx, hsy)), c).
-        (\<forall>flx. F (flx, hsx) \<longrightarrow> hlx ## flx \<longrightarrow>
-        (\<forall>fly. F (fly, hsy) \<longrightarrow> hly ## fly \<longrightarrow>
-          determ_steps \<oo> r (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)) \<and>
-          sec_determ_endet (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)))))
+      (\<lambda>(s, c).
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps \<oo> r (unliftC c) \<circ> exch4)) s \<and>
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_determ_endet (unliftC c) \<circ> exch4)) s)
       FF rr cc zz n\<close>
+  and noninductive_assms:
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
-    \<open>rely_obs_safe \<oo> r \<close>
+    \<open>rr = liftR r\<close>
+    \<open>FF = liftP F \<circ> exch4\<close>
+    \<open>SS = liftP S \<circ> exch4\<close>
+    \<open>rely_obs_safe \<oo> r\<close>
+    \<open>\<forall>xl xs xs'. r xs xs' \<longrightarrow> F (xl, xs) \<longrightarrow> F (xl, xs')\<close>
   shows
-    \<open>SS (exch4 (sx', sy'))\<close>
-  using assms(1-3,6-10)
-proof (induct n arbitrary: cc zz c sx sy \<gamma>s sx' sy')
+    \<open>(SS \<^emph>\<and> FF) (exch4 (sfx', sfy'))\<close>
+  using inductive_assms
+proof (induct n arbitrary: cc zz c sx sy sfx sfy \<gamma>s sfx' sfy' cx' cy')
   case 0
   then show ?case
     by (clarsimp simp add: le_fun_def)
@@ -1207,50 +1228,94 @@ next
        apply (simp add: safe_suc_iff)+
      apply force
     apply (clarsimp simp add: safe_suc_iff)
-    apply (simp add: assms(5))
+    apply (simp add: noninductive_assms(3))
     apply (drule spec2, drule spec2, drule spec, drule mp, (rule conjI; assumption))
     apply blast
     done
 
+  have sepimp_conj_helper:
+    \<open>\<And>P xl yl xs ys xf yf.
+        (FF \<midarrow>\<^emph>\<^sub>\<and> P) ((xl, yl), (xs, ys)) \<Longrightarrow>
+        F (xf, xs) \<Longrightarrow> xl ## xf \<Longrightarrow>
+        F (yf, ys) \<Longrightarrow> yl ## yf \<Longrightarrow>
+        P ((xl + xf, yl + yf), (xs, ys))\<close>
+    by (simp add: sepimp_conj_def noninductive_assms)
+
   show ?case
     using Suc.prems safe_suc_conseq(1,2) sx_split sy_split
     apply (clarsimp simp add: liftC'_rev_iff simp del: comp_apply)
-    apply (erule fsteps.cases, force)
-    apply (erule fsteps.cases, force)
+    apply (erule esteps.cases)
+     apply (clarsimp simp add: sepconj_conj_def noninductive_assms(3), blast)
+    apply (erule esteps.cases)
+     apply (clarsimp simp add: sepconj_conj_def noninductive_assms(3); fail)
     apply (clarsimp simp del: comp_apply)
-    apply (rename_tac \<gamma> lxx' sxx' cxx' \<gamma>s lyy' syy' cyy')
-    apply (clarsimp simp del: comp_apply simp add: pred_executions_suc_iff)
+    apply (case_tac sfy)
+    apply (rename_tac \<gamma> sfxl sfxs \<gamma>s lfx' lfy' sx' sy' cxx' cyy' sfyl sfys)
+    apply (clarsimp simp add: sepconj_conj_apply pred_executions_suc_iff)
+    apply (rename_tac fx fy)
     apply (case_tac \<gamma>)
       (* Env *)
-     apply (clarsimp simp add: assms(4))
      apply (cut_tac safe_suc_conseq(3)[of \<open>(x', y')\<close> for x' y'])
       prefer 2
-      apply (simp add: assms(4); fail)
-     apply (rule Suc.hyps, fast, fast, force, fast, fast, fast, force simp add: assms(4), blast)
+      apply (simp add: noninductive_assms(2); fail)
+     apply clarsimp
+     apply (drule spec2, drule mp[of \<open>rr _ _\<close>])
+      apply (simp add: noninductive_assms(2))
+     apply (drule_tac sx=\<open>(sxl, sx')\<close> and sy=\<open>(syl, sy')\<close>
+        and sfx=\<open>(sxl + fx, _)\<close> and sfy=\<open>(syl + fy, _)\<close> in Suc.hyps, fast, simp)
+           apply blast
+          apply blast
+         apply (rule sepconj_conjI)
+            apply blast
+           apply (cut_tac noninductive_assms(6), blast)
+          apply (cut_tac noninductive_assms(6), blast)
+         apply blast
+        apply (rule sepconj_conjI)
+           apply (cut_tac noninductive_assms(6), blast)
+          apply (cut_tac noninductive_assms(6), blast)
+         apply blast
+        apply blast
+       apply assumption
+      apply (rule pred_executions_pred_mono[rotated], assumption)
+      apply (clarsimp simp add: comp_def; fail)
+     apply blast
       (* Local *)
     apply (subgoal_tac \<open>cyy' = cxx'\<close>)
      prefer 2
       (* by determ step *)
     subgoal sorry
     apply clarsimp
-    apply (frule_tac sxs=sxs and sys=sys in double_stepI, assumption, blast)
-    apply (rename_tac \<beta> flx fly)
+    apply (frule_tac sxs=sxs and sys=sys in double_stepI, assumption)
+     apply (drule sepimp_conj_helper, blast, blast, blast, blast)
+     apply (drule sepimp_conj_helper, blast, blast, blast, blast)
+     apply (force simp add: comp_def)
+    apply (rename_tac flx fly \<beta>)
     apply (frule_tac sc=\<open>((_, (sxs, sys)), liftC' c)\<close> in strip_popstep)
     apply (frule_tac safe_suc_conseq(4), blast, blast, blast, blast)
     apply clarsimp
-    apply (frule_tac \<gamma>s=\<gamma>s in Suc.hyps[of _ _ _ \<open>(sxl,sxs)\<close> \<open>(syl,sys)\<close> _ sx' sy' for sxl sxs syl sys])
-      (* from splitting safe Suc n and framed state *)
-           apply blast
-          apply (clarsimp, (intro conjI; rule refl))
-         apply (metis cancellative_def)
-        apply (metis cancellative_def)
-       apply blast
-      apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2, drule spec2, drule spec,
-        drule mp, (rule conjI; assumption), drule mp, assumption)
-      apply (drule mp[of \<open>FF _\<close>], (simp add: assms(5); fail))
-      apply clarsimp
-      apply (metis (lifting) cancellativeD)
-     apply blast
+    apply (drule spec2, drule spec2, drule spec2, drule spec2, drule mp,
+        (rule conjI; blast), drule mp, assumption)
+    apply (drule mp[of \<open>FF _ \<close>], (simp add: noninductive_assms; fail))
+    apply clarsimp
+    apply (rename_tac hlx'2 hly'2)
+    apply (subgoal_tac \<open>hlx'2 = hlx' \<and> hly'2 = hly'\<close>)
+     prefer 2
+     apply (metis cancellativeD noninductive_assms(1))
+    apply clarify
+    apply simp
+    apply (subgoal_tac \<open>F (flx, sx') \<and> F (fly, sy')\<close>)
+     prefer 2
+    subgoal sorry
+    apply (frule_tac sx=\<open>(hlx', sx')\<close> and sy=\<open>(hly', sy')\<close>
+        and sfx=\<open>(hlx' + flx, _)\<close> and sfy=\<open>(hly' + fly, _)\<close> in Suc.hyps, fast, (simp; fail))
+          apply assumption
+         apply assumption
+        apply (rule sepconj_conjI; blast)
+       apply (rule sepconj_conjI; blast)
+      apply assumption
+     apply clarsimp
+     apply (rule pred_executions_pred_mono[rotated], assumption)
+     apply (clarsimp simp add: comp_def; fail)
     apply blast
     done
 qed
@@ -1267,8 +1332,10 @@ corollary noninterference:
     \<open>zz = Inl (exch4 (sx, sy))\<close>
     \<open>rr = liftR r\<close>
     \<open>FF = liftP F \<circ> exch4\<close>
-    \<open>(sx, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sx', cx')\<close>
-    \<open>(sy, c) \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>f\<^sup>* (Inl sy', cy')\<close>
+    \<open>F sfx\<close>
+    \<open>F sfy\<close>
+    \<open>(sx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sy', cy')\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
       (\<lambda>(((hlx, hly), (hsx, hsy)), c).
