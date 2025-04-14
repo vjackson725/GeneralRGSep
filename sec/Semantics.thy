@@ -133,8 +133,8 @@ lemma le_exch4_shunt:
   \<open>p \<le> q \<circ> exch4 \<longleftrightarrow> p \<circ> exch4 \<le> q\<close>
   by (metis comp_def exch4_idem le_fun_def)
 
-lemma ex_exch4_iff[simp]:
-  \<open>((ax, bx), (ay, by)) = exch4 (a, b) \<longleftrightarrow> a = (ax, ay) \<and> b = (bx, by)\<close>
+lemma eq_exch4_iff[simp]:
+  \<open>((ax, bx), (ay, by)) = exch4 ab \<longleftrightarrow> fst ab = (ax, ay) \<and> snd ab = (bx, by)\<close>
   by (force simp add: exch4_def split: prod.splits)
 
 
@@ -455,7 +455,38 @@ text \<open>
   In programs where sub-programs may take actions (\<box>), we need an
   inductive test for whether an action is internal, as the sub-program may be a parallel.
 \<close>
-abbreviation \<open>pact_tau \<beta> \<equiv> strip_pact \<beta> = Tau\<close>
+definition \<open>tau_pact \<beta> \<equiv> strip_pact \<beta> = Tau\<close>
+
+definition \<open>vis_pact \<beta> \<equiv> \<exists>u. strip_pact \<beta> = Vis u\<close>
+
+lemma not_tau_pact_iff[simp]:
+  \<open>\<not> tau_pact \<beta> \<longleftrightarrow> vis_pact \<beta>\<close>
+  by (simp add: tau_pact_def vis_pact_def)
+
+lemma not_vis_pact_iff[simp]:
+  \<open>\<not> vis_pact \<beta> \<longleftrightarrow> tau_pact \<beta>\<close>
+  by (simp add: tau_pact_def vis_pact_def)
+
+lemma vis_tau_pact_incompatible:
+  \<open>vis_pact \<beta> \<Longrightarrow> tau_pact \<beta> = False\<close>
+  \<open>tau_pact \<beta> \<Longrightarrow> vis_pact \<beta> = False\<close>
+  by (simp add: tau_pact_def vis_pact_def)+
+
+lemma vis_pact_unit_def:
+  \<open>vis_pact \<beta> \<longleftrightarrow> strip_pact \<beta> = Vis ()\<close>
+  by (simp add: vis_pact_def)
+
+lemma vis_pact_simps[simp]:
+  \<open>vis_pact (PL \<beta>) \<longleftrightarrow> vis_pact \<beta>\<close>
+  \<open>vis_pact (PR \<beta>) \<longleftrightarrow> vis_pact \<beta>\<close>
+  \<open>vis_pact (Act \<alpha>) \<longleftrightarrow> (\<exists>u. \<alpha> = Vis u)\<close>
+  by (simp add: vis_pact_def)+
+
+lemma tau_pact_simps[simp]:
+  \<open>tau_pact (PL \<beta>) \<longleftrightarrow> tau_pact \<beta>\<close>
+  \<open>tau_pact (PR \<beta>) \<longleftrightarrow> tau_pact \<beta>\<close>
+  \<open>tau_pact (Act \<alpha>) \<longleftrightarrow> \<alpha> = Tau\<close>
+  by (simp add: tau_pact_def)+
 
 
 subsection \<open> Parallel Opstep \<close>
@@ -475,13 +506,13 @@ fun popstep :: \<open>unit act pact \<Rightarrow> 's pconfig \<Rightarrow> 's cp
     \<beta> = Act Tau \<and> s' = (Inl h, c1) \<or>
     \<beta> = Act Tau \<and> s' = (Inl h, c2)\<close>
 | \<open>popstep \<beta> (h, c1 \<box> c2) s' \<longleftrightarrow>
-    (if pact_tau \<beta> then
-      (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> popstep \<beta> (h, c1) (h', c1')) \<or>
-      (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> popstep \<beta> (h, c2) (h', c2')) \<or>
-      c1 = Skip \<and> s' = (Inl h, c2) \<or>
-      c2 = Skip \<and> s' = (Inl h, c1)
-    else
-      popstep \<beta> (h, c1) s' \<or> popstep \<beta> (h, c2) s')\<close>
+    (\<beta> = Act Tau \<and> c1 = Skip \<and> s' = (Inl h, c2) \<or>
+      \<beta> = Act Tau \<and> c2 = Skip \<and> s' = (Inl h, c1) \<or>
+      (if tau_pact \<beta> then
+        (\<exists>h' c1'. s' = (h', c1' \<box> c2) \<and> popstep \<beta> (h, c1) (h', c1')) \<or>
+        (\<exists>h' c2'. s' = (h', c1 \<box> c2') \<and> popstep \<beta> (h, c2) (h', c2'))
+      else
+        popstep \<beta> (h, c1) s' \<or> popstep \<beta> (h, c2) s'))\<close>
 | \<open>popstep \<beta> (h, c1 \<parallel> c2) s' \<longleftrightarrow>
     \<beta> = Act Tau \<and> c1 = Skip \<and> c2 = Skip \<and> s' = (Inl h, Skip) \<or>
     (\<exists>\<beta>x. \<beta> = PL \<beta>x \<and> (\<exists>h' c1'. popstep \<beta>x (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2))) \<or>
@@ -522,9 +553,9 @@ abbreviation pretty_no_popstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\
 subsubsection \<open> popstep lemmas \<close>
 
 lemma popstep_tau_preserves_state:
-  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> pact_tau \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> tau_pact \<beta> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
   by (induct rule: popstep_induct)
-    (fastforce split: if_splits)+
+    (fastforce split: if_splits simp add: tau_pact_def)+
 
 lemma no_opstep_then_no_popstep:
   \<open>sc \<midarrow>|\<rightarrow> \<Longrightarrow> sc \<midarrow>\<sslash>\<rightarrow>\<^sub>p\<close>
@@ -550,8 +581,8 @@ lemma no_popstep_then_no_opstep:
       apply fastforce
      apply (clarsimp simp add: all_conj_distrib disj_imp split: if_splits)
      apply (case_tac \<open>strip_pact \<beta>\<close>)
-      apply (metis act.distinct(1))
-     apply (simp, metis act.distinct(1) strip_pact.simps(1))
+      apply (metis not_vis_pact_iff)
+     apply (clarsimp, metis not_vis_pact_iff)
     apply (clarsimp, metis)
    apply (clarsimp, metis)
   apply force
@@ -563,9 +594,7 @@ lemma strip_popstep:
         apply fastforce
        apply fastforce
       apply fastforce
-     apply (clarsimp split: if_splits)
-      apply blast
-     apply blast
+  subgoal sorry
     apply (clarsimp, metis act.distinct(1) strip_pact.simps(1-3))
    apply clarsimp
 (* TODO: haven't updated the original definition yet *)
@@ -574,16 +603,37 @@ lemma strip_popstep:
 *)
   subgoal sorry
   apply force
-  done
+  sorry
 
 lemma vis_popstep_impl_atom:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
-    strip_pact \<beta> = Vis a \<Longrightarrow>
+    vis_pact \<beta> \<Longrightarrow>
     \<exists>p q.
       (p, q) \<in> head_atoms (snd sc) \<and>
       (p (fst sc) \<longrightarrow> (\<exists>s'. fst zc' = Inl s' \<and> q (fst sc) s')) \<and>
       (\<not> p (fst sc) \<longrightarrow> fst zc' = Inr ())\<close>
-  by (cases sc, cases zc', clarsimp, metis strip_popstep vis_step_impl_atom)
+  apply (induct rule: popstep_induct)
+        apply fastforce
+       apply fastforce
+      apply fastforce
+    (* Endet *)
+     apply (clarsimp simp add: vis_pact_def tau_pact_def)
+     apply (elim disjE)
+        apply force
+       apply force
+      apply metis
+     apply metis
+    (* Parallel *)
+    apply (clarsimp simp add: vis_pact_def tau_pact_def)
+    apply (elim disjE)
+      apply force
+     apply (clarsimp, metis)
+    apply (clarsimp, metis)
+    (* DoLoop *)
+   apply fastforce
+    (* Atom *)
+  apply fastforce
+  done
 
 lemma popstep_then_popstep_right_seqD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
@@ -596,25 +646,34 @@ lemma popstep_then_popstep_right_endetD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
     sc = (s, c) \<Longrightarrow>
     zc' = (Inl s', c') \<Longrightarrow>
-    (strip_pact \<beta> = Vis u \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
-    (strip_pact \<beta> = Tau \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' \<box> cb))\<close>
-  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+    (vis_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
+    (tau_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' \<box> cb))\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
+    (simp add: vis_pact_def tau_pact_def)+
 
 lemma popstep_then_popstep_left_endetD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
     sc = (s, c) \<Longrightarrow>
     zc' = (Inl s', c') \<Longrightarrow>
-    (strip_pact \<beta> = Vis u \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
-    (strip_pact \<beta> = Tau \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', ca \<box> c'))\<close>
-  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+    (vis_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c')) \<and>
+    (tau_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', ca \<box> c'))\<close>
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
+    (simp add: vis_pact_def tau_pact_def)+
 
 lemma popstep_then_popstep_doloopD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
     sc = (s, c) \<Longrightarrow>
     zc' = (Inl s', c') \<Longrightarrow>
     (s, DO c OD) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c' ;; DO c OD)\<close>
-  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct)
-    (simp; fail)+
+  by (induct \<beta> sc zc' arbitrary: s c s' c' rule: popstep_induct) simp+
+
+lemma popstep_pact_cases:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow>
+    (sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> vis_pact \<beta> \<Longrightarrow> P) \<Longrightarrow>
+    (sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc' \<Longrightarrow> tau_pact \<beta> \<Longrightarrow> fst zc' = Inl (fst sc) \<Longrightarrow> P) \<Longrightarrow>
+    P\<close>
+  unfolding vis_pact_def tau_pact_def
+  using not_vis_pact_iff popstep_tau_preserves_state tau_pact_def vis_pact_unit_def by blast
 
 
 subsection \<open> endet cluster \<close>
@@ -641,14 +700,19 @@ lemma endet_cluster_never_endet[simp]:
 subsection \<open> Self-popstep Impossible \<close>
 
 lemma self_popstep_impossible:
-  \<open>(s, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<Longrightarrow> False\<close>
-  sorry
+  \<open>(s, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<longleftrightarrow> False\<close>
+  apply (induct c arbitrary: \<beta> s s')
+        apply (simp; fail)+
+    apply clarsimp
+  subgoal sorry
+   apply (simp; fail)+
+  done
 
-lemma popstep_endet_skip_reduce_iff:
-  \<open>(s, c \<box> Skip) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<longleftrightarrow> pact_tau \<beta> \<and> s' = s\<close>
-  \<open>(s, Skip \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<longleftrightarrow> pact_tau \<beta> \<and> s' = s\<close>
-  by (clarsimp, metis fst_conv sum.inject(1) popstep_tau_preserves_state
-      self_popstep_impossible)+
+lemma popstep_endet_skip_then:
+  \<open>(s, c \<box> Skip) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<Longrightarrow> tau_pact \<beta> \<and> s' = s\<close>
+  \<open>(s, Skip \<box> c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl s', c) \<Longrightarrow> tau_pact \<beta> \<and> s' = s\<close>
+  by (metis tau_pact_def popstep_tau_preserves_state self_popstep_impossible
+      fst_conv popstep.simps(1,4) strip_pact.simps(1) sum.inject(1))+
 
 
 section \<open> Extended step \<close>
@@ -695,6 +759,12 @@ lemma estepE[elim]:
     P\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
 
+lemma estep_def':
+  \<open>estep r \<gamma> sc zc' \<longleftrightarrow>
+    \<gamma> = Env \<and> (\<exists>sl ss c ss'. sc = ((sl, ss), c) \<and> zc' = (Inl (sl, ss'), c) \<and> r ss ss') \<or>
+    (\<exists>\<beta>. \<gamma> = Loc \<beta> \<and> sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc')\<close>
+  by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+
 lemma estep_skip_iff[simp]:
   \<open>estep r \<gamma> (s, Skip) zc' \<longleftrightarrow> 
     \<gamma> = Env \<and> (\<exists>hl hs hs'. s = (hl, hs) \<and> zc' = (Inl (hl, hs'), Skip) \<and> r hs hs')\<close>
@@ -716,20 +786,19 @@ lemma estep_then_estep_right_endet:
   \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
     (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)) \<and>
     (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow>
-      (strip_pact \<beta> = Vis u \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
-      (strip_pact \<beta> = Tau \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)))\<close>
+      (vis_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
+      (tau_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)))\<close>
   unfolding estep_def rel3_merge_def
-  by (clarsimp split: sum.splits unit.splits prod.splits)
+  by (force split: sum.splits unit.splits prod.splits simp add: vis_pact_def tau_pact_def)
 
 lemma estep_then_estep_left_endet:
   \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
     (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')) \<and>
     (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow>
-      (strip_pact \<beta> = Vis u \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
-      (strip_pact \<beta> = Tau \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')))\<close>
+      (vis_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
+      (tau_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')))\<close>
   unfolding estep_def rel3_merge_def
-  by (clarsimp split: sum.splits unit.splits prod.splits)
-
+  by (force split: sum.splits unit.splits prod.splits simp add: vis_pact_def tau_pact_def)
 
 lemma estep_then_estep_doloop:
   \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
@@ -791,6 +860,8 @@ definition
             \<bbbA> \<oo> (x',y')))))\<close>
 
 
+subsection \<open> Determinism \<close>
+
 subsubsection \<open> head domain \<close>
 
 definition                                                                      
@@ -816,96 +887,67 @@ lemma heads_ccrash_domD:
 subsubsection \<open> security deterministic endent \<close>
 
 definition
-  \<open>sec_determ_endet c \<equiv> \<lambda>(sx,sy).
+  \<open>sec_head_determ c \<equiv> \<lambda>(sx,sy).
     (\<forall>ca cb. ca \<box> cb \<in> all_subcomm_eq c \<longrightarrow>
       \<not> (heads_dom ca sx \<and> heads_dom cb sy) \<and>
       \<not> (heads_dom cb sx \<and> heads_dom ca sy) \<and>
       \<not> (heads_ccrash_dom ca sx \<and> heads_ccrash_dom cb sy) \<and>
       \<not> (heads_ccrash_dom cb sx \<and> heads_ccrash_dom ca sy))\<close>
 
-lemma sec_determ_endet_comm_simps[simp]:
-  \<open>sec_determ_endet Skip ss = True\<close>
-  \<open>sec_determ_endet (c1 ;; c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
-  \<open>sec_determ_endet (c1 \<parallel> c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
-  \<open>sec_determ_endet (c1 \<^bold>+ c2) ss = (sec_determ_endet c1 ss \<and> sec_determ_endet c2 ss)\<close>
-  \<open>sec_determ_endet (c1 \<box> c2) (sx, sy) =
+lemma sec_head_determ_comm_simps[simp]:
+  \<open>sec_head_determ Skip ss = True\<close>
+  \<open>sec_head_determ (c1 ;; c2) ss = (sec_head_determ c1 ss \<and> sec_head_determ c2 ss)\<close>
+  \<open>sec_head_determ (c1 \<parallel> c2) ss = (sec_head_determ c1 ss \<and> sec_head_determ c2 ss)\<close>
+  \<open>sec_head_determ (c1 \<^bold>+ c2) ss = (sec_head_determ c1 ss \<and> sec_head_determ c2 ss)\<close>
+  \<open>sec_head_determ (c1 \<box> c2) (sx, sy) =
     (\<not> (heads_dom c1 sx \<and> heads_dom c2 sy) \<and>
       \<not> (heads_dom c2 sx \<and> heads_dom c1 sy) \<and>
       \<not> (heads_ccrash_dom c1 sx \<and> heads_ccrash_dom c2 sy) \<and>
       \<not> (heads_ccrash_dom c2 sx \<and> heads_ccrash_dom c1 sy) \<and>
-      sec_determ_endet c1 (sx, sy) \<and>
-      sec_determ_endet c2 (sx, sy))\<close>
-  \<open>sec_determ_endet \<langle>p, q\<rangle> ss = True\<close>
-  \<open>sec_determ_endet (DO c OD) ss = sec_determ_endet c ss\<close>
-  by (simp add: sec_determ_endet_def all_conj_distrib ball_Un split: prod.splits)+
+      sec_head_determ c1 (sx, sy) \<and>
+      sec_head_determ c2 (sx, sy))\<close>
+  \<open>sec_head_determ \<langle>p, q\<rangle> ss = True\<close>
+  \<open>sec_head_determ (DO c OD) (sx, sy) = sec_head_determ c (sx, sy)\<close>
+  by (simp add: sec_head_determ_def all_conj_distrib split: prod.splits)+
 
 
 subsubsection \<open> deterministic steps \<close>
 
 definition                                                                      
-  \<open>determ_steps \<oo> r c \<equiv> \<lambda>(x,y).
-    \<bbbA> \<oo> (x,y) \<longrightarrow>
-    (\<forall>\<gamma> x' cx'.
-      \<comment> \<open> We only count visible steps, because of the \<box>+Skip rules. \<close>
-      (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow> strip_pact \<beta> \<noteq> Tau) \<longrightarrow>
-      (x, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl x', cx') \<longrightarrow>
-      (\<forall>y' cy'.
-        (y, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl y', cy') \<longrightarrow>
-        cx' = cy' \<and> \<bbbA> \<oo> (x',y')))\<close>
+  \<open>determ_steps EE r c \<equiv> \<lambda>(x,y).
+    EE (exch4 (x,y)) \<longrightarrow>
+    (\<forall>\<beta>. vis_pact \<beta> \<longrightarrow>
+        (\<forall>x' cx'. (x, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl x', cx') \<longrightarrow>
+          (\<forall>y' cy'. (y, c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl y', cy') \<longrightarrow>
+            cx' = cy')))\<close>
 
 lemma determ_steps_seq_eq[simp]:
-  \<open>determ_steps \<oo> r (c1 ;; c2) s = determ_steps \<oo> r c1 s\<close>
+  \<open>determ_steps EE r (c1 ;; c2) s = determ_steps EE r c1 s\<close>
   unfolding determ_steps_def
   apply (clarsimp simp add: split_sum_all imp_iff_imp_iff split: prod.splits)
-  apply (rule conj_cong[OF refl])
   apply (rule iffI, metis comm.inject(1))
   apply fastforce
   done
 
 lemma determ_steps_commD:
-  \<open>determ_steps \<oo> r (c1 ;; c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
-  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
-  \<open>determ_steps \<oo> r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps \<oo> r c2 s\<close>
-  \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c1 s\<close>
-  \<open>determ_steps \<oo> r (c1 \<box> c2) s \<Longrightarrow> determ_steps \<oo> r c2 s\<close>
-  \<open>determ_steps \<oo> r (DO c OD) s \<Longrightarrow> determ_steps \<oo> r c s\<close>
+  \<open>determ_steps EE r (c1 ;; c2) s \<Longrightarrow> determ_steps EE r c1 s\<close>
+  \<open>determ_steps EE r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps EE r c1 s\<close>
+  \<open>determ_steps EE r (c1 \<parallel> c2) s \<Longrightarrow> determ_steps EE r c2 s\<close>
+  \<open>determ_steps EE r (c1 \<box> c2) s \<Longrightarrow> determ_steps EE r c1 s\<close>
+  \<open>determ_steps EE r (c1 \<box> c2) s \<Longrightarrow> determ_steps EE r c2 s\<close>
+  \<open>determ_steps EE r (DO c OD) s \<Longrightarrow> determ_steps EE r c s\<close>
        apply -
        apply (simp; fail)
-      apply (clarsimp simp add: determ_steps_def)
-      apply (drule_tac x=\<open>map_sum id PL \<gamma>\<close> in spec, drule mp, force)
-      apply (blast dest: estep_then_estep_right_par)
-     apply (clarsimp simp add: determ_steps_def)
-     apply (drule_tac x=\<open>map_sum id PR \<gamma>\<close> in spec, drule mp, force)
-     apply (blast dest: estep_then_estep_left_par)
-    apply (clarsimp simp add: determ_steps_def)
-    apply (rename_tac sxl sxs syl sys \<gamma> sxl' sxs' c1'x syl' sys' c1'y)
-    apply (drule_tac x=\<gamma> in spec, drule mp, force)
-    apply (drule_tac cb=c2 and u=\<open>()\<close> in estep_then_estep_right_endet)+
-    apply (case_tac \<gamma>)
-     apply (clarsimp simp only: HOL.simp_thms Inl_not_Inr sum.simps)
-     apply (case_tac a)
-     apply (clarsimp simp only: HOL.simp_thms)
-     apply fast
-    apply metis
-   apply (clarsimp simp add: determ_steps_def)
-   apply (rename_tac sxl sxs syl sys \<gamma> sxl' sxs' c1'x syl' sys' c1'y)
-   apply (drule_tac x=\<gamma> in spec, drule mp, force)
-   apply (drule_tac ca=c1 and u=\<open>()\<close> in estep_then_estep_left_endet)+
-   apply (case_tac \<gamma>)
-    apply (clarsimp simp only: HOL.simp_thms Inl_not_Inr sum.simps)
-    apply (case_tac a)
-    apply (clarsimp simp only: HOL.simp_thms)
-    apply fast
-   apply metis
-  apply (clarsimp simp add: determ_steps_def)
-  apply (rename_tac sxl sxs syl sys \<gamma> sxl' sxs' c1'x syl' sys' c1'y)
-  apply (drule spec, drule mp, assumption)
-  apply (drule estep_then_estep_doloop)+
-  apply (case_tac \<gamma>)
-   apply (clarsimp simp only: HOL.simp_thms Inl_not_Inr sum.simps)
-   apply (case_tac a)
-   apply fast
-  apply blast
+      apply (clarsimp simp only: determ_steps_def)
+      apply (meson comm.inject(2) popstep.simps(5) vis_pact_simps(1); fail)
+     apply (clarsimp simp only: determ_steps_def)
+     apply (meson comm.inject(2) popstep.simps(5) vis_pact_simps(2); fail)
+    apply (clarsimp simp only: determ_steps_def)
+    apply (metis not_vis_pact_iff popstep.simps(4))
+   apply (clarsimp simp only: determ_steps_def)
+   apply (metis not_vis_pact_iff popstep.simps(4))
+  apply (clarsimp simp only: determ_steps_def)
+  apply (meson comm.inject(1) popstep_then_popstep_doloopD; fail)
   done
 
 
@@ -927,10 +969,41 @@ lemma all_doubled_atom_liftC'_iff[simp]:
 
 section \<open> Double step aggregation lemmas \<close>
 
+lemma two_popstep_crash_then_same_post_comm:
+  \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), cx') \<Longrightarrow>
+    ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), cy') \<Longrightarrow>
+    sec_head_determ c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    cx' = cy'\<close>
+  apply (induct c arbitrary: sxl syl sxs sys cx' cy' \<beta>)
+        apply force
+       apply force
+      apply force
+     apply force
+    apply (clarsimp simp del: disj_not1 split: if_splits)
+     apply (metis Inr_not_Inl popstep_tau_preserves_state split_pairs2)
+    apply (elim disjE[of \<open>popstep _ _ _\<close>]) (* 1 \<rightarrow> 4 *)
+    (* 1/1 *)
+       apply (simp add: vis_tau_pact_incompatible; fail)
+    (* 1/2 *)
+      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+      apply (simp add: heads_ccrash_dom_def vis_tau_pact_incompatible)
+      apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (* 2/1 *)
+     apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
+     apply (simp add: heads_ccrash_dom_def vis_tau_pact_incompatible)
+     apply (metis ComplI Collect_neg_eq mem_Collect_eq)
+    (* 2/2 *)
+    apply (simp add: vis_tau_pact_incompatible; fail)
+   apply (clarsimp split: if_splits; fail)
+  apply force
+  done
+
 lemma double_step_crashI:
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), c') \<Longrightarrow>
-    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    sec_head_determ c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inr (), liftC' c')\<close>
   apply (induct c arbitrary: sxl syl sxs sys c' \<beta>)
         apply force
@@ -941,33 +1014,27 @@ lemma double_step_crashI:
      apply force
     (* endet *)
     apply (clarsimp split: if_splits)
-     apply (metis Inl_not_Inr fst_eqD popstep_tau_preserves_state)
+     apply (metis Inl_Inr_False fst_conv popstep_tau_preserves_state)
     apply (elim disjE) (* 1 \<rightarrow> 4 *)
     (** 1/1 *)
-       apply blast
+       apply (simp add: vis_tau_pact_incompatible; fail)
     (** 1/2 *)
       apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
       apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-      apply (simp add: heads_ccrash_dom_def)
+      apply (simp add: heads_ccrash_dom_def vis_tau_pact_incompatible)
       apply (metis ComplI Collect_neg_eq mem_Collect_eq)
     (** 2/1 *)
      apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
      apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
-     apply (simp add: heads_ccrash_dom_def)
+     apply (simp add: heads_ccrash_dom_def vis_tau_pact_incompatible)
      apply (metis ComplI Collect_neg_eq mem_Collect_eq)
     (** 2/2 *)
-    apply blast
+    apply (simp add: vis_tau_pact_incompatible; fail)
     (* atom *)
    apply (clarsimp split: if_splits; fail)
     (* do-loop *)
   apply clarsimp
-  apply (rename_tac c' cx')
-  apply (subgoal_tac \<open>cx' = c'\<close>)
-   prefer 2
-   apply (case_tac \<open>strip_pact \<beta>\<close>)
-    apply (metis Inl_Inr_False fst_conv popstep_tau_preserves_state)
-   apply (metis act_not_eq_iff(2) opstep.simps(6) popstep.simps(6) strip_popstep)
-  apply blast
+  apply (metis two_popstep_crash_then_same_post_comm)
   done
 
 lemma double_no_stepI:
@@ -991,10 +1058,7 @@ lemma double_no_stepI:
     (* INDet *)
      apply (simp, fast)
     (* ENDet *)
-    apply (clarsimp simp add: liftC'_rev_iff split: if_splits)
-    apply (case_tac \<open>strip_pact \<beta>\<close>)
-     apply (simp, metis act.distinct(1))
-    apply (simp, metis)
+    apply (clarsimp simp add: liftC'_rev_iff, metis)
     (* Atom *)
    apply (simp, fastforce)
     (* DoLoop *)
@@ -1022,10 +1086,7 @@ lemma double_no_good_stepI:
     (* INDet *)
      apply (simp, fast)
     (* ENDet *)
-    apply (clarsimp simp add: liftC'_rev_iff split: if_splits)
-    apply (case_tac \<open>strip_pact \<beta>\<close>)
-     apply (simp, metis act.distinct(1))
-    apply (simp, metis)
+    apply (clarsimp simp add: liftC'_rev_iff, metis)
     (* Atom *)
    apply (simp, fastforce)
     (* DoLoop *)
@@ -1056,42 +1117,43 @@ lemma double_no_tau_popstep:
   apply (simp, metis)
   done
 
-lemma double_step_endent_tau_helper:
+lemma double_step_endent_tau_helper1:
   shows
-    \<open>((\<exists>c1'. c' = c1' \<box> c2 \<and> ((syl, sys), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c1')) \<or>
-      (\<exists>c2'. c' = c1 \<box> c2' \<and> ((syl, sys), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c2')) \<or>
-      c1 = Skip \<and> syl' = syl \<and> sys' = sys \<and> c' = c2 \<or>
-      c2 = Skip \<and> syl' = syl \<and> sys' = sys \<and> c' = c1) \<and>
-    ((\<exists>c1'. c' = c1' \<box> c2 \<and> ((sxl, sxs), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c1')) \<or>
-      (\<exists>c2'. c' = c1 \<box> c2' \<and> ((sxl, sxs), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c2')) \<or>
-      c1 = Skip \<and> sxl' = sxl \<and> sxs' = sxs \<and> c' = c2 \<or>
-      c2 = Skip \<and> sxl' = sxl \<and> sxs' = sxs \<and> c' = c1) \<longleftrightarrow>
+    \<open>(\<beta> = Act Tau \<and> c1 = Skip \<and> syl' = syl \<and> sys' = sys \<and> c' = c2 \<or>
+      \<beta> = Act Tau \<and> c2 = Skip \<and> syl' = syl \<and> sys' = sys \<and> c' = c1 \<or>
+      (\<exists>c1'. c' = c1' \<box> c2 \<and> ((syl, sys), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c1')) \<or>
+      (\<exists>c2'. c' = c1 \<box> c2' \<and> ((syl, sys), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c2'))) \<and>
+    (\<beta> = Act Tau \<and> c1 = Skip \<and> sxl' = sxl \<and> sxs' = sxs \<and> c' = c2 \<or>
+      \<beta> = Act Tau \<and> c2 = Skip \<and> sxl' = sxl \<and> sxs' = sxs \<and> c' = c1 \<or>
+      (\<exists>c1'. c' = c1' \<box> c2 \<and> ((sxl, sxs), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c1')) \<or>
+      (\<exists>c2'. c' = c1 \<box> c2' \<and> ((sxl, sxs), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c2'))) \<longleftrightarrow>
     (\<exists>c1'. c' = c1' \<box> c2 \<and>
       ((syl, sys), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c1') \<and>
       ((sxl, sxs), c1) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c1')) \<or>
     (\<exists>c2'. c' = c1 \<box> c2' \<and>
       ((syl, sys), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c2') \<and>
       ((sxl, sxs), c2) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c2')) \<or>
-    (c1 = Skip \<and> c2 = c' \<or> c1 = c' \<and> c2 = Skip) \<and>
+    (\<beta> = Act Tau \<and> c1 = Skip \<and> c2 = c' \<or>
+      \<beta> = Act Tau \<and> c1 = c' \<and> c2 = Skip) \<and>
       sxl' = sxl \<and> sxs' = sxs \<and> syl' = syl \<and> sys' = sys\<close>
   apply (simp add: conj_disj_distribL conj_disj_distribR)
   apply (rule iffI)
    apply (elim disjE)
                   apply force
-                 apply (clarsimp, metis self_popstep_impossible)
+                 apply force
                 apply force
-               apply (clarsimp simp del: popstep.simps simp add: popstep_endet_skip_reduce_iff; fail)
-              apply (clarsimp, metis self_popstep_impossible(1))
+               apply (metis Pair_inject popstep_endet_skip_then(2))
+              apply force
              apply force
-            apply (clarsimp simp del: popstep.simps simp add: popstep_endet_skip_reduce_iff; fail)
+            apply (metis Pair_inject popstep_endet_skip_then(1))
            apply force
-          apply force
-         apply (clarsimp simp del: popstep.simps simp add: popstep_endet_skip_reduce_iff; fail)
+          apply (metis popstep.simps(1))
+         apply (metis Pair_inject popstep_endet_skip_then(1))
         apply force
-       apply force
-      apply (clarsimp simp del: popstep.simps simp add: popstep_endet_skip_reduce_iff; fail)
-     apply force
-    apply force
+       apply (clarsimp, metis self_popstep_impossible(1))
+      apply (metis Pair_inject popstep_endet_skip_then(2))
+     apply (metis popstep.simps(1))
+    apply (clarsimp, metis self_popstep_impossible(1))
    apply force
   apply (elim disjE; metis)
   done
@@ -1102,7 +1164,7 @@ lemma double_stepI:
   shows
   \<open>((sxl, sxs), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (sxl', sxs'), c') \<Longrightarrow>
     ((syl, sys), c) \<midarrow>\<beta>\<rightarrow>\<^sub>p (Inl (syl', sys'), c') \<Longrightarrow>
-    sec_determ_endet c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
+    sec_head_determ c ((sxl, sxs), (syl, sys)) \<Longrightarrow>
     (((sxl, syl), (sxs, sys)), liftC' c) \<midarrow>\<beta>\<rightarrow>\<^sub>p
       (Inl ((sxl', syl'), (sxs', sys')), liftC' c')\<close>
   apply (induct c arbitrary: sxl syl sxs sys sxl' syl' sxs' sys' c' \<beta>)
@@ -1121,16 +1183,24 @@ lemma double_stepI:
       (* INDet *)
      apply fastforce
       (* ENDet *)
-    apply (clarsimp del: disjCI split: if_splits)
+    apply (clarsimp del: disjCI split: if_splits simp del: disj_not1)
     (** Tau *)
-     apply (simp add: liftC'_rev_iff)
-     apply (drule(1) iffD1[OF double_step_endent_tau_helper, OF conjI])
-     apply (thin_tac \<open>_ \<or> _ \<or> _ \<or> _\<close>)
-     apply (elim disjE; metis)
-      (** non-Tau *)
+     apply (simp add: liftC'_rev_iff vis_tau_pact_incompatible del: disj_not1)
+     apply (drule(1) iffD1[OF double_step_endent_tau_helper1, OF conjI])+
+     apply (thin_tac \<open>Not _ \<or> Not _\<close>)+
+     apply (thin_tac \<open>_ \<or> _ \<or> _ \<or> _\<close>)+
+     apply (elim disjE)
+       apply metis
+      apply metis
+     apply metis
+    (** non-Tau *)
+    apply (subgoal_tac \<open>\<beta> \<noteq> Act Tau\<close>)
+     prefer 2
+     apply force
+    apply simp
     apply (elim disjE)
     (*** 1/1 *)
-       apply metis
+       apply (metis not_vis_pact_iff)
     (*** 2/1: forbidden *)
       apply (frule_tac sc=\<open>((sxl,_),_)\<close> in vis_popstep_impl_atom, assumption)
       apply (frule_tac sc=\<open>((syl,_),_)\<close> in vis_popstep_impl_atom, assumption)
@@ -1142,7 +1212,7 @@ lemma double_stepI:
      apply (simp add: heads_dom_def)
      apply (metis (mono_tags) inf1I pre_state_def)
     (*** 2/2 *)
-    apply metis
+    apply (metis not_vis_pact_iff)
     (* Atom *)
    apply (clarsimp split: if_splits; fail)
     (* Do-loop *)
@@ -1170,31 +1240,24 @@ theorem determ_double_exec_then_safe_state:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC' c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>((=) sx \<^emph>\<and> F) sfx\<close> \<comment> \<open>\<exists>fx. F fx \<and> sfx = sx + fx\<close>
-    \<open>((=) sy \<^emph>\<and> F) sfy\<close> \<comment> \<open>\<exists>fy. F fy \<and> sfy = sy + fy\<close>
-
-    \<open>(sfx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
-    \<open>(sfy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
-
+    \<open>(((=) (sx, sy) \<circ> exch4) \<^emph>\<and> FF) (exch4 (sfx, sfy))\<close>
+    \<open>(sfx, c) \<midarrow>rx, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
+    \<open>(sfy, c) \<midarrow>ry, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
       (\<lambda>(s, c).
-        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps \<oo> r (unliftC c) \<circ> exch4)) s \<and>
-        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_determ_endet (unliftC c) \<circ> exch4)) s)
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps (SS \<^emph>\<and> FF) r (unliftC c) \<circ> exch4)) s \<and>
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_head_determ (unliftC c) \<circ> exch4)) s)
       FF rr cc zz n\<close>
   and noninductive_assms:
-    \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
-    \<open>rr = liftR r\<close> \<comment> \<open> TODO: investigate relational rely \<close>
-    \<open>FF = liftP F \<circ> exch4\<close> \<comment> \<open> TODO: investigate relational frame \<close>
-  \<comment> \<open> does an RG sec. logic need relational Rs and Gs \<close>
+    \<open>\<forall>xl xs yl ys. FF ((xl, yl), (xs, ys)) \<longrightarrow> cancellative xl \<and> cancellative yl\<close>
     \<open>rely_obs_safe \<oo> r\<close>
-    \<open>\<forall>xl xs xs'. r xs xs' \<longrightarrow> F (xl, xs) \<longrightarrow> F (xl, xs')\<close>
+    \<comment> \<open> does an RG sec. logic need relational Rs and Gs? \<close>
+    \<open>rx \<times>\<^sub>R ry \<le> rr\<close>
+    \<open>\<And>ss ss' hf. rr ss ss' \<Longrightarrow> FF (hf, ss) \<Longrightarrow> \<exists>fx fy. FF ((fx,fy), ss')\<close>
+    \<open>\<And>ss ss' hf. gg ss ss' \<Longrightarrow> FF (hf, ss) \<Longrightarrow> FF (hf, ss')\<close>
   shows
     \<open>(SS \<^emph>\<and> FF) (exch4 (sfx', sfy'))\<close>
-    \<comment> \<open>\<exists>sx' fx' sy' fy'.
-          sfx' = sx' + fx' /\
-          sfy' = sy' + fy' /\
-          SS (sx', sy') /\ FF (fx', fy')\<close>
   using inductive_assms
 proof (induct n arbitrary: cc zz c sx sy sfx sfy \<gamma>s sfx' sfy' cx' cy')
   case 0
@@ -1220,8 +1283,7 @@ next
       (((sxl + fx, syl + fy), (sxs, sys)), liftC' c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
       sxl ## fx \<Longrightarrow>
       syl ## fy \<Longrightarrow>
-      F (fx, sxs) \<Longrightarrow>
-      F (fy, sys) \<Longrightarrow>
+      FF ((fx, fy), (sxs, sys)) \<Longrightarrow>
       (\<exists>hlx' hly' hs'.
         hlx' ## fx \<and>
         hly' ## fy \<and>
@@ -1234,7 +1296,6 @@ next
        apply (simp add: safe_suc_iff)+
      apply force
     apply (clarsimp simp add: safe_suc_iff)
-    apply (simp add: noninductive_assms(3))
     apply (drule spec2, drule spec2, drule spec, drule mp, (rule conjI; assumption))
     apply blast
     done
@@ -1242,8 +1303,7 @@ next
   have sepimp_conj_helper:
     \<open>\<And>P xl yl xs ys xf yf.
         (FF \<midarrow>\<^emph>\<^sub>\<and> P) ((xl, yl), (xs, ys)) \<Longrightarrow>
-        F (xf, xs) \<Longrightarrow> xl ## xf \<Longrightarrow>
-        F (yf, ys) \<Longrightarrow> yl ## yf \<Longrightarrow>
+        FF ((xf, yf), (xs, ys)) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
         P ((xl + xf, yl + yf), (xs, ys))\<close>
     by (simp add: sepimp_conj_def noninductive_assms)
 
@@ -1261,43 +1321,64 @@ next
     apply (rename_tac fx fy)
     apply (case_tac \<gamma>)
       (* Env *)
-     apply (cut_tac safe_suc_conseq(3)[of \<open>(x', y')\<close> for x' y'])
-      prefer 2
-      apply (simp add: noninductive_assms(2); fail)
+     apply (cut_tac hs'=\<open>(sx', sy')\<close> in safe_suc_conseq(3))
+      apply (cut_tac noninductive_assms(3))
+      apply (simp add: le_fun_def; fail)
      apply clarsimp
      apply (drule spec2, drule mp[of \<open>rr _ _\<close>])
-      apply (simp add: noninductive_assms(2))
+      apply (cut_tac noninductive_assms(3))
+      apply (simp add: le_fun_def)
+      apply blast
+     apply (subgoal_tac \<open>rr (sxs, sys) (sx', sy')\<close>)
+      prefer 2
+      apply (cut_tac noninductive_assms(3))
+      apply (simp add: le_fun_def; fail)
+     apply (frule noninductive_assms(4), fast)
+     apply clarsimp
+     apply (rename_tac fx' fy')
      apply (drule_tac sx=\<open>(sxl, sx')\<close> and sy=\<open>(syl, sy')\<close>
-        and sfx=\<open>(sxl + fx, _)\<close> and sfy=\<open>(syl + fy, _)\<close> in Suc.hyps, fast, simp)
-           apply blast
-          apply blast
-         apply (rule sepconj_conjI)
+        and sfx=\<open>(sxl + fx, _)\<close> and sfy=\<open>(syl + fy, _)\<close> in Suc.hyps, fast, (simp; fail))
+          apply (simp add: comp_def exch4_def, rule sepconj_conjI)
+             apply (simp split: prod.splits, blast)
             apply blast
-           apply (cut_tac noninductive_assms(6), blast)
-          apply (cut_tac noninductive_assms(6), blast)
-         apply blast
-        apply (rule sepconj_conjI)
-           apply (cut_tac noninductive_assms(6), blast)
-          apply (cut_tac noninductive_assms(6), blast)
+           apply clarsimp
+    sledgehammer
+    sorry
+           apply force
+          apply force
          apply blast
         apply blast
-       apply assumption
-      apply (rule pred_executions_pred_mono[rotated], assumption)
-      apply (clarsimp simp add: comp_def; fail)
+       apply blast
+      apply blast
      apply blast
       (* Local *)
+    apply (rename_tac \<beta>)
     apply (subgoal_tac \<open>cyy' = cxx'\<close>)
      prefer 2
       (* by determ step *)
+     apply (frule(3) sepimp_conj_helper[of _ sxl syl sxs sys])
+     apply (clarsimp simp add: determ_steps_def)
+     apply (drule mp, rule sepconj_conjI)
+         apply blast
+        apply blast
+       apply (simp; fail)
+      apply (simp; fail)
+     apply (case_tac \<open>strip_pact \<beta>\<close>)
+      (* FIXME: not true! *)
     subgoal sorry
+     apply (simp add: vis_pact_unit_def[symmetric])
+     apply (drule spec, drule mp, assumption)
+     apply (drule spec2, drule spec, drule mp[of \<open>popstep _ _ _\<close>], force)
+     apply (drule spec2, drule spec, drule mp[of \<open>popstep _ _ _\<close>], force)
+     apply blast
     apply clarsimp
     apply (frule_tac sxs=sxs and sys=sys in double_stepI, assumption)
-     apply (drule sepimp_conj_helper, blast, blast, blast, blast)
-     apply (drule sepimp_conj_helper, blast, blast, blast, blast)
+     apply (drule sepimp_conj_helper, blast, blast, blast)
+     apply (drule sepimp_conj_helper, blast, blast, blast)
      apply (force simp add: comp_def)
     apply (rename_tac flx fly \<beta>)
     apply (frule_tac sc=\<open>((_, (sxs, sys)), liftC' c)\<close> in strip_popstep)
-    apply (frule_tac safe_suc_conseq(4), blast, blast, blast, blast)
+    apply (frule_tac safe_suc_conseq(4), blast, blast, blast)
     apply clarsimp
     apply (drule spec2, drule spec2, drule spec2, drule spec2, drule mp,
         (rule conjI; blast), drule mp, assumption)
@@ -1309,19 +1390,19 @@ next
      apply (metis cancellativeD noninductive_assms(1))
     apply clarify
     apply simp
-    apply (subgoal_tac \<open>F (flx, sx') \<and> F (fly, sy')\<close>)
-     prefer 2
-    subgoal sorry
     apply (frule_tac sx=\<open>(hlx', sx')\<close> and sy=\<open>(hly', sy')\<close>
         and sfx=\<open>(hlx' + flx, _)\<close> and sfy=\<open>(hly' + fly, _)\<close> in Suc.hyps, fast, (simp; fail))
-          apply assumption
-         apply assumption
-        apply (rule sepconj_conjI; blast)
-       apply (rule sepconj_conjI; blast)
-      apply assumption
-     apply clarsimp
-     apply (rule pred_executions_pred_mono[rotated], assumption)
-     apply (clarsimp simp add: comp_def; fail)
+         apply (clarsimp simp add: exch4_def)
+         apply (rule_tac b=\<open>(flx,fly)\<close> in sepconj_conjI)
+            apply (simp split: prod.splits, blast)
+      (* TODO: frame preservation after opstep *)
+    subgoal sorry
+          apply (simp; fail)
+         apply (simp; fail)
+        apply blast
+       apply blast
+      apply blast
+     apply blast
     apply blast
     done
 qed
@@ -1343,8 +1424,8 @@ corollary noninterference:
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
       (\<lambda>(s, c).
-        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps \<oo> r (unliftC c) \<circ> exch4)) s \<and>
-        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_determ_endet (unliftC c) \<circ> exch4)) s)
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps (SS \<^emph>\<and> FF) r (unliftC c) \<circ> exch4)) s \<and>
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_head_determ (unliftC c) \<circ> exch4)) s)
       FF rr cc zz n\<close>
   and noninductive_assms:
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
@@ -1458,7 +1539,7 @@ lemma opstep_all_atoms_antimono:
   done
 
 
-\<comment> \<open> note the instantiation of X to \<open>((\<bbbA> \<oo> \<circ> exch4) \<midarrow>\<^emph>\<^sub>\<and> FF)\<close> \<close>
+\<comment> \<open> note the instantiation of X to \<open>(FF \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> \<oo> \<circ> exch4))\<close> \<close>
 lemma pred_preserved_then_pred_all_states:
   fixes c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
   assumes
