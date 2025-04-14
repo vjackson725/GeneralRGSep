@@ -1326,31 +1326,33 @@ corollary noninterference:
     and sx sy :: \<open>'l \<times> 's\<close>
     and r :: \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close>
     and F :: \<open>'l \<times> 's \<Rightarrow> bool\<close>
-  assumes
+  assumes inductive_assms:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC' c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>rr = liftR r\<close>
-    \<open>FF = liftP F \<circ> exch4\<close>
-    \<open>F sfx\<close>
-    \<open>F sfy\<close>
-    \<open>(sx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sx', cx')\<close>
-    \<open>(sy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sy', cy')\<close>
+    \<open>(sfx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
+    \<open>(sfy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
+    \<open>((=) sx \<^emph>\<and> F) sfx\<close>
+    \<open>((=) sy \<^emph>\<and> F) sfy\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
-      (\<lambda>(((hlx, hly), (hsx, hsy)), c).
-        (\<forall>flx. F (flx, hsx) \<longrightarrow> hlx ## flx \<longrightarrow>
-        (\<forall>fly. F (fly, hsy) \<longrightarrow> hly ## fly \<longrightarrow>
-          determ_steps \<oo> r (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)) \<and>
-          sec_determ_endet (unliftC c) ((hlx + flx, hsx), (hly + fly, hsy)))))
+      (\<lambda>(s, c).
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (determ_steps \<oo> r (unliftC c) \<circ> exch4)) s \<and>
+        (FF \<midarrow>\<^emph>\<^sub>\<and> (sec_determ_endet (unliftC c) \<circ> exch4)) s)
       FF rr cc zz n\<close>
+  and noninductive_assms:
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
-    \<open>rely_obs_safe \<oo> r \<close>
+    \<open>rr = liftR r\<close>
+    \<open>FF = liftP F \<circ> exch4\<close>
+    \<open>SS = liftP S \<circ> exch4\<close>
+    \<open>rely_obs_safe \<oo> r\<close>
+    \<open>\<forall>xl xs xs'. r xs xs' \<longrightarrow> F (xl, xs) \<longrightarrow> F (xl, xs')\<close>
     \<open>SS \<^emph>\<and> FF \<le> \<bbbA> \<oo> \<circ> exch4\<close>
   shows
-    \<open>\<lblot> (=) sx' \<^emph>\<and> F \<bar> (=) sy' \<^emph>\<and> F \<rblot> \<le> \<bbbA> \<oo>\<close>
-  using assms(12-) assms(5) determ_double_exec_then_safe_state[OF assms(1-11)]
-  by (clarsimp simp add: sepconj_conj_def le_fun_def imp_ex_conjL)
+    \<open>(=) (sfx', sfy') \<le> \<bbbA> \<oo>\<close>
+  using determ_double_exec_then_safe_state[OF assms(1-15)] assms(16)
+  by (clarsimp simp add: sepconj_conj_def exch4_def le_fun_def imp_ex_conjL imp_conjL
+      split: prod.splits)
 
 
 section \<open> Examples \<close>
