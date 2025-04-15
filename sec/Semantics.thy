@@ -1170,10 +1170,12 @@ theorem determ_double_exec_then_safe_state:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC' c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
+    \<open>((=) sx \<^emph>\<and> F) sfx\<close> \<comment> \<open>\<exists>fx. F fx \<and> sfx = sx + fx\<close>
+    \<open>((=) sy \<^emph>\<and> F) sfy\<close> \<comment> \<open>\<exists>fy. F fy \<and> sfy = sy + fy\<close>
+
     \<open>(sfx, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
     \<open>(sfy, c) \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
-    \<open>((=) sx \<^emph>\<and> F) sfx\<close>
-    \<open>((=) sy \<^emph>\<and> F) sfy\<close>
+
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
       (\<lambda>(s, c).
@@ -1182,13 +1184,17 @@ theorem determ_double_exec_then_safe_state:
       FF rr cc zz n\<close>
   and noninductive_assms:
     \<open>\<forall>xl xs. F (xl, xs) \<longrightarrow> cancellative xl\<close>
-    \<open>rr = liftR r\<close>
-    \<open>FF = liftP F \<circ> exch4\<close>
-    \<open>SS = liftP S \<circ> exch4\<close>
+    \<open>rr = liftR r\<close> \<comment> \<open> TODO: investigate relational rely \<close>
+    \<open>FF = liftP F \<circ> exch4\<close> \<comment> \<open> TODO: investigate relational frame \<close>
+  \<comment> \<open> does an RG sec. logic need relational Rs and Gs \<close>
     \<open>rely_obs_safe \<oo> r\<close>
     \<open>\<forall>xl xs xs'. r xs xs' \<longrightarrow> F (xl, xs) \<longrightarrow> F (xl, xs')\<close>
   shows
     \<open>(SS \<^emph>\<and> FF) (exch4 (sfx', sfy'))\<close>
+    \<comment> \<open>\<exists>sx' fx' sy' fy'.
+          sfx' = sx' + fx' /\
+          sfy' = sy' + fy' /\
+          SS (sx', sy') /\ FF (fx', fy')\<close>
   using inductive_assms
 proof (induct n arbitrary: cc zz c sx sy sfx sfy \<gamma>s sfx' sfy' cx' cy')
   case 0
