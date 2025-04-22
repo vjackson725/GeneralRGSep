@@ -1239,6 +1239,10 @@ lemma sp_sup_rel:
   \<open>sp (r1 \<squnion> r2) p = sp r1 p \<squnion> sp r2 p\<close>
   by (force simp add: sp_def)
 
+lemma sp_Sup_rel:
+  \<open>sp (\<Squnion>rr) p = (\<Squnion>r\<in>rr. sp r p)\<close>
+  by (force simp add: sp_def)
+
 lemma sp_inf_rel_semidistrib:
   \<open>sp (r1 \<sqinter> r2) p \<le> sp r1 p \<sqinter> sp r2 p\<close>
   by (force simp add: sp_def)

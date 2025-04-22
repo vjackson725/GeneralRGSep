@@ -226,91 +226,103 @@ lemma opstep_WhileLoop_iff[opstep_iff]:
 
 section \<open> Safe \<close>
 
+text \<open>
+  The predicate \<open>S\<close> is a command structure predicate. It encompasses the traditional postcondition
+    \<open>\<lambda>c s. c = Skip \<longrightarrow> Q s\<close>
+  but can be used to specify more complex invariants.
+\<close>
+
 inductive safe
-  :: \<open>nat \<Rightarrow>
-      ('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
-      'l \<times> 's + unit \<Rightarrow>
-      ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-      ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+  :: \<open>('l \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      (('l \<times> 's) comm \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      'l::pre_perm_alg \<Rightarrow>
+      's \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
+      nat \<Rightarrow>
       bool\<close>
   where
-  safe_nil[intro!]: \<open>safe 0 c (Inl (hl, hs)) r g q S F\<close>
+  safe_nil[intro!]: \<open>S c (x, xs) \<Longrightarrow> safe R G S x xs c 0\<close>
 | safe_suc[intro]:
-  \<open>\<comment> \<open> if the command is Skip, the postcondition is established \<close>
-    \<comment> \<open> TODO: This requires termination is represented as infinite stuttering past the end.
-               We may want a different model, but that would be more complicated. \<close>
-    (c = Skip \<longrightarrow> q (hl, hs)) \<Longrightarrow>
-    \<comment> \<open> the current state is in the stateset \<close>
-    S (hl, hs) \<Longrightarrow>
+  \<open>\<comment> \<open> enforce the command-structure predicate. \<close>
+    S c (x, xs) \<Longrightarrow>
     \<comment> \<open> rely steps are safe \<close>
-    (\<And>hs'. r hs hs' \<Longrightarrow> safe n c (Inl (hl, hs')) r g q S F) \<Longrightarrow>
+    (\<And>xl xf xf' xs'.
+      xl ## xf \<Longrightarrow>
+      x = xl + xf \<Longrightarrow>
+      R (xf, xs) (xf', xs') \<Longrightarrow>
+      xl ## xf' \<Longrightarrow> \<comment> \<open> note how this is an assumption, not a requirement \<close>
+      safe R G S (xl + xf') xs' c n) \<Longrightarrow>
     \<comment> \<open> closed under framed opsteps \<close>
-    (\<And>\<alpha> z' c' hlf.
-        hl ## hlf \<Longrightarrow>
-        ((hl + hlf, hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
-        F (hlf, hs) \<Longrightarrow>
-        (\<exists>hlhlf' hs'.
-          z' = Inl (hlhlf', hs') \<and>
-          (\<alpha> \<noteq> Tau \<longrightarrow> g hs hs') \<and>
-          (\<exists>hl'.
-            hl' ## hlf \<and>
-            hlhlf' = hl' + hlf \<and>
-            (\<alpha> = Tau \<longrightarrow> hl' = hl) \<and>
-            safe n c' (Inl (hl', hs')) r g q S F))) \<Longrightarrow>
+    (\<And>\<alpha> mx' c' xl xf.
+        ((x, xs), c) \<midarrow>\<alpha>\<rightarrow> (mx', c') \<Longrightarrow>
+        prepost_state R (xf, xs) \<Longrightarrow>
+        xl ## xf \<Longrightarrow>
+        x = xl + xf \<Longrightarrow>
+        \<comment> \<open> the local process: \<close>
+        (\<exists>xl' xs'.
+          \<comment> \<open> must not make the frame incompatible with the environment; \<close>
+          xl' ## xf \<and> 
+          \<comment> \<open> must not crash; \<close>
+          mx' = Inl (xl' + xf, xs') \<and>
+          \<comment> \<open> ensures the guarantee with a Vis step, and identical local states with a Tau; and \<close>
+          (if \<alpha> = Tau
+            then xl' = xl
+            else G (xl,xs) (xl',xs')) \<and>
+          \<comment> \<open> continues safely. \<close>
+          safe R G S (xl' + xf) xs' c' n)) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
-    safe (Suc n) c (Inl (hl, hs)) r g q S F\<close>
+    safe R G S x xs c (Suc n)\<close>
 
 subsection \<open> Proofs about safe \<close>
 
-inductive_cases safe_zeroE[elim!]: \<open>safe 0 c s r g q S F\<close>
-inductive_cases safe_sucE[elim]: \<open>safe (Suc n) c s r g q S F\<close>
+inductive_cases safe_zeroE[elim!]: \<open>safe R G S x xs c 0\<close>
+inductive_cases safe_sucE[elim]: \<open>safe R G S x xs c (Suc n)\<close>
 
 lemma safe_then_state:
-  assumes \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F\<close>
-  shows \<open>S (hl, hs)\<close>
-proof -
-  { fix m z
-    have \<open>safe m c z r g q S F \<Longrightarrow> 0 < (m::nat) \<Longrightarrow> z = Inl (hl, hs) \<Longrightarrow> S (hl, hs)\<close>
-      by (induct rule: safe.inducts) blast+
-  } then show ?thesis
-    using assms by blast
-qed
+  assumes \<open>safe R G S x xs c n\<close>
+  shows \<open>S c (x, xs)\<close>
+  using assms
+  by (induct rule: safe.inducts) force+
 
-lemma safe_nil_iff[simp]:
-  \<open>safe 0 c s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs))\<close>
-  by force
+lemma safe_zero_iff[simp]:
+  \<open>safe R G S x xs c 0 \<longleftrightarrow> S c (x, xs)\<close>
+  by blast
 
 lemma safe_suc_iff:
-  \<open>safe (Suc n) c z r g q S F \<longleftrightarrow>
-    (\<exists>s. z = Inl s \<and>
-      (c = Skip \<longrightarrow> q s) \<and>
-      S s \<and>
-      (\<forall>hs'. r (snd s) hs' \<longrightarrow> safe n c (Inl (fst s, hs')) r g q S F) \<and>
-      (\<forall>\<alpha> z' c' hlf.
-          fst s ## hlf \<longrightarrow>
-          ((fst s + hlf, snd s), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<longrightarrow>
-          F (hlf, snd s) \<longrightarrow>
-          (\<exists>hlhlf' hs'.
-            z' = Inl (hlhlf',hs') \<and>
-            (\<alpha> \<noteq> Tau \<longrightarrow> g (snd s) hs') \<and>
-            (\<exists>hl'.
-              hl' ## hlf \<and>
-              hlhlf' = hl' + hlf \<and>
-              (\<alpha> = Tau \<longrightarrow> hl' = fst s) \<and>
-              safe n c' (Inl (hl',hs')) r g q S F))))\<close>
+  fixes x :: \<open>'l :: pre_perm_alg\<close> and xs :: 's
+  shows
+  \<open>safe R G S x xs c (Suc n) \<longleftrightarrow>
+    S c (x, xs) \<and>
+    (\<forall>xl xf xf' xs'.
+      xl ## xf \<longrightarrow>
+      x = xl + xf \<longrightarrow>
+      R (xf, xs) (xf', xs') \<longrightarrow>
+      xl ## xf' \<longrightarrow>
+      safe R G S (xl + xf') xs' c n) \<and>
+    (\<forall>\<alpha> mx' c'.
+      ((x, xs), c) \<midarrow>\<alpha>\<rightarrow> (mx', c') \<longrightarrow>
+      (\<forall>xl xf.
+        xl ## xf \<longrightarrow>
+        x = xl + xf \<longrightarrow>
+        prepost_state R (xf, xs) \<longrightarrow>
+        (\<exists>xl' xs'.
+          xl' ## xf \<and>
+          mx' = Inl (xl' + xf, xs') \<and>
+          (\<alpha> = Tau \<longrightarrow> xl' = xl) \<and>
+          (\<alpha> \<noteq> Tau \<longrightarrow> G (xl, xs) (xl',xs')) \<and>
+          safe R G S (xl' + xf) xs' c' n)))\<close>
   apply (rule iffI)
-   apply (erule safe_sucE, (simp; fail))
-  apply (force del: safe_suc intro!: safe_suc)
+   apply (erule safe_sucE, fastforce)
+  apply (clarsimp, (rule safe_suc; fastforce))
   done
 
+(*
 lemma safe_sucD:
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> c = Skip \<Longrightarrow> q (hl, hs)\<close>
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> S (hl, hs)\<close>
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> r hs hs' \<Longrightarrow> safe n c (Inl (hl, hs')) r g q S F\<close>
-  \<open>safe (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
+  \<open>safe R G Q (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> c = Skip \<Longrightarrow> q (hl, hs)\<close>
+  \<open>safe R G Q (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> S (hl, hs)\<close>
+  \<open>safe R G Q (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow> r hs hs' \<Longrightarrow> safe n c (Inl (hl, hs')) r g q S F\<close>
+  \<open>safe R G Q (Suc n) c (Inl (hl, hs)) r g q S F \<Longrightarrow>
     hl ## hlf \<Longrightarrow>
     ((hl + hlf,hs), c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
     F (hlf, hs) \<Longrightarrow>
@@ -324,175 +336,222 @@ lemma safe_sucD:
         safe n c' (Inl (hl', hs')) r g q S F)\<close>
       apply (erule safe_sucE, (simp; metis))+
   done
-
+*)
 
 subsubsection \<open> Monotonicity of safe \<close>
 
-lemma safe_postpred_monoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> q \<le> q' \<Longrightarrow> safe n c s r g q' S F\<close>
-  apply (induct rule: safe.induct)
+\<comment> \<open> TODO: move \<close>
+lemma prepost_state_rel_mono:
+  \<open>r \<le> r' \<Longrightarrow> prepost_state r x \<Longrightarrow> prepost_state r' x\<close>
+  by (simp add: prepost_state_def', blast)
+
+lemma safe_monoD:
+  assumes
+    \<open>safe R G S x xs c n\<close>
+    \<open>S \<le> S'\<close>
+    \<open>G \<le> G'\<close>
+    \<open>R' \<le> R\<close>
+    \<open>n' \<le> n\<close>
+  shows
+    \<open>safe R' G' S' x xs c n'\<close>
+  using assms
+  apply -
+  apply (induct arbitrary: R' G' S' n' rule: safe.induct)
    apply blast
-  apply (rule safe_suc)
-      apply (clarsimp simp add: le_fun_def; metis)+
-  done
-
-lemmas safe_postpred_mono = safe_postpred_monoD[rotated]
-
-lemma safe_guarantee_monoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> g \<le> g' \<Longrightarrow> safe n c s r g' q S F\<close>
-proof (induct rule: safe.induct)
-  case safe_nil
-  then show ?case by blast
-next
-  case (safe_suc c q hl hs S r n g F)
-  show ?case
-    using safe_suc.prems
-    apply -
-    apply (rule safe.safe_suc)
-       apply (simp add: safe_suc.hyps(1); fail)
-      apply (simp add: safe_suc.hyps(2); fail)
-     apply (simp add: safe_suc.hyps(4); fail)
-    apply (frule(2) safe_suc.hyps(5), blast)
-    done
-qed
-
-lemmas safe_guarantee_mono = safe_guarantee_monoD[rotated]
-
-lemma safe_rely_antimonoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> r' \<le> r \<Longrightarrow> safe n c s r' g q S F\<close>
-  apply (induct rule: safe.induct)
-   apply force
-  apply (rule safe_suc)
-     apply presburger
-    apply presburger
-   apply (metis predicate2D)
-  apply metis
-  done
-
-lemmas safe_rely_antimono = safe_rely_antimonoD[rotated]
-
-lemma safe_step_monoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> m \<le> n \<Longrightarrow> safe m c s r g q S F\<close>
-  apply (induct arbitrary: m rule: safe.inducts)
-   apply force
-  apply (clarsimp simp add: le_Suc_iff0)
-  apply (erule disjE, fast)
+  apply (case_tac n')
+   apply (auto; fail)[1]
   apply clarsimp
   apply (rule safe_suc)
-     apply (clarsimp; metis)+
+    apply (meson predicate2D; fail)
+   apply blast
+  apply (clarsimp split: if_splits)
+  apply (drule_tac x=\<alpha> in meta_spec2, drule meta_spec2, drule meta_spec,
+      drule meta_mp, assumption)
+  apply (drule meta_mp, rule prepost_state_rel_mono[rotated], assumption)
+   apply blast
+  apply (case_tac \<alpha>, force)
+  apply clarsimp
+  apply (metis (no_types) predicate2D)
   done
 
-lemma safe_step_SucD:
-  \<open>safe (Suc n) c s r g q S F \<Longrightarrow> safe n c s r g q S F\<close>
-  by (metis le_add2 plus_1_eq_Suc safe_step_monoD)
-
-lemma safe_frameset_antimonoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> F' \<le> F \<Longrightarrow> safe n c s r g q S F'\<close>
-  apply (induct arbitrary: F' rule: safe.inducts)
-   apply force
-  apply (rule safe_suc)
-     apply force
-    apply force
-   apply force
-  apply (erule opstep_act_cases)
-   apply (clarsimp simp add: le_fun_def)
-   apply (metis Inl_inject Pair_inject)
-  apply (clarsimp simp add: le_fun_def)
-  apply metis
-  done
+lemmas safe_mono = safe_monoD[rotated]
 
 
-lemma safe_stateset_monoD:
-  \<open>safe n c s r g q S F \<Longrightarrow> S \<le> S' \<Longrightarrow> safe n c s r g q S' F\<close>
-  apply (induct arbitrary: S' rule: safe.inducts)
-   apply force
-  apply (rule safe_suc)
-     apply (simp; fail)
-    apply (simp add: le_fun_def; fail)
-   apply (simp; fail)
-  apply metis
-  done
+\<comment> \<open> TODO: move? \<close>
+
+subsection \<open> RGSep iteration for R and G relations \<close>
+
+text \<open>
+  Unfortunately, we can't just use transitive closure here, because, as we are in
+  a separation logic, the local and frame states must always be separated.
+
+  Additional complications are introduced because \<open>safe\<close> does not induce any properties on a
+  zero-step, and so we cannot enforce separation there either.
+
+  \<open>x\<close> may step to \<open>z\<close> via \<open>R\<close>, the local portion of the state always avoiding \<open>w\<close>.
+\<close>
+fun rgsep_iter
+  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        nat \<Rightarrow>
+        'l \<times> 's \<Rightarrow>
+        'l \<times> 's \<Rightarrow>
+        bool\<close>
+  where
+  \<open>rgsep_iter R 0 = (=)\<close>
+| \<open>rgsep_iter R (Suc n) = (\<lambda>x z. \<exists>y. R x y \<and> rgsep_iter R n y z)\<close>
+
+
+definition
+  \<open>rely_fluff R \<equiv>
+    (\<lambda>(x,xs) (y,ys). \<exists>l xf yf.
+      l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
+
+definition
+  \<open>guar_fluff G \<equiv>
+    (\<lambda>(x,xs) (y,ys). \<exists>xl yl f.
+      xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
+
+lemma guar_fluff_apply[simp]:
+  \<open>guar_fluff G (x,xs) (y,ys) \<longleftrightarrow>
+    (\<exists>xl yl f. xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
+  by (simp add: guar_fluff_def)
+
+lemma rely_fluff_apply[simp]:
+  \<open>rely_fluff R (x,xs) (y,ys) \<longleftrightarrow>
+    (\<exists>l xf yf. l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
+  by (simp add: rely_fluff_def)
+
+
+lemma rgsep_iter_refl[simp]:
+  \<open>rgsep_iter r 0 x x\<close>
+  by simp
+
+lemma rgsep_iter_trans:
+  \<open>rgsep_iter r m x y \<Longrightarrow> rgsep_iter r n y z \<Longrightarrow> rgsep_iter r (m + n) x z\<close>
+  by (induct m arbitrary: x y) fastforce+
+
+
+lemma rgsep_iter_rely_step[intro]:
+  \<open>R (xf, xs) (yf, ys) \<Longrightarrow>
+    l ## xf \<Longrightarrow>
+    x = l + xf \<Longrightarrow>
+    l ## yf \<Longrightarrow>
+    y = l + yf \<Longrightarrow>
+    rgsep_iter (rely_fluff R) n (y, ys) z \<Longrightarrow>
+    rgsep_iter (rely_fluff R) (Suc n) (x, xs) z\<close>
+  unfolding rely_fluff_def
+  by force
+
+lemma rgsep_iter_guar_step[intro]:
+  \<open>G (xl, xs) (yl, ys) \<Longrightarrow>
+    xl ## f \<Longrightarrow>
+    x = xl + f \<Longrightarrow>
+    yl ## f \<Longrightarrow>
+    y = yl + f \<Longrightarrow>
+    rgsep_iter (guar_fluff G) n (y, ys) z \<Longrightarrow>
+    rgsep_iter (guar_fluff G) (Suc n) (x, xs) z\<close>
+  unfolding guar_fluff_def
+  by force
+
+
+
+definition \<open>rgsep_star R \<equiv> \<Squnion>k. rgsep_iter R k\<close>
+
+abbreviation \<open>sswa_rely R \<equiv> sp (rgsep_star (rely_fluff R))\<close>
+abbreviation \<open>wssa_rely R \<equiv> wlp (rgsep_star (rely_fluff R))\<close>
+
+abbreviation \<open>sswa_guar G \<equiv> sp (rgsep_star (guar_fluff G))\<close>
+abbreviation \<open>wssa_guar G \<equiv> wlp (rgsep_star (guar_fluff G))\<close>
 
 
 subsection \<open> Safety of Skip \<close>
 
+lemma all_assm_all_assm_exch:
+  \<open>(\<forall>x. P x \<longrightarrow> (\<forall>y. Q y \<longrightarrow> f x y)) \<longleftrightarrow> (\<forall>y. Q y \<longrightarrow> (\<forall>x. P x \<longrightarrow> f x y))\<close>
+  by blast
+
 lemma safe_skip_iff:
-  \<open>safe n Skip s r g q S F \<longleftrightarrow>
-    (\<exists>hl hs. s = Inl (hl, hs) \<and> (\<forall>k<n. \<forall>hs'. (r^^k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs')))\<close>
-  apply (induct n arbitrary: s)
-   apply (simp; fail)
-  apply (rule iffI)
-   apply (erule safe.cases, blast)
-   apply (clarsimp simp add: less_Suc_eq_0_disj)
-   apply (metis relpowp_Suc_D2')
-  apply clarsimp
-  apply (rule safe_suc)
-     apply force
-    apply force
-   apply (clarsimp simp add: less_Suc_eq_0_disj)
-   apply (metis relpowp_Suc_I2)
-  apply force
-  done
-
-
-lemma safe_skip_stable_iff:
-  assumes
-    \<open>sswa r S \<le> S\<close>
-    \<open>sswa r q \<le> q\<close>
+  fixes xl :: \<open>'l::pre_perm_alg\<close> and xs :: 's
   shows
-    \<open>safe n Skip s r g q S F \<longleftrightarrow> (\<exists>hl hs. s = Inl (hl, hs) \<and> (0 < n \<longrightarrow> q (hl, hs) \<and> S (hl, hs)))\<close>
-proof -
-  have \<open>\<And>n' hl hs.
-          (\<forall>k\<le>n'. \<forall>hs'. (r ^^ k) hs hs' \<longrightarrow> q (hl, hs') \<and> S (hl, hs')) \<longleftrightarrow>
-            q (hl, hs) \<and> S (hl, hs)\<close>
-    using assms
-    apply (simp add: le_fun_def sp_def imp_ex_conjL rtranclp_power)
-    apply (metis le0 relpowp_0_I)
-    done
-  then show ?thesis
-    apply (cases n, force)
-    apply (rule trans[OF safe_skip_iff])
-    apply (clarsimp simp add: less_Suc_eq_le)
+  \<open>safe R G S x xs Skip n \<longleftrightarrow>
+    (\<forall>k\<le>n. \<forall>z zs.
+        rgsep_iter (rely_fluff R) k (x, xs) (z, zs) \<longrightarrow> S Skip (z, zs))\<close>
+proof (induct n arbitrary: x xs)
+  case 0 then show ?case by force
+next
+  case (Suc n)
+
+  show ?case
+    apply (clarsimp simp add: safe_suc_iff)
+    apply (subst Suc.hyps)
+    apply (clarsimp simp add: le_Suc_iff0 safe_suc_iff imp_ex_conjL imp_conjL all_conj_distrib)
+    apply fast
     done
 qed
 
 
+lemma safe_skip_stable_iff:
+  assumes \<open>sswa_rely R (S Skip) \<le> S Skip\<close>
+  shows \<open>safe R G S x xs Skip n \<longleftrightarrow> S Skip (x, xs)\<close>
+  using assms
+  by (force simp add: safe_skip_iff wlp_def rgsep_star_def)
+
 lemma safe_skip':
-  \<open>sswa r q (hl, hs) \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g (sswa r q) (sswa r q) F\<close>
-  apply (induct n arbitrary: hl hs q)
-   apply force
-  apply (rule safe_suc)
-     apply force
-    apply force
-   apply (simp add: safe_skip_stable_iff sswa_step; fail)
-  apply force
-  done
+  assumes \<open>wssa_rely R (S Skip) (x, xs)\<close>
+  shows \<open>safe R G S x xs Skip n\<close>
+  using assms
+  by (force simp add: safe_skip_iff wlp_def rgsep_star_def)
 
 lemma safe_skip:
-  \<open>p (hl, hs) \<Longrightarrow> sswa r p \<le> q \<Longrightarrow> sswa r p \<le> S \<Longrightarrow> safe n Skip (Inl (hl, hs)) r g q S F\<close>
-  apply (rule safe_postpred_monoD)
-   apply (rule safe_stateset_monoD)
-    apply (rule safe_skip'[where q=p])
-    apply (metis (mono_tags, lifting) rel_Times_iff rtranclp.rtrancl_refl sp_def)
-   apply blast
-  apply blast
-  done
+  \<open>P (xl, xs) \<Longrightarrow> sswa_rely R P \<le> S Skip \<Longrightarrow> safe R G S x xs Skip n\<close>
+  sledgehammer
+  by (force simp add: safe_skip_iff)
 
 
 subsection \<open> Safety of frame \<close>
 
+definition
+  \<open>state_frame S xfa \<equiv>
+    \<lambda>c (xlfa, xfb, xs).
+      \<exists>xl.
+        xl ## xfa \<and>
+        xlfa = xl + xfa \<and>
+        S c (xl, xfa + xfb, xs)\<close>
+
+definition
+  \<open>rely_frame R xfa \<equiv>
+    \<lambda>(xf, xs) (xf', xs'). xf ## xfa \<and> xf' ## xfa \<and> R (xf + xfa, xs) (xf' + xfa, xs')\<close>
+
+definition
+  \<open>guar_frame G xa \<equiv>
+    \<lambda>(xla, xs) (xla', xs').
+      (\<exists>xl. xl ## xa \<and> xla = xl + xa \<and>
+        (\<exists>xl'. xl' ## xa \<and> xla' = xl' + xa \<and>
+          G (xl, xs) (xl', xs')))\<close>
+
+lemma rely_frame_apply[simp]:
+  \<open>rely_frame R xa (xf, xs) (xf', xs') \<longleftrightarrow>
+    xf ## xa \<and> xf' ## xa \<and> R (xf + xa, xs) (xf' + xa, xs')\<close>
+  by  (simp add: rely_frame_def)
+
+lemma guar_frame_apply[simp]:
+  \<open>guar_frame R xa (xf, xs) (xf', xs') \<longleftrightarrow>
+    (\<exists>xl. xl ## xa \<and> xf = xl + xa \<and> (\<exists>xl'. xl' ## xa \<and> xf' = xl' + xa \<and> R (xl, xs) (xl', xs')))\<close>
+  by  (simp add: guar_frame_def)
+
+
 lemma safe_frame':
-  \<open>safe n c s r g q S F \<Longrightarrow>
-    s = Inl (hl, hs) \<Longrightarrow>
-    hl ## hlf \<Longrightarrow>
-    sswa (r \<squnion> g) f (hlf, hs) \<Longrightarrow>
-    safe n c (Inl (hl + hlf, hs)) r g (q \<^emph>\<and> sswa (r \<squnion> g) f) (S \<^emph>\<and> sswa (r \<squnion> g) f) (sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> F)\<close>
-proof (induct arbitrary: hl hs hlf rule: safe.induct)
-  case (safe_nil c ls hs r g q S F)
+  \<open>safe R G S xl xaf xs c n \<Longrightarrow>
+    xa ## xf \<Longrightarrow>
+    xaf = xa + xf \<Longrightarrow>
+    xl ## xa \<Longrightarrow>
+    safe (rely_frame R xa) (guar_frame G xa) (state_frame S xa) (xl + xa) xf xs c n\<close>
+proof (induct arbitrary: xa xf rule: safe.induct)
+  case (safe_nil S c xl xaf xs R G)
   then show ?case
-    by (metis safe.safe_nil)
+    by (force simp add: state_frame_def)
 next
-  case (safe_suc c q lsx hsx S r n g F)
+  case (safe_suc S c xl xaf xs R G n)
 
   note hyps = safe_suc.hyps[simplified safe_suc.prems(1)[simplified]]
 
@@ -500,15 +559,15 @@ next
     using safe_suc.prems(2-)
     apply -
     apply (rule safe.safe_suc)
-      (* subgoal: skip *)
-        apply (clarsimp simp add: sepconj_conj_def simp del: sup_apply)
-        apply (metis hyps(1))
-      (* subgoal: stateset *)
-       apply (meson hyps(2) predicate1D sepconj_conjI; fail)
-      (* subgoal: rely step *)
-      apply (rule hyps(4), blast, blast, blast)
-      apply (rule sswa_step, rule sup2I1, blast, blast)
+      (* subgoal: state pred *)
+      apply (cut_tac safe_suc.hyps(1))
+      apply (force simp add: state_frame_def)
+      (* subgoal: env step *)
+     apply clarsimp
+     apply (metis disjoint_add_swap_lr disjoint_sym_iff partial_add_commute safe_suc.hyps(3))
       (* subgoal: local framed opstep *)
+    apply clarsimp
+    sorry
     apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply)
     apply (rename_tac c hlf2 st')
     apply (frule hyps(5)[rotated 1])
@@ -683,7 +742,7 @@ proof (induct arbitrary: c2 q' rule: safe.inducts)
 
   have safe_c2:
     \<open>\<And>m hl' hs'. m \<le> n \<Longrightarrow> q (hl', hs') \<Longrightarrow> safe m c2 (Inl (hl', hs')) r g q' S2 F\<close>
-    \<open>\<And>hl' hs'. q (hl', hs') \<Longrightarrow> safe (Suc n) c2 (Inl (hl', hs')) r g q' S2 F\<close>
+    \<open>\<And>hl' hs'. q (hl', hs') \<Longrightarrow> safe R G Q (Suc n) c2 (Inl (hl', hs')) r g q' S2 F\<close>
     using safe_suc.prems
     by (simp add: le_Suc_eq)+
   then show ?case
@@ -738,7 +797,7 @@ proof (induct n arbitrary: i hl hs S)
 
   have safe_ih:
     \<open>\<And>m hl' hs'. m \<le> n \<Longrightarrow> sswa r i (hl', hs') \<Longrightarrow> safe m c (Inl (hl', hs')) r g (sswa r i) (sswa r S) F\<close>
-    \<open>\<And>hl' hs'. sswa r i (hl', hs') \<Longrightarrow> safe (Suc n) c (Inl (hl', hs')) r g (sswa r i) (sswa r S) F\<close>
+    \<open>\<And>hl' hs'. sswa r i (hl', hs') \<Longrightarrow> safe R G Q (Suc n) c (Inl (hl', hs')) r g (sswa r i) (sswa r S) F\<close>
     using Suc.prems(1)
     by (force intro: safe_step_monoD)+
 
