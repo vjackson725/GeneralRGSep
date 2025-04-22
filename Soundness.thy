@@ -377,95 +377,9 @@ lemma safe_monoD:
 lemmas safe_mono = safe_monoD[rotated]
 
 
-\<comment> \<open> TODO: move? \<close>
-
-subsection \<open> RGSep iteration for R and G relations \<close>
-
-text \<open>
-  Unfortunately, we can't just use transitive closure here, because, as we are in
-  a separation logic, the local and frame states must always be separated.
-
-  Additional complications are introduced because \<open>safe\<close> does not induce any properties on a
-  zero-step, and so we cannot enforce separation there either.
-
-  \<open>x\<close> may step to \<open>z\<close> via \<open>R\<close>, the local portion of the state always avoiding \<open>w\<close>.
-\<close>
-fun rgsep_iter
-  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-        nat \<Rightarrow>
-        'l \<times> 's \<Rightarrow>
-        'l \<times> 's \<Rightarrow>
-        bool\<close>
-  where
-  \<open>rgsep_iter R 0 = (=)\<close>
-| \<open>rgsep_iter R (Suc n) = (\<lambda>x z. \<exists>y. R x y \<and> rgsep_iter R n y z)\<close>
-
-
-definition
-  \<open>rely_fluff R \<equiv>
-    (\<lambda>(x,xs) (y,ys). \<exists>l xf yf.
-      l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
-
-definition
-  \<open>guar_fluff G \<equiv>
-    (\<lambda>(x,xs) (y,ys). \<exists>xl yl f.
-      xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
-
-lemma guar_fluff_apply[simp]:
-  \<open>guar_fluff G (x,xs) (y,ys) \<longleftrightarrow>
-    (\<exists>xl yl f. xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
-  by (simp add: guar_fluff_def)
-
-lemma rely_fluff_apply[simp]:
-  \<open>rely_fluff R (x,xs) (y,ys) \<longleftrightarrow>
-    (\<exists>l xf yf. l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
-  by (simp add: rely_fluff_def)
-
-
-lemma rgsep_iter_refl[simp]:
-  \<open>rgsep_iter r 0 x x\<close>
-  by simp
-
-lemma rgsep_iter_trans:
-  \<open>rgsep_iter r m x y \<Longrightarrow> rgsep_iter r n y z \<Longrightarrow> rgsep_iter r (m + n) x z\<close>
-  by (induct m arbitrary: x y) fastforce+
-
-
-lemma rgsep_iter_rely_step[intro]:
-  \<open>R (xf, xs) (yf, ys) \<Longrightarrow>
-    l ## xf \<Longrightarrow>
-    x = l + xf \<Longrightarrow>
-    l ## yf \<Longrightarrow>
-    y = l + yf \<Longrightarrow>
-    rgsep_iter (rely_fluff R) n (y, ys) z \<Longrightarrow>
-    rgsep_iter (rely_fluff R) (Suc n) (x, xs) z\<close>
-  unfolding rely_fluff_def
-  by force
-
-lemma rgsep_iter_guar_step[intro]:
-  \<open>G (xl, xs) (yl, ys) \<Longrightarrow>
-    xl ## f \<Longrightarrow>
-    x = xl + f \<Longrightarrow>
-    yl ## f \<Longrightarrow>
-    y = yl + f \<Longrightarrow>
-    rgsep_iter (guar_fluff G) n (y, ys) z \<Longrightarrow>
-    rgsep_iter (guar_fluff G) (Suc n) (x, xs) z\<close>
-  unfolding guar_fluff_def
-  by force
-
-
-
-definition \<open>rgsep_star R \<equiv> \<Squnion>k. rgsep_iter R k\<close>
-
-abbreviation \<open>sswa_rely R \<equiv> sp (rgsep_star (rely_fluff R))\<close>
-abbreviation \<open>wssa_rely R \<equiv> wlp (rgsep_star (rely_fluff R))\<close>
-
-abbreviation \<open>sswa_guar G \<equiv> sp (rgsep_star (guar_fluff G))\<close>
-abbreviation \<open>wssa_guar G \<equiv> wlp (rgsep_star (guar_fluff G))\<close>
-
-
 subsection \<open> Safety of Skip \<close>
 
+\<comment> \<open> TODO: move \<close>
 lemma all_assm_all_assm_exch:
   \<open>(\<forall>x. P x \<longrightarrow> (\<forall>y. Q y \<longrightarrow> f x y)) \<longleftrightarrow> (\<forall>y. Q y \<longrightarrow> (\<forall>x. P x \<longrightarrow> f x y))\<close>
   by blast
@@ -503,87 +417,94 @@ lemma safe_skip':
   by (force simp add: safe_skip_iff wlp_def rgsep_star_def)
 
 lemma safe_skip:
-  \<open>P (xl, xs) \<Longrightarrow> sswa_rely R P \<le> S Skip \<Longrightarrow> safe R G S x xs Skip n\<close>
-  sledgehammer
-  by (force simp add: safe_skip_iff)
+  \<open>P (x, xs) \<Longrightarrow> sswa_rely R P \<le> (S Skip) \<Longrightarrow> safe R G S x xs Skip n\<close>
+  by (force simp add: safe_skip_iff sp_def rgsep_star_def le_fun_def)
 
 
 subsection \<open> Safety of frame \<close>
 
 definition
-  \<open>state_frame S xfa \<equiv>
-    \<lambda>c (xlfa, xfb, xs).
-      \<exists>xl.
-        xl ## xfa \<and>
-        xlfa = xl + xfa \<and>
-        S c (xl, xfa + xfb, xs)\<close>
+  \<open>guar_frame G F \<equiv>
+    \<lambda>(xlf, s) (xlf', s').
+      (\<forall>xl xl' f.
+        F f \<longrightarrow>
+        xl ## f \<longrightarrow> xlf = xl + f \<longrightarrow>
+        xl' ## f \<longrightarrow> xlf' = xl' + f \<longrightarrow>
+        G (xl, s) (xl', s'))\<close>
 
 definition
-  \<open>rely_frame R xfa \<equiv>
-    \<lambda>(xf, xs) (xf', xs'). xf ## xfa \<and> xf' ## xfa \<and> R (xf + xfa, xs) (xf' + xfa, xs')\<close>
-
-definition
-  \<open>guar_frame G xa \<equiv>
-    \<lambda>(xla, xs) (xla', xs').
-      (\<exists>xl. xl ## xa \<and> xla = xl + xa \<and>
-        (\<exists>xl'. xl' ## xa \<and> xla' = xl' + xa \<and>
-          G (xl, xs) (xl', xs')))\<close>
-
-lemma rely_frame_apply[simp]:
-  \<open>rely_frame R xa (xf, xs) (xf', xs') \<longleftrightarrow>
-    xf ## xa \<and> xf' ## xa \<and> R (xf + xa, xs) (xf' + xa, xs')\<close>
-  by  (simp add: rely_frame_def)
+  \<open>rely_frame G F \<equiv>
+    \<lambda>(fab, s) (fab', s').
+      (\<exists>fa. F fa \<and>
+        (\<exists>fb. fa ## fb \<and> fab = fa + fb \<and>
+          (\<exists>fb'. fa ## fb' \<and> fab' = fa + fb' \<and>
+            G (fb, s) (fb', s'))))\<close>
 
 lemma guar_frame_apply[simp]:
-  \<open>guar_frame R xa (xf, xs) (xf', xs') \<longleftrightarrow>
-    (\<exists>xl. xl ## xa \<and> xf = xl + xa \<and> (\<exists>xl'. xl' ## xa \<and> xf' = xl' + xa \<and> R (xl, xs) (xl', xs')))\<close>
-  by  (simp add: guar_frame_def)
+  \<open>guar_frame G F (xla, xs) (xla', xs') \<longleftrightarrow>
+    (\<forall>fa xl xl'. F fa \<longrightarrow> xl ## fa \<longrightarrow> xl' ## fa \<longrightarrow> G (xl, xs) (xl', xs'))\<close>
+  by (simp add: guar_frame_def)
 
+lemma rely_frame_apply[simp]:
+  \<open>rely_frame R F (fab, s) (fab', s') \<longleftrightarrow>
+    (\<exists>fa. F fa \<and>
+      (\<exists>fb. fa ## fb \<and> fab = fa + fb \<and>
+        (\<exists>fb'. fa ## fb' \<and> fab' = fa + fb' \<and>
+          R (fb, s) (fb', s'))))\<close>
+  by  (simp add: rely_frame_def)
 
+lemma prepost_rely_frame_then:
+  \<open>prepost_state (rely_frame R F) (fab, s) \<Longrightarrow>
+    (\<exists>fa fb. fa ## fb \<and> fab = fa + fb \<and> prepost_state R (fb, s) \<and> F fa)\<close>
+  by (simp add: rely_frame_def prepost_state_def', fast)
+
+(*
 lemma safe_frame':
-  \<open>safe R G S xl xaf xs c n \<Longrightarrow>
-    xa ## xf \<Longrightarrow>
-    xaf = xa + xf \<Longrightarrow>
-    xl ## xa \<Longrightarrow>
-    safe (rely_frame R xa) (guar_frame G xa) (state_frame S xa) (xl + xa) xf xs c n\<close>
-proof (induct arbitrary: xa xf rule: safe.induct)
-  case (safe_nil S c xl xaf xs R G)
-  then show ?case
-    by (force simp add: state_frame_def)
+  \<open>safe R G S x xs c n \<Longrightarrow>
+    safe (rely_frame R F) (guar_frame G F) S x xs c n\<close>
+proof (induct rule: safe.induct)
+  case safe_nil
+  then show ?case by force
 next
-  case (safe_suc S c xl xaf xs R G n)
-
-  note hyps = safe_suc.hyps[simplified safe_suc.prems(1)[simplified]]
+  case (safe_suc S c x xs R G n)
 
   show ?case
-    using safe_suc.prems(2-)
     apply -
     apply (rule safe.safe_suc)
       (* subgoal: state pred *)
       apply (cut_tac safe_suc.hyps(1))
-      apply (force simp add: state_frame_def)
+      apply force
       (* subgoal: env step *)
      apply clarsimp
-     apply (metis disjoint_add_swap_lr disjoint_sym_iff partial_add_commute safe_suc.hyps(3))
+     apply (rename_tac xl xs' fa fb fb')
+     apply (subgoal_tac \<open>xl + (fa + fb') = xl + fa + fb'\<close>)
+      prefer 2
+    subgoal sorry
+     apply simp
+     apply (rule_tac safe_suc.hyps(3)[rotated 2], assumption)
+       apply (simp add: disjoint_add_swap_rl; fail)
+      apply (simp add: disjoint_add_swap_rl; fail)
+    subgoal sorry
       (* subgoal: local framed opstep *)
-    apply clarsimp
-    sorry
-    apply (clarsimp simp add: partial_add_assoc2[of hl hlf] simp del: sup_apply)
-    apply (rename_tac c hlf2 st')
-    apply (frule hyps(5)[rotated 1])
-      apply (clarsimp simp add: sepimp_conj_apply simp del: sup_apply)
-      apply (metis disjoint_add_leftR disjoint_sym_iff partial_add_commute)
-     apply (metis disjoint_add_swap_lr)
-    apply (clarsimp simp del: sup_apply)
-    apply (rule_tac x=\<open>hl' + hlf\<close> in exI, rule conjI)
-     apply (metis disjoint_add_leftR disjoint_add_swap_rl)
+    apply (frule prepost_rely_frame_then)
+    apply (elim exE conjE)
+    apply (frule_tac xl=\<open>xl + fa\<close> in safe_suc.hyps(4))
+       apply blast
+      apply clarsimp
+    subgoal sorry
+     apply (simp add: partial_add_assoc3; fail)
+    apply (clarsimp split: if_splits)
+    apply (rule_tac x=xl in exI)
     apply (rule conjI)
-     apply (metis disjoint_add_leftR partial_add_assoc3)
-    apply (clarsimp simp del: sup_apply)
-    apply (erule opstep_act_cases)
-     apply force
-    apply (frule sswa_stepD, force)
-    apply (metis disjoint_add_leftR disjoint_add_rightL)
+    subgoal sorry
+    apply (case_tac \<alpha>)
+     apply (simp add: partial_add_assoc3; fail)
+    apply clarsimp
+    apply (intro conjI)
+      prefer 2
+
+    sorry
+
     done
 qed
 
@@ -605,8 +526,9 @@ lemma safe_frame:
    apply blast
   apply (blast dest: sepconj_conj_monoR)
   done
+*)
 
-
+(*
 subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
@@ -1116,13 +1038,15 @@ next
     apply (metis Suc.hyps)
     done
 qed
+*)
+
 
 section \<open> Soundness \<close>
 
 lemma soundness:
   assumes \<open>rgsat c r g p q S F\<close>
     and \<open>p (hl, hs)\<close>
-  shows \<open>safe n c (Inl (hl, hs)) r g q S F\<close>
+  shows \<open>safe R G S (hl + F) xs c n\<close>
   using assms
 proof (induct c r g p q S F arbitrary: n hl hs rule: rgsat.inducts)
   case (rgsat_skip r p q S g F)

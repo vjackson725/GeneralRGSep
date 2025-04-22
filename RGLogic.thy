@@ -2,127 +2,109 @@ theory RGLogic
   imports Lang
 begin
 
-section \<open> Framed step relation \<close>
-
-context perm_alg
-begin
+section \<open> RGSep iter \<close>
 
 text \<open>
-  This predicate ensures that an update between two subresources preserve the rest of the heap.
-  We need this in the perm_alg case, when we don't necessarily have a unit.
+  Unfortunately, we can't just use transitive closure here, because, as we are in
+  a separation logic, the local and frame states must always be separated.
+
+  Additional complications are introduced because \<open>safe\<close> does not induce any properties on a
+  zero-step, and so we cannot enforce separation there either.
+
+  \<open>x\<close> may step to \<open>z\<close> via \<open>R\<close>, the local portion of the state always avoiding \<open>w\<close>.
 \<close>
+fun rgsep_iter
+  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        nat \<Rightarrow>
+        'l \<times> 's \<Rightarrow>
+        'l \<times> 's \<Rightarrow>
+        bool\<close>
+  where
+  \<open>rgsep_iter R 0 = (=)\<close>
+| \<open>rgsep_iter R (Suc n) = (\<lambda>x z. \<exists>y. R x y \<and> rgsep_iter R n y z)\<close>
+
 
 definition
-  \<open>framed_subresource_rel p ha ha' h h' \<equiv>
-    (\<exists>hf. p hf \<and> ha ## hf \<and> ha' ## hf \<and> h = ha + hf \<and> h' = ha' + hf)\<close>
+  \<open>rely_fluff R \<equiv>
+    (\<lambda>(x,xs) (y,ys). \<exists>l xf yf.
+      l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
 
 definition
-  \<open>weak_framed_subresource_rel p ha ha' h h' \<equiv>
-    ha = h \<and> ha' = h' \<or> framed_subresource_rel p ha ha' h h'\<close>
+  \<open>guar_fluff G \<equiv>
+    (\<lambda>(x,xs) (y,ys). \<exists>xl yl f.
+      xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
 
-lemma framed_subresource_relI:
-  \<open>p hf \<Longrightarrow> ha ## hf \<Longrightarrow> ha' ## hf \<Longrightarrow> h = ha + hf \<Longrightarrow> h' = ha' + hf \<Longrightarrow>
-    framed_subresource_rel p ha ha' h h'\<close>
-  by (force simp add: framed_subresource_rel_def)
+lemma guar_fluff_apply[simp]:
+  \<open>guar_fluff G (x,xs) (y,ys) \<longleftrightarrow>
+    (\<exists>xl yl f. xl ## f \<and> x = xl + f \<and> yl ## f \<and> y = yl + f \<and> G (xl, xs) (yl, ys))\<close>
+  by (simp add: guar_fluff_def)
 
-lemma framed_subresource_rel_refl[intro!]:
-  \<open>weak_framed_subresource_rel p h h' h h'\<close>
-  by (simp add: weak_framed_subresource_rel_def)
+lemma rely_fluff_apply[simp]:
+  \<open>rely_fluff R (x,xs) (y,ys) \<longleftrightarrow>
+    (\<exists>l xf yf. l ## xf \<and> x = l + xf \<and> l ## yf \<and> y = l + yf \<and> R (xf, xs) (yf, ys))\<close>
+  by (simp add: rely_fluff_def)
 
-lemma framed_subresource_rel_impl_weak[intro]:
-  \<open>framed_subresource_rel p hx hx' h h' \<Longrightarrow> weak_framed_subresource_rel p hx hx' h h'\<close>
-  using weak_framed_subresource_rel_def by force
 
-lemma framed_subresource_rel_frame_second:
-  \<open>framed_subresource_rel \<top> ha ha' h h' \<Longrightarrow>
-    h ## hf \<Longrightarrow>
-    h' ## hf \<Longrightarrow>
-    framed_subresource_rel \<top> ha ha' (h + hf) (h' + hf)\<close>
-  using disjoint_add_swap_lr partial_add_assoc2
-  by (simp add: framed_subresource_rel_def, meson)
+lemma rgsep_iter_refl[simp]:
+  \<open>rgsep_iter r 0 x x\<close>
+  by simp
 
-lemma framed_subresource_rel_frame:
-  \<open>framed_subresource_rel \<top> ha ha' h h' \<Longrightarrow>
-    h ## hf \<Longrightarrow>
-    h' ## hf \<Longrightarrow>
-    framed_subresource_rel \<top> ha ha' (h + hf) (h' + hf)\<close>
-  using disjoint_add_swap_lr partial_add_assoc2
-  by (simp add: framed_subresource_rel_def, meson)
+lemma rgsep_iter_trans:
+  \<open>rgsep_iter r m x y \<Longrightarrow> rgsep_iter r n y z \<Longrightarrow> rgsep_iter r (m + n) x z\<close>
+  by (induct m arbitrary: x y) fastforce+
 
-lemma framed_subresource_rel_sym:
-  \<open>framed_subresource_rel p a b a' b' \<Longrightarrow> framed_subresource_rel p b a b' a'\<close>
-  using framed_subresource_rel_def by auto
 
-lemma framed_subresource_le_firstD[dest]:
-  \<open>framed_subresource_rel f ha ha' h h' \<Longrightarrow> ha \<preceq> h\<close>
-  using framed_subresource_rel_def partial_le_plus by force
+lemma rgsep_iter_rely_step[intro]:
+  \<open>R (xf, xs) (yf, ys) \<Longrightarrow>
+    l ## xf \<Longrightarrow>
+    x = l + xf \<Longrightarrow>
+    l ## yf \<Longrightarrow>
+    y = l + yf \<Longrightarrow>
+    rgsep_iter (rely_fluff R) n (y, ys) z \<Longrightarrow>
+    rgsep_iter (rely_fluff R) (Suc n) (x, xs) z\<close>
+  unfolding rely_fluff_def
+  by force
 
-lemma framed_subresource_le_secondD[dest]:
-  \<open>framed_subresource_rel f ha ha' h h' \<Longrightarrow> ha' \<preceq> h'\<close>
-  using framed_subresource_rel_def partial_le_plus by auto
+lemma rgsep_iter_guar_step[intro]:
+  \<open>G (xl, xs) (yl, ys) \<Longrightarrow>
+    xl ## f \<Longrightarrow>
+    x = xl + f \<Longrightarrow>
+    yl ## f \<Longrightarrow>
+    y = yl + f \<Longrightarrow>
+    rgsep_iter (guar_fluff G) n (y, ys) z \<Longrightarrow>
+    rgsep_iter (guar_fluff G) (Suc n) (x, xs) z\<close>
+  unfolding guar_fluff_def
+  by force
 
-lemma wframed_subresource_le_firstD[dest]:
-  \<open>weak_framed_subresource_rel f ha ha' h h' \<Longrightarrow> ha \<preceq> h\<close>
-  using weak_framed_subresource_rel_def by auto
 
-lemma wframed_subresource_le_secondD[dest]:
-  \<open>weak_framed_subresource_rel f ha ha' h h' \<Longrightarrow> ha' \<preceq> h'\<close>
-  using weak_framed_subresource_rel_def by auto
 
-lemma framed_subresource_rel_top_same_sub_iff[simp]:
-  \<open>framed_subresource_rel f a a b b' \<longleftrightarrow> b = b' \<and> (\<exists>xf. a ## xf \<and> b = a + xf \<and> f xf)\<close>
-  by (force simp add: framed_subresource_rel_def)
+definition \<open>rgsep_star R \<equiv> \<Squnion>k. rgsep_iter R k\<close>
 
-definition \<open>framecl r \<equiv> (\<lambda>a b. (\<exists>x y. r x y \<and> framed_subresource_rel \<top> x y a b))\<close>
+abbreviation \<open>sswa_rely R \<equiv> sp (rgsep_star (rely_fluff R))\<close>
+abbreviation \<open>wssa_rely R \<equiv> wlp (rgsep_star (rely_fluff R))\<close>
 
-lemma framecl_frame_closed:
-  \<open>(x ## hf) \<Longrightarrow> (y ## hf) \<Longrightarrow> b x y \<Longrightarrow> framecl b (x + hf) (y + hf)\<close>
-  by (force simp add: framecl_def framed_subresource_rel_def)
-
-end
-
-context multiunit_sep_alg
-begin
-
-lemma mu_sep_alg_compatible_framed_subresource_rel_iff:
-  assumes
-    \<open>compatible h h'\<close>
-    \<open>p (unitof h)\<close>
-  shows
-  \<open>weak_framed_subresource_rel p ha ha' h h' \<longleftrightarrow> framed_subresource_rel p ha ha' h h'\<close>
-  using assms
-  apply (simp add: weak_framed_subresource_rel_def framed_subresource_rel_def)
-  apply (metis compatible_then_same_unit unitof_disjoint2 unitof_is_unitR2)
-  done
-
-end
-
-lemma (in sep_alg) sep_alg_framed_subresource_rel_iff:
-  \<open>p 0 \<Longrightarrow>
-    weak_framed_subresource_rel p ha ha' h h' \<longleftrightarrow> framed_subresource_rel p ha ha' h h'\<close>
-  by (force simp add: weak_framed_subresource_rel_def framed_subresource_rel_def)
+abbreviation \<open>sswa_guar G \<equiv> sp (rgsep_star (guar_fluff G))\<close>
+abbreviation \<open>wssa_guar G \<equiv> wlp (rgsep_star (guar_fluff G))\<close>
 
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
 inductive rgsat ::
-  \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
-    ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
-    ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+  \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    (('l \<times>'s) comm \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
-    ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+    ('l \<times> 's) comm \<Rightarrow>
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa r p \<le> q \<Longrightarrow> sswa r p \<le> S \<Longrightarrow> rgsat Skip r g p q S F\<close>
+  \<open>sswa_rely R (p \<^emph>\<and> prepost_state R) \<le> S Skip \<Longrightarrow> rgsat R G S p Skip\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r S) F \<Longrightarrow>
-    p \<le> wssa r i \<Longrightarrow>
-    sswa r i \<le> q \<Longrightarrow>
-    sswa r S \<le> S' \<Longrightarrow>
-    rgsat (Iter c) r g p q S' F\<close>
+  \<open>rgsat R G (\<lambda>c. S c \<sqinter> (i \<^emph>\<and> prepost_state R)) p c \<Longrightarrow>
+    p \<le> wssa_rely R (i \<^emph>\<and> prepost_state R) \<Longrightarrow>
+    sswa R (i \<^emph>\<and> prepost_state R) \<le> S (Iter c) \<Longrightarrow>
+    rgsat r g p q S' F (Iter c)\<close>
+(*
 | rgsat_seq:
   \<open>rgsat c1 r g p1 p2 S1 F \<Longrightarrow>
     rgsat c2 r g p2 p3 S2 F \<Longrightarrow>
@@ -134,14 +116,14 @@ inductive rgsat ::
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
     S1 \<squnion> S2 \<le> S \<Longrightarrow>
-    rgsat (c1 \<^bold>+ c2) r g p q S F\<close>
+    rgsat (c1 \<^bold>+ c2) R G p q\<close>
 | rgsat_endet:
   \<open>rgsat c1 r g1 p q1 S1 F \<Longrightarrow>
     rgsat c2 r g2 p q2 S2 F \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     q1 \<le> q \<Longrightarrow> q2 \<le> q \<Longrightarrow>
     S1 \<squnion> S2 \<le> S \<Longrightarrow>
-    rgsat (c1 \<box> c2) r g p q S F\<close>
+    rgsat (c1 \<box> c2) R G p q\<close>
 | rgsat_par:
   \<open>rgsat s1 (r \<squnion> g2) g1 p1 q1 S1 (S2 \<squnion> S2 \<^emph>\<and> F) \<Longrightarrow>
     rgsat s2 (r \<squnion> g1) g2 p2 q2 S2 (S1 \<squnion> S1 \<^emph>\<and> F) \<Longrightarrow>
@@ -149,7 +131,7 @@ inductive rgsat ::
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
     sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
     sswa (r \<squnion> g2) S1 \<^emph>\<and> sswa (r \<squnion> g1) S2 \<le> S \<Longrightarrow>
-    rgsat (s1 \<parallel> s2) r g p q S F\<close>
+    rgsat (s1 \<parallel> s2) R G p q\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
@@ -161,7 +143,7 @@ inductive rgsat ::
     \<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
     rgsat (Atomic ap aq) r g p' q' S F\<close>
 | rgsat_frame:
-  \<open>rgsat c r g p q S F \<Longrightarrow>
+  \<open>rgsat c R G p q \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
     q \<^emph>\<and> sswa (r \<squnion> g) f \<le> q' \<Longrightarrow>
     F' \<^emph>\<and> sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
@@ -175,17 +157,18 @@ inductive rgsat ::
     g' \<le> g \<Longrightarrow>
     S' \<le> S \<Longrightarrow>
     F \<le> F' \<Longrightarrow>
-    rgsat c r g p q S F\<close>
+    rgsat c R G p q\<close>
 | rgsat_Disj:
   \<open>p' \<le> \<Squnion>P \<Longrightarrow>
-    \<forall>p\<in>P. rgsat c r g p q S F \<Longrightarrow>
+    \<forall>p\<in>P. rgsat c R G p q \<Longrightarrow>
     rgsat c r g p' q S F\<close>
 | rgsat_Conj:
-  \<open>\<forall>q\<in>Q. rgsat c r g p q S F \<Longrightarrow>
+  \<open>\<forall>q\<in>Q. rgsat c R G p q \<Longrightarrow>
     Q \<noteq> {} \<Longrightarrow>
     \<forall>z a b f. F (f, z) \<longrightarrow> a ## f \<longrightarrow> b ## f \<longrightarrow> a + f = b + f \<longrightarrow> a = b \<Longrightarrow>
     \<Sqinter>Q \<le> q' \<Longrightarrow>
     rgsat c r g p q' S F\<close>
+*)
 
 abbreviation rgsat_pretty
   :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close>
