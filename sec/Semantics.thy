@@ -728,82 +728,160 @@ abbreviation(input) \<open>Env \<equiv> Inl ()\<close>
 abbreviation(input) \<open>Loc a \<equiv> Inr a\<close>
 
 definition
-  \<open>estep r \<equiv>
+  \<open>estep r F \<equiv>
     rel3_merge
-      (\<lambda>() ((hl,hs),c) (h', c').
-        c' = c \<and> (\<exists>hs'. h' = Inl (hl, hs') \<and> r hs hs'))
-      popstep\<close>
+      (\<lambda>() ((xl,xs),c) (mx', c').
+        c' = c \<and>
+        (\<exists>xs'.
+          mx' = Inl (xl, xs') \<and>
+          r xs xs' \<and>
+          (\<exists>xf. F (xf, xs) \<and> xl ## xf) \<and>
+          (\<exists>xf'. F (xf', xs') \<and> xl ## xf')))
+      (\<lambda>\<beta> ((xl,xs),c) (mx',c').
+        \<exists>xf.
+          F (xf, xs) \<and>
+          xl ## xf \<and>
+          (\<exists>mxf'.
+            popstep \<beta> ((xl + xf,xs),c) (mxf', c') \<and>
+            ((\<exists>xl' xlf' xs'.
+              mxf' = Inl (xlf', xs') \<and>
+              F (xf, xs') \<and>
+              xl' ## xf \<and>
+              xlf' = xl' + xf \<and>
+              mx' = Inl (xl', xs')) \<or>
+            (mxf' = Inr () \<and> mx' = Inr()))))\<close>
 
 paragraph \<open> Pretty extended extended opsem \<close>
 
-abbreviation pretty_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>(_, _)\<rightarrow>\<^sub>e _\<close> [60,0,0,60] 60) where
-  \<open>sc \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e zc' \<equiv> estep r \<gamma> sc zc'\<close>
+abbreviation pretty_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>e _\<close> [60,0,0,0,60] 60) where
+  \<open>sc \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e zc' \<equiv> estep r F \<gamma> sc zc'\<close>
 
-abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, |\<rightarrow>\<^sub>e\<close> [60, 0] 60) where
-  \<open>sc \<midarrow>r, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r \<gamma> sc zc'\<close>
+abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>e\<close> [60, 0, 0] 60) where
+  \<open>sc \<midarrow>r, F, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r F \<gamma> sc zc'\<close>
 
 
 subsection \<open> Lemmas about estep \<close>
 
 lemma estep_simps[simp]:
-  \<open>estep r Env sc zc' =
-    (\<exists>hl hs c hs'. sc = ((hl, hs), c) \<and> zc' = (Inl (hl, hs'), c) \<and> r hs hs')\<close>
-  \<open>estep r (Loc \<beta>) sc zc' = popstep \<beta> sc zc'\<close>
+  \<open>estep r F Env sc zc' =
+    (snd zc' = snd sc \<and>
+      (\<exists>xs'.
+        fst zc' = Inl (fst (fst sc), xs') \<and>
+        r (snd (fst sc)) xs' \<and>
+        (\<exists>xf. F (xf, snd (fst sc)) \<and> fst (fst sc) ## xf) \<and>
+        (\<exists>xf'. F (xf', xs') \<and> fst (fst sc) ## xf')))\<close>
+  \<open>estep r F (Loc \<beta>) sc zc' =
+    (\<exists>xf.
+      F (xf, snd (fst sc)) \<and>
+      fst (fst sc) ## xf \<and>
+      (\<exists>mxf'.
+        popstep \<beta> ((fst (fst sc) + xf, snd (fst sc)), snd sc) (mxf', snd zc') \<and>
+        ((\<exists>xl' xs'.
+          xl' ## xf \<and>
+          mxf' = Inl (xl' + xf, xs') \<and>
+          F (xf, xs') \<and>
+          fst zc' = Inl (xl', xs')) \<or>
+        (mxf' = Inr () \<and> fst zc' = Inr ()))))\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)+
 
 lemma estepE[elim]:
-  \<open>estep r \<gamma> sc zc' \<Longrightarrow>
-    (\<And>hl hs c hs'.
-        \<gamma> = Env \<Longrightarrow> sc = ((hl, hs), c) \<Longrightarrow> zc' = (Inl (hl, hs'), c) \<Longrightarrow> r hs hs' \<Longrightarrow> P) \<Longrightarrow>
-    (\<And>\<beta>. \<gamma> = Loc \<beta> \<Longrightarrow> popstep \<beta> sc zc' \<Longrightarrow> P) \<Longrightarrow>
+  \<open>estep r F \<gamma> sc zc' \<Longrightarrow>
+    (\<And>xl xs c xs' xf xf'.
+      sc = ((xl, xs), c) \<Longrightarrow>
+      zc' = (Inl (xl, xs'), c) \<Longrightarrow>
+      r xs xs' \<Longrightarrow>
+      F (xf, xs) \<Longrightarrow>
+      xl ## xf \<Longrightarrow>
+      F (xf', xs') \<Longrightarrow>
+      xl ## xf' \<Longrightarrow>
+      P) \<Longrightarrow>
+    (\<And>\<beta> xl xs c mx' c' xf mxf'.
+      \<gamma> = Loc \<beta> \<Longrightarrow>
+      sc = ((xl,xs),c) \<Longrightarrow>
+      zc' = (mx',c') \<Longrightarrow>
+      F (xf, xs) \<Longrightarrow>
+      xl ## xf \<Longrightarrow>
+      popstep \<beta> ((xl + xf,xs),c) (mxf', c') \<and>
+      (\<exists>xl' xlf' xs'.
+        mxf' = Inl (xlf', xs') \<and>
+        F (xf, xs') \<and>
+        xl' ## xf \<and>
+        xlf' = xl' + xf \<and>
+        mx' = Inl (xl', xs')) \<or>
+      (mxf' = Inr () \<and> mx' = Inr()) \<Longrightarrow>
+      P) \<Longrightarrow>
     P\<close>
-  by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
+  by (cases sc, cases zc', cases \<gamma>; force)
+
 
 lemma estep_def':
-  \<open>estep r \<gamma> sc zc' \<longleftrightarrow>
-    \<gamma> = Env \<and> (\<exists>sl ss c ss'. sc = ((sl, ss), c) \<and> zc' = (Inl (sl, ss'), c) \<and> r ss ss') \<or>
-    (\<exists>\<beta>. \<gamma> = Loc \<beta> \<and> sc \<midarrow>\<beta>\<rightarrow>\<^sub>p zc')\<close>
+  \<open>estep r F \<gamma> sc zc' \<longleftrightarrow>
+    \<gamma> = Env \<and>
+      snd zc' = snd sc \<and>
+      (\<exists>xs'.
+        fst zc' = Inl (fst (fst sc), xs') \<and>
+        r (snd (fst sc)) xs' \<and>
+        (\<exists>xf. F (xf, snd (fst sc)) \<and> fst (fst sc) ## xf) \<and>
+        (\<exists>xf'. F (xf', xs') \<and> fst (fst sc) ## xf')) \<or>
+    (\<exists>\<beta>. \<gamma> = Loc \<beta> \<and>
+      (\<exists>xf.
+      F (xf, snd (fst sc)) \<and>
+      fst (fst sc) ## xf \<and>
+      (\<exists>mxf'.
+        popstep \<beta> ((fst (fst sc) + xf, snd (fst sc)), snd sc) (mxf', snd zc') \<and>
+        ((\<exists>xl' xs'.
+          xl' ## xf \<and>
+          mxf' = Inl (xl' + xf, xs') \<and>
+          F (xf, xs') \<and>
+          fst zc' = Inl (xl', xs')) \<or>
+        (mxf' = Inr () \<and> fst zc' = Inr ())))))\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
 
 lemma estep_skip_iff[simp]:
-  \<open>estep r \<gamma> (s, Skip) zc' \<longleftrightarrow> 
-    \<gamma> = Env \<and> (\<exists>hl hs hs'. s = (hl, hs) \<and> zc' = (Inl (hl, hs'), Skip) \<and> r hs hs')\<close>
+  \<open>estep r F \<gamma> (s, Skip) zc' \<longleftrightarrow> 
+    \<gamma> = Env \<and>
+    (\<exists>xs'.
+      zc' = (Inl (fst s, xs'), Skip) \<and>
+      fst zc' = Inl (fst s, xs') \<and>
+      r (snd s) xs' \<and>
+      (\<exists>xf. F (xf, snd s) \<and> fst s ## xf) \<and>
+      (\<exists>xf'. F (xf', xs') \<and> fst s ## xf'))\<close>
   by (force simp add: estep_def rel3_merge_def split: sum.splits unit.splits prod.splits)
 
 lemma estep_then_estep_right_par:
-  \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
-    (s, c \<parallel> cb) \<midarrow>r, map_sum id PL \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<parallel> cb)\<close>
+  \<open>(s, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
+    (s, c \<parallel> cb) \<midarrow>r, F, map_sum id PL \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<parallel> cb)\<close>
   unfolding estep_def rel3_merge_def
   by (clarsimp split: sum.splits unit.splits prod.splits)
 
 lemma estep_then_estep_left_par:
-  \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
-    (s, ca \<parallel> c) \<midarrow>r, map_sum id PR \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<parallel> c')\<close>
+  \<open>(s, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
+    (s, ca \<parallel> c) \<midarrow>r, F, map_sum id PR \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<parallel> c')\<close>
   unfolding estep_def rel3_merge_def
   by (clarsimp split: sum.splits unit.splits prod.splits)
 
 lemma estep_then_estep_right_endet:
-  \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
-    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)) \<and>
+  \<open>(s, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
+    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, c \<box> cb) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)) \<and>
     (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow>
-      (vis_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
-      (tau_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)))\<close>
+      (vis_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
+      (tau_pact \<beta> \<longrightarrow> (s, c \<box> cb) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' \<box> cb)))\<close>
   unfolding estep_def rel3_merge_def
   by (force split: sum.splits unit.splits prod.splits simp add: vis_pact_def tau_pact_def)
 
 lemma estep_then_estep_left_endet:
-  \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
-    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')) \<and>
+  \<open>(s, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
+    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, ca \<box> c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')) \<and>
     (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow>
-      (vis_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
-      (tau_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')))\<close>
+      (vis_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c')) \<and>
+      (tau_pact \<beta> \<longrightarrow> (s, ca \<box> c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', ca \<box> c')))\<close>
   unfolding estep_def rel3_merge_def
   by (force split: sum.splits unit.splits prod.splits simp add: vis_pact_def tau_pact_def)
 
 lemma estep_then_estep_doloop:
-  \<open>(s, c) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
-    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, DO c OD) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', DO c' OD)) \<and>
-    (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow> (s, DO c OD) \<midarrow>r, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' ;; DO c OD))\<close>
+  \<open>(s, c) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c') \<Longrightarrow>
+    (\<forall>\<beta>. \<gamma> = Env \<longrightarrow> (s, DO c OD) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', DO c' OD)) \<and>
+    (\<forall>\<beta>. \<gamma> = Loc \<beta> \<longrightarrow> (s, DO c OD) \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e (Inl s', c' ;; DO c OD))\<close>
   unfolding estep_def rel3_merge_def
   apply (clarsimp split: sum.splits unit.splits prod.splits)
   apply (drule popstep_then_popstep_doloopD, fast, fast)
@@ -812,21 +890,21 @@ lemma estep_then_estep_doloop:
 
 subsection \<open> Extended steps \<close>
 
-inductive esteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> where
-  \<open>c' = c \<Longrightarrow> z' = Inl s \<Longrightarrow> esteps r [] (s, c) (z', c')\<close>
+inductive esteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> where
+  \<open>c' = c \<Longrightarrow> z' = Inl s \<Longrightarrow> esteps r F [] (s, c) (z', c')\<close>
 | \<open>((\<exists>s' c'.
-        estep r \<gamma> (s, c) (Inl s', c') \<and>
-        esteps r \<gamma>s (s', c') (z'', c'')) \<or>
-      (estep r \<gamma> (s, c) (Inr (), c'') \<and> z'' = Inr () \<and> \<gamma>s = [])) \<Longrightarrow>
-    esteps r (\<gamma> # \<gamma>s) (s, c) (z'', c'')\<close>
+        estep r F \<gamma> (s, c) (Inl s', c') \<and>
+        esteps r F \<gamma>s (s', c') (z'', c'')) \<or>
+      (estep r F \<gamma> (s, c) (Inr (), c'') \<and> z'' = Inr () \<and> \<gamma>s = [])) \<Longrightarrow>
+    esteps r F (\<gamma> # \<gamma>s) (s, c) (z'', c'')\<close>
 
-inductive_cases esteps_nilE[elim!]: \<open>esteps r [] sc zc'\<close>
-inductive_cases esteps_consE[elim]: \<open>esteps r (\<gamma> # \<gamma>s) sc zc'\<close>
+inductive_cases esteps_nilE[elim!]: \<open>esteps r F [] sc zc'\<close>
+inductive_cases esteps_consE[elim]: \<open>esteps r F (\<gamma> # \<gamma>s) sc zc'\<close>
 
-abbreviation esteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ \<midarrow>_, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [50, 0, 0, 50])
+abbreviation esteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [50, 0, 0, 50])
   where
-    \<open>sc \<midarrow>r, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* zc' \<equiv> esteps r \<gamma>s sc zc'\<close>
+    \<open>sc \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* zc' \<equiv> esteps r F \<gamma>s sc zc'\<close>
 
 
 section \<open> (Strong) Non-interference \<close>
@@ -1240,9 +1318,8 @@ theorem determ_double_exec_then_safe_state:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC' c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>(((=) (sx, sy) \<circ> exch4) \<^emph>\<and> FF) (exch4 (sfx, sfy))\<close>
-    \<open>(sfx, c) \<midarrow>rx, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfx', cx')\<close>
-    \<open>(sfy, c) \<midarrow>ry, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sfy', cy')\<close>
+    \<open>(sx, c) \<midarrow>rx, Fx, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>ry, Fy, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* (Inl sy', cy')\<close>
     \<open>length \<gamma>s < n\<close>
     \<open>pred_executions
       (\<lambda>(s, c).
@@ -1254,12 +1331,17 @@ theorem determ_double_exec_then_safe_state:
     \<open>rely_obs_safe \<oo> r\<close>
     \<comment> \<open> does an RG sec. logic need relational Rs and Gs? \<close>
     \<open>rx \<times>\<^sub>R ry \<le> rr\<close>
-    \<open>\<And>ss ss' hf. rr ss ss' \<Longrightarrow> FF (hf, ss) \<Longrightarrow> \<exists>fx fy. FF ((fx,fy), ss')\<close>
+    \<open>Fx \<times>\<^sub>P Fy \<le> FF \<circ> exch4\<close>
+    \<open>\<And>zs zs' zl zf. rr zs zs' \<Longrightarrow>
+      SS (zl, zs) \<Longrightarrow>
+      FF (zf, zs) \<Longrightarrow>
+      zl ## zf \<Longrightarrow>
+      \<exists>zf'. FF (zf', zs') \<and> zl ## zf'\<close>
     \<open>\<And>ss ss' hf. gg ss ss' \<Longrightarrow> FF (hf, ss) \<Longrightarrow> FF (hf, ss')\<close>
   shows
-    \<open>(SS \<^emph>\<and> FF) (exch4 (sfx', sfy'))\<close>
+    \<open>SS (sfx', sfy')\<close>
   using inductive_assms
-proof (induct n arbitrary: cc zz c sx sy sfx sfy \<gamma>s sfx' sfy' cx' cy')
+proof (induct n arbitrary: cc zz c sx sy \<gamma>s sfx' sfy' cx' cy')
   case 0
   then show ?case
     by (clarsimp simp add: le_fun_def)
@@ -1333,16 +1415,17 @@ next
       prefer 2
       apply (cut_tac noninductive_assms(3))
       apply (simp add: le_fun_def; fail)
-     apply (frule noninductive_assms(4), fast)
+     apply (frule noninductive_assms(4), fast, fast, force)
      apply clarsimp
      apply (rename_tac fx' fy')
      apply (drule_tac sx=\<open>(sxl, sx')\<close> and sy=\<open>(syl, sy')\<close>
-        and sfx=\<open>(sxl + fx, _)\<close> and sfy=\<open>(syl + fy, _)\<close> in Suc.hyps, fast, (simp; fail))
+        and sfx=\<open>(sxl + fx', _)\<close> and sfy=\<open>(syl + fy', _)\<close> in Suc.hyps, fast, (simp; fail))
           apply (simp add: comp_def exch4_def, rule sepconj_conjI)
              apply (simp split: prod.splits, blast)
-            apply blast
-           apply clarsimp
-    sledgehammer
+            apply force
+           apply force
+          apply force
+
     sorry
            apply force
           apply force
