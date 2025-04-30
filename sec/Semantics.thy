@@ -614,6 +614,14 @@ datatype 'a eact =
   | Crash 'a
   | Loc 'a
 
+lemma eact_eq_iff[simp]:
+  \<open>Env = Crash a \<longleftrightarrow> False\<close>
+  \<open>Crash a = Env \<longleftrightarrow> False\<close>
+  \<open>Loc a = Crash b \<longleftrightarrow> False\<close>
+  \<open>Crash a = Loc b \<longleftrightarrow> False\<close>
+  by force+
+
+
 definition
   \<open>estep r F \<equiv>
     \<lambda>\<beta>. case \<beta> of Env \<Rightarrow>
@@ -831,29 +839,28 @@ inductive dstep
         _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   where
   \<open>rr (sx,sy) (sx',sy') \<Longrightarrow>
-    dstep rr FF (Env, Env) (((lx,sx),cx), ((ly,sy),cy)) ((Inl (lx, sx'),cx), (Inl (ly,sy'),cy))\<close>
-| \<open>(\<exists>fx fy.
-      FF ((fx,fy),(sx,sy)) \<and>
-      lx ## fx \<and> ly ## fy \<and>
-      (\<exists>zfx' zfy'.
-        popstep \<beta> ((lx+fx,sx),cx) (zfx', cx') \<and>
-        popstep \<beta> ((ly+fy,sy),cy) (zfy', cy') \<and>
-        (\<exists>lx' sx' ly' sy'.
-            zfx' = Inl (lx' + fx, sx') \<and>
-            lx' ## fx \<and>
-            zx' = Inl (lx', sx') \<and>
-            zfy' = Inl (ly' + fy, sy') \<and>
-            ly' ## fy \<and>
-            zy' = Inl (ly', sy') \<and>
-            FF ((fx,fy), (sx',sy'))))) \<Longrightarrow>
-    dstep rr FF (Loc \<beta>, Loc \<beta>) (((lx,sx),cx), ((ly,sy),cy)) ((zx',cx'), (zy',cy'))\<close>
-| \<open>(\<exists>fx fy.
-      FF ((fx,fy),(sx,sy)) \<and>
-      lx ## fx \<and> ly ## fy \<and>
-      popstep \<beta>x ((lx+fx,sx),cx) (Inr (), cx') \<and>
-      popstep \<beta>y ((ly+fy,sy),cy) (Inr (), cy') \<and>
-      zx' = Inr () \<and>
-      zy' = Inr ()) \<Longrightarrow> dstep rr FF (Crash \<beta>x, Crash \<beta>y) (((lx,sx),cx), ((ly,sy),cy)) ((zx',cx'), (zy',cy'))\<close>
+    dstep rr FF (Env, Env)
+      (((lx,sx),cx), ((ly,sy),cy))
+      ((Inl (lx, sx'),cx), (Inl (ly,sy'),cy))\<close>
+| \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
+    lx ## fx \<Longrightarrow>
+    ly ## fy \<Longrightarrow>
+    popstep \<beta>x ((lx+fx,sx),cx) (Inl (lx' + fx, sx'), cx') \<Longrightarrow>
+    popstep \<beta>y ((ly+fy,sy),cy) (Inl (ly' + fy, sy'), cy') \<Longrightarrow>
+    lx' ## fx \<Longrightarrow>
+    ly' ## fy \<Longrightarrow>
+    FF ((fx,fy), (sx',sy')) \<Longrightarrow>
+    dstep rr FF (Loc \<beta>x, Loc \<beta>y)
+      (((lx,sx),cx), ((ly,sy),cy))
+      ((Inl (lx', sx'),cx'), (Inl (ly', sy'),cy'))\<close>
+| \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
+    lx ## fx \<Longrightarrow>
+    ly ## fy \<Longrightarrow>
+    popstep \<beta>x ((lx+fx,sx),cx) (Inr (), cx') \<Longrightarrow>
+    popstep \<beta>y ((ly+fy,sy),cy) (Inr (), cy') \<Longrightarrow>
+    dstep rr FF (Crash \<beta>x, Crash \<beta>y)
+      (((lx,sx),cx), ((ly,sy),cy))
+      ((Inr (),cx'), (Inr (),cy'))\<close>
 
 inductive_cases dstep_EnvEnvE[elim!]: \<open>dstep rr FF (Env, Env) ss zz'\<close>
 inductive_cases dstep_LocLocE[elim!]: \<open>dstep rr FF (Loc \<beta>x, Loc \<beta>y) ss zz'\<close>
@@ -1325,12 +1332,6 @@ lemma etrace_equiv_crash_right_eq[simp]:
     (\<exists>x xs'. xs = x # xs' \<and> (x = Loc \<beta> \<or> x = Crash \<beta> \<and> xs' = []))\<close>
   by (cases \<open>(xs, [Crash \<beta>])\<close> rule: etrace_equiv.cases; simp) (force split: eact.splits)+
 
-lemma eact_eq_iff[simp]:
-  \<open>Env = Crash a \<longleftrightarrow> False\<close>
-  \<open>Crash a = Env \<longleftrightarrow> False\<close>
-  \<open>Loc a = Crash b \<longleftrightarrow> False\<close>
-  \<open>Crash a = Loc b \<longleftrightarrow> False\<close>
-  by force+
 
 text \<open> Double execution aggregation lemma \<close>
 theorem determ_double_exec_then_safe_state:
@@ -1346,25 +1347,11 @@ theorem determ_double_exec_then_safe_state:
     \<open>((sx, c), (sy, c)) =rr, FF, \<gamma>\<gamma>s\<Rightarrow>\<^sup>* ((msx', cx'), (msy', cy'))\<close>
     \<open>length \<gamma>\<gamma>s < n\<close>
     \<open>pred_executions
-      (\<lambda>(s, c).
-        (determ_steps SS rr (unliftC c) \<circ> exch4) s \<and>
-        (sec_head_determ (unliftC c) \<circ> exch4) s)
+      (\<lambda>(s, c). (=) s \<^emph>\<and> FF \<le> (sec_head_determ (unliftC c) \<circ> exch4))
       FF rr cc zz n\<close>
   and noninductive_assms:
-    \<open>\<forall>xl xs yl ys. FF ((xl, yl), (xs, ys)) \<longrightarrow> cancellative xl \<and> cancellative yl\<close>
-    \<open>rely_obs_safe \<oo> r\<close>
-    \<comment> \<open> does an RG sec. logic need relational Rs and Gs? \<close>
-    \<open>rx \<times>\<^sub>R ry \<le> rr\<close>
-    \<open>Fx \<times>\<^sub>P Fy \<le> FF \<circ> exch4\<close>
-    \<open>\<And>zs zs' zl zf.
-      rr zs zs' \<Longrightarrow>
-      SS (zl, zs) \<Longrightarrow>
-      FF (zf, zs) \<Longrightarrow>
-      zl ## zf \<Longrightarrow>
-      \<exists>zf'. FF (zf', zs') \<and> zl ## zf'\<close>
-(*
-    \<open>\<And>ss ss' hf. gg ss ss' \<Longrightarrow> FF (hf, ss) \<Longrightarrow> FF (hf, ss')\<close>
-*)
+    \<open>\<forall>l s. FF (l, s) \<longrightarrow> (cancellative \<times>\<^sub>P cancellative) l\<close>
+    \<comment> \<open>rely_obs_safe \<oo> r\<close> \<comment> \<open> we don't need this because rr is inherently declassifying \<close>
   shows
     \<open>cx' = cy' \<and> (\<exists>sx' sy'. msx' = Inl sx' \<and> msy' = Inl sy' \<and> SS (exch4 (sx', sy')))\<close>
   using inductive_assms
@@ -1375,49 +1362,13 @@ proof (induct n arbitrary: cc zz c sx sy \<gamma>\<gamma>s cx' cy')
 next
   case (Suc n)
 
-  have state_pred: \<open>\<forall>ss. zz = Inl ss \<longrightarrow> SS ss\<close>
-    using Suc.prems(1)
-    by (clarsimp simp add: safe_suc_iff)
-
   obtain sxl sxs where sx_split: \<open>sx = (sxl, sxs)\<close>
     by fastforce
   obtain syl sys where sy_split: \<open>sy = (syl, sys)\<close>
     by fastforce
 
-  have safe_suc_conseq:
-    \<open>cc = Skip \<longrightarrow> qq ((sxl, syl), (sxs, sys))\<close>
-    \<open>SS ((sxl, syl), (sxs, sys))\<close>
-    \<open>\<And>hs'. rr (sxs, sys) hs' \<Longrightarrow> safe n cc (Inl ((sxl, syl), hs')) rr gg qq SS FF\<close>
-    \<open>\<And>\<alpha> z' c' fx fy.
-      (((sxl + fx, syl + fy), (sxs, sys)), liftC c) \<midarrow>\<alpha>\<rightarrow> (z', c') \<Longrightarrow>
-      sxl ## fx \<Longrightarrow>
-      syl ## fy \<Longrightarrow>
-      FF ((fx, fy), (sxs, sys)) \<Longrightarrow>
-      (\<exists>hlx' hly' hs'.
-        hlx' ## fx \<and>
-        hly' ## fy \<and>
-        z' = Inl ((hlx' + fx, hly' + fy), hs') \<and>
-        (\<alpha> \<noteq> Tau \<longrightarrow> gg (sxs, sys) hs') \<and>
-        (\<alpha> = Tau \<longrightarrow> hlx' = sxl \<and> hly' = syl) \<and>
-        safe n c' (Inl ((hlx', hly'), hs')) rr gg qq SS FF)\<close>
-    using Suc.prems sx_split sy_split
-       apply -
-       apply (simp add: safe_suc_iff)+
-     apply force
-    apply (clarsimp simp add: safe_suc_iff)
-    apply (drule spec2, drule spec2, drule spec, drule mp, (rule conjI; assumption))
-    apply blast
-    done
-
-  have sepimp_conj_helper:
-    \<open>\<And>P xl yl xs ys xf yf.
-        (FF \<midarrow>\<^emph>\<^sub>\<and> P) ((xl, yl), (xs, ys)) \<Longrightarrow>
-        FF ((xf, yf), (xs, ys)) \<Longrightarrow> xl ## xf \<Longrightarrow> yl ## yf \<Longrightarrow>
-        P ((xl + xf, yl + yf), (xs, ys))\<close>
-    by (simp add: sepimp_conj_def noninductive_assms)
-
   show ?case
-    using Suc.prems safe_suc_conseq(1,2) sx_split sy_split
+    using Suc.prems sx_split sy_split
     apply (clarsimp simp add: liftC_rev_iff simp del: comp_apply)
     apply (erule dsteps.cases, force)
     apply (clarsimp simp del: comp_apply)
@@ -1431,73 +1382,48 @@ next
          apply (simp; fail)
         apply (simp; fail)
        apply (simp; fail)
-      apply (simp add: pred_executions_suc_iff; fail)
+      apply (clarsimp simp add: pred_executions_suc_iff)
+      apply (metis (no_types, lifting) ext comp_apply)
      apply (simp; fail)
       (* Local *)
-    apply (rename_tac lx sx ly sy \<gamma>\<gamma>s' \<beta> cx' fx fy)
+    apply (rename_tac sx' c' ly' sy' \<gamma>\<gamma>s' fx fy \<beta>x lx' \<beta>y)
     apply (clarsimp simp add: safe_suc_iff)
-    apply (frule(1) double_stepI[where sxs=sxs and sys=sys])
+    apply (subgoal_tac \<open>\<beta>y = \<beta>x\<close>)
+     prefer 2 (* TODO: not true *)
     subgoal sorry
-    apply (drule_tac x=\<open>strip_pact \<beta>\<close> in spec, drule spec2, drule spec2,
+    apply clarsimp
+    apply (frule(1) double_stepI[where sxs=sxs and sys=sys])
+     apply (clarsimp simp add: pred_executions_suc_iff le_fun_def sepconj_conjI; fail)
+    apply (drule_tac x=\<open>strip_pact \<beta>x\<close> in spec, drule spec2, drule spec2,
         drule mp, (rule conjI; assumption))
     apply (drule mp, rule strip_popstep, assumption)
     apply clarsimp
-    apply (rename_tac lx2 ly2)
-    apply (subgoal_tac \<open>lx2 = lx \<and> ly2 = ly\<close>)
+    apply (rename_tac lx'2 ly'2)
+    apply (subgoal_tac \<open>lx'2 = lx' \<and> ly'2 = ly'\<close>)
      prefer 2
-     apply (metis cancellativeD noninductive_assms(1))
+     apply (cut_tac noninductive_assms(1))
+     apply (simp add: pred_Times_def)
+     apply (metis cancellativeD)
     apply (clarify, simp)
-
-     apply (drule Suc.hyps)
-    apply (clarsimp simp add: pred_executions_suc_iff)
-    apply (simp add: determ_steps_apply)
-
-     apply (drule mp, rule sepconj_conjI)
-         apply blast
-        apply blast
+    apply (drule Suc.hyps)
+         apply (simp add: exch4_def; fail)
+        apply (simp; fail)
        apply (simp; fail)
       apply (simp; fail)
-     apply (case_tac \<open>strip_pact \<beta>\<close>)
-      (* FIXME: not true! *)
-    subgoal sorry
-     apply (simp add: vis_pact_unit_def[symmetric])
-     apply (drule spec, drule mp, assumption)
-     apply (drule spec2, drule spec, drule mp[of \<open>popstep _ _ _\<close>], force)
-     apply (drule spec2, drule spec, drule mp[of \<open>popstep _ _ _\<close>], force)
-     apply blast
-    apply clarsimp
-    apply (frule_tac sxs=sxs and sys=sys in double_stepI, assumption)
-     apply (drule sepimp_conj_helper, blast, blast, blast)
-     apply (drule sepimp_conj_helper, blast, blast, blast)
-     apply (force simp add: comp_def)
-    apply (rename_tac flx fly \<beta>)
-    apply (frule_tac sc=\<open>((_, (sxs, sys)), liftC c)\<close> in strip_popstep)
-    apply (frule_tac safe_suc_conseq(4), blast, blast, blast)
-    apply clarsimp
-    apply (drule spec2, drule spec2, drule spec2, drule spec2, drule mp,
-        (rule conjI; blast), drule mp, assumption)
-    apply (drule mp[of \<open>FF _ \<close>], (simp add: noninductive_assms; fail))
-    apply clarsimp
-    apply (rename_tac hlx'2 hly'2)
-    apply (subgoal_tac \<open>hlx'2 = hlx' \<and> hly'2 = hly'\<close>)
-     prefer 2
-     apply (metis cancellativeD noninductive_assms(1))
-    apply clarify
-    apply simp
-    apply (frule_tac sx=\<open>(hlx', sx')\<close> and sy=\<open>(hly', sy')\<close>
-        and sfx=\<open>(hlx' + flx, _)\<close> and sfy=\<open>(hly' + fly, _)\<close> in Suc.hyps, fast, (simp; fail))
-         apply (clarsimp simp add: exch4_def)
-         apply (rule_tac b=\<open>(flx,fly)\<close> in sepconj_conjI)
-            apply (simp split: prod.splits, blast)
-      (* TODO: frame preservation after opstep *)
-    subgoal sorry
-          apply (simp; fail)
-         apply (simp; fail)
-        apply blast
-       apply blast
-      apply blast
-     apply blast
-    apply blast
+     apply (clarsimp simp add: pred_executions_suc_iff)
+     apply (drule spec2, drule spec2, drule spec2, drule spec2,
+        drule mp, (rule conjI; assumption))
+     apply (drule mp, rule strip_popstep, assumption)
+     apply clarsimp
+     apply (rename_tac lx'2 ly'2)
+     apply (subgoal_tac \<open>lx'2 = lx' \<and> ly'2 = ly'\<close>)
+      prefer 2
+      apply (cut_tac noninductive_assms(1))
+      apply (simp add: pred_Times_def)
+      apply (metis cancellativeD)
+     apply (clarify, simp)
+     apply (simp add: le_fun_def; fail)
+    apply force
     done
 qed
 
