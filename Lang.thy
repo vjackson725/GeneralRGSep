@@ -197,6 +197,17 @@ lemma less_comm_simps_right[simp]:
   \<open>c < DO cx OD \<longleftrightarrow> c \<le> cx\<close>
   by (simp add: less_comm_def less_eq_comm_def)+
 
+lemma less_eq_comm_leftD:
+  \<open>ca ;; cb \<le> c \<Longrightarrow> ca \<le> c\<close>
+  \<open>ca ;; cb \<le> c \<Longrightarrow> cb \<le> c\<close>
+  \<open>ca \<parallel> cb \<le> c \<Longrightarrow> ca \<le> c\<close>
+  \<open>ca \<parallel> cb \<le> c \<Longrightarrow> cb \<le> c\<close>
+  \<open>ca \<^bold>+ cb \<le> c \<Longrightarrow> ca \<le> c\<close>
+  \<open>ca \<^bold>+ cb \<le> c \<Longrightarrow> cb \<le> c\<close>
+  \<open>ca \<box> cb \<le> c \<Longrightarrow> ca \<le> c\<close>
+  \<open>ca \<box> cb \<le> c \<Longrightarrow> cb \<le> c\<close>
+  \<open>DO cx OD \<le> c \<Longrightarrow> cx \<le> c\<close>
+  by (meson order.refl order.trans less_eq_comm_simps_right; fail)+
 
 subsection \<open> All Atoms \<close>
 
