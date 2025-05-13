@@ -396,4 +396,45 @@ lemma rgsat_while_stable:
 *)
   sorry
 
+
+subsection \<open> Atom Variants \<close>
+
+text \<open>
+  For atom, when we use the frame, one might question whether we wish to select \<^emph>\<open>all\<close> subpredicates
+  of the frame predicate, or merely each frame in the frame predicate individually. Perhaps
+  surprisingly, these two variants turn out to be the same.
+\<close>
+
+lemma rgsat_variant_atom:
+    \<open>(\<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap)
+      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> wssa r p \<^emph>\<and> (=) f \<le> ap)\<close>
+    \<open>(\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f)
+      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> sp aq (wssa r p \<^emph>\<and> (=) f) \<le> q \<^emph>\<and> (=) f)\<close>
+    \<open>(\<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)
+      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> rel_liftL (wssa r p \<^emph>\<and> (=) f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
+     apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis)
+    apply (rule order.antisym)
+     apply (clarsimp simp add: le_fun_def; fail)
+    apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_ex_conjL imp_conjL, blast)
+   apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis (full_types))
+  done
+
+text \<open>
+  However, framing only by the frame predicate is not equivalent for every case,
+  though it is equivalent in two.
+\<close>
+lemma rgsat_variant_atom2_equivs:
+    \<open>(wssa r p \<^emph>\<and> F \<le> ap) \<longleftrightarrow> (\<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap)\<close>
+    \<open>(\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longrightarrow> (sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> F)\<close>
+    \<open>(rel_liftL (wssa r p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow> (\<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
+    apply (clarsimp simp add: le_fun_def sepconj_conj_def, blast)
+   apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_conjL imp_ex_conjL; fail)
+  apply (rule order.antisym; simp add: le_fun_def sepconj_conj_def imp_conjL imp_ex_conjL; metis)
+  done
+
+lemma rgsat_variant_atom2_nequiv:
+  \<open>(sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> F) \<longrightarrow> (\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f)\<close>
+  nitpick[card 'a=1, card 'b=2]
+  oops
+
 end

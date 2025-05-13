@@ -587,6 +587,10 @@ lemma popstep_aact_cases:
   unfolding vis_aact_def tau_aact_def
   using not_vis_aact_iff popstep_tau_preserves_state tau_aact_def vis_aact_unit_def by blast
 
+lemma popstep_no_new_atoms:
+  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>p (ms', c') \<Longrightarrow> all_atoms c' \<subseteq> all_atoms c\<close>
+  by (induct c arbitrary: \<alpha> c') (fastforce split: if_splits)+
+
 
 subsubsection \<open> Self-popstep Impossible \<close>
 
@@ -724,16 +728,16 @@ section \<open> Extended step \<close>
 datatype 'a eact =
   Env
   | Crash 'a
-  | Loc 'a
+  | Loc \<open>'a list\<close>
 
 lemma eact_eq_iff[simp]:
-  \<open>Env = Crash a \<longleftrightarrow> False\<close>
-  \<open>Crash a = Env \<longleftrightarrow> False\<close>
-  \<open>Loc a = Crash b \<longleftrightarrow> False\<close>
-  \<open>Crash a = Loc b \<longleftrightarrow> False\<close>
+  \<open>Env = Crash ac \<longleftrightarrow> False\<close>
+  \<open>Crash ac = Env \<longleftrightarrow> False\<close>
+  \<open>Loc \<rho> = Crash ac \<longleftrightarrow> False\<close>
+  \<open>Crash ac = Loc \<rho> \<longleftrightarrow> False\<close>
   by force+
 
-
+(*
 definition
   \<open>estep r F \<equiv>
     \<lambda>\<beta>. case \<beta> of Env \<Rightarrow>
@@ -744,13 +748,13 @@ definition
           r xs xs' \<and>
           (\<exists>xf. F (xf, xs) \<and> xl ## xf) \<and>
           (\<exists>xf'. F (xf', xs') \<and> xl ## xf')))
-      | Loc \<beta> \<Rightarrow>
+      | Loc \<rho> \<Rightarrow>
         (\<lambda>((xl,xs),c) (mx',c').
           \<exists>xf.
             F (xf, xs) \<and>
             xl ## xf \<and>
             (\<exists>mxf'.
-              popstep \<beta> ((xl + xf,xs),c) (mxf', c') \<and>
+              popsteps \<rho> ((xl + xf,xs),c) (mxf', c') \<and>
               (\<exists>xl' xlf' xs'.
                 mxf' = Inl (xlf', xs') \<and>
                 F (xf, xs') \<and>
@@ -770,7 +774,7 @@ paragraph \<open> Pretty extended extended opsem \<close>
 abbreviation pretty_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>(_, _, _)\<rightarrow>\<^sub>e _\<close> [60,0,0,0,60] 60) where
   \<open>sc \<midarrow>r, F, \<gamma>\<rightarrow>\<^sub>e zc' \<equiv> estep r F \<gamma> sc zc'\<close>
 
-abbreviation pretty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>e\<close> [60, 0, 0] 60) where
+abbreviation prsetty_no_estep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _, |\<rightarrow>\<^sub>e\<close> [60, 0, 0] 60) where
   \<open>sc \<midarrow>r, F, |\<rightarrow>\<^sub>e \<equiv> \<forall>\<gamma> zc'. \<not> estep r F \<gamma> sc zc'\<close>
 
 
@@ -936,6 +940,7 @@ abbreviation esteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightar
   (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [50, 0, 0, 50])
   where
     \<open>sc \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* zc' \<equiv> esteps r F \<gamma>s sc zc'\<close>
+*)
 
 
 section \<open> Double Step \<close>
@@ -944,70 +949,36 @@ inductive dstep
   :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
         (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
       (('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool) \<Rightarrow>
-        _ eact list \<times> _ eact list \<Rightarrow>
-        _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+        _ eact \<times> _ eact \<Rightarrow>
+        (('l \<times> 's) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's) \<times> ('l \<times> 's) comm) \<Rightarrow>
+        (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<Rightarrow> bool\<close>
   where
   dstep_env:
     \<open>RR (sx,sy) (sx',sy') \<Longrightarrow>
       CC cx cy \<Longrightarrow>
-      dstep RR FF CC ([Env], [Env])
+      dstep RR FF CC (Env, Env)
         (((lx,sx),cx), ((ly,sy),cy))
         ((Inl (lx, sx'),cx), (Inl (ly,sy'),cy))\<close>
-| dstep_tau_left:
-  \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    lx ## fx \<Longrightarrow>
-    popstep \<beta>x ((lx+fx,sx),cx) (Inl (lx'+fx,sx'),cx') \<Longrightarrow>
-    simple_tau_aact \<beta>x \<Longrightarrow>
-    dstep RR FF CC ([Loc \<beta>x], [])
-      (((lx,sx),cx), ((ly,sy),cy))
-      ((Inl (lx', sx'),cx'), (Inl (ly, sy),cy))\<close>
-| dstep_tau_right:
-  \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    ly ## fy \<Longrightarrow>
-    popstep \<beta>y ((ly+fy,sy),cy) (Inl (ly'+fy,sy'),cy') \<Longrightarrow>
-    simple_tau_aact \<beta>y \<Longrightarrow>
-    dstep RR FF CC ([], [Loc \<beta>y])
-      (((lx,sx),cx), ((ly,sy),cy))
-      ((Inl (lx, sx),cx), (Inl (ly',sy'),cy'))\<close>
-| dstep_vis:
+| dstep_local:
   \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
     CC cx cy \<Longrightarrow>
     \<comment> \<open> left steps \<close>
     lx ## fx \<Longrightarrow>
-    popstep \<beta>x ((lx+fx,sx),cx) (Inl (lx'+fx,sx'),cx') \<Longrightarrow>
-    \<not> simple_tau_aact \<beta>y \<Longrightarrow>
+    popsteps \<rho>x ((lx+fx,sx),cx) (Inl (lx'+fx,sx'),cx') \<Longrightarrow>
     \<comment> \<open> right steps \<close>
     ly ## fy \<Longrightarrow>
-    popstep \<beta>y ((ly+fy,sy),cy') (Inl (ly'+fy,sy'),cy') \<Longrightarrow>
-    \<not> simple_tau_aact \<beta>y \<Longrightarrow>
-    dstep RR FF CC ([Loc \<beta>x], [Loc \<beta>y])
+    popsteps \<rho>y ((ly+fy,sy),cy) (Inl (ly'+fy,sy'),cy') \<Longrightarrow>
+    \<rho>x \<noteq> [] \<or> \<rho>y \<noteq> [] \<Longrightarrow>
+    dstep RR FF CC (Loc \<rho>x, Loc \<rho>y)
       (((lx,sx),cx), ((ly,sy),cy))
       ((Inl (lx',sx'), cx'), (Inl (ly',sy'), cy'))\<close>
-| dstep_crash:
-  \<open>FF ((fx,fy),(sx,sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    lx ## fx \<Longrightarrow>
-    ly ## fy \<Longrightarrow>
-    popstep \<beta>x ((lx+fx,sx),cx) (Inr (), cx') \<Longrightarrow>
-    popstep \<beta>y ((ly+fy,sy),cy) (Inr (), cy') \<Longrightarrow>
-    dstep RR FF CC ([Crash \<beta>x], [Crash \<beta>y])
-      (((lx,sx),cx), ((ly,sy),cy))
-      ((Inr (),cx'), (Inr (),cy'))\<close>
 
-inductive_cases dstep_EnvEnvE[elim!]: \<open>dstep RR FF CC ([Env], [Env]) ss zz'\<close>
-inductive_cases dstep_LocLocE[elim!]: \<open>dstep RR FF CC ([Loc \<beta>x], [Loc \<beta>y]) ss zz'\<close>
-inductive_cases dstep_LocEpscE[elim!]: \<open>dstep RR FF CC ([Loc \<beta>x], []) ss zz'\<close>
-inductive_cases dstep_EpsLocE[elim!]: \<open>dstep RR FF CC ([], [Loc \<beta>y]) ss zz'\<close>
-inductive_cases dstep_CrashCrashE[elim!]: \<open>dstep RR FF CC ([Crash \<beta>x], [Crash \<beta>y]) ss zz'\<close>
+inductive_cases dstep_EnvXE[elim!]: \<open>dstep RR FF CC (Env, X) ss zz'\<close>
+inductive_cases dstep_XEnvE[elim!]: \<open>dstep RR FF CC (X, Env) ss zz'\<close>
 
-inductive_cases dstep_EnvLocE[elim!]:   \<open>dstep RR FF CC ([Env], [Loc \<beta>y]) ss zz'\<close>
-inductive_cases dstep_EnvCrashE[elim!]: \<open>dstep RR FF CC ([Env], [Crash \<beta>y]) ss zz'\<close>
-inductive_cases dstep_LocEnvE[elim!]:   \<open>dstep RR FF CC ([Loc \<beta>x], [Env]) ss zz'\<close>
-inductive_cases dstep_LocCrashE[elim!]: \<open>dstep RR FF CC ([Loc \<beta>x], [Crash \<beta>y]) ss zz'\<close>
-inductive_cases dstep_CrashEnvE[elim!]: \<open>dstep RR FF CC ([Crash \<beta>x], [Env]) ss zz'\<close>
-inductive_cases dstep_CrashLocE[elim!]: \<open>dstep RR FF CC ([Crash \<beta>x], [Loc \<beta>y]) ss zz'\<close>
+inductive_cases dstep_LocXE[elim!]: \<open>dstep RR FF CC (Loc \<rho>x, X) ss zz'\<close>
+inductive_cases dstep_XLocE[elim!]: \<open>dstep RR FF CC (X, Loc \<rho>y) ss zz'\<close>
+
 
 abbreviation pretty_dstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ =_, _, _, _\<Rightarrow> _\<close> [55, 0,0,0,0, 55]) where
   \<open>cc =RR, FF, CC, \<gamma>\<gamma>\<Rightarrow> cc' \<equiv> dstep RR FF CC \<gamma>\<gamma> cc cc'\<close>
@@ -1017,13 +988,13 @@ inductive dsteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<R
   \<open>zz' = ((Inl (fst (fst ss)), snd (fst ss)), (Inl (fst (snd ss)), snd (snd ss))) \<Longrightarrow>
     dsteps RR FF CC ([], []) ss zz'\<close>
 | dsteps_step:
-  \<open>dstep RR FF CC (\<rho>x, \<rho>y) ss ((Inl sx', cy'), (Inl sy', cy')) \<Longrightarrow>
-    dsteps RR FF CC (\<rho>x', \<rho>y') ((sx', cy'), (sy', cy')) zz'' \<Longrightarrow>
-    dsteps RR FF CC (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') ss zz''\<close>
+  \<open>dstep RR FF CC (\<alpha>\<^sub>ex, \<alpha>\<^sub>ey) ss ((Inl sx', cy'), (Inl sy', cy')) \<Longrightarrow>
+    dsteps RR FF CC (\<rho>x, \<rho>y) ((sx', cy'), (sy', cy')) zz'' \<Longrightarrow>
+    dsteps RR FF CC (\<alpha>\<^sub>ex # \<rho>x, \<alpha>\<^sub>ey # \<rho>y) ss zz''\<close>
 
 inductive_cases dsteps_nilE[elim!]: \<open>dsteps RR FF CC ([], []) sc zc'\<close>
-inductive_cases dsteps_cons_leftE[elim]: \<open>dsteps RR FF CC (\<gamma>x # \<rho>x, \<rho>y) sc zc'\<close>
-inductive_cases dsteps_cons_rightE[elim]: \<open>dsteps RR FF CC (\<rho>x, \<gamma>y # \<rho>y) sc zc'\<close>
+inductive_cases dsteps_cons_leftE[elim]: \<open>dsteps RR FF CC (\<alpha>\<^sub>ex # \<rho>x, \<rho>y) sc zc'\<close>
+inductive_cases dsteps_cons_rightE[elim]: \<open>dsteps RR FF CC (\<rho>x, \<alpha>\<^sub>ey # \<rho>y) sc zc'\<close>
 
 abbreviation dsteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   (\<open>_ =_, _, _, _\<Rightarrow>\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
@@ -1158,8 +1129,7 @@ lemma determ_steps_commD:
     apply (metis not_vis_aact_iff popstep.simps(4))
    apply (clarsimp simp only: determ_steps_def)
    apply (metis not_vis_aact_iff popstep.simps(4))
-  apply (clarsimp simp only: determ_steps_def)
-  subgoal sorry
+  apply (clarsimp simp add: determ_steps_def all_conj_distrib imp_ex; fail)
   done
 
 
@@ -1462,35 +1432,6 @@ lemma double_stepI:
 
 section \<open> Non-interference \<close>
 
-fun etrace_equiv :: \<open>'a eact list \<Rightarrow> 'a eact list \<Rightarrow> bool\<close> where
-  \<open>etrace_equiv [] [] = True\<close>
-| \<open>etrace_equiv (x # xs) (y # ys) =
-    (case (x, y) of
-      (Crash \<beta>x, Crash \<beta>y) \<Rightarrow> (\<beta>x = \<beta>y \<and> xs = [] \<and> ys = [])
-    | (Loc \<beta>x, Crash \<beta>y) \<Rightarrow> (\<beta>x = \<beta>y \<and> ys = [])
-    | (Crash \<beta>x, Loc \<beta>y) \<Rightarrow> (\<beta>x = \<beta>y \<and> xs = [])
-    | (x, y) \<Rightarrow> x = y \<and> etrace_equiv xs ys)\<close>
-| \<open>etrace_equiv _ _ = False\<close>
-
-lemma etrace_equiv_nil_left_eq[simp]:
-  \<open>etrace_equiv [] ys \<longleftrightarrow> ys = []\<close>
-  by (induct ys) force+
-
-lemma etrace_equiv_nil_right_eq[simp]:
-  \<open>etrace_equiv xs [] \<longleftrightarrow> xs = []\<close>
-  by (induct xs) force+
-
-lemma etrace_equiv_crash_left_eq[simp]:
-  \<open>etrace_equiv [Crash \<beta>] ys \<longleftrightarrow>
-    (\<exists>y ys'. ys = y # ys' \<and> (y = Loc \<beta> \<or> y = Crash \<beta> \<and> ys' = []))\<close>
-  by (cases \<open>([Crash \<beta>], ys)\<close> rule: etrace_equiv.cases; simp) (force split: eact.splits)+
-
-lemma etrace_equiv_crash_right_eq[simp]:
-  \<open>etrace_equiv xs [Crash \<beta>] \<longleftrightarrow>
-    (\<exists>x xs'. xs = x # xs' \<and> (x = Loc \<beta> \<or> x = Crash \<beta> \<and> xs' = []))\<close>
-  by (cases \<open>(xs, [Crash \<beta>])\<close> rule: etrace_equiv.cases; simp) (force split: eact.splits)+
-
-
 lemma popsteps_iff:
   \<open>(s, Skip) \<midarrow>\<beta>s\<rightarrow>\<^sub>p\<^sup>* zc'' \<longleftrightarrow> zc'' = (Inl s, Skip) \<and> \<beta>s = []\<close>
   \<open>(s, ca ;; cb) \<midarrow>\<beta>s\<rightarrow>\<^sub>p\<^sup>* zc'' \<longleftrightarrow>
@@ -1513,56 +1454,51 @@ lemma popsteps_iff:
   (*apply (cases zc'', cases s, induct \<beta>s; (clarsimp; blast))*)
   done
 
+definition tau_succ :: \<open>'l \<times> 's \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool\<close> where
+  \<open>tau_succ s cx cy \<equiv>
+    \<forall>\<rho>x s' c'.
+      (s, cx) \<midarrow>\<rho>x\<rightarrow>\<^sub>p\<^sup>* (s', c') \<longrightarrow>
+      (\<exists>\<rho>y. (s, cy) \<midarrow>\<rho>y @ \<rho>x\<rightarrow>\<^sub>p\<^sup>* (s', c'))\<close>
+
+definition tau_succ2 :: \<open>'l \<times> 's \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool\<close> where
+  \<open>tau_succ2 s cx cy \<equiv>
+    \<exists>\<rho> s'. (s, cy) \<midarrow>\<rho>\<rightarrow>\<^sub>p\<^sup>* (s', cx)\<close>
+
+
+
+lemma two_popsteps_same_comm:
+  \<open>FF ((fx, fy), sx, sy) \<Longrightarrow>
+    lx ## fx \<Longrightarrow>
+    tcx \<midarrow>\<rho>x\<rightarrow>\<^sub>p\<^sup>* tcx' \<Longrightarrow>
+    tcx = ((lx + fx, sx), c) \<Longrightarrow>
+    tcx' = (Inl (lx' + fx, sx'), cx') \<Longrightarrow>
+    ly ## fy \<Longrightarrow>
+    tcy \<midarrow>\<rho>y\<rightarrow>\<^sub>p\<^sup>* tcy' \<Longrightarrow>
+    tcy = ((ly + fy, sy), c) \<Longrightarrow>
+    tcy' = (Inl (ly' + fy, sy'), cy') \<Longrightarrow>
+    \<rho>x \<noteq> [] \<or> \<rho>y \<noteq> [] \<Longrightarrow>
+    \<top> \<^emph>\<and> FF \<le> sec_head_determ cx \<Longrightarrow>
+    \<top> \<^emph>\<and> FF \<le> sec_head_determ cy \<Longrightarrow>
+    cx' = cy'\<close>
+  apply (erule popsteps.induct)
+  sorry
+
 lemma determ_dstep_same_comm:
-  \<open>((sx, c), (sy, c)) =RR, FF, CC, \<rho>\<Rightarrow> ((Inl sx', cx'), (Inl sy', cy')) \<Longrightarrow>
+  \<open>xyc =RR, FF, CC, \<rho>\<^sub>e\<Rightarrow> xyc' \<Longrightarrow>
+    xyc = ((tx, c), (ty, c)) \<Longrightarrow>
+    xyc' = ((Inl tx', cx'), (Inl ty', cy')) \<Longrightarrow>
     CC \<le> (\<lambda>cx cy. \<top> \<^emph>\<and> FF \<le> sec_head_determ cx \<and> \<top> \<^emph>\<and> FF \<le> sec_head_determ cy) \<Longrightarrow>
     cx' = cy'\<close>
-  apply (erule dstep.cases)
-      apply force
-     apply clarsimp
-     apply (induct c)
-           apply force
-          apply clarsimp
-          apply (erule disjE)
-           apply clarsimp
-  sorry
-(*
-proof (induct cx arbitrary: sx sx' cx' sy sy' cy' \<beta>xs \<beta>ys)
-  case Skip
+proof (induct arbitrary: tx ty c tx' cx' ty' cy' rule: dstep.induct)
+  case (dstep_env RR sx sy sx' sy' CC cx cy FF lx ly)
+  then show ?case by force
+next
+  case (dstep_local FF fx fy sx sy CC cx cy lx \<rho>x lx' sx' cxx' ly \<rho>y ly' sy' cyy' RR)
   then show ?case
-    by (clarsimp simp add: popsteps_iff; fail)
-next
-  case (Seq c1 c2)
-  then show ?case
-    apply (clarsimp simp add: popsteps_iff)
-    apply (elim disjE)
-    subgoal sorry
+    apply (clarsimp simp del: top_apply)
     sorry
-    apply force
-      apply clarsimp
-      apply (elim disjE)
-         apply force
-        apply force
-       apply force
-      apply clarsimp
-    sorry
-next
-  case (Par c1 c2)
-  then show ?case sorry
-next
-  case (Indet c1 c2)
-  then show ?case sorry
-next
-  case (Endet c1 c2)
-  then show ?case sorry
-next
-  case (Atomic x1 x2)
-  then show ?case sorry
-next
-  case (Iter c)
-  then show ?case sorry
 qed
-*)
+
 
 
 text \<open> Double execution aggregation lemma \<close>
@@ -1576,8 +1512,9 @@ theorem determ_double_exec_then_safe_state:
     \<open>safe n cc zz rr gg qq SS FF\<close>
     \<open>cc = liftC c\<close>
     \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>((sx, c), (sy, c)) =rr, FF, \<top>, \<gamma>\<gamma>s\<Rightarrow>\<^sup>* ((msx', cx'), (msy', cy'))\<close>
-    \<open>length \<gamma>\<gamma>s < n\<close> \<comment> \<open> this is not going to work with weak-trace equiv. \<close>
+    \<open>((sx, c), (sy, c)) =rr, FF, \<top>, (\<rho>x, \<rho>y)\<Rightarrow>\<^sup>* ((msx', cx'), (msy', cy'))\<close>
+    \<open>length \<rho>x < n\<close>
+    \<open>length \<rho>y < n\<close>
     \<open>pred_executions
       (\<lambda>(s, c). (=) s \<^emph>\<and> FF \<le> (sec_head_determ (unliftC c) \<circ> exch4))
       FF rr cc zz n\<close>
@@ -1587,7 +1524,7 @@ theorem determ_double_exec_then_safe_state:
   shows
     \<open>cx' = cy' \<and> (\<exists>sx' sy'. msx' = Inl sx' \<and> msy' = Inl sy' \<and> SS (exch4 (sx', sy')))\<close>
   using inductive_assms
-proof (induct n arbitrary: cc zz c sx sy \<gamma>\<gamma>s cx' cy')
+proof (induct n arbitrary: cc zz c sx sy \<rho>x \<rho>y cx' cy')
   case 0
   then show ?case
     by (clarsimp simp add: le_fun_def)
