@@ -272,10 +272,26 @@ fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times>
 | \<open>head_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
 | \<open>head_atoms (DO c OD) = head_atoms c\<close>
 
-
 lemma head_atoms_subseteq_all_atoms:
   \<open>head_atoms c \<subseteq> all_atoms c\<close>
   by (induct c) force+
+
+
+subsection \<open> Atom Headed \<close>
+
+text \<open>
+  A predicate to determine if every executable subcommand in this command is an atom.
+  (As opposed to a command like \<open>Skip; c\<close>.)
+\<close>
+
+fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
+  \<open>head_atomic Skip = False\<close>
+| \<open>head_atomic (ca ;; cb) = head_atomic ca\<close>
+| \<open>head_atomic (ca \<parallel> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
+| \<open>head_atomic (ca \<^bold>+ cb) = False\<close>
+| \<open>head_atomic (ca \<box> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
+| \<open>head_atomic (\<langle>p, q\<rangle>) = True\<close>
+| \<open>head_atomic (DO c OD) = head_atomic c\<close>
 
 
 section \<open> Specific Languages \<close>
@@ -292,7 +308,7 @@ definition \<open>Await p \<equiv> Atomic \<top> (rel_liftL p \<sqinter> (=))\<c
 
 lemma Await_inject[simp]:
   \<open>Await p1 = Await p2 \<longleftrightarrow> p1 = p2\<close>
-  by (force simp add: Await_def fun_eq_iff rel_liftL_def)
+  by (force simp add: Await_def fun_eq_iff rel_lift_def)
 
 subsection \<open> If-then-else \<close>
 
