@@ -148,9 +148,10 @@ lemmas relpowp_simp_alt =
 
 subsection \<open> Relation definitions \<close>
 
-definition \<open>rel_liftL p \<equiv> \<lambda>a b. p a\<close>
-definition \<open>rel_liftR p \<equiv> \<lambda>a b. p b\<close>
-definition \<open>rel_lift p \<equiv> \<lambda>a b. p a \<and> p b\<close>
+definition \<open>rel_lift p q \<equiv> \<lambda>a b. p a \<and> q b\<close>
+abbreviation \<open>rel_liftL p \<equiv> rel_lift p \<top>\<close>
+abbreviation \<open>rel_liftR \<equiv> rel_lift \<top>\<close>
+
 definition \<open>rel_imp_lift p \<equiv> \<lambda>a b. p a \<longrightarrow> p b\<close>
 
 definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
@@ -161,16 +162,16 @@ lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
 
 
 lemma rel_lift_apply[simp]:
-  \<open>rel_lift p a b = (p a \<and> p b)\<close>
+  \<open>rel_lift p q a b = (p a \<and> q b)\<close>
   by (simp add: rel_lift_def)
 
 lemma rel_liftL_apply[simp]:
   \<open>rel_liftL p a b = p a\<close>
-  by (simp add: rel_liftL_def)
+  by (simp add: rel_lift_def)
 
 lemma rel_liftR_apply[simp]:
   \<open>rel_liftR p a b = p b\<close>
-  by (simp add: rel_liftR_def)
+  by (simp add: rel_lift_def)
 
 
 definition \<open>pre_state_of B r \<equiv> \<lambda>a. \<exists>b\<in>B. r a b\<close>
@@ -197,47 +198,49 @@ paragraph \<open> binary relations \<close>
 
 lemma liftL_mono[simp]:
   \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: rel_liftL_def le_fun_def)
+  by (simp add: rel_lift_def le_fun_def)
 
 lemma liftR_mono[simp]:
   \<open>rel_liftR p \<le> rel_liftR q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: rel_liftR_def)
+  by (simp add: rel_lift_def)
 
 lemma rel_lift_top[simp]:
-  \<open>rel_lift \<top> = \<top>\<close>
+  \<open>rel_lift \<top> \<top> = \<top>\<close>
   by (force simp add: rel_lift_def)
 
 lemma rel_lift_bot[simp]:
   \<open>rel_lift \<bottom> = \<bottom>\<close>
-  by (force simp add: rel_lift_def)
+  \<open>rel_lift p \<bottom> = \<bottom>\<close>
+  by (force simp add: rel_lift_def)+
 
 lemma rel_lift_pred_True[simp]:
-  \<open>rel_lift (\<lambda>x. True) = \<top>\<close>
+  \<open>rel_lift (\<lambda>x. True) (\<lambda>x. True) = \<top>\<close>
   by (force simp add: rel_lift_def)
 
 lemma rel_lift_pred_False[simp]:
   \<open>rel_lift (\<lambda>x. False) = \<bottom>\<close>
-  by (force simp add: rel_lift_def)
+  \<open>rel_lift p (\<lambda>x. False) = \<bottom>\<close>
+  by (force simp add: rel_lift_def)+
 
 lemma rel_liftL_conj_distrib:
   \<open>rel_liftL (p1 \<sqinter> p2) = rel_liftL p1 \<sqinter> rel_liftL p2\<close>
-  by (force simp add: rel_liftL_def)
+  by (force simp add: rel_lift_def)
 
 lemma rel_liftR_conj_distrib:
   \<open>rel_liftR (p1 \<sqinter> p2) = rel_liftR p1 \<sqinter> rel_liftR p2\<close>
-  by (force simp add: rel_liftR_def)
+  by (force simp add: rel_lift_def)
 
 lemma rel_liftL_disj_distrib:
   \<open>rel_liftL (p1 \<squnion> p2) = rel_liftL p1 \<squnion> rel_liftL p2\<close>
-  by (force simp add: rel_liftL_def)
+  by (force simp add: rel_lift_def)
 
 lemma rel_liftR_disj_distrib:
   \<open>rel_liftR (p1 \<squnion> p2) = rel_liftR p1 \<squnion> rel_liftR p2\<close>
-  by (force simp add: rel_liftR_def)
+  by (force simp add: rel_lift_def)
 
 lemma rel_liftL_conj_eq:
   \<open>rel_liftL (p \<sqinter> q) = rel_liftL p \<sqinter> rel_liftL q\<close>
-  by (force simp add: rel_liftL_def)
+  by (force simp add: rel_lift_def)
 
 
 subsubsection \<open> pre- and post-state \<close>

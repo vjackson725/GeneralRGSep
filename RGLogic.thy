@@ -2,6 +2,9 @@ theory RGLogic
   imports Lang
 begin
 
+(* TODO: move? *)
+definition \<open>guar_lift p q \<equiv> (\<lambda>y y'. (\<exists>x. p (x, y)) \<and> (\<exists>x'. q (x', y')))\<close>
+
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
@@ -22,16 +25,16 @@ inductive rgsat ::
     C Skip \<Longrightarrow>
     rgsat Skip r g p q L F C\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r L) F C \<Longrightarrow>
-    p \<le> wssa r i \<Longrightarrow>
-    sswa r i \<le> q \<Longrightarrow>
-    sswa r L \<le> L' \<Longrightarrow>
+  \<open>rgsat c R G (sswa R i) (sswa R i) (sswa R L) F C \<Longrightarrow>
+    p \<le> wssa R i \<Longrightarrow>
+    sswa R i \<le> q \<Longrightarrow>
+    sswa R (L \<squnion> i) \<le> L' \<Longrightarrow>
     C (Iter c) \<Longrightarrow>
-    rgsat (Iter c) r g p q L' F C\<close>
+    rgsat (Iter c) R G p q L' F C\<close>
 | rgsat_seq:
   \<open>rgsat ca r g p pp La F C \<Longrightarrow>
     rgsat cb r g pp q Lb F C \<Longrightarrow>
-    La \<squnion> Lb \<le> L \<Longrightarrow>
+    La \<squnion> Lb \<squnion> pp \<le> L \<Longrightarrow>
     C (ca ;; cb) \<Longrightarrow>
     rgsat (ca ;; cb) r g p q L F C\<close>
 | rgsat_indet:
@@ -39,7 +42,7 @@ inductive rgsat ::
     rgsat cb r gb p qb Lb F C \<Longrightarrow>
     ga \<le> g \<Longrightarrow> gb \<le> g \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
-    La \<squnion> Lb \<le> L \<Longrightarrow>
+    La \<squnion> Lb \<squnion> p \<le> L \<Longrightarrow>
     C (ca \<^bold>+ cb) \<Longrightarrow>
     rgsat (ca \<^bold>+ cb) r g p q L F C\<close>
 | rgsat_endet:
@@ -47,7 +50,7 @@ inductive rgsat ::
     rgsat cb r gb p qb Lb F C \<Longrightarrow>
     ga \<le> g \<Longrightarrow> gb \<le> g \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
-    La \<squnion> Lb \<le> L \<Longrightarrow>
+    La \<squnion> Lb \<squnion> p \<le> L \<Longrightarrow>
     C (ca \<box> cb) \<Longrightarrow>
     rgsat (ca \<box> cb) r g p q L F C\<close>
 | rgsat_par:
@@ -63,7 +66,6 @@ inductive rgsat ::
   \<open>p' \<le> wssa r p \<Longrightarrow>
     sswa r q \<le> q' \<Longrightarrow>
     wssa r p \<le> L \<Longrightarrow>
-    sswa r q \<le> L \<Longrightarrow>
     \<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap \<Longrightarrow>
     \<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
     \<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g \<Longrightarrow>
@@ -275,10 +277,9 @@ lemma rgsat_assert:
       { p \<sqinter> wssa r px } Assert px { sswa r p \<sqinter> wssa r px }\<close>
   unfolding Assert_def
   apply (rule rgsat_atom[where p=\<open>sswa r p \<sqinter> px\<close> and q=\<open>sswa r p \<sqinter> wssa r px\<close>])
-         apply (force simp add: wlp_inf)
-        apply (metis order.refl sp_inf_semidistrib sswa_over_sswa_eq sswa_over_wssa_eq)
-       apply (force simp add: wlp_inf)
-      apply (metis order.refl sp_inf_semidistrib sswa_over_sswa_eq sswa_over_wssa_eq)
+        apply (force simp add: wlp_inf)
+       apply (metis order.refl sp_inf_semidistrib sswa_over_sswa_eq sswa_over_wssa_eq)
+      apply (force simp add: wlp_inf)
      apply (cut_tac assms(1))
      apply (simp add: wlp_inf; fail)
     apply (simp add: wlp_inf; fail)
@@ -292,24 +293,22 @@ subsection \<open> Await \<close>
 
 lemma rgsat_await':
   assumes
-    \<open>\<forall>f\<le>F. (wssa r p \<^emph>\<and> f) \<sqinter> px \<le> (wssa r p \<sqinter> px) \<^emph>\<and> f\<close>
-    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa r p \<^emph>\<and> f) \<sqinter> px) \<le> \<top> \<times>\<^sub>R g\<close>
-    \<open>C (Await px)\<close>
+    \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> q \<le> q \<^emph>\<and> f\<close>
+    \<open>\<forall>f\<le>F. (=) \<sqinter> rel_liftL ((wssa R p \<^emph>\<and> f) \<sqinter> q) \<le> \<top> \<times>\<^sub>R G\<close>
+    \<open>C (Await q)\<close>
   shows
-    \<open>r, g, wssa r p, F, C \<turnstile>
-      { wssa r p } Await px { sswa r (wssa r p \<sqinter> px) }\<close>
+    \<open>R, G, p, F, C \<turnstile> { wssa R p } Await q { sswa R q }\<close>
+  using assms
   unfolding Await_def
-  apply (rule rgsat_atom[where p=\<open>wssa r p\<close> and q=\<open>wssa r p \<sqinter> px\<close>])
-         apply force
+  apply -
+  apply (rule rgsat_atom[where p=\<open>wssa R p\<close> and q=q])
         apply force
        apply force
-      apply (metis inf.cobounded1 relyrel_trans sp_rel_liftL_iff(2) sp_wlp_weak_absorb
-      transp_subrel_compp_smaller(2))
-     apply blast
-    apply (simp add: assms(1); fail)
-   apply (cut_tac assms(2))
-  apply (simp add: inf_assoc inf_commute rel_liftL_conj_distrib; fail)
-  apply (metis Await_def assms(3))
+      apply force
+     apply force
+    apply (simp; fail)
+   apply (simp add: inf_assoc inf_commute rel_liftL_conj_distrib; fail)
+  apply force
   done
 
 lemmas rgsat_await =
