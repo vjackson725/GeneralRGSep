@@ -914,6 +914,19 @@ lemma bequiv_iff: \<open>a \<sim> b = (-a \<squnion> b) \<sqinter> (-b \<squnion
 lemma bequiv_iff2: \<open>a \<sim> b = (a \<sqinter> b) \<squnion> (-a \<sqinter> -b)\<close>
   using bequiv_iff sup.commute sup_inf_distrib2 by force
 
+definition bxor :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<oplus>" 60) where
+  "a \<oplus> b \<equiv> a \<sqinter> -b \<squnion> -a \<sqinter> b"
+
+lemma bxor_simps[simp]:
+  \<open>a \<oplus> a = \<bottom>\<close>
+  \<open>a \<oplus> -a = \<top>\<close>
+  \<open>-a \<oplus> a = \<top>\<close>
+  \<open>a \<oplus> \<bottom> = a\<close>
+  \<open>\<bottom> \<oplus> a = a\<close>
+  \<open>a \<oplus> \<top> = -a\<close>
+  \<open>\<top> \<oplus> a = -a\<close>
+  by (clarsimp simp add: bxor_def impl_def)+
+
 end
 
 lemma mem_impl_iff[simp]:

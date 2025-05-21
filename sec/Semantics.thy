@@ -140,19 +140,16 @@ lemma eq_exch4_iff[simp]:
 
 subsection \<open> relational lifting \<close>
 
-nonterminal twoPredLiftL
-
 syntax
-  "_twoPredLiftS"  :: "('a \<Rightarrow> bool) \<Rightarrow> twoPredLiftL"  ("\<lblot> _" [0] 1000)
-  "_twoPredLiftC"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("_ \<rblot>" [0] 1000)
-  "_twoPredLiftL"  :: "twoPredLiftL \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar>" [0] 1000)
-  "_twoPredLiftLR"  :: "twoPredLiftL \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("_ \<bar> _ \<rblot>" [0] 1000)
-  "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 1000)
+  "_twoPredLiftBasic"  :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("\<lblot> _ \<rblot>" [0] 999)
+  "_twoPredLiftDouble"  :: "('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<lblot> _ \<bar> _ \<rblot>" [0,0] 998)
+  "_twoPredLiftL"  :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<lblot> _ \<bar>" [0] 997)
+  "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 997)
 
 translations
-  "_twoPredLiftC (_twoPredLiftS p)" \<rightharpoonup> "(CONST pred_Times) p p"
-  "_twoPredLiftLR (_twoPredLiftS p) q" \<rightleftharpoons> "(CONST pred_Times) p q"
-  "_twoPredLiftL (_twoPredLiftS p)" \<rightharpoonup> "(CONST pred_Times) p \<top>"
+  "_twoPredLiftBasic p" \<rightharpoonup> "(CONST pred_Times) p p"
+  "_twoPredLiftDouble p q" \<rightleftharpoons> "(CONST pred_Times) p q"
+  "_twoPredLiftL p" \<rightharpoonup> "(CONST pred_Times) p \<top>"
   "_twoPredLiftR q" \<rightharpoonup> "(CONST pred_Times) \<top> q"
 
 
@@ -1082,10 +1079,8 @@ definition
       \<not> (heads_ccrash_dom cb sx \<and> heads_ccrash_dom ca sy)) \<and>
     (\<forall>ca. DO ca OD \<in> all_subcomm_eq c \<longrightarrow>
       head_atomic ca \<and>
-      \<not> (heads_dom ca sx \<and> \<not> heads_dom ca sy) \<and>
-      \<not> (\<not> heads_dom ca sx \<and> heads_dom ca sy) \<and>
-      \<not> (heads_ccrash_dom ca sx \<and> \<not> heads_ccrash_dom ca sy) \<and>
-      \<not> (\<not> heads_ccrash_dom ca sx \<and> heads_ccrash_dom ca sy))\<close>
+      heads_dom ca sx = heads_dom ca sy \<and>
+      heads_ccrash_dom ca sx = heads_ccrash_dom ca sy)\<close>
 
 lemma sec_head_determ_comm_simps[simp]:
   \<open>sec_head_determ Skip ss = True\<close>
