@@ -41,11 +41,14 @@ fun opstep :: \<open>unit act \<Rightarrow> 's pconfig \<Rightarrow> 's cpconfig
     \<alpha> = Tau \<and> c1 = Skip \<and> c2 = Skip \<and> s' = (Inl h, Skip) \<or>
     (\<exists>h' c1'. opstep \<alpha> (h,c1) (h',c1') \<and> s' = (h', c1' \<parallel> c2)) \<or>
     (\<exists>h' c2'. opstep \<alpha> (h,c2) (h',c2') \<and> s' = (h', c1 \<parallel> c2'))\<close>
-| \<open>opstep \<alpha> (h, DO c OD) s' \<longleftrightarrow>
-      (if \<forall>\<alpha>' s'. \<not> opstep \<alpha>' (h, c) s' then
-        \<alpha> = Tau \<and> s' = (Inl h, Skip)
-      else
-        \<alpha> = Tau \<and> s' = (Inl h, c ;; DO c OD))\<close>
+| \<open>opstep \<beta> (h, DO c OD) s' \<longleftrightarrow>
+      ((\<forall>\<alpha> h' c'. \<not> opstep \<alpha> (h, c) (Inl h', c')) \<and>
+        \<beta> = Tau \<and> s' = (Inl h, Skip)) \<or>
+      (\<exists>h' c'.
+        opstep \<beta> (h, c) (Inl h', c') \<and>
+        s' = (Inl h', c' ;; DO c OD)) \<or>
+      ((\<exists>c'. opstep \<beta> (h, c) (Inr (), c')) \<and>
+        s' = (Inr (), DO c OD))\<close>
 | \<open>opstep \<alpha> (h, Atomic ap aq) s' \<longleftrightarrow>
     (\<exists>a. \<alpha> = Vis a \<and> (if ap h
                   then \<exists>h'. aq h h' \<and> fst s' = Inl h' \<and> snd s' = Skip
@@ -101,9 +104,9 @@ proof -
            apply (clarsimp; fail)
           apply force
          apply (clarsimp, metis)
-        apply (clarsimp, metis)
-       apply (clarsimp split: if_splits; fail)
-      apply force
+        apply (clarsimp, metis)  
+       apply fastforce
+      apply fastforce
       done
   }
   then show ?thesis
@@ -219,7 +222,7 @@ lemma opstep_IfThenElse_false[intro]:
 
 lemma opstep_WhileLoop_iff[opstep_iff]:
   \<open>opstep \<alpha> (h, WhileLoop p c) s' \<longleftrightarrow>
-    \<alpha> = Tau \<and> p h \<and> s' = (Inl h, (Await p ;; c) ;; DO Await p ;; c OD) \<or>
+    \<alpha> \<noteq> Tau \<and> p h \<and> s' = (Inl h, (Skip ;; c) ;; DO Await p ;; c OD) \<or>
     \<alpha> = Tau \<and> \<not> p h \<and> s' = (Inl h, Skip)\<close>
   by (force simp add: WhileLoop_def Await_def pre_state_def)
 
@@ -702,15 +705,24 @@ proof (induct n arbitrary: i hl hs S)
       apply (simp add: safe_ih(1); fail)
      apply (metis sswa_step)
       (* subgoal: locally framed opstep *)
-    apply (clarsimp split: if_splits simp add: safe_skip_stable_iff)
-    apply (rule safe_seq)
-       apply (rule safe_ih(1), blast, blast)
-      apply clarsimp
-      apply (rule Suc.hyps)
-       apply (rule safe_ih(1); blast)
+    apply clarsimp
+    apply (elim disjE conjE)
+      apply (simp add: safe_skip_stable_iff; fail)
+     apply clarsimp
+     apply (rule conjI, blast)
+     apply (frule(3) safe_suc_c(4))
+     apply clarsimp
+     apply (rename_tac s' c' l')
+     apply (rule_tac x=l' in exI)
+     apply (intro conjI, fast, fast, fast, fast)
+     apply (rule safe_seq, fast)
+       apply clarsimp
+       apply (rule Suc.hyps)
+        apply (rule safe_ih(1); blast)
+       apply blast
       apply blast
      apply blast
-    apply blast
+    apply fast
     done
 qed force
 
