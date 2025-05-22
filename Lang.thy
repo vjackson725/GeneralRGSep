@@ -23,42 +23,6 @@ datatype 's comm =
 
 subsection \<open> substitution \<close>
 
-subsection \<open> Map atomic commands \<close>
-
-fun map_comm
-  :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('u \<Rightarrow> bool) \<times> ('u \<Rightarrow> 'u \<Rightarrow> bool)) \<Rightarrow>
-      's comm \<Rightarrow> 'u comm\<close>
-  where
-  \<open>map_comm f Skip = Skip\<close>
-| \<open>map_comm f (a ;; b) = map_comm f a ;; map_comm f b\<close>
-| \<open>map_comm f (a \<parallel> b) = map_comm f a \<parallel> map_comm f b\<close>
-| \<open>map_comm f (a \<^bold>+ b) = map_comm f a \<^bold>+ map_comm f b\<close>
-| \<open>map_comm f (a \<box> b) = map_comm f a \<box> map_comm f b\<close>
-| \<open>map_comm f (Atomic p q) = case_prod Atomic (f p q)\<close>
-| \<open>map_comm f (DO a OD) = DO map_comm f a OD\<close>
-
-lemma map_comm_rev_iff:
-  \<open>map_comm f c = Skip \<longleftrightarrow> c = Skip\<close>
-  \<open>map_comm f c = c1' ;; c2' \<longleftrightarrow>
-    (\<exists>c1 c2. c = c1 ;; c2 \<and> c1' = map_comm f c1 \<and> c2' = map_comm f c2)\<close>
-  \<open>map_comm f c = c1' \<parallel> c2' \<longleftrightarrow>
-      (\<exists>c1 c2. c = c1 \<parallel> c2 \<and> c1' = map_comm f c1 \<and> c2' = map_comm f c2)\<close>
-  \<open>map_comm f c = c1' \<^bold>+ c2' \<longleftrightarrow>
-      (\<exists>c1 c2. c = c1 \<^bold>+ c2 \<and> c1' = map_comm f c1 \<and> c2' = map_comm f c2)\<close>
-  \<open>map_comm f c = c1' \<box> c2' \<longleftrightarrow>
-      (\<exists>c1 c2. c = c1 \<box> c2 \<and> c1' = map_comm f c1 \<and> c2' = map_comm f c2)\<close>
-  \<open>map_comm f c = DO c' OD \<longleftrightarrow>
-      (\<exists>ca. c = DO ca OD \<and> c' = map_comm f ca)\<close>
-  \<open>map_comm f c = Atomic p' q' \<longleftrightarrow>
-      (\<exists>p q. f p q = (p', q') \<and> c = Atomic p q)\<close>
-        apply (induct c; (simp add: fun_eq_iff split: prod.splits; argo)+)+
-  apply (induct c; force split: prod.splits)
-  done
-
-lemmas map_comm_rev_iff2 = map_comm_rev_iff[THEN trans[OF eq_commute]]
-
-
-
 subsection \<open> All Sub-commands \<close>
 
 fun all_subcomm_eq :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
@@ -209,7 +173,43 @@ lemma less_eq_comm_leftD:
   \<open>DO cx OD \<le> c \<Longrightarrow> cx \<le> c\<close>
   by (meson order.refl order.trans less_eq_comm_simps_right; fail)+
 
-subsection \<open> All Atoms \<close>
+
+subsection \<open> Atoms \<close>
+
+subsection \<open> Map atomic commands \<close>
+
+fun map_atom
+  :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('u \<Rightarrow> bool) \<times> ('u \<Rightarrow> 'u \<Rightarrow> bool)) \<Rightarrow>
+      's comm \<Rightarrow> 'u comm\<close>
+  where
+  \<open>map_atom f Skip = Skip\<close>
+| \<open>map_atom f (a ;; b) = map_atom f a ;; map_atom f b\<close>
+| \<open>map_atom f (a \<parallel> b) = map_atom f a \<parallel> map_atom f b\<close>
+| \<open>map_atom f (a \<^bold>+ b) = map_atom f a \<^bold>+ map_atom f b\<close>
+| \<open>map_atom f (a \<box> b) = map_atom f a \<box> map_atom f b\<close>
+| \<open>map_atom f (Atomic p q) = case_prod Atomic (f p q)\<close>
+| \<open>map_atom f (DO a OD) = DO map_atom f a OD\<close>
+
+lemma map_atom_rev_iff:
+  \<open>map_atom f c = Skip \<longleftrightarrow> c = Skip\<close>
+  \<open>map_atom f c = c1' ;; c2' \<longleftrightarrow>
+    (\<exists>c1 c2. c = c1 ;; c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
+  \<open>map_atom f c = c1' \<parallel> c2' \<longleftrightarrow>
+      (\<exists>c1 c2. c = c1 \<parallel> c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
+  \<open>map_atom f c = c1' \<^bold>+ c2' \<longleftrightarrow>
+      (\<exists>c1 c2. c = c1 \<^bold>+ c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
+  \<open>map_atom f c = c1' \<box> c2' \<longleftrightarrow>
+      (\<exists>c1 c2. c = c1 \<box> c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
+  \<open>map_atom f c = DO c' OD \<longleftrightarrow>
+      (\<exists>ca. c = DO ca OD \<and> c' = map_atom f ca)\<close>
+  \<open>map_atom f c = Atomic p' q' \<longleftrightarrow>
+      (\<exists>p q. f p q = (p', q') \<and> c = Atomic p q)\<close>
+        apply (induct c; (simp add: fun_eq_iff split: prod.splits; argo)+)+
+  apply (induct c; force split: prod.splits)
+  done
+
+lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
+
 
 fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
   \<open>all_atoms Skip = {}\<close>
@@ -229,7 +229,7 @@ definition all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<
   \<open>all_atom_comm P c \<equiv> \<forall>p q. (p,q) \<in> all_atoms c \<longrightarrow> P p q\<close>
 
 lemma all_atom_comm_simps[simp]:
-  \<open>all_atom_comm p Skip\<close>
+  \<open>all_atom_comm P Skip\<close>
   \<open>all_atom_comm P (c1 ;; c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<^bold>+ c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<box> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
