@@ -437,4 +437,5 @@ lemma rgsat_variant_atom2_nequiv:
   nitpick[card 'a=1, card 'b=2]
   oops
 
+
 end

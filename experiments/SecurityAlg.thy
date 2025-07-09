@@ -321,10 +321,8 @@ lemma secrel_sepconj_quasireflp:
   \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry q) \<Longrightarrow> quasireflp (curry (p \<^emph> q))\<close>
   apply (clarsimp simp add: reflp_on_def symp_def prepost_state_def' sepconj_def)
   apply (intro conjI; clarsimp)
-   apply (metis (no_types, opaque_lifting) curry_conv disjoint_prod_def plus_prod_def
-      prod_eq_decompose(2) sepconjI)
-  apply (metis (no_types, opaque_lifting) curry_conv disjoint_prod_def plus_prod_def
-      prod_eq_decompose(2) sepconjI)
+   apply (metis (no_types, opaque_lifting) curry_conv)
+  apply blast
   done
 
 lemma secrel_sepconj_transp:

@@ -444,6 +444,12 @@ lemma basic_tau_aact_then_tau_aact[simp]:
   \<open>basic_tau_aact \<alpha> \<Longrightarrow> tau_aact \<alpha>\<close>
   by (induct \<alpha>) simp+
 
+lemma all_tau_all_vis_iff:
+  \<open>(\<forall>\<alpha>. tau_aact \<alpha> \<longrightarrow> P \<alpha>) \<and>
+   (\<forall>\<alpha>. vis_aact \<alpha> \<longrightarrow> P \<alpha>) \<longleftrightarrow>
+    All P\<close>
+  by force
+
 
 subsection \<open> Parallel Opstep \<close>
 
@@ -566,6 +572,13 @@ lemma vis_aopstep_impl_atom:
     (* Atom *)
   apply fastforce
   done
+
+lemma aopstep_crash_impl_vis:
+  \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    fst msc' = Inr () \<Longrightarrow>
+    vis_aact \<beta>\<close>
+  by (induct \<beta> sc msc' rule: aopstep.induct)
+      (fastforce split: if_splits)+
 
 lemma aopstep_then_aopstep_right_seqD:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>a zc' \<Longrightarrow>
@@ -822,22 +835,28 @@ inductive aopsteps
   where
   aopsteps_nil[intro!]:
   \<open>fst zc' = Inl (fst sc) \<Longrightarrow> snd zc' = snd sc \<Longrightarrow> aopsteps [] sc zc'\<close>
-| aopsteps_cons[intro!]:
-  \<open>aopstep \<gamma> sc (Inl s', c') \<Longrightarrow>
-    aopsteps \<gamma>s (s', c') zc'' \<Longrightarrow>
-    aopsteps (\<gamma> # \<gamma>s) sc zc''\<close>
+| aopsteps_crash[intro]:
+  \<open>aopstep \<alpha> sc msc' \<Longrightarrow> fst msc' = Inr () \<Longrightarrow> aopsteps [\<alpha>] sc msc'\<close>
+| aopsteps_cont[intro]:
+  \<open>aopstep \<alpha> sc (Inl s', c') \<Longrightarrow>
+    aopsteps \<rho> (s', c') msc'' \<Longrightarrow>
+    aopsteps (\<alpha> # \<rho>) sc msc''\<close>
 
-inductive_cases aopsteps_nilE[elim!]: \<open>aopsteps [] sc zc'\<close>
-inductive_cases aopsteps_consE[elim!]: \<open>aopsteps (\<gamma> # \<gamma>s) sc zc'\<close>
+inductive_cases aopsteps_nilE[elim!]: \<open>aopsteps [] sc msc'\<close>
+inductive_cases aopsteps_consE[elim]: \<open>aopsteps (\<alpha> # \<rho>) sc msc'\<close>
+
+lemmas aopsteps_induct = aopsteps.induct[case_names nil crash step]
 
 abbreviation aopsteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_\<rightarrow>\<^sub>a\<^sup>* _\<close> [50, 0, 50]) where
   \<open>sc \<midarrow>\<gamma>s\<rightarrow>\<^sub>a\<^sup>* zc' \<equiv> aopsteps \<gamma>s sc zc'\<close>
 
 lemma aopsteps_simps[simp]:
   \<open>aopsteps [] sc zc' \<longleftrightarrow> fst zc' = Inl (fst sc) \<and> snd zc' = snd sc\<close>
-  \<open>aopsteps (\<gamma> # \<gamma>s) sc zc'' \<longleftrightarrow>
-    (\<exists>s' c'. aopstep \<gamma> sc (Inl s', c') \<and> aopsteps \<gamma>s (s', c') zc'')\<close>
-  by force+
+  \<open>aopsteps (\<alpha> # \<rho>) sc msc'' \<longleftrightarrow>
+    (\<exists>s' c'. aopstep \<alpha> sc (Inl s', c') \<and> aopsteps \<rho> (s', c') msc'') \<or>
+    (\<rho> = [] \<and> aopstep \<alpha> sc msc'' \<and> fst msc'' = Inr ())\<close>
+  by blast+
+
 
 subsubsection \<open> Lemmas \<close>
 
@@ -845,6 +864,75 @@ lemma aopsteps_tau_preserves_state:
   \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* zc' \<Longrightarrow> list_all tau_aact \<rho> \<Longrightarrow> fst zc' = Inl (fst sc)\<close>
   by (induct rule: aopsteps.induct)
     (fastforce split: if_splits simp add: tau_aact_def dest: aopstep_tau_preserves_state)+
+
+lemma aopsteps_rcons:
+  \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    (s', c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc'' \<Longrightarrow>
+    sc \<midarrow>\<rho> @ [\<alpha>]\<rightarrow>\<^sub>a\<^sup>* msc''\<close>
+  apply (induct arbitrary: s' c' \<alpha> msc'' rule: aopsteps.induct)
+    apply (clarsimp, metis (full_types) unit.exhaust sum.exhaust surj_pair)
+   apply fastforce
+  apply fastforce
+  done
+
+
+subsubsection \<open> Reverse Aopsteps \<close>
+
+inductive aopsteps_rev
+  :: \<open>_ list \<Rightarrow>
+      ('l \<times> 's) \<times> ('l \<times> 's) comm \<Rightarrow>
+      ('l \<times> 's + unit) \<times> ('l \<times> 's) comm \<Rightarrow>
+      bool\<close>
+  where
+  aopsteps_rev_nil[intro!]:
+  \<open>fst zc' = Inl (fst sc) \<Longrightarrow> snd zc' = snd sc \<Longrightarrow> aopsteps_rev [] sc zc'\<close>
+| aopsteps_rev_cons[intro!]:
+  \<open>aopsteps_rev \<rho> sc (Inl s', c') \<Longrightarrow>
+    aopstep \<alpha> (s', c') msc'' \<Longrightarrow>
+    aopsteps_rev (\<rho> @ [\<alpha>]) sc msc''\<close>
+
+lemmas aopsteps_rev_singletonI[intro!] = aopsteps_rev_cons[of \<open>[]\<close>, OF aopsteps_rev_nil, simplified]
+
+inductive_cases aopsteps_rev_nilE[elim!]: \<open>aopsteps_rev [] sc zc'\<close>
+inductive_cases aopsteps_rev_rconsE[elim!]: \<open>aopsteps_rev (\<rho>e @ [\<alpha>e]) sc zc'\<close>
+
+abbreviation aopsteps_rev_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_\<rightarrow>\<^sub>a\<^sub>r\<^sup>* _\<close> [50, 0, 50]) where
+  \<open>sc \<midarrow>\<rho>e\<rightarrow>\<^sub>a\<^sub>r\<^sup>* msc' \<equiv> aopsteps_rev \<rho>e sc msc'\<close>
+
+lemma aopsteps_rev_simps[simp]:
+  \<open>aopsteps_rev [] sc msc' \<longleftrightarrow> fst msc' = Inl (fst sc) \<and> snd msc' = snd sc\<close>
+  \<open>aopsteps_rev (\<rho>e @ [\<alpha>e]) sc msc'' \<longleftrightarrow>
+    (\<exists>s' c'. aopsteps_rev \<rho>e sc (Inl s', c') \<and> aopstep \<alpha>e (s', c') msc'')\<close>
+  by force+
+
+
+lemma aopsteps_rev_aopsteps_to_aopsteps:
+  \<open>aopsteps_rev \<rho>x sc msc' \<Longrightarrow>
+    (\<exists>s' c'. msc' = (Inl s', c') \<and> aopsteps \<rho>y (s', c') msc'') \<or>
+    (\<exists>c'. msc' = (Inr (), c') \<and> msc'' = msc' \<and> \<rho>y = []) \<Longrightarrow>
+    aopsteps (\<rho>x @ \<rho>y) sc msc''\<close>
+  by (induct arbitrary: \<rho>y msc'' rule: aopsteps_rev.induct) auto
+
+lemma aopsteps_rev_to_aopsteps:
+  \<open>aopsteps_rev \<rho> sc msc' \<Longrightarrow> aopsteps \<rho> sc msc'\<close>
+  using aopsteps_rev_aopsteps_to_aopsteps[where \<rho>y=\<open>[]\<close> and msc'=msc' and msc''=msc', simplified]
+  apply (case_tac msc')
+  apply (rename_tac ms' c')
+  apply (case_tac ms'; simp)
+  done
+
+lemma aopsteps_rev_aopsteps_to_aopsteps_rev:
+  \<open>aopsteps \<rho>y sc' msc'' \<Longrightarrow>
+    sc' = (s', c') \<Longrightarrow>
+    aopsteps_rev \<rho>x sc (Inl s', c') \<Longrightarrow>
+    aopsteps_rev (\<rho>x @ \<rho>y) sc msc''\<close>
+  by (induct arbitrary: s' c' \<rho>x rule: aopsteps.induct) force+
+
+lemma aopsteps_to_aopsteps_rev:
+  \<open>aopsteps \<rho> sc msc' \<Longrightarrow> aopsteps_rev \<rho> sc msc'\<close>
+  using aopsteps_rev_aopsteps_to_aopsteps_rev[where \<rho>x=\<open>[]\<close> and sc=sc and msc''=msc', simplified]
+  by auto
 
 
 section \<open> Extended step \<close>
@@ -1086,7 +1174,7 @@ lemma eaopstep_preserves_reflclC:
 subsection \<open> Extended steps \<close>
 
 inductive esteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> for step where
-  nil: \<open>c' = c \<Longrightarrow> z' = Inl s \<Longrightarrow> esteps step r F [] (s, c) (z', c')\<close>
+  nil: \<open>snd msc' = snd sc \<Longrightarrow> fst msc' = Inl (fst sc) \<Longrightarrow> esteps step r F [] sc msc'\<close>
 | crashstep: \<open>
   estep step r F \<gamma> (s, c) (Inr (), c'') \<Longrightarrow>
     z'' = Inr () \<Longrightarrow>
@@ -1100,20 +1188,25 @@ inductive_cases esteps_nilE[elim!]: \<open>esteps step r F [] sc zc'\<close>
 inductive_cases esteps_consE[elim]: \<open>esteps step r F (\<gamma> # \<gamma>s) sc zc'\<close>
 
 abbreviation esteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [50, 0, 0, 50])
+  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sup>* _\<close> [55, 0, 0, 0, 55])
   where
     \<open>sc \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>e\<^sup>* zc' \<equiv> esteps opstep r F \<gamma>s sc zc'\<close>
 
 lemmas esteps_induct = esteps.induct[of opstep, consumes 1]
 
 abbreviation easteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sub>a\<^sup>* _\<close> [50, 0, 0, 50])
+  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sub>a\<^sup>* _\<close> [55, 0, 0, 0, 55])
   where
     \<open>sc \<midarrow>r, F, \<gamma>s\<rightarrow>\<^sub>e\<^sub>a\<^sup>* zc' \<equiv> esteps aopstep r F \<gamma>s sc zc'\<close>
 
 lemmas easteps_induct = esteps.induct[of aopstep, consumes 1]
 
+lemma easteps_nil_iff[simp]:
+  \<open>sc \<midarrow>r, F, []\<rightarrow>\<^sub>e\<^sub>a\<^sup>* msc' \<longleftrightarrow>
+    snd msc' = snd sc \<and> fst msc' = Inl (fst sc)\<close>
+  by (force elim: esteps.cases intro: esteps.nil)
 
+(*
 section \<open> Double Step \<close>
 
 inductive dstep
@@ -1204,7 +1297,7 @@ lemma double_step_niltr_iff[simp]:
    apply force
   apply (clarsimp, metis surjective_pairing)
   done
-
+*)
 
 section \<open> (Strong) Non-interference \<close>
 
@@ -1718,27 +1811,9 @@ lemma strong_aopstep_then_pair_aopstep:
 
 section \<open> Non-interference \<close>
 
-lemma aopsteps_iff:
-  \<open>(s, Skip) \<midarrow>\<beta>s\<rightarrow>\<^sub>a\<^sup>* zc'' \<longleftrightarrow> zc'' = (Inl s, Skip) \<and> \<beta>s = []\<close>
-  \<open>(s, ca ;; cb) \<midarrow>\<beta>s\<rightarrow>\<^sub>a\<^sup>* zc'' \<longleftrightarrow>
-    \<beta>s = [] \<and> zc'' = (Inl s, ca ;; cb) \<or>
-    (\<exists>\<beta> \<beta>s'.
-      \<beta>s = \<beta> # \<beta>s' \<and>
-      (\<exists>s' c'.
-        (\<beta> = TauBasic \<and> ca = Skip \<and> s' = s \<and> c' = cb \<or>
-          (\<exists>ca'. (s, ca) \<midarrow>\<beta>\<rightarrow>\<^sub>a (Inl s', ca') \<and> c' = ca' ;; cb)) \<and>
-        (s', c') \<midarrow>\<beta>s'\<rightarrow>\<^sub>a\<^sup>* zc''))\<close>
-(*
-  \<open>(s, ca \<^bold>+ cb) \<midarrow>\<beta>s\<rightarrow>\<^sub>a\<^sup>* zc'' \<longleftrightarrow>
-    \<beta>s = [] \<and> zc'' = (Inl s, ca \<^bold>+ cb) \<or>
-    (\<exists>\<beta> \<beta>s'.
-      \<beta>s = TauBasic # \<beta>s' \<and>
-      (\<exists>c'. (c' = ca \<or> c' = cb) \<and> (s, c') \<midarrow>\<beta>s'\<rightarrow>\<^sub>a\<^sup>* zc''))\<close>
-*)
-    apply (cases zc'', induct \<beta>s; force)
-   apply (cases zc'', induct \<beta>s; force)
-  (*apply (cases zc'', cases s, induct \<beta>s; (clarsimp; blast))*)
-  done
+lemma aopsteps_Skip_iif[simp]:
+  \<open>(s, Skip) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* zc'' \<longleftrightarrow> zc'' = (Inl s, Skip) \<and> \<rho> = []\<close>
+  by (cases zc'', induct \<rho>; force)
 
 
 section \<open> Basic Tau Reducts \<close>
@@ -1746,38 +1821,56 @@ section \<open> Basic Tau Reducts \<close>
 text \<open>
   Uunfortunately dependent on the state the command is executed in, because of loops.
 \<close>
-definition basic_tau_reducts :: \<open>'l \<times> 's \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool\<close> where
-  \<open>basic_tau_reducts s c c' \<equiv>
-    \<exists>s' \<rho>. (s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<and> list_all basic_tau_aact \<rho>\<close>
+definition basic_tau_reducts :: \<open>'l \<times> 's \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm set\<close> where
+  \<open>basic_tau_reducts s c \<equiv> {c'.
+    \<exists>\<rho> s'.
+      (s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<and>
+      list_all basic_tau_aact \<rho> \<and>
+      ((\<exists>\<alpha> s'' c''. (s', c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s'', c'') \<and> \<not> basic_tau_aact \<alpha>) \<or>
+        (s', c') \<midarrow>/\<rightarrow>\<^sub>a)}\<close>
+
+definition set_btau_equiv
+  :: \<open>('l \<times> 's) comm set \<Rightarrow> ('l \<times> 's) comm set \<Rightarrow> bool\<close>
+  where
+    \<open>set_btau_equiv A B \<equiv> undefined\<close>
+
 
 lemma btr_seq_left[intro]:
-  \<open>basic_tau_reducts s ca ca' \<Longrightarrow> ca' \<noteq> Skip \<Longrightarrow>
-    basic_tau_reducts s (ca ;; cb) (ca' ;; cb)\<close>
-proof (clarsimp simp add: basic_tau_reducts_def simp del: split_paired_Ex)
-  fix sl'' ss'' \<rho>
-  assume assms2:
+  assumes
+    \<open>ca' \<in> basic_tau_reducts s ca\<close>
     \<open>ca' \<noteq> Skip\<close>
-    \<open>(s, ca) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl (sl'', ss''), ca')\<close>
+  shows
+    \<open>ca' ;; cb \<in> basic_tau_reducts s (ca ;; cb)\<close>
+  using assms
+proof (clarsimp simp add: basic_tau_reducts_def simp del: split_paired_Ex)
+  fix sl' ss' c' \<rho> sl'' ss'' \<alpha>
+  assume assms2:
+    \<open>(s, ca) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl (sl', ss'), c')\<close>
     \<open>list_all basic_tau_aact \<rho>\<close>
-  then have
-    \<open>(s, ca ;; cb) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl (sl'', ss''), ca' ;; cb)\<close>
+    \<open>\<not> basic_tau_aact \<alpha>\<close>
+    \<open>((sl', ss'), c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (sl'', ss''), ca')\<close>
+  moreover then have
+    \<open>(s, ca ;; cb) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl (sl', ss'), c' ;; cb)\<close>
     apply (induct \<rho> arbitrary: ca ca')
      apply force
     apply (rename_tac \<alpha> \<rho> ca ca')
     apply clarsimp
-    apply (rename_tac sl' ss' c'x)
-    apply (subgoal_tac \<open>(s, ca ;; cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (sl', ss'), c'x ;; cb)\<close>)
-     prefer 2
-     apply force
-    apply (metis (no_types, lifting) aopstep_tau_preserves_state basic_tau_aact_then_tau_aact
-        fst_eqD sum.sel(1))
+    apply (rename_tac slx ssx cx)
+    apply (metis (no_types, opaque_lifting) aopstep_tau_preserves_state
+        basic_tau_aact_then_tau_aact fst_conv sum.sel(1))
     done
-  then show
-    \<open>\<exists>s' \<rho>. (s, ca ;; cb) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', ca' ;; cb) \<and> list_all basic_tau_aact \<rho>\<close>
+  oops
+(*
+  ultimately show
+    \<open>\<exists>\<rho> s' c'.
+      (s, ca ;; cb) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<and>
+      list_all basic_tau_aact \<rho> \<and>
+      (\<exists>\<alpha>. (\<exists>s''. (s', c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s'', ca' ;; cb)) \<and>
+            \<not> basic_tau_aact \<alpha>)\<close>
     using assms2
-    by blast
+    by (meson aopstep_then_aopstep_right_seqD)
 qed
-
+*)
 (*
 | btr_seq_right[intro]:
   \<open>basic_tau_reducts s ca Skip \<Longrightarrow>
@@ -1826,13 +1919,16 @@ inductive_cases btr_atomE[elim!]: \<open>basic_tau_reducts s \<langle>pa, qa\<ra
 *)
 
 lemma btr_skip_left_iff[simp]:
-  \<open>basic_tau_reducts s Skip c' \<longleftrightarrow> c' = Skip\<close>
+  \<open>c' \<in> basic_tau_reducts s Skip \<longleftrightarrow> c' = Skip\<close>
   unfolding basic_tau_reducts_def
+  sorry
+(*
   by (metis aopsteps_iff(1) list_all_simps(2) prod.inject surj_pair)
+*)
 
 lemma basic_tau_reducts_from_basic_tau_step:
   \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow>
-    basic_tau_reducts s c c' \<Longrightarrow>
+    c' \<in> basic_tau_reducts s c \<Longrightarrow>
     ms' = Inl s \<and> basic_tau_aact \<alpha>\<close>
   apply (induct c arbitrary: \<alpha> s ms' c')
         apply force
@@ -1840,7 +1936,7 @@ lemma basic_tau_reducts_from_basic_tau_step:
   oops
 
 lemma no_aopstep_then_basic_tau_reduct_false[simp]:
-  \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow> basic_tau_reducts s c c' \<longleftrightarrow> c' = c\<close>
+  \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow> c' \<in> basic_tau_reducts s c \<longleftrightarrow> c' = c\<close>
   unfolding basic_tau_reducts_def
   apply clarsimp
   apply (rule iffI)
@@ -1854,9 +1950,10 @@ lemma no_aopstep_then_basic_tau_reduct_false[simp]:
 lemma basic_tau_reducts_step_trans:
   \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', c') \<Longrightarrow>
     basic_tau_aact \<alpha> \<Longrightarrow>
-    basic_tau_reducts s' c' c'' \<Longrightarrow>
-    basic_tau_reducts s c c''\<close>
-  by (fastforce simp add: basic_tau_reducts_def)
+    c'' \<in> basic_tau_reducts s' c' \<Longrightarrow>
+    c'' \<in> basic_tau_reducts s c\<close>
+  apply (clarsimp simp add: basic_tau_reducts_def)
+  sorry
 
 lemma basic_tau_aact_exclusive:
   \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
@@ -1924,18 +2021,11 @@ lemma basic_tau_reducts_from_basic_tau_exec:
     length \<rho> \<le> length \<rho>y \<Longrightarrow>
     ms' = Inl s \<and> list_all basic_tau_aact \<rho>\<close>
   apply (induct arbitrary: s c ms' c' rule: aopsteps.induct)
-   apply force
-  apply clarsimp
-  apply (rename_tac l' s' c' \<rho> l s c ms'' c'')
-  apply (drule meta_spec2, drule meta_mp, rule refl, drule meta_mp, rule refl)
-  apply (erule_tac ?a1.0=\<rho>y in aopsteps.cases)
-   apply force
-  apply clarsimp
-  apply (rename_tac l s c l'x s'x c'x \<rho>' mls'' c'')
-  apply (frule_tac \<alpha>=\<gamma>' and \<alpha>'=\<gamma> in basic_tau_aact_exclusive)
-    apply blast
+    apply force
+   apply clarsimp
   oops
 
+(*
 lemma basic_tau_equiv_dstep_secure:
   \<open>xyc =RR, FF, CC, (\<sigma>x, \<sigma>y)\<Rightarrow> xyc' \<Longrightarrow>
     xyc = ((tx, cx), (ty, cy)) \<Longrightarrow>
@@ -2375,6 +2465,7 @@ inductive_cases cfg_traces_crashE[elim!]:
   \<open>(\<rho>, Crashed) \<in> cfg_traces sc\<close>
 inductive_cases cfg_traces_envE[elim!]:
   \<open>(CTrStep sc' Env \<rho>, Running) \<in> cfg_traces sc\<close>
+*)
 
 fun nonsync_aact :: \<open>aact \<Rightarrow> bool\<close> where
   \<open>nonsync_aact TauINdetL = False\<close>
@@ -2384,6 +2475,7 @@ fun nonsync_aact :: \<open>aact \<Rightarrow> bool\<close> where
 | \<open>nonsync_aact TauBasic = True\<close>
 | \<open>nonsync_aact AVis = True\<close>
 
+(*
 inductive synchronised_ctr_pair
   :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
     ('l \<times> 's, aact eact) cfg_trace \<Rightarrow>
@@ -2582,77 +2674,71 @@ proof -
           apply clarsimp
           apply (erule sctr_pair_init_leftE)
            apply clarsimp
-      
+
       sorry
   } then show ?thesis
     by simp
 qed
+*)
 
 
 section \<open> Double Step (Attempt 2) \<close>
 
-subsection \<open> Synchronisation Double Step \<close>
+subsection \<open> Double Step \<close>
 
-subsubsection \<open> Single Synchronisation Double Step \<close>
+subsubsection \<open> Conformant Double Step \<close>
 
-inductive dstep_sync
+inductive dstep_conf
   :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
         (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
-      (('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool) \<Rightarrow>
       _ eact list \<times> _ eact list \<Rightarrow>
-      (('l \<times> 's) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's) \<times> ('l \<times> 's) comm) \<Rightarrow>
-      (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
       bool\<close>
   where
-  dstep_sync_env[intro!]:
+  dstep_conf_env[intro!]:
     \<open>R (snd sx, snd sy) (snd sx', snd sy') \<Longrightarrow>
       fst sx' = fst sx \<Longrightarrow>
       fst sy' = fst sy \<Longrightarrow>
-      CC cx cy \<Longrightarrow>
-      dstep_sync R F C ([Env], [Env])
-        ((sx,cx), (sy,cy))
-        ((Inl sx', cx), (Inl sy',cy))\<close>
-| dstep_sync_crash_left[intro]:
-  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
+      dstep_conf R F ([Env], [Env])
+        (((sx, kx), cx), ((sy, ky), cy))
+        (((sx', kx), cx), ((sy', ky), cy))\<close>
+| dstep_conf_crash_left[intro]:
+  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sy ## fy \<Longrightarrow>
     \<comment> \<open> left step \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cx') \<Longrightarrow>
-    dstep_sync RR FF CC ([Loc \<alpha>], [])
-      ((sx, cx), (sy, cy))
-      ((Inr (), cx'), (Inl sy, cy))\<close>
-| dstep_sync_crash_right[intro]:
-  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
+    dstep_conf RR FF ([Loc \<alpha>], [])
+      (((sx, False), cx), ((sy, ky), cy))
+      (((sx, True), cx'), ((sy, ky), cy))\<close>
+| dstep_conf_crash_right[intro]:
+  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sx ## fx \<Longrightarrow>
     \<comment> \<open> right step \<close>
-    fst sx ## fx \<Longrightarrow>
+    fst sy ## fy \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cy') \<Longrightarrow>
-    dstep_sync RR FF CC ([], [Loc \<alpha>])
-      ((sx, cx), (sy, cy))
-      ((Inl sx, cx), (Inr (), cy'))\<close>
-| dstep_sync_tau_left[intro]:
-  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
+    dstep_conf RR FF ([], [Loc \<alpha>])
+      (((sx, kx), cx), ((sy, False), cy))
+      (((sx, kx), cx), ((sy, True), cy'))\<close>
+| dstep_conf_step_left[intro]:
+  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sy ## fy \<Longrightarrow>
     nonsync_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> left step \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx') \<Longrightarrow>
-    dstep_sync RR FF CC ([Loc \<alpha>], [])
-      ((sx, cx), (sy, cy))
-      ((Inl sx', cx'), (Inl sy, cy))\<close>
-| dstep_sync_tau_right[intro]:
-  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
+    dstep_conf RR FF ([Loc \<alpha>], [])
+      (((sx, False), cx), ((sy, ky), cy))
+      (((sx', False), cx'), ((sy, ky), cy))\<close>
+| dstep_conf_step_right[intro]:
+  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sx ## fx \<Longrightarrow>
     nonsync_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> right step \<close>
-    fst sx ## fx \<Longrightarrow>
+    fst sy ## fy \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy') \<Longrightarrow>
-    dstep_sync RR FF CC ([], [Loc \<alpha>])
-      ((sx, cx), (sy, cy))
-      ((Inl sx, cx), (Inl sy', cy'))\<close>
-| dstep_sync_local[intro]:
+    dstep_conf RR FF ([], [Loc \<alpha>])
+      (((sx, kx), cx), ((sy, False), cy))
+      (((sx, kx), cx), ((sy', False), cy'))\<close>
+| dstep_conf_local[intro]:
   \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
     \<not> nonsync_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> left steps \<close>
     fst sx ## fx \<Longrightarrow>
@@ -2660,176 +2746,920 @@ inductive dstep_sync
     \<comment> \<open> right steps \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy') \<Longrightarrow>
-    dstep_sync RR FF CC ([Loc \<alpha>], [Loc \<alpha>])
-      ((sx,cx), (sy,cy))
-      ((Inl sx', cx'), (Inl sy', cy'))\<close>
+    dstep_conf RR FF ([Loc \<alpha>], [Loc \<alpha>])
+      (((sx, False), cx), ((sy, False), cy))
+      (((sx', False), cx'), ((sy', False), cy'))\<close>
 
-inductive_cases dstep_sync_nilLE[elim!]: \<open>dstep_sync RR FF CC ([], Y) ss zz'\<close>
-inductive_cases dstep_sync_nilRE[elim!]: \<open>dstep_sync RR FF CC (X, []) ss zz'\<close>
-inductive_cases dstep_sync_EnvXE[elim!]: \<open>dstep_sync RR FF CC (Env#\<rho>x, X) ss zz'\<close>
-inductive_cases dstep_sync_XEnvE[elim!]: \<open>dstep_sync RR FF CC (X, Env#\<rho>y) ss zz'\<close>
-inductive_cases dstep_sync_LocXE[elim]: \<open>dstep_sync RR FF CC (Loc \<alpha>x#\<rho>x, X) ss zz'\<close>
-inductive_cases dstep_sync_XLocE[elim]: \<open>dstep_sync RR FF CC (X, Loc \<alpha>y#\<rho>y) ss zz'\<close>
+inductive_cases dstep_conf_nilLE[elim!]: \<open>dstep_conf RR FF ([], Y) ss zz'\<close>
+inductive_cases dstep_conf_nilRE[elim!]: \<open>dstep_conf RR FF (X, []) ss zz'\<close>
+inductive_cases dstep_conf_EnvXE[elim!]: \<open>dstep_conf RR FF (Env#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_conf_XEnvE[elim!]: \<open>dstep_conf RR FF (X, Env#\<rho>y) ss zz'\<close>
+inductive_cases dstep_conf_LocXE[elim]: \<open>dstep_conf RR FF (Loc \<alpha>x#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_conf_XLocE[elim]: \<open>dstep_conf RR FF (X, Loc \<alpha>y#\<rho>y) ss zz'\<close>
 
-subsubsection \<open> Many Synchronisation Double Step \<close>
-
-abbreviation pretty_dstep_sync :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>c _\<close> [55,0,0,0,0,55] 55) where
-  \<open>cc =RR, FF, CC, \<gamma>\<gamma>\<Rightarrow>\<^sub>c cc' \<equiv> dstep_sync RR FF CC \<gamma>\<gamma> cc cc'\<close>
-
-inductive dsteps_sync :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> where
-  dsteps_sync_nil[intro!]: \<comment> \<open> safe as dstep_sync is never ([],[])\<close>
-  \<open>zz' = zz \<Longrightarrow>
-    dsteps_sync RR FF CC ([], []) zz zz'\<close>
-| dsteps_sync_step[intro]:
-  \<open>zz = ((Inl sx, cx), (Inl sy, cy)) \<Longrightarrow>
-    dstep_sync RR FF CC (\<rho>x, \<rho>y) ((sx, cx), (sy, cy)) ((msx', cx'), (msy', cy')) \<Longrightarrow>
-    dsteps_sync RR FF CC (\<rho>x', \<rho>y') ((msx', cx'), (msy', cy')) zz'' \<Longrightarrow>
-    dsteps_sync RR FF CC (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') zz zz''\<close>
-
-inductive_cases dsteps_sync_nilE[elim!]:
-  \<open>dsteps_sync RR FF CC ([], []) sc zc'\<close>
-inductive_cases dsteps_sync_cons_leftE[elim]:
-  \<open>dsteps_sync RR FF CC (\<alpha>x # \<rho>x, \<rho>y) sc zc'\<close>
-inductive_cases dsteps_sync_cons_rightE[elim]:
-  \<open>dsteps_sync RR FF CC (\<rho>x, \<alpha>y # \<rho>y) sc zc'\<close>
-
-abbreviation dsteps_sync_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>c\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
+abbreviation dstep_conf_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<C> _\<close> [50, 0, 0, 0, 50])
   where
-    \<open>ss =RR, FF, CC, \<rho>xy\<Rightarrow>\<^sub>c\<^sup>* zz' \<equiv> dsteps_sync RR FF CC \<rho>xy ss zz'\<close>
+    \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<C> ss' \<equiv> dstep_conf R F \<rho>xy ss ss'\<close>
 
 
-subsection \<open> Secure Double Step \<close>
-
-subsubsection \<open> Single Secure Double Step \<close>
+subsubsection \<open> Secure Double Step \<close>
 
 inductive dstep_secure
   :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
         (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
-      (('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool) \<Rightarrow>
       _ eact list \<times> _ eact list \<Rightarrow>
-      (('l \<times> 's) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's) \<times> ('l \<times> 's) comm) \<Rightarrow>
-      (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<times> (('l \<times> 's + unit) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
       bool\<close>
   where
-  dstep_secure_env[intro!]:
+    dstep_secure_env[intro!]:
     \<open>R (snd sx, snd sy) (snd sx', snd sy') \<Longrightarrow>
       fst sx' = fst sx \<Longrightarrow>
       fst sy' = fst sy \<Longrightarrow>
-      CC cx cy \<Longrightarrow>
-      dstep_secure R F C ([Env], [Env])
-        ((sx,cx), (sy,cy))
-        ((Inl sx', cx), (Inl sy',cy))\<close>
-| dstep_secure_crash_left[intro]:
-  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
+      dstep_secure R F ([Env], [Env])
+        (((sx, kx), cx), ((sy, ky), cy))
+        (((sx', kx), cx), ((sy', ky), cy))\<close>
+  | dstep_secure_crash[intro!]:
+    \<comment> \<open> one process crashing when the other doesn't is a security failure. \<close>
+    \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
     \<comment> \<open> left step \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cx') \<Longrightarrow>
-    dstep_secure RR FF CC ([Loc \<alpha>], [])
-      ((sx, cx), (sy, cy))
-      ((Inr (), cx'), (Inl sy, cy))\<close>
-| dstep_secure_crash_right[intro]:
-  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
     \<comment> \<open> right step \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cy') \<Longrightarrow>
-    dstep_secure RR FF CC ([], [Loc \<alpha>])
-      ((sx, cx), (sy, cy))
-      ((Inl sx, cx), (Inr (), cy'))\<close>
-| dstep_secure_tau_left[intro]:
-  \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    nonsync_aact \<alpha> \<Longrightarrow>
+    dstep_secure RR FF ([Loc \<alpha>], [Loc \<alpha>])
+      (((sx, False), cx), ((sy, False), cy))
+      (((sx, True), cx'), ((sy, True), cy'))\<close>
+  | dstep_secure_btau_left[intro]:
+    \<comment> \<open> a process may left-step if it's a basic tau move. \<close>
+    \<open>\<exists>fy. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sy ## fy \<Longrightarrow>
+    basic_tau_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> left step \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx') \<Longrightarrow>
-    dstep_secure RR FF CC ([Loc \<alpha>], [])
-      ((sx, cx), (sy, cy))
-      ((Inl sx', cx'), (Inl sy, cy))\<close>
-| dstep_secure_tau_right[intro]:
-  \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    nonsync_aact \<alpha> \<Longrightarrow>
+    dstep_secure RR FF ([Loc \<alpha>], [])
+      (((sx, False), cx), ((sy, ky), cy))
+      (((sx', False), cx), ((sy, ky), cy'))\<close>
+  | dstep_secure_btau_right[intro]:
+    \<comment> \<open> a process may right-step if it's a basic tau move. \<close>
+    \<open>\<exists>fx. FF ((fx,fy),(snd sx, snd sy)) \<and> fst sx ## fx \<Longrightarrow>
+    basic_tau_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> right step \<close>
-    fst sx ## fx \<Longrightarrow>
+    fst sy ## fy \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy') \<Longrightarrow>
-    dstep_secure RR FF CC ([], [Loc \<alpha>])
-      ((sx, cx), (sy, cy))
-      ((Inl sx, cx), (Inl sy', cy'))\<close>
-| dstep_secure_local[intro]:
-  \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
-    CC cx cy \<Longrightarrow>
-    \<not> nonsync_aact \<alpha> \<Longrightarrow>
+    dstep_secure RR FF ([], [Loc \<alpha>])
+      (((sx, kx), cx), ((sy, False), cy))
+      (((sx, kx), cx), ((sy', False), cy'))\<close>
+  | dstep_secure_local[intro]:
+    \<comment> \<open> all other steps must be synchronised to be secure. \<close>
+    \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
+    \<not> basic_tau_aact \<alpha> \<Longrightarrow>
     \<comment> \<open> left steps \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx') \<Longrightarrow>
     \<comment> \<open> right steps \<close>
     fst sx ## fx \<Longrightarrow>
     ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy') \<Longrightarrow>
-    dstep_secure RR FF CC ([Loc \<alpha>], [Loc \<alpha>])
-      ((sx,cx), (sy,cy))
-      ((Inl sx', cx'), (Inl sy', cy'))\<close>
+    dstep_secure RR FF ([Loc \<alpha>], [Loc \<alpha>])
+      (((sx, False), cx), ((sy, False), cy))
+      (((sx', False), cx'), ((sy', False), cy'))\<close>
 
-inductive_cases dstep_secure_nilLE[elim!]: \<open>dstep_secure RR FF CC ([], Y) ss zz'\<close>
-inductive_cases dstep_secure_nilRE[elim!]: \<open>dstep_secure RR FF CC (X, []) ss zz'\<close>
-inductive_cases dstep_secure_EnvXE[elim!]: \<open>dstep_secure RR FF CC (Env#\<rho>x, X) ss zz'\<close>
-inductive_cases dstep_secure_XEnvE[elim!]: \<open>dstep_secure RR FF CC (X, Env#\<rho>y) ss zz'\<close>
-inductive_cases dstep_secure_LocXE[elim]: \<open>dstep_secure RR FF CC (Loc \<alpha>x#\<rho>x, X) ss zz'\<close>
-inductive_cases dstep_secure_XLocE[elim]: \<open>dstep_secure RR FF CC (X, Loc \<alpha>y#\<rho>y) ss zz'\<close>
+inductive_cases dstep_secure_nilLE[elim!]: \<open>dstep_secure RR FF ([], Y) ss zz'\<close>
+inductive_cases dstep_secure_nilRE[elim!]: \<open>dstep_secure RR FF (X, []) ss zz'\<close>
+inductive_cases dstep_secure_EnvXE[elim!]: \<open>dstep_secure RR FF (Env#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_secure_XEnvE[elim!]: \<open>dstep_secure RR FF (X, Env#\<rho>y) ss zz'\<close>
+inductive_cases dstep_secure_LocXE[elim]: \<open>dstep_secure RR FF (Loc \<alpha>x#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_secure_XLocE[elim]: \<open>dstep_secure RR FF (X, Loc \<alpha>y#\<rho>y) ss zz'\<close>
 
-subsubsection \<open> Many Synchronisation Double Step \<close>
-
-abbreviation pretty_dstep_secure :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>s _\<close> [55,0,0,0,0,55] 55) where
-  \<open>cc =RR, FF, CC, \<gamma>\<gamma>\<Rightarrow>\<^sub>s cc' \<equiv> dstep_secure RR FF CC \<gamma>\<gamma> cc cc'\<close>
-
-inductive dsteps_secure :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> where
-  dsteps_secure_nil[intro!]: \<comment> \<open> safe as dstep_secure is never ([],[])\<close>
-  \<open>zz' = zz \<Longrightarrow>
-    dsteps_secure RR FF CC ([], []) zz zz'\<close>
-| dsteps_secure_step[intro]:
-  \<open>zz = ((Inl sx, cx), (Inl sy, cy)) \<Longrightarrow>
-    dstep_secure RR FF CC (\<rho>x, \<rho>y) ((sx, cx), (sy, cy)) ((msx', cx'), (msy', cy')) \<Longrightarrow>
-    dsteps_secure RR FF CC (\<rho>x', \<rho>y') ((msx', cx'), (msy', cy')) zz'' \<Longrightarrow>
-    dsteps_secure RR FF CC (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') zz zz''\<close>
-
-inductive_cases dsteps_secure_nilE[elim!]:
-  \<open>dsteps_secure RR FF CC ([], []) sc zc'\<close>
-inductive_cases dsteps_secure_cons_leftE[elim]:
-  \<open>dsteps_secure RR FF CC (\<alpha>x # \<rho>x, \<rho>y) sc zc'\<close>
-inductive_cases dsteps_secure_cons_rightE[elim]:
-  \<open>dsteps_secure RR FF CC (\<rho>x, \<alpha>y # \<rho>y) sc zc'\<close>
-
-abbreviation dsteps_secure_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
-  (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>s\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
+abbreviation dstep_secure_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<S> _\<close> [50, 0, 0, 0, 50])
   where
-    \<open>ss =RR, FF, CC, \<rho>xy\<Rightarrow>\<^sub>s\<^sup>* zz' \<equiv> dsteps_secure RR FF CC \<rho>xy ss zz'\<close>
+    \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<S> ss' \<equiv> dstep_secure R F \<rho>xy ss ss'\<close>
+
+
+subsubsection \<open> Exact Double Step \<close>
+
+inductive dstep_exact
+  :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        (('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool) \<Rightarrow>
+      _ eact list \<times> _ eact list \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<times> ((('l \<times> 's) \<times> bool) \<times> ('l \<times> 's) comm) \<Rightarrow>
+      bool\<close>
+  where
+    dstep_exact_env[intro!]:
+    \<open>ss = (((sx, kx), cx), ((sy, ky), cy)) \<Longrightarrow>
+      ss' = (((sx', kx), cx), ((sy', ky), cy)) \<Longrightarrow>
+      R (snd sx, snd sy) (snd sx', snd sy') \<Longrightarrow>
+      fst sx' = fst sx \<Longrightarrow>
+      fst sy' = fst sy \<Longrightarrow>
+      dstep_exact R F ([Env], [Env]) ss ss'\<close>
+| dstep_exact_local[intro]:
+  \<comment> \<open> all other steps must be synchronised to be secure. \<close>
+  \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
+    \<comment> \<open> left steps \<close>
+    fst sx ## fx \<Longrightarrow>
+    ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx') \<Longrightarrow>
+    \<comment> \<open> right steps \<close>
+    fst sx ## fx \<Longrightarrow>
+    ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy') \<Longrightarrow>
+    dstep_exact RR FF ([Loc \<alpha>], [Loc \<alpha>])
+      (((sx, False), cx), ((sy, False), cy))
+      (((sx', False), cx'), ((sy', False), cy'))\<close>
+| dstep_exact_crash[intro]:
+  \<comment> \<open> all other steps must be synchronised to be secure. \<close>
+  \<open>FF ((fx,fy),(snd sx, snd sy)) \<Longrightarrow>
+    \<comment> \<open> left steps \<close>
+    fst sx ## fx \<Longrightarrow>
+    ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cx') \<Longrightarrow>
+    \<comment> \<open> right steps \<close>
+    fst sx ## fx \<Longrightarrow>
+    ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cy') \<Longrightarrow>
+    dstep_exact RR FF ([Loc \<alpha>], [Loc \<alpha>])
+      (((sx, False), cx), ((sy, False), cy))
+      (((sx, True), cx'), ((sy, True), cy'))\<close>
+
+inductive_cases dstep_exact_nilLE[elim!]: \<open>dstep_exact RR FF ([], Y) ss zz'\<close>
+inductive_cases dstep_exact_nilRE[elim!]: \<open>dstep_exact RR FF (X, []) ss zz'\<close>
+inductive_cases dstep_exact_EnvXE[elim!]: \<open>dstep_exact RR FF (Env#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_exact_XEnvE[elim!]: \<open>dstep_exact RR FF (X, Env#\<rho>y) ss zz'\<close>
+inductive_cases dstep_exact_LocXE[elim]: \<open>dstep_exact RR FF (Loc \<alpha>x#\<rho>x, X) ss zz'\<close>
+inductive_cases dstep_exact_XLocE[elim]: \<open>dstep_exact RR FF (X, Loc \<alpha>y#\<rho>y) ss zz'\<close>
+
+abbreviation dstep_exact_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<E> _\<close> [50, 0, 0, 0, 50])
+  where
+    \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<E> ss' \<equiv> dstep_exact R F \<rho>xy ss ss'\<close>
+
+lemma dstep_exact_env_iff:
+  \<open>ss =R, F, ([Env], [Env])\<Rightarrow>\<^sub>\<E> ss' \<longleftrightarrow>
+    (\<exists>sx kx cx sy ky cy sx' sy'.
+      ss = (((sx, kx), cx), ((sy, ky), cy)) \<and>
+      ss' = (((sx', kx), cx), ((sy', ky), cy)) \<and>
+      R (snd sx, snd sy) (snd sx', snd sy') \<and>
+      fst sx' = fst sx \<and>
+      fst sy' = fst sy)\<close>
+  by fastforce
+
+lemma dstep_exact_loc_iff:
+  \<open>ss =R, F, ([Loc \<alpha>x], [Loc \<alpha>y])\<Rightarrow>\<^sub>\<E> ss' \<longleftrightarrow>
+    \<alpha>x = \<alpha>y \<and>
+    (\<exists>sx cx sy cy.
+      ss = (((sx, False), cx), ((sy, False), cy)) \<and>
+    (\<exists>sx' kx' cx' sy' ky' cy'.
+      ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<and>
+      ((\<exists>fx fy.
+        \<not> kx' \<and> \<not> ky' \<and>
+        ss = (((sx, False), cx), ((sy, False), cy)) \<and>
+        ss' = (((sx', False), cx'), ((sy', False), cy')) \<and>
+        F ((fx,fy),(snd sx, snd sy)) \<and>
+        fst sx ## fx \<and>
+        ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx') \<and>
+        fst sx ## fx \<and>
+        ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>y\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy')) \<or>
+      (\<exists>fx fy.
+        kx' \<and> ky' \<and>
+        ss = (((sx, False), cx), ((sy, False), cy)) \<and>
+        ss' = (((sx, True), cx'), ((sy, True), cy')) \<and>
+        F ((fx,fy),(snd sx, snd sy)) \<and>
+        fst sx ## fx \<and>
+        ((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inr (), cx') \<and>
+        fst sx ## fx \<and>
+        ((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>y\<rightarrow>\<^sub>a (Inr (), cy')))))\<close>
+  by fast
+
+
+subsection \<open> Double Executions \<close>
+
+(* Note: appends to the end *)
+inductive dexec
+  :: \<open>(_ list \<times> _ list \<Rightarrow>
+        ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
+        ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
+        bool) \<Rightarrow>
+      (_ \<times> _ \<Rightarrow> bool) \<Rightarrow>
+      (_ \<Rightarrow> _ \<Rightarrow> bool) \<Rightarrow>
+      _ list \<times> _ list \<Rightarrow>
+      ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
+      ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
+      bool\<close>
+  for step L C
+  where
+  dexec_nil[intro!]: \<comment> \<open> safe so long as \<open>step\<close> is never \<open>([],[])\<close> \<close>
+  \<open>zz' = zz \<Longrightarrow>
+    C (snd (fst zz)) (snd (snd zz)) \<Longrightarrow>
+    L (fst (fst zz), fst (snd zz)) \<Longrightarrow>
+    dexec step L C ([], []) zz zz'\<close>
+| dexec_step[intro]:
+  \<open>dexec step L C (\<rho>x, \<rho>y) ss ss' \<Longrightarrow>
+    step (\<rho>x', \<rho>y') ss' ss'' \<Longrightarrow>
+    C (snd (fst ss')) (snd (snd ss')) \<Longrightarrow>
+    L (fst (fst ss'), fst (snd ss')) \<Longrightarrow>
+    dexec step L C (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') ss ss''\<close>
+
+inductive_cases dexec_nilE[elim!]:
+  \<open>dexec step L C ([], []) ss ss'\<close>
+inductive_cases dexec_cons_leftE[elim]:
+  \<open>dexec step L C (\<alpha>x # \<rho>x, \<rho>y) ss ss'\<close>
+inductive_cases dexec_cons_rightE[elim]:
+  \<open>dexec step L C (\<rho>x, \<alpha>y # \<rho>y) ss ss'\<close>
+
+lemmas dexec_doublestepI[intro] =
+  dexec_step[where \<rho>x=\<open>[\<alpha>x]\<close> and \<rho>y=\<open>[\<alpha>y]\<close> for \<alpha>x \<alpha>y, simplified]
+lemmas dexec_step_leftI[intro] =
+  dexec_step[where \<rho>x=\<open>[\<alpha>x]\<close> and \<rho>y=\<open>[]\<close> for \<alpha>x, simplified]
+lemmas dexec_step_rightI[intro] =
+  dexec_step[where \<rho>x=\<open>[]\<close> and \<rho>y=\<open>[\<alpha>y]\<close> for \<alpha>y, simplified]
+
+
+abbreviation dexec_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _, _\<Rightarrow>\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
+  where
+    \<open>ss =step, L, C, \<rho>xy\<Rightarrow>\<^sup>* ss' \<equiv> dexec step L C \<rho>xy ss ss'\<close>
+
+
+definition \<open>secstate_bridge L \<equiv> \<lambda>((sx, kx), (sy, ky)). L (exch4 (sx, sy))\<close>
+
+abbreviation dexec_conf :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<C>\<^sup>* _\<close> [50, 0, 0, 0, 50])
+  where
+    \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<equiv> dexec (dstep_conf R F) \<top> \<top> \<rho>xy ss ss'\<close>
+
+lemmas dexec_conf_induct = dexec.inducts[of \<open>dstep_conf R F\<close> \<top> \<top> for R F, consumes 1]
+
+abbreviation dexec_sync :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>\<S>\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
+  where
+    \<open>ss =R, F, L, \<rho>xy\<Rightarrow>\<^sub>\<S>\<^sup>* ss' \<equiv> dexec (dstep_secure R F) (secstate_bridge L) \<top> \<rho>xy ss ss'\<close>
+
+lemmas dexec_sync_induct = dexec.inducts[of \<open>dstep_secure R F\<close> \<top> \<top> for R F, consumes 1]
+
+abbreviation dexec_exact :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<E>\<^sup>* _\<close> [50, 0, 0, 0, 50])
+  where
+    \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<E>\<^sup>* ss' \<equiv> dexec (dstep_exact R F) \<top> (=) \<rho>xy ss ss'\<close>
+
+lemmas dexec_exact_step_env =
+  dexec_step[where step=\<open>dstep_exact R F\<close> for R F, OF _ dstep_exact_env, simplified]
+lemmas dexec_exact_step_crash =
+  dexec_step[where step=\<open>dstep_exact R F\<close> for R F, OF _ dstep_exact_crash, simplified]
+lemmas dexec_exact_step_local =
+  dexec_step[where step=\<open>dstep_exact R F\<close> for R F, OF _ dstep_exact_local, simplified]
+
+lemmas dexec_exact_induct = dexec.inducts[of \<open>dstep_exact R F\<close> \<top> \<open>(=)\<close> for R F, consumes 1]
+
+lemma append_eq_append_singleton_right_conv:
+  \<open>xs1 @ xs2 = ys @ [y] \<longleftrightarrow>
+    (xs1 = ys @ [] \<and> xs2 = [y]) \<or>
+    (xs1 = ys @ [y] \<and> xs2 = []) \<or>
+    (\<exists>us. xs1 @ us = ys \<and> xs2 = us @ [y])\<close>
+  by (force simp add: append_eq_append_conv2 append_eq_Cons_conv conj_disj_distribL)
+
+lemma dexec_exact_left_rconsD:
+  \<open>dexec step L C \<rho>\<rho> ss ss'' \<Longrightarrow>
+    step = dstep_exact R F \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x @ [\<alpha>], \<rho>y') \<Longrightarrow>
+    (\<exists>\<rho>y \<alpha>y sx' cx' sy' cy'.
+      \<rho>y' = \<rho>y @ [\<alpha>] \<and>
+      dexec step L C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
+      dstep_exact R F ([\<alpha>], [\<alpha>]) ((sx', cx'), (sy', cy')) ss'' \<and>
+      L (sx', sy') \<and>
+      C cx' cy')\<close>
+  apply (erule dexec.cases)
+   apply blast
+  apply (clarsimp simp add: append_eq_append_singleton_right_conv del: disjCI)
+  apply (clarsimp simp add: conj_disj_distribR ex_disj_distrib del: disjCI)
+  apply (erule dstep_exact.cases)
+    apply (clarsimp simp add: dstep_exact_env_iff, metis)
+   apply (clarsimp simp add: dstep_exact_loc_iff, metis)
+  apply (clarsimp simp add: dstep_exact_loc_iff, metis)
+  done
+
+lemma dexec_exact_left_rcons_iff:
+  \<open>dexec (dstep_exact R F) L C (\<rho>x @ [\<alpha>], \<rho>y') ss ss'' \<longleftrightarrow>
+    (\<exists>\<rho>y \<alpha>y sx' cx' sy' cy'.
+      \<rho>y' = \<rho>y @ [\<alpha>] \<and>
+      dexec (dstep_exact R F) L C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
+      dstep_exact R F ([\<alpha>], [\<alpha>]) ((sx', cx'), (sy', cy')) ss'' \<and>
+      L (sx', sy') \<and>
+      C cx' cy')\<close>
+  apply (rule iffI)
+   apply (drule dexec_exact_left_rconsD; blast)
+  apply (clarsimp, rule dexec_step, assumption, assumption, force, force)
+  done
 
 
 section \<open> Security Theorem \<close>
 
+lemma dexec_conf_left_crash_preserved_fwd:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    snd (fst (fst ss)) \<Longrightarrow>
+    snd (fst (fst ss'))\<close>
+  by (induct rule: dexec_conf_induct) (force elim: dstep_conf.cases)+
+
+lemma dexec_conf_right_crash_preserved_fwd:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    snd (fst (snd ss)) \<Longrightarrow>
+    snd (fst (snd ss'))\<close>
+  by (induct rule: dexec_conf_induct) (force elim: dstep_conf.cases)+
+
+
+lemma empty_rely_no_env_estep:
+  \<open>sc \<midarrow>F, \<bottom>, \<alpha>e\<rightarrow>\<^sub>e\<^sub>a msc' \<Longrightarrow>
+    \<exists>\<alpha>. \<alpha>\<^sub>e = Loc \<alpha>\<close>
+  by (cases \<alpha>e) force+
+
+lemma empty_rely_no_env_esteps:
+  \<open>sc \<midarrow>R, F, \<rho>e\<rightarrow>\<^sub>e\<^sub>a\<^sup>* msc' \<Longrightarrow>
+    R = \<bottom> \<Longrightarrow>
+    list_all (\<lambda>\<alpha>e. \<exists>\<alpha>. \<alpha>e = Loc \<alpha>) \<rho>e\<close>
+  by (induct rule: easteps_induct) force+
+
+
+section \<open> Basic tau equivalence \<close>
+
+definition sync_set
+  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l::pre_perm_alg \<times> 's) config \<Rightarrow>
+      ('l \<times> 's) comm set\<close>
+  where
+    \<open>sync_set FF \<equiv> \<lambda>sc.
+      {c''. \<exists>\<rho>e c' s'.
+        (sc \<midarrow>\<bottom>, FF, \<rho>e\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (Inl s', c')) \<and>
+        list_all (\<lambda>\<alpha>e. \<exists>\<alpha>. \<alpha>e = Loc \<alpha> \<and> basic_tau_aact \<alpha>) \<rho>e \<and>
+        (\<exists>\<alpha> s''. (s', c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s'', c'') \<and> \<not> basic_tau_aact \<alpha>)}\<close>
+
+definition can_btau_crash
+  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's) config \<Rightarrow>
+      bool\<close>
+  where
+    \<open>can_btau_crash F sc \<equiv>
+      \<exists>\<rho>e s' c'.
+        (sc \<midarrow>\<bottom>, F, \<rho>e\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (Inl s', c')) \<and>
+        list_all (\<lambda>\<alpha>e. \<exists>\<alpha>. \<alpha>e = Loc \<alpha> \<and> basic_tau_aact \<alpha>) \<rho>e \<and>
+        (\<exists>\<alpha> c'' f.
+          F (f, snd s') \<and>
+          fst s' ## f \<and>
+          ((fst s' + f, snd s'), c') \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), c''))\<close>
+
+definition btau_equiv
+  :: \<open>('l::pre_perm_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l::pre_perm_alg \<times> 's) config \<Rightarrow> ('l \<times> 's) config \<Rightarrow> bool\<close>
+  where
+    \<open>btau_equiv FF sca scb \<equiv>
+      sync_set FF sca = sync_set FF scb \<and>
+      can_btau_crash FF sca = can_btau_crash FF scb\<close>
+
+
+lemma left_crash_and_btau_equiv_implies_right_can_btau_crash:
+  fixes cx cy :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and lsx lsy fx fy :: 'l
+    and ssx ssy :: 's
+  shows
+  \<open>F (fx, ssx) \<Longrightarrow>
+    lsx ## fx \<Longrightarrow>
+    ((lsx + fx, ssx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cx') \<Longrightarrow>
+    btau_equiv F ((lsx, ssx), cx) ((lsy, ssy), cy) \<Longrightarrow>
+    can_btau_crash F ((lsy, ssy), cy)\<close>
+  apply (clarsimp simp add: btau_equiv_def del: disjCI)
+  apply (simp add: can_btau_crash_def[of _ \<open>((lsx, _), _)\<close>])
+  apply (drule spec[of _ \<open>[]\<close>], simp)
+  done
+
+lemma right_crash_and_btau_equiv_implies_left_can_btau_crash:
+  fixes cx cy :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and lsx lsy fx fy :: 'l
+    and ssx ssy :: 's
+  shows
+  \<open>F (fy, ssy) \<Longrightarrow>
+    lsy ## fy \<Longrightarrow>
+    ((lsy + fy, ssy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cy') \<Longrightarrow>
+    btau_equiv F ((lsx, ssx), cx) ((lsy, ssy), cy) \<Longrightarrow>
+    can_btau_crash F ((lsx, ssx), cx)\<close>
+  apply (clarsimp simp add: btau_equiv_def del: disjCI)
+  apply (simp add: can_btau_crash_def[of _ \<open>((lsy, _), _)\<close>])
+  apply (drule spec[of _ \<open>[]\<close>], simp)
+  done
+
+lemma dexec_trans:
+  \<open>ss' =step, L, C, \<rho>\<rho>'\<Rightarrow>\<^sup>* ss'' \<Longrightarrow>
+    ss =step, L, C, \<rho>\<rho>\<Rightarrow>\<^sup>* ss' \<Longrightarrow>
+    ss =step, L, C, (fst \<rho>\<rho> @ fst \<rho>\<rho>', snd \<rho>\<rho> @ snd \<rho>\<rho>')\<Rightarrow>\<^sup>* ss''\<close>
+  apply (induct rule: dexec.inducts)
+   apply force
+  apply (clarsimp, metis append.assoc dexec_step fst_conv snd_conv)
+  done
+
+
+subsubsection \<open> Aopstep lemmas \<close>
+
+lemma tau_aexec_preserves_state:
+  \<open>(s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<Longrightarrow>
+    list_all tau_aact \<rho> \<Longrightarrow>
+    s' = s\<close>
+  apply (induct \<rho> arbitrary: s c s' c')
+   apply force
+  apply clarsimp
+  apply (rename_tac ls ss c ls'' ss'' c'' ls' ss' c')
+  apply (metis aopstep_tau_preserves_state fst_eqD sum.sel(1))
+  done
+
+lemma btau_aexec_preserves_state:
+  \<open>(s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<Longrightarrow>
+    list_all basic_tau_aact \<rho> \<Longrightarrow>
+    s' = s\<close>
+  by (metis basic_tau_aact_then_tau_aact list.pred_mono_strong tau_aexec_preserves_state)
+
+lemma tau_aopstep_state_irrelevant:
+  \<comment> \<open> False because of do loops \<close>
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow> tau_aact \<alpha> \<Longrightarrow> (sx, snd sc) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl sx, snd msc')\<close>
+  apply (induct \<alpha> sc msc' rule: aopstep_induct)
+        apply force
+       apply force
+      apply force
+     apply force
+    apply force
+   apply clarsimp
+  subgoal sorry
+  apply force
+  oops
+
+lemma btau_astep_preserves_nextstep:
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    basic_tau_aact \<alpha> \<Longrightarrow>
+    sc \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inl sx, cx) \<Longrightarrow>
+    \<alpha>x \<noteq> \<alpha> \<Longrightarrow>
+    \<exists>cx'. (s', c') \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inl sx, cx')\<close>
+  apply (frule aopstep_tau_preserves_state, force)
+  apply (induct \<alpha> sc msc' arbitrary: s' c' \<alpha>x sx cx rule: aopstep_induct)
+        apply force
+       apply fastforce
+      apply fastforce
+     apply clarsimp
+     apply (erule disjE, force simp add: if_bool_eq_disj)
+     apply (erule disjE, force simp add: if_bool_eq_disj)
+     apply (erule disjE, force simp add: if_bool_eq_disj)
+     apply (erule disjE, force simp add: if_bool_eq_disj)
+     apply (erule disjE; clarsimp simp add: if_bool_eq_disj, metis)
+    apply clarsimp
+    apply (erule disjE, force)
+    apply (erule disjE, force)
+    apply (elim disjE exE conjE)
+       apply (simp; fail)
+      apply force
+     apply force
+    apply (simp; fail)
+   apply fastforce
+  apply fastforce
+  done
+
+lemma btau_aexec_preserves_nonbtau_nextstep:
+  \<open>(s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c') \<Longrightarrow>
+    list_all basic_tau_aact \<rho> \<Longrightarrow>
+    \<not> basic_tau_aact \<alpha>x \<Longrightarrow>
+    (s, c) \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inl sx, cx) \<Longrightarrow>
+    \<exists>cx'. (s', c') \<midarrow>\<alpha>x\<rightarrow>\<^sub>a (Inl sx, cx')\<close>
+  apply (induct \<rho> arbitrary: s c \<alpha>x s' c' sx cx)
+   apply force
+  apply (simp, metis btau_astep_preserves_nextstep)
+  done
+
+lemma aopsteps_trans:
+  \<open>sc \<midarrow>\<rho>a\<rightarrow>\<^sub>a\<^sup>* msc' \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    (s', c') \<midarrow>\<rho>b\<rightarrow>\<^sub>a\<^sup>* sc'' \<Longrightarrow>
+    sc \<midarrow>\<rho>a @ \<rho>b\<rightarrow>\<^sub>a\<^sup>* sc''\<close>
+  by (induct arbitrary: \<rho>b sc'' rule: aopsteps.induct) force+
+
+lemma basic_tau_aopstep_changes_comm:
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    basic_tau_aact \<alpha> \<Longrightarrow>
+    c' \<noteq> c\<close>
+  by (induct arbitrary: s c s' c' rule: aopstep_induct) force+
+
+
+subsubsection \<open> Basic Tau Equivalences \<close>
+
+definition btau_reduce_comm
+  :: \<open>('l \<times> 's) \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool\<close> (\<open>_, _ \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* _\<close> [55,0,55] 55)
+  where
+    \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<equiv> \<exists>\<rho>. list_all basic_tau_aact \<rho> \<and> (s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s, c')\<close>
+
+lemma btau_reduce_comm_reflI[intro!]:
+  \<open>btau_reduce_comm s c c\<close>
+  by (metis aopsteps_nil btau_reduce_comm_def fst_conv snd_conv list_all_simps(2))
+
+lemma btau_reduce_comm_reflp:
+  \<open>reflp (btau_reduce_comm s)\<close>
+  by (metis reflpI btau_reduce_comm_reflI)
+
+lemma btau_reduce_comm_transp:
+  \<open>transp (btau_reduce_comm s)\<close>
+  by (rule transpI, meson aopsteps_trans btau_reduce_comm_def list_all_append)
+
+(* Note: not antisym, consider \<open>DO Skip;; Skip OD\<close> *)
+
+
+definition btau_equiv_trace :: \<open>aact eact list \<Rightarrow> aact eact list \<Rightarrow> bool\<close> (infix \<open>\<simeq>\<^sub>\<tau>\<^sub>B\<close> 55) where
+  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B \<rho>' \<equiv>
+    List.filter (case_eact True (Not \<circ> basic_tau_aact)) \<rho> =
+    List.filter (case_eact True (Not \<circ> basic_tau_aact)) \<rho>'\<close>
+
+lemma nil_btau_equiv_iff[simp]:
+  \<open>[] \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<longleftrightarrow> list_all (case_eact False basic_tau_aact) \<rho>\<close>
+  by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
+
+lemma nil_btau_equiv_nil_iff[simp]:
+  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B [] \<longleftrightarrow> list_all (case_eact False basic_tau_aact) \<rho>\<close>
+  by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
+
+lemma btau_equiv_trace_reflI[intro!]:
+  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B \<rho>\<close>
+  by (metis btau_equiv_trace_def)
+
+lemma btau_equiv_trace_reflp:
+  \<open>reflp (\<simeq>\<^sub>\<tau>\<^sub>B)\<close>
+  by (metis btau_equiv_trace_reflI reflpI)
+
+lemma btau_equiv_trace_symp:
+  \<open>symp (\<simeq>\<^sub>\<tau>\<^sub>B)\<close>
+  by (metis btau_equiv_trace_def sympI)
+
+lemma btau_equiv_trace_transp:
+  \<open>transp (\<simeq>\<^sub>\<tau>\<^sub>B)\<close>
+  by (metis btau_equiv_trace_def transpI)
+
+lemma btau_reduce_left_to_dstep_exact:
+  \<open>sc \<midarrow>\<rho>x\<rightarrow>\<^sub>a\<^sub>r\<^sup>* mscx' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    mscx' = (Inl s, cx) \<Longrightarrow>
+    list_all basic_tau_aact \<rho>x \<Longrightarrow>
+      (\<exists>cy. s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<and>
+        (\<exists>\<rho>y. list_all (case_eact False basic_tau_aact) \<rho>y \<and>
+          (((s, False), c), ((s, False), c))
+            =R, F, (map Loc \<rho>x, \<rho>y)\<Rightarrow>\<^sub>\<E>\<^sup>*
+            (((s, False), cx), ((s, False), cy))))\<close>
+  apply (induct arbitrary: s c cx rule: aopsteps_rev.induct)
+   apply force
+  apply clarsimp
+  apply (subst dexec_exact_left_rcons_iff)
+  apply clarsimp
+  sorry
+
+lemma btau_reduce_diamond:
+  \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
+    \<forall>atx\<in>all_atoms cx.
+      \<forall>aty\<in>all_atoms cy.
+        pre_state (snd atx) sx = pre_state (snd aty) sy \<Longrightarrow>
+    \<exists>c'. sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
+  unfolding btau_reduce_comm_def
+  apply clarsimp
+  sorry
+
+fun do_guards :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> bool) set\<close> where
+  \<open>do_guards Skip = {}\<close>
+| \<open>do_guards (ca;; cb) = do_guards ca \<union> do_guards cb\<close>
+| \<open>do_guards (ca \<parallel> cb) = do_guards ca \<union> do_guards cb\<close>
+| \<open>do_guards (ca \<^bold>+ cb) = do_guards ca \<union> do_guards cb\<close>
+| \<open>do_guards (ca \<box> cb) = do_guards ca \<union> do_guards cb\<close>
+| \<open>do_guards \<langle>p, q\<rangle> = {}\<close>
+| \<open>do_guards (DO c OD) = {p \<sqinter> pre_state q|p q. (p,q) \<in> head_atoms c} \<union> do_guards c\<close>
+
+lemma no_aopstep_state_irrelevance:
+  \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow>
+    \<forall>p q. (p, q) \<in> head_atoms c \<longrightarrow> (p s \<and> pre_state q s) = (p sa \<and> pre_state q sa) \<Longrightarrow>
+   (sa, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+proof (induct c arbitrary: sa s) 
+  case (Endet c1 c2)
+  then show ?case
+    by (clarsimp simp add: all_conj_distrib if_bool_eq_disj all_tau_all_vis_iff) (* slow *)
+next
+  case (Atomic x1 x2)
+  then show ?case
+    by (force simp add: all_conj_distrib if_bool_eq_disj pre_state_def)
+qed (clarsimp simp add: all_conj_distrib; fail)+ (* slow *)
+
+
+lemma btau_step_state_irrelevance':
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
+    basic_tau_aact \<alpha> \<Longrightarrow>
+    (sa, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl sa, c')\<close>
+  apply (induct \<alpha> sc msc' arbitrary: s c s' c' rule: aopstep_induct)
+        apply fastforce
+       apply fastforce
+      apply fastforce
+     apply fastforce
+    apply fastforce
+   apply (clarsimp simp add: imp_ex_conjL Ball_def del: disjCI)
+   apply (elim disjE)
+    apply (simp add: no_aopstep_state_irrelevance; fail)
+   apply blast
+  apply force
+  done
+
+lemma aopstep_do_guard_subseteq:
+  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow>
+    do_guards c' \<subseteq> do_guards c\<close>
+  by (induct c arbitrary: s ms' c' \<alpha>)
+    (fastforce simp add: if_bool_eq_disj conj_disj_distribL)+
+
+lemma btau_reduce_state_irrelevance':
+  \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    list_all basic_tau_aact \<rho> \<Longrightarrow>
+    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
+    list_all basic_tau_aact \<rho> \<Longrightarrow>
+    (sa, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl sa, c')\<close>
+  apply (induct \<rho> sc msc' arbitrary: s c s' c' rule: aopsteps.induct)
+    apply force
+   apply force
+  apply clarsimp
+  apply (frule_tac sa=sa in btau_step_state_irrelevance', fast, fast, fast, fast)
+  apply (rule exI[of _ \<open>fst sa\<close>], rule exI[of _ \<open>snd sa\<close>], rule_tac x=c' in exI)
+  apply simp
+  apply (metis aopstep_do_guard_subseteq aopstep_tau_preserves_state basic_tau_aact_then_tau_aact
+      fst_eqD subsetD sum.sel(1))
+  done
+
+lemma btau_reduce_state_irrelevance:
+  \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<Longrightarrow>
+    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
+    sa, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
+  unfolding btau_reduce_comm_def
+  by (metis btau_reduce_state_irrelevance')
+
+
+lemma dstep_conf_to_dexec_exact:
+  assumes
+    \<open>(((sx, kx), cx), ((sy, ky), cy))
+      =R, F, (\<rho>x, \<rho>y)\<Rightarrow>\<^sub>\<C> (((sx', kx'), cx'), ((sy', ky'), cy'))\<close>
+    \<open>sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<or> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx\<close>
+    \<open>\<forall>p\<in>do_guards cx. p sx = p sx'\<close>
+    \<open>\<forall>p\<in>do_guards cy. p sy = p sy'\<close>
+  shows
+    \<open>\<exists>c c'.
+      (c = cx \<and> c' = cx' \<and> sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<and> sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy'
+        \<or> c = cy \<and> c' = cy' \<and> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<and> sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx') \<and>
+    (\<exists>\<rho>x'. \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x' \<and>
+    (\<exists>\<rho>y'. \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<and>
+      (((sx, kx), c), ((sy, ky), c))
+        =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<E>\<^sup>* (((sx', kx'), c'), ((sy', ky'), c'))))\<close>
+  using assms(1)
+proof (elim dstep_conf.cases)
+  presume assms2:
+    \<open>\<rho>x = [Env]\<close>
+    \<open>\<rho>y = [Env]\<close>
+    \<open>R (snd sx, snd sy) (snd sx', snd sy')\<close>
+    \<open>fst sx' = fst sx\<close>
+    \<open>fst sy' = fst sy\<close>
+    \<open>kx' = kx\<close>
+    \<open>cx' = cx\<close>
+    \<open>ky' = ky\<close>
+    \<open>cy' = cy\<close>
+  then show ?thesis
+    using assms(2-)
+    apply clarsimp
+    apply (erule disjE)
+     apply (rule exI[where x=cx], rule exI[where x=cx'])
+     apply (rule conjI, metis btau_reduce_state_irrelevance)
+     apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
+     apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
+      (* "; force" would be nicer, but it doesn't work because of unification order. *)
+     apply (rule dexec_exact_step_env[OF dexec_nil, simplified], (force+)[10])
+    apply (rule exI[where x=cy], rule exI[where x=cy'])
+    apply (rule conjI, metis btau_reduce_state_irrelevance)
+    apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
+    apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
+    apply (rule dexec_exact_step_env[OF dexec_nil, simplified], (force+)[10])
+    done
+next
+  fix fx \<alpha>
+  presume
+    \<open>\<rho>x = [Loc \<alpha>]\<close>
+    \<open>\<rho>y = []\<close>
+    \<open>sx' = sx\<close>
+    \<open>\<not> kx\<close>
+    \<open>sy' = sy\<close>
+    \<open>kx'\<close>
+    \<open>cy' = cy\<close>
+    \<open>\<exists>fy. F ((fx, fy), snd sx', snd sy') \<and> fst sy' ## fy\<close>
+    \<open>fst sx' ## fx\<close>
+    \<open>((fst sx' + fx, snd sx'), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cx')\<close>
+  then show ?thesis
+    sorry
+next
+  fix fy \<alpha>
+  presume
+    \<open>\<rho>x = []\<close>
+    \<open>\<rho>y = [Loc \<alpha>]\<close>
+    \<open>\<not> ky\<close>
+    \<open>sx' = sx\<close>
+    \<open>kx' = kx\<close>
+    \<open>cx' = cx\<close>
+    \<open>sy' = sy\<close>
+    \<open>ky'\<close>
+    \<open>\<exists>fx. F ((fx, fy), snd sx', snd sy') \<and> fst sx' ## fx\<close>
+    \<open>fst sy' ## fy\<close>
+    \<open>((fst sy' + fy, snd sy'), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cy')\<close>
+  then show ?thesis
+    sorry
+next
+  fix fx sx \<alpha> cy cx
+  presume
+    \<open>\<rho>x = [Loc \<alpha>]\<close>
+    \<open>\<rho>y = []\<close>
+    \<open>ss = (((sx, False), cx), (sy', ky'), cy)\<close>
+    \<open>\<not> kx'\<close>
+    \<open>\<exists>fy. F ((fx, fy), snd sx, snd sy') \<and> fst sy' ## fy\<close>
+    \<open>nonsync_aact \<alpha>\<close>
+    \<open>fst sx ## fx\<close>
+    \<open>((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx')\<close>
+  then show ?thesis
+    sorry
+next
+  fix fy sy \<alpha> cy
+  presume
+    \<open>\<rho>x = []\<close>
+    \<open>\<rho>y = [Loc \<alpha>]\<close>
+    \<open>ss = (((sx', kx'), cx'), (sy, False), cy)\<close>
+    \<open>\<not> ky'\<close>
+    \<open>\<exists>fx. F ((fx, fy), snd sx', snd sy) \<and> fst sx' ## fx\<close>
+    \<open>nonsync_aact \<alpha>\<close>
+    \<open>fst sy ## fy\<close>
+    \<open>((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy')\<close>
+  show ?thesis
+    sorry
+next
+  fix fx fy sx sy \<alpha> cx cy 
+  presume
+    \<open>\<rho>x = [Loc \<alpha>]\<close>
+    \<open>\<rho>y = [Loc \<alpha>]\<close>
+    \<open>ss = (((sx, False), cx), (sy, False), cy)\<close>
+    \<open>\<not> kx'\<close>
+    \<open>\<not> ky'\<close>
+    \<open>F ((fx, fy), snd sx, snd sy)\<close>
+    \<open>\<not> nonsync_aact \<alpha>\<close>
+    \<open>fst sx ## fx\<close>
+    \<open>((fst sx + fx, snd sx), cx) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sx' + fx, snd sx'), cx')\<close>
+    \<open>fst sx ## fx\<close>
+    \<open>((fst sy + fy, snd sy), cy) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (fst sy' + fy, snd sy'), cy')\<close>
+  then show ?thesis
+    sorry
+qed force+
+
+
+text \<open>
+  This lemma uses lemma \<open>dstep_conf_to_dexec_exact\<close>, but the proof is not simply by repeated
+  application of this theorem then concatenation of the resulting exact traces.
+\<close>
+lemma dexec_conf_to_dexec_exact:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    ss = (((s, kx), cx), ((s, ky), cy)) \<Longrightarrow>
+    ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
+    \<exists>cx'' cy'' \<rho>x' \<rho>y'.
+      sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx'' \<and>
+      sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy'' \<and>
+      \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x' \<and>
+      \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<and>
+      ss =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<E>\<^sup>* (((sx', kx'), cx''), ((sy', ky'), cy''))\<close>
+  apply (induct arbitrary: s kx cx ky cy sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y rule: dstep_conf.induct)
+  apply clarsimp
+  sorry
+
+lemma dexec_exact_and_safe_to_secure:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<E>\<^sup>* ss' \<Longrightarrow>
+    safe (max (length (fst \<rho>\<rho>)) (length (snd \<rho>\<rho>)))
+      (liftC' (snd (fst ss)) (snd (snd ss)))
+      (Inl (exch4 (fst (fst (fst ss)), fst (fst (snd ss)))))
+      R G q S F \<Longrightarrow>
+    L (exch4 (fst (fst ss), fst (snd ss))) \<Longrightarrow>
+    L (exch4 (fst (fst ss'), fst (snd ss')))\<close>
+  apply (induct rule: dexec_exact_induct)
+   apply force
+  apply clarsimp
+  apply (erule dstep_exact.cases)
+    apply (clarsimp simp add: safe_suc_iff)
+  oops
+
+lemma dexec_exact_and_safe_to_secure:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<E>\<^sup>* ss' \<Longrightarrow>
+    ss = (((s, kx), cx), ((s, ky), cy)) \<Longrightarrow>
+    ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
+    safe n (liftC' c c) (Inl (exch4 (s, s))) R G q S F \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
+    length \<rho>x < n \<Longrightarrow>
+    length \<rho>y < n \<Longrightarrow>
+    \<exists>cx'' cy'' \<rho>x' \<rho>y'.
+      sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx'' \<and>
+      sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy'' \<and>
+      \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x' \<and>
+      \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<and>
+      ss =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<S>\<^sup>* (((sx', kx'), cx''), ((sy', ky'), cy''))\<close>
+
 theorem security:
   fixes n :: nat
-    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and cx cy :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
     and sx sy :: \<open>'l \<times> 's\<close>
   assumes noninductive_assms:
     \<open>FF \<le> (cancellative \<times>\<^sub>P cancellative) \<times>\<^sub>P \<top>\<close>
     \<open>\<forall>sx sy sx' sy'. RR (sx, sy) (sx', sy') \<longrightarrow>
       (\<forall>lxy. FF (lxy, (sx, sy)) \<longrightarrow> FF (lxy, (sx', sy')))\<close>
     and inductive_assms:
-    \<open>safe n cc zz RR GG qq SS FF\<close>
-    \<open>cc = liftC c\<close>
-    \<open>zz = Inl (exch4 (sx, sy))\<close>
-    \<open>((Inl sx, c), (Inl sy, c)) =RR, FF, C, (\<delta>x, \<delta>y)\<Rightarrow>\<^sub>c\<^sup>* ((Inl sx', cx'), (Inl sy', cy'))\<close>
-    \<open>length \<delta>x < n\<close>
-    \<open>length \<delta>y < n\<close>
+    \<open>zxy =RR, FF, C, \<delta>xy\<Rightarrow>\<^sub>\<C>\<^sup>* zxy'\<close>
+    \<open>zxy = ((Inl sx, cx), (Inl sy, cy))\<close>
+    \<open>safe n (liftC' cx cy) (Inl (exch4 (sx, sy))) RR GG qq SS FF\<close>
+    \<open>btau_equiv (sx, cx) (sy, cy)\<close>
+    \<open>length (fst \<delta>xy) < n\<close>
+    \<open>length (snd \<delta>xy) < n\<close>
+    \<open>S \<circ> exch4 \<le> sec_head_determ cx\<close>
+    \<open>S \<circ> exch4 \<le> sec_head_determ cy\<close>
+    \<open>C cx cy\<close>
+    \<open>(=) \<le> C\<close>
   shows
-    \<open>((Inl sx, c), (Inl sy, c)) =RR, FF, C, (\<delta>x, \<delta>y)\<Rightarrow>\<^sub>s\<^sup>* ((Inl sx', cx'), (Inl sy', cy'))\<close>
-  sorry
+    \<open>zxy =RR, FF, C, \<delta>xy\<Rightarrow>\<^sub>\<S>\<^sup>* zxy'\<close>
+  using inductive_assms
+proof (induction arbitrary: sx cx sy cy n rule: dsteps_conf.induct)
+  case (dsteps_conf_nil zz' zz RR FF CC)
+  then show ?case
+    apply clarsimp
+    apply (rule dexec_nil; force)
+    done
+next
+  case (dsteps_conf_step zz sxx cxx syy cyy RR FF
+      \<delta>xx \<delta>yy zz' CC \<delta>x' \<delta>y' zz'')
 
+  note ih = dsteps_conf_step(5)[
+      where sx=\<open>(sxl, sxs)\<close> and sy=\<open>(syl, sys)\<close> for sxl sxs syl sys,
+        simplified]
+
+  obtain sxl sxs where \<open>sxx = (sxl, sxs)\<close>
+    by (metis (full_types) prod.exhaust)
+  moreover obtain syl sys where \<open>syy = (syl, sys)\<close>
+    by (metis (full_types) prod.exhaust)
+  moreover obtain sxl' sxs'
+    where \<open>fst (fst zz') = Inl (sxl', sxs') \<or> fst (fst zz') = Inr ()\<close>
+    by (metis (mono_tags) sum.exhaust unit.exhaust prod.exhaust)
+  moreover obtain syl' sys'
+    where \<open>fst (snd zz') = Inl (syl', sys') \<or> fst (snd zz') = Inr ()\<close>
+    by (metis (mono_tags) sum.exhaust unit.exhaust prod.exhaust)
+  ultimately show ?case
+    using dsteps_conf_step.prems dsteps_conf_step.hyps
+    apply clarsimp
+    apply (erule dstep_conf.cases)
+      (* Env/Env *)
+         apply (clarsimp simp add: Suc_less_eq2)
+         apply (rule_tac zz'=\<open>((Inl (sxl, sxs'), ux), (Inl (syl, sys'), uy))\<close>
+        for ux uy in dexec_doublestepI, (simp; fail))
+           apply (rule dstep_secure_env[where sx'=\<open>(_,_)\<close> and sy'=\<open>(_,_)\<close>],
+        (simp; fail), (simp; fail), (simp; fail), (simp; fail), (simp; fail))
+          apply (simp; fail)
+         apply (clarsimp simp add: safe_suc_iff)
+         apply (drule spec2, drule mp, assumption)
+         apply (frule ih[rotated 2]; blast)
+      (* Loc/\<epsilon> Crash *)
+        apply clarsimp
+    apply (frule dsteps_conf_left_crash_preserved_fwd, (simp; fail))
+    subgoal sorry
+      (* \<epsilon>/Loc Crash *)
+       apply clarsimp
+       apply (frule dsteps_conf_right_crash_preserved_fwd, (simp; fail))
+    subgoal sorry
+      (* Loc/\<epsilon> *)
+      apply clarsimp
+      apply (case_tac \<open>basic_tau_aact \<alpha>\<close>)
+      (* basic tau *)
+       apply (rule dexec_step_leftI[OF
+          _ dstep_secure_btau_left[where sx'=\<open>(_,_)\<close>]])
+             apply (simp; fail)
+            apply (clarsimp, blast)
+           apply (simp; fail)
+          apply (simp; fail)
+         apply (clarsimp, blast)
+        apply (simp; fail)
+    subgoal sorry
+        (* not basic tau *)
+    subgoal sorry
+        (*
+      apply (clarsimp simp add: Suc_less_eq2)
+      apply (frule_tac cx=cx' and n=\<open>m'\<close> in ih[rotated 2]) *)
+    sorry
+qed
 
 
 

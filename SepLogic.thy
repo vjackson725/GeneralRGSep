@@ -311,13 +311,25 @@ subsection \<open>sepdomeq\<close>
 
 definition \<open>sepdomeq a b \<equiv> \<forall>c. a ## c = b ## c\<close>
 
+lemma sepdomeq_reflI[intro!]:
+  \<open>sepdomeq a a\<close>
+  by (simp add: reflpI sepdomeq_def)
+
 lemma sepdomeq_reflp:
   \<open>reflp sepdomeq\<close>
   by (simp add: reflpI sepdomeq_def)
 
+lemma sepdomeq_sym:
+  \<open>sepdomeq a b \<Longrightarrow> sepdomeq b a\<close>
+  by (metis sepdomeq_def)
+
 lemma sepdomeq_symp:
   \<open>symp sepdomeq\<close>
   by (metis sepdomeq_def sympI)
+
+lemma sepdomeq_trans[trans]:
+  \<open>sepdomeq a b \<Longrightarrow> sepdomeq b c \<Longrightarrow> sepdomeq a c\<close>
+  by (simp add: sepdomeq_def)
 
 lemma sepdomeq_transp:
   \<open>transp sepdomeq\<close>
@@ -344,6 +356,10 @@ lemma sepdomsubseteq_transp:
 lemma sepdomsubseteq_disjointD:
   \<open>sepdomsubseteq a b \<Longrightarrow> a ## c \<Longrightarrow> b ## c\<close>
   by (simp add: sepdomsubseteq_def)
+
+lemma sepdomsubseteq_antisym:
+  \<open>sepdomsubseteq a b \<Longrightarrow> sepdomsubseteq b a \<Longrightarrow> sepdomeq a b\<close>
+  using sepdomeq_def sepdomsubseteq_def by blast
 
 
 subsection \<open> Seplogic connectives \<close>

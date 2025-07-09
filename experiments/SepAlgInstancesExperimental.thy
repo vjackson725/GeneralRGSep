@@ -210,7 +210,7 @@ lemma gcd_crossmult_coprime_divisors_eq:
   by (metis coprime_commute coprime_iff_gcd_eq_1 gcd_add_mult gcd_add_multL2
       gcd_mult_right_right_cancel)
 
-
+(*
 instantiation lfrac :: (len) perm_alg
 begin
 
@@ -345,5 +345,322 @@ end
 
 (* not an all_disjoint_perm_alg *)
 
+*)
+
+section \<open> Many-zero Alg \<close>
+
+datatype 'a mzero = V 'a | Z nat
+
+subsection \<open> instances \<close>
+
+subsubsection \<open> perm_alg \<close>
+
+instantiation mzero :: (pre_perm_alg) pre_perm_alg
+begin
+
+definition disjoint_mzero :: \<open>'a mzero \<Rightarrow> 'a mzero \<Rightarrow> bool\<close> where
+  \<open>disjoint_mzero a b \<equiv> (\<exists>k. a = Z k) \<or> (\<exists>k. b = Z k) \<or> (\<exists>x y. a = V x \<and> b = V y \<and> x ## y)\<close>
+
+definition plus_mzero :: \<open>'a mzero \<Rightarrow> 'a mzero \<Rightarrow> 'a mzero\<close> where
+  \<open>plus_mzero a b \<equiv>
+    case (a, b) of
+      (V a, V b) \<Rightarrow> V (a + b)
+    | (V a, Z k) \<Rightarrow> V a
+    | (Z k, V b) \<Rightarrow> V b
+    | (Z m, Z n) \<Rightarrow> Z (max m n)\<close>
+
+instance
+  apply standard
+      apply (simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+      apply (intro conjI allI impI)
+       apply (simp, metis partial_add_assoc)
+      apply (simp; fail)
+     apply (simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+     apply (intro conjI allI impI)
+      apply (simp, metis partial_add_commute)
+     apply (simp; fail)
+    apply (simp add: disjoint_mzero_def, metis disjoint_sym)
+   apply (simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+   apply (case_tac a; simp)
+   apply (metis disjoint_add_rightL)
+  apply (simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+   apply (case_tac a; simp)
+   apply (metis disjoint_add_right_commute)
+  apply (case_tac a; simp)
+  apply (metis disjoint_sym)
+  done
+
+end
+
+instantiation mzero :: (perm_alg) perm_alg
+begin
+
+instance
+  apply standard
+  apply (simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+  apply (metis positivity)
+  done
+
+end
+
+
+lemma disjoint_mzero_simps[simp]:
+  \<open>V a ## V b = a ## b\<close>
+  \<open>x ## Z k\<close>
+  \<open>Z k ## y\<close>
+  by (simp add: disjoint_mzero_def)+
+
+lemma plus_mzero_simps[simp]:
+  \<open>V a + V b = V (a + b)\<close>
+  \<open>V a + Z k = V a\<close>
+  \<open>Z k + V b = V b\<close>
+  \<open>Z m + Z n = Z (max m n)\<close>
+  by (simp add: plus_mzero_def)+
+
+lemma plus_mzero_eq_rev[simp]:
+  \<open>Z m + y = Z k \<longleftrightarrow> (\<exists>n. y = Z n \<and> k = max m n)\<close>
+  \<open>x + Z n = Z k \<longleftrightarrow> (\<exists>m. x = Z m \<and> k = max m n)\<close>
+  by (force simp add: plus_mzero_def split: mzero.splits)+
+
+lemma mzero_zero_linearity:
+  \<open>(Z m \<preceq> Z n) \<or> (Z n \<preceq> Z m)\<close>
+  by (simp add: less_eq_sepadd_def, metis max.commute max_def)
+
+lemma ex_mzero_iff:
+  \<open>(\<exists>x::'a mzero. P x) \<longleftrightarrow> (\<exists>v. P (V v)) \<or> (\<exists>k. P (Z k))\<close>
+  by (metis mzero.exhaust)
+
+lemma less_eq_sepadd_mzero_eq:
+  \<open>((x::('a::pre_perm_alg) mzero) \<preceq> y) =
+    ((\<exists>a b. x = V a \<and> y = V b \<and> a \<preceq> b) \<or>
+      (\<exists>m b. x = Z m \<and> y = V b) \<or>
+      (\<exists>m n. x = Z m \<and> y = Z n \<and> m \<le> n))\<close>
+  apply (cases x; cases y)
+     apply (force simp add: less_eq_sepadd_def disjoint_mzero_def plus_mzero_def ex_mzero_iff)
+    apply (force simp add: less_eq_sepadd_def disjoint_mzero_def plus_mzero_def ex_mzero_iff)
+   apply (force simp add: less_eq_sepadd_def disjoint_mzero_def plus_mzero_def ex_mzero_iff)
+  apply (simp add: less_eq_sepadd_def disjoint_mzero_def plus_mzero_def ex_mzero_iff,
+      presburger)
+  done
+
+instantiation mzero :: (perm_alg) multiunit_sep_alg
+begin
+
+definition unitof_mzero :: \<open>'a mzero \<Rightarrow> 'a mzero\<close> where
+  \<open>unitof_mzero \<equiv> \<lambda>_. Z 0\<close>
+
+instance
+  apply standard
+   apply (simp add: unitof_mzero_def disjoint_mzero_def)
+  apply (simp add: unitof_mzero_def plus_mzero_def split: mzero.splits)
+  done
+
+end
+
+
+subsection \<open> Extended instances \<close>
+
+instance mzero :: (dupcl_perm_alg) dupcl_perm_alg
+  by (standard,
+      simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits,
+      meson dup_sub_closure)
+
+instance mzero :: (allcompatible_perm_alg) allcompatible_perm_alg
+proof standard
+  fix a b :: \<open>'a mzero\<close>
+
+  { fix x y :: \<open>'a mzero\<close>
+    have
+      \<open>(\<exists>a. x = V a \<and> (\<exists>b. y = V b \<and> a \<preceq> b)) \<or>
+        (\<exists>m. x = Z m) \<and> (\<exists>b. y = V b) \<or>
+        (\<exists>m. x = Z m \<and> (\<exists>n. y = Z n \<and> m \<le> n)) \<or>
+        (\<exists>a. y = V a \<and> (\<exists>b. x = V b \<and> a \<preceq> b)) \<or>
+        (\<exists>m. y = Z m) \<and> (\<exists>b. x = V b) \<or>
+        (\<exists>m. y = Z m \<and> (\<exists>n. x = Z n \<and> m \<le> n)) \<longleftrightarrow>
+          (\<forall>a b. x = V a  \<longrightarrow> y = V b \<longrightarrow> a \<preceq> b \<or> b \<preceq> a)\<close>
+      by (cases x; cases y; force)
+  }
+  note H1 = this
+
+  have \<open>(\<lambda>x y. \<forall>a. x = V a \<longrightarrow> (\<forall>b. y = V b \<longrightarrow> a \<preceq> b \<or> b \<preceq> a))\<^sup>*\<^sup>* a b\<close>
+    by (rule rtranclp.rtrancl_into_rtrancl[of _ _ \<open>Z 0\<close>], blast, blast)
+  then show \<open>compatible a b\<close>
+    by (simp add: compatible_def less_eq_sepadd_mzero_eq sup_fun_def H1)
+qed
+
+(* not strong_sep_perm_alg *)
+
+instance mzero :: (disjoint_parts_perm_alg) disjoint_parts_perm_alg
+  by (standard, force simp add: disjoint_mzero_def plus_mzero_def split: mzero.splits)
+
+instance mzero :: (trivial_selfdisjoint_perm_alg) trivial_selfdisjoint_perm_alg
+  by (standard,
+      force dest: selfdisjoint_same simp add: disjoint_mzero_def plus_mzero_def)
+
+instance mzero :: (crosssplit_perm_alg) crosssplit_perm_alg
+  oops
+
+(* not a cancel_perm_alg *)
+(* not a no_unit_perm_alg *)
+
+instantiation mzero :: (halving_perm_alg) halving_perm_alg
+begin
+definition half_mzero :: \<open>'a mzero \<Rightarrow> 'a mzero\<close> where
+  \<open>half_mzero x \<equiv> case x of V a \<Rightarrow> V (half a) | Z k \<Rightarrow> Z k\<close>
+
+lemma half_mzero_simps[simp]:
+  \<open>half (V a) = V (half a)\<close>
+  \<open>half (Z k) = Z k\<close>
+  by (simp add: half_mzero_def)+
+
+instance
+  apply standard
+    apply (case_tac a; simp add: half_additive_split)
+   apply (case_tac a; simp add: half_self_disjoint)
+  apply (case_tac a; simp add: )
+  sorry
+end
+
+(* not an all_disjoint_perm_alg *)
+
+
+section \<open> Crash Algebra \<close>
+
+lemma
+  \<open>a ## b \<Longrightarrow> sepdomeq a a' \<Longrightarrow> sepdomeq (a + b) ab \<Longrightarrow> sepdomeq (a' + b) ab\<close>
+  by (meson disjoint_add_leftR disjoint_add_swap_lr disjoint_add_swap_rl sepdomeq_def)
+
+definition (in pre_perm_alg)
+  \<open>sepdom_ec a \<equiv> Collect (sepdomeq a)\<close>
+
+lemma (in pre_perm_alg) add_sepdom_ec_subseteq_sepdom_ec_add:
+  \<open>a ## b \<Longrightarrow> {a' + b'|a' b'. a' \<in> sepdom_ec a \<and> b' \<in> sepdom_ec b} \<subseteq> sepdom_ec (a + b)\<close>
+  apply (clarsimp simp add: sepdom_ec_def sepdomeq_def)
+  apply (metis local.disjoint_add_leftR local.disjoint_add_swap_lr local.disjoint_sym_iff)
+  done
+
+lemma (in pre_perm_alg) add_sepdom_ec_subseteq_add_sepdom_ec_counterex:
+  fixes a b :: 'a
+  shows
+    \<open>a ## b \<Longrightarrow>
+    AB1 = {a' + b'|a' b'. a' \<in> sepdom_ec a \<and> b' \<in> sepdom_ec b} \<Longrightarrow>
+    AB2 = sepdom_ec (a + b) \<Longrightarrow>
+    AB2 \<subseteq> AB1\<close>
+  apply (clarsimp simp add: sepdom_ec_def sepdomeq_def)
+  nitpick[card 'a=2]
+  oops
+
+lemma (in pre_perm_alg)
+  \<open>sepdomeq a b \<Longrightarrow> a ## c \<Longrightarrow> a + c ## d \<Longrightarrow> b + c ## d\<close>
+  oops
+
+typedef(overloaded) ('a::pre_perm_alg) wcrash =
+  \<open>{(mh::'a option, K::'a set).
+    \<comment> \<open> TODO: what's the closure condition here? \<close>
+    \<comment> \<open> crashed resources are from a single sepdom \<close>
+    (\<forall>a\<in>K. \<forall>b\<in>K. sepdomeq a b) \<and>
+    \<comment> \<open> the non-crashed resource and the crashed resources are separate \<close>
+    (\<forall>h. mh = Some h \<longrightarrow> (\<forall>a\<in>K. a ## h)) \<and>
+    \<comment> \<open> the crash set never contains zero-like elements \<close>
+    (\<forall>a\<in>K. \<forall>b. sepadd_zero b \<longrightarrow> \<not> sepdomeq a b) \<and>
+    \<comment> \<open> something exists \<close>
+    (mh = None \<longrightarrow> (\<exists>a. a \<in> K))
+  }\<close>
+  by blast
+
+setup_lifting type_definition_wcrash
+
+lift_definition mkres :: \<open>'a::pre_perm_alg \<Rightarrow> 'a wcrash\<close> is
+  \<open>\<lambda>x. (Some x, {})\<close>
+  by blast
+
+lift_definition mkcrash :: \<open>'a::pre_perm_alg \<Rightarrow> 'a wcrash\<close> is
+  \<open>\<lambda>x. if (\<exists>y. sepdomeq x y \<and> sepadd_zero y) then (Some x, {}) else (None, Collect (sepdomeq x))\<close>
+  by (clarsimp, meson sepdomeq_reflI sepdomeq_sym sepdomeq_trans)
+
+lift_definition getres :: \<open>('a::pre_perm_alg) wcrash \<Rightarrow> 'a option\<close> is
+  \<open>fst\<close> .
+
+lemma getres_mkres_eq[simp]: \<open>getres (mkres x) = Some x\<close>
+  by (transfer, force)
+
+
+subsection \<open> instances \<close>
+
+subsubsection \<open> perm_alg \<close>
+
+instantiation wcrash :: (multiunit_sep_alg) pre_perm_alg
+begin
+
+lift_definition disjoint_wcrash :: \<open>'a wcrash \<Rightarrow> 'a wcrash \<Rightarrow> bool\<close> is
+  \<open>\<lambda>(ma, Ka) (mb, Kb).
+    (\<forall>a. ma = Some a \<longrightarrow> (\<forall>b. mb = Some b \<longrightarrow> a ## b)) \<and>
+    (\<forall>a. ma = Some a \<longrightarrow> (\<forall>b\<in>Kb. a ## b)) \<and>
+    (\<forall>b. mb = Some b \<longrightarrow> (\<forall>a\<in>Ka. a ## b)) \<and>
+    (\<forall>a\<in>Ka. \<forall>b\<in>Kb. a ## b)\<close> .
+
+lemma sepdomeqL_subst_sepadd:
+  \<open>x ## y \<Longrightarrow>
+    sepdomeq x x' \<Longrightarrow>
+    sepdomeq y y' \<Longrightarrow>
+    sepdomeq (x + y) a \<Longrightarrow>
+    sepdomeq (x' + y') a\<close>
+  unfolding sepdomeq_def
+  by (metis disjoint_add_leftL disjoint_add_swap_lr disjoint_sym_iff partial_add_commute)
+
+lemma sepdomeqL_subst_sepaddL:
+  \<open>x ## y \<Longrightarrow>
+    sepdomeq x x' \<Longrightarrow>
+    sepdomeq (x + y) a \<Longrightarrow>
+    sepdomeq (x' + y) a\<close>
+  using sepdomeqL_subst_sepadd by blast
+
+lemma sepdomeqL_subst_sepaddR:
+  \<open>x ## y \<Longrightarrow>
+    sepdomeq y y' \<Longrightarrow>
+    sepdomeq (x + y) a \<Longrightarrow>
+    sepdomeq (x + y') a\<close>
+  using sepdomeqL_subst_sepadd by blast
+
+
+lift_definition plus_mzero :: \<open>'a wcrash \<Rightarrow> 'a wcrash \<Rightarrow> 'a wcrash\<close> is
+  \<open>\<lambda>(ma, Ka) (mb, Kb).
+    ((case (ma, mb) of
+      (Some a, Some b) \<Rightarrow>
+        (if
+          a ## b \<and>
+          (\<forall>a'\<in>Ka. \<forall>b'\<in>Kb. a' ## b' \<longrightarrow> a + b ## a' + b')
+        then
+          Some (a + b)
+        else
+          None)
+    | (Some a, None) \<Rightarrow>
+        (if (\<forall>a'\<in>Ka. \<forall>b'\<in>Kb. a' ## b' \<longrightarrow> a ## a' + b')
+        then Some a
+        else None)
+    | (None, Some b) \<Rightarrow>
+        (if (\<forall>a'\<in>Ka. \<forall>b'\<in>Kb. a' ## b' \<longrightarrow> b ## a' + b')
+        then Some b
+        else None)
+    | (None, None) \<Rightarrow> None),
+      {a + b|a b. a ## b \<and> a \<in> Ka \<and> b \<in> Kb \<and> (\<forall>z. sepadd_zero z \<longrightarrow> \<not> sepdomeq (a + b) z)})\<close>
+  apply clarsimp
+  apply (intro conjI impI allI)
+     apply (metis sepdomeqL_subst_sepadd sepdomeq_reflI)
+    apply (clarsimp split: option.splits if_splits; metis disjoint_sym)
+   apply force
+  oops
+
+
+lemma plus_mkres_eq[simp]:
+  \<open>a ## b \<Longrightarrow> mkres a + mkres b = mkres (a + b)\<close>
+  oops
+
+
+instance
+  sorry
+
+end
+*)
 
 end
