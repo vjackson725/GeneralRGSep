@@ -3323,34 +3323,6 @@ lemma btau_equiv_trace_transp:
   \<open>transp (\<simeq>\<^sub>\<tau>\<^sub>B)\<close>
   by (metis btau_equiv_trace_def transpI)
 
-lemma btau_reduce_left_to_dstep_exact:
-  \<open>sc \<midarrow>\<rho>x\<rightarrow>\<^sub>a\<^sub>r\<^sup>* mscx' \<Longrightarrow>
-    sc = (s, c) \<Longrightarrow>
-    mscx' = (Inl s, cx) \<Longrightarrow>
-    list_all basic_tau_aact \<rho>x \<Longrightarrow>
-      (\<exists>cy. s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<and>
-        (\<exists>\<rho>y. list_all (case_eact False basic_tau_aact) \<rho>y \<and>
-          (((s, False), c), ((s, False), c))
-            =R, F, (map Loc \<rho>x, \<rho>y)\<Rightarrow>\<^sub>\<E>\<^sup>*
-            (((s, False), cx), ((s, False), cy))))\<close>
-  apply (induct arbitrary: s c cx rule: aopsteps_rev.induct)
-   apply force
-  apply clarsimp
-  apply (subst dexec_exact_left_rcons_iff)
-  apply clarsimp
-  sorry
-
-lemma btau_reduce_diamond:
-  \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
-    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
-    \<forall>atx\<in>all_atoms cx.
-      \<forall>aty\<in>all_atoms cy.
-        pre_state (snd atx) sx = pre_state (snd aty) sy \<Longrightarrow>
-    \<exists>c'. sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
-  unfolding btau_reduce_comm_def
-  apply clarsimp
-  sorry
-
 
 subsubsection \<open> Atom Enabled \<close>
 
@@ -3399,6 +3371,15 @@ fun do_loops :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
 | \<open>do_loops (ca \<box> cb) = do_loops ca \<union># do_loops cb\<close>
 | \<open>do_loops \<langle>p, q\<rangle> = {#}\<close>
 | \<open>do_loops (DO c OD) = add_mset c (do_loops c)\<close>
+
+paragraph \<open> Lemmas \<close>
+
+text \<open> Doing this with multisets is false, as do-loops may duplicate parts of the command. \<close>
+lemma aopstep_do_loops_subseteq:
+  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow>
+    set_mset (do_loops c') \<subseteq> set_mset (do_loops c)\<close>
+  by (induct c arbitrary: s ms' c' \<alpha>)
+    (fastforce simp add: if_bool_eq_disj conj_disj_distribL)+
 
 
 subsubsection \<open> Do-Loop Enabled State Equivalence \<close>
@@ -3473,7 +3454,7 @@ lemma do_loops_determ_iff[simp]:
 
 paragraph \<open> Lemmas \<close>
 
-lemma step_tau_determ_doloop_then_state_irrel:
+lemma aopstep_tau_determ_doloop_then_state_irrel:
   \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', c') \<Longrightarrow>
     do_loop_head_enabled_equiv c s sa \<Longrightarrow>
     tau_aact \<alpha> \<Longrightarrow>
@@ -3489,37 +3470,58 @@ lemma step_tau_determ_doloop_then_state_irrel:
   apply (metis no_aopstep_head_enabled_equiv_state_irrel)
   done
 
-lemma aopstep_do_guard_subseteq:
-  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow>
-    do_loops c' \<subseteq> do_loops c\<close>
-  by (induct c arbitrary: s ms' c' \<alpha>)
-    (fastforce simp add: if_bool_eq_disj conj_disj_distribL)+
-
-lemma btau_reduce_state_irrelevance':
-  \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<Longrightarrow>
-    sc = (s, c) \<Longrightarrow>
-    msc' = (Inl s', c') \<Longrightarrow>
-    list_all basic_tau_aact \<rho> \<Longrightarrow>
-    \<forall>p\<in>do_loops c. p s = p sa \<Longrightarrow>
-    list_all basic_tau_aact \<rho> \<Longrightarrow>
-    (sa, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl sa, c')\<close>
-  apply (induct \<rho> sc msc' arbitrary: s c s' c' rule: aopsteps.induct)
-    apply force
+lemma aopsteps_tau_determ_doloop_then_state_irrel:
+  \<open>(s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s', c'') \<Longrightarrow>
+    list_all tau_aact \<rho> \<Longrightarrow>
+    do_loop_head_enabled_equiv c s sa \<Longrightarrow>
+    (sa, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl sa, c'')\<close>
+  apply (induct \<rho> arbitrary: s c s' c'')
    apply force
   apply clarsimp
-  apply (frule_tac sa=sa in btau_step_state_irrelevance', fast, fast, fast, fast)
+  apply (frule_tac sa=sa in aopstep_tau_determ_doloop_then_state_irrel, force, force)
   apply (rule exI[of _ \<open>fst sa\<close>], rule exI[of _ \<open>snd sa\<close>], rule_tac x=c' in exI)
-  apply simp
-  apply (metis aopstep_do_guard_subseteq aopstep_tau_preserves_state basic_tau_aact_then_tau_aact
-      fst_eqD subsetD sum.sel(1))
+  apply (frule aopstep_tau_preserves_state, blast)
+  apply clarsimp
+  apply (meson aopstep_do_loops_subseteq subsetD; fail)
   done
 
 lemma btau_reduce_state_irrelevance:
   \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<Longrightarrow>
-    \<forall>p\<in>do_loops c. p s = p sa \<Longrightarrow>
+    do_loop_head_enabled_equiv c s sa \<Longrightarrow>
     sa, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
   unfolding btau_reduce_comm_def
-  by (metis btau_reduce_state_irrelevance')
+  by (metis aopsteps_tau_determ_doloop_then_state_irrel basic_tau_aact_then_tau_aact
+      list.pred_mono_strong)
+
+
+(* TODO: up to here *)
+
+lemma btau_reduce_left_to_dstep_exact:
+  \<open>sc \<midarrow>\<rho>x\<rightarrow>\<^sub>a\<^sub>r\<^sup>* mscx' \<Longrightarrow>
+    sc = (s, c) \<Longrightarrow>
+    mscx' = (Inl s, cx) \<Longrightarrow>
+    list_all basic_tau_aact \<rho>x \<Longrightarrow>
+      (\<exists>cy. s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<and>
+        (\<exists>\<rho>y. list_all (case_eact False basic_tau_aact) \<rho>y \<and>
+          (((s, False), c), ((s, False), c))
+            =R, F, (map Loc \<rho>x, \<rho>y)\<Rightarrow>\<^sub>\<E>\<^sup>*
+            (((s, False), cx), ((s, False), cy))))\<close>
+  apply (induct arbitrary: s c cx rule: aopsteps_rev.induct)
+   apply force
+  apply clarsimp
+  apply (subst dexec_exact_left_rcons_iff)
+  apply clarsimp
+  sorry
+
+lemma btau_reduce_diamond:
+  \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
+    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
+    \<forall>atx\<in>all_atoms cx.
+      \<forall>aty\<in>all_atoms cy.
+        pre_state (snd atx) sx = pre_state (snd aty) sy \<Longrightarrow>
+    \<exists>c'. sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
+  apply clarsimp
+  sorry
 
 
 definition
