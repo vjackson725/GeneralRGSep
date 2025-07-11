@@ -16,6 +16,25 @@ lemma imp_iff_imp_iff:
   \<open>(A \<longrightarrow> B) = (A \<longrightarrow> C) \<longleftrightarrow> (A \<longrightarrow> B = C)\<close>
   by blast
 
+lemma add_leq_Suc0_iff:
+  \<open>x + y \<le> Suc 0 \<longleftrightarrow> x \<le> Suc 0 \<and> y = 0 \<or> x = 0 \<and> y \<le> Suc 0\<close>
+  by force
+
+lemma sum_leq_Suc0_iff:
+  \<open>finite A \<Longrightarrow>
+    sum f A \<le> Suc 0 \<longleftrightarrow> (\<forall>x\<in>A. f x = 0) \<or> (\<exists>x\<in>A. f x = Suc 0 \<and> (\<forall>y\<in>A. y \<noteq> x \<longrightarrow> f y = 0))\<close>
+  apply (induct rule: finite.induct)
+   apply force
+  apply (case_tac \<open>a \<in> A\<close>)
+   apply (frule mk_disjoint_insert, clarsimp simp add: sum.insert_remove; fail)
+  apply (auto simp add: sum.insert_remove conj_disj_distribL le_Suc_eq add_is_1)
+  done
+
+lemma iff_extract_agreement:
+  \<open>(P \<Longrightarrow> X) \<Longrightarrow> (Q \<Longrightarrow> X) \<Longrightarrow> P = Q \<longleftrightarrow> (X \<longrightarrow> P = Q)\<close>
+  by blast
+
+
 type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
 
 type_synonym ('a,'b) secstate = \<open>(('a \<times> 'b) \<times> ('a \<times> 'b))\<close>
@@ -547,7 +566,7 @@ lemma vis_aopstep_impl_atom:
   \<open>sc \<midarrow>\<beta>\<rightarrow>\<^sub>a zc' \<Longrightarrow>
     vis_aact \<beta> \<Longrightarrow>
     \<exists>p q.
-      (p, q) \<in> head_atoms (snd sc) \<and>
+      (p, q) \<in># head_atoms (snd sc) \<and>
       (p (fst sc) \<longrightarrow> (\<exists>s'. fst zc' = Inl s' \<and> q (fst sc) s')) \<and>
       (\<not> p (fst sc) \<longrightarrow> fst zc' = Inr ())\<close>
   apply (induct rule: aopstep_induct)
@@ -614,8 +633,9 @@ lemma aopstep_aact_cases:
   using not_vis_aact_iff aopstep_tau_preserves_state tau_aact_def vis_aact_unit_def by blast
 
 lemma aopstep_no_new_atoms:
-  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow> all_atoms c' \<subseteq> all_atoms c\<close>
-  by (induct c arbitrary: \<alpha> c') (fastforce split: if_splits)+
+  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow> set_mset (all_atoms c') \<subseteq> set_mset (all_atoms c)\<close>
+  by (induct c arbitrary: \<alpha> c' ms')
+    (fastforce split: if_splits)+
 
 lemma aopstep_liftC_then_output_liftC:
   \<open>sscc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msscc' \<Longrightarrow>
@@ -874,6 +894,16 @@ lemma aopsteps_rcons:
     apply (clarsimp, metis (full_types) unit.exhaust sum.exhaust surj_pair)
    apply fastforce
   apply fastforce
+  done
+
+lemma aopsteps_iff:
+  \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc'' \<longleftrightarrow>
+    \<rho> = [] \<and> msc'' = (Inl (fst sc), snd sc) \<or>
+    (\<exists>\<alpha>. \<rho> = [\<alpha>] \<and> sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc'' \<and> fst msc'' = Inr ()) \<or>
+    (\<exists>\<alpha> \<rho>' s' c'. \<rho> = \<alpha> # \<rho>' \<and> sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', c') \<and> (s', c') \<midarrow>\<rho>'\<rightarrow>\<^sub>a\<^sup>* msc'')\<close>
+  apply (induct \<rho>)
+   apply (clarsimp, metis split_pairs)
+  apply (force simp add: conj_disj_distribL ex_disj_distrib)+
   done
 
 
@@ -1310,8 +1340,8 @@ definition
 
 definition                                                                      
   \<open>head_obs_determ \<oo> c \<equiv>
-    (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
-      (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
+    (\<forall>px qx. (px,qx) \<in># head_atoms c \<longrightarrow>
+      (\<forall>py qy. (py,qy) \<in># head_atoms c \<longrightarrow>
         (\<forall>x. px x \<longrightarrow> Ex (qx x) \<longrightarrow>
           (\<forall>y. py y \<longrightarrow> Ex (qy y) \<longrightarrow>
             \<bbbA> \<oo> (x,y) \<longrightarrow>
@@ -1320,10 +1350,10 @@ definition
 definition                                                                      
   \<open>head_step_obs_safe \<oo> c \<equiv> \<lambda>(x, y).
       \<bbbA> \<oo> (x, y) \<longrightarrow>
-        (\<forall>p q x'. (p,q) \<in> head_atoms c \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x', y)) \<and>
-        (\<forall>p q y'. (p,q) \<in> head_atoms c \<longrightarrow> p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x, y')) \<and>
-        (\<forall>px qx. (px,qx) \<in> head_atoms c \<longrightarrow>
-          (\<forall>py qy. (py,qy) \<in> head_atoms c \<longrightarrow>
+        (\<forall>p q x'. (p,q) \<in># head_atoms c \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow> \<bbbA> \<oo> (x', y)) \<and>
+        (\<forall>p q y'. (p,q) \<in># head_atoms c \<longrightarrow> p y \<longrightarrow> q y y' \<longrightarrow> \<bbbA> \<oo> (x, y')) \<and>
+        (\<forall>px qx. (px,qx) \<in># head_atoms c \<longrightarrow>
+          (\<forall>py qy. (py,qy) \<in># head_atoms c \<longrightarrow>
           (\<forall>x'. px x \<longrightarrow> qx x x' \<longrightarrow>
           (\<forall>y'. py y \<longrightarrow> qy y y' \<longrightarrow>
             \<bbbA> \<oo> (x',y')))))\<close>
@@ -1355,19 +1385,17 @@ lemma heads_ccrash_domD:
 
 subsubsection \<open> security deterministic endent \<close>
 
-find_theorems \<open>(\<not> _ \<or> \<not> _) \<and> (_ \<or> _)\<close>
-
 definition
   \<open>sec_head_determ c \<equiv> \<lambda>(sx,sy).
     (\<forall>ca cb. ca \<box> cb \<in> all_subcomm_eq c \<longrightarrow>
       head_atomic ca \<and> head_atomic cb \<and>
-      (\<forall>pa qa. (pa,qa) \<in> head_atoms ca \<longrightarrow>
-        (\<forall>pb qb. (pb,qb) \<in> head_atoms cb \<longrightarrow>
+      (\<forall>pa qa. (pa,qa) \<in># head_atoms ca \<longrightarrow>
+        (\<forall>pb qb. (pb,qb) \<in># head_atoms cb \<longrightarrow>
           (pa sx \<noteq> pb sy) \<and>
           (pa sy \<noteq> pb sx)))) \<and>
     (\<forall>ca. DO ca OD \<in> all_subcomm_eq c \<longrightarrow>
       head_atomic ca \<and>
-      (\<forall>pa qa. (pa,qa) \<in> head_atoms ca \<longrightarrow>
+      (\<forall>pa qa. (pa,qa) \<in># head_atoms ca \<longrightarrow>
         pa sx = pa sy))\<close>
 
 lemma sec_head_determ_comm_simps[simp]:
@@ -1377,8 +1405,8 @@ lemma sec_head_determ_comm_simps[simp]:
   \<open>sec_head_determ (c1 \<^bold>+ c2) ss = (sec_head_determ c1 ss \<and> sec_head_determ c2 ss)\<close>
   \<open>sec_head_determ (ca \<box> cb) (sx, sy) =
     (head_atomic ca \<and> head_atomic cb \<and>
-      (\<forall>pa qa. (pa,qa) \<in> head_atoms ca \<longrightarrow>
-        (\<forall>pb qb. (pb,qb) \<in> head_atoms cb \<longrightarrow>
+      (\<forall>pa qa. (pa,qa) \<in># head_atoms ca \<longrightarrow>
+        (\<forall>pb qb. (pb,qb) \<in># head_atoms cb \<longrightarrow>
           (pa sx \<noteq> pb sy) \<and>
           (pa sy \<noteq> pb sx))) \<and>
       sec_head_determ ca (sx, sy) \<and>
@@ -1386,7 +1414,7 @@ lemma sec_head_determ_comm_simps[simp]:
   \<open>sec_head_determ \<langle>p, q\<rangle> ss = True\<close>
   \<open>sec_head_determ (DO ca OD) (sx, sy) =
     (head_atomic ca \<and>
-      (\<forall>pa qa. (pa,qa) \<in> head_atoms ca \<longrightarrow>
+      (\<forall>pa qa. (pa,qa) \<in># head_atoms ca \<longrightarrow>
         pa sx = pa sy) \<and>
       sec_head_determ ca (sx, sy))\<close>
   unfolding sec_head_determ_def
@@ -3323,53 +3351,147 @@ lemma btau_reduce_diamond:
   apply clarsimp
   sorry
 
-fun do_guards :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> bool) set\<close> where
-  \<open>do_guards Skip = {}\<close>
-| \<open>do_guards (ca;; cb) = do_guards ca \<union> do_guards cb\<close>
-| \<open>do_guards (ca \<parallel> cb) = do_guards ca \<union> do_guards cb\<close>
-| \<open>do_guards (ca \<^bold>+ cb) = do_guards ca \<union> do_guards cb\<close>
-| \<open>do_guards (ca \<box> cb) = do_guards ca \<union> do_guards cb\<close>
-| \<open>do_guards \<langle>p, q\<rangle> = {}\<close>
-| \<open>do_guards (DO c OD) = {p \<sqinter> pre_state q|p q. (p,q) \<in> head_atoms c} \<union> do_guards c\<close>
 
-lemma no_aopstep_state_irrelevance:
-  \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow>
-    \<forall>p q. (p, q) \<in> head_atoms c \<longrightarrow> (p s \<and> pre_state q s) = (p sa \<and> pre_state q sa) \<Longrightarrow>
-   (sa, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-proof (induct c arbitrary: sa s) 
+subsubsection \<open> Atom Enabled \<close>
+
+definition \<open>atom_enabled pq \<equiv> fst pq \<sqinter> pre_state (snd pq)\<close>
+
+subsubsection \<open> Head Enabled Equivalent States \<close>
+
+definition
+  \<open>head_enabled_equiv c sx sy \<equiv> \<forall>a\<in>#head_atoms c. atom_enabled a sx = atom_enabled a sy\<close>
+
+lemma head_enabled_equiv_skip_iff[simp]:
+  \<open>head_enabled_equiv Skip sx sy\<close>
+  \<open>head_enabled_equiv (ca ;; cb) sx sy \<longleftrightarrow> head_enabled_equiv ca sx sy\<close>
+  \<open>head_enabled_equiv (ca \<^bold>+ cb) sx sy\<close>
+  \<open>head_enabled_equiv (ca \<box> cb) sx sy \<longleftrightarrow>
+    head_enabled_equiv ca sx sy \<and> head_enabled_equiv cb sx sy\<close>
+  \<open>head_enabled_equiv (ca \<parallel> cb) sx sy \<longleftrightarrow>
+    head_enabled_equiv ca sx sy \<and> head_enabled_equiv cb sx sy\<close>
+  \<open>head_enabled_equiv (DO c OD) sx sy \<longleftrightarrow>
+    head_enabled_equiv c sx sy\<close>
+  \<open>head_enabled_equiv \<langle>pa, qa\<rangle> sx sy \<longleftrightarrow>
+    atom_enabled (pa, qa) sx = atom_enabled (pa, qa) sy\<close>
+  unfolding head_enabled_equiv_def
+  by (simp add: Ball_def Bex_def all_conj_distrib image_def imp_ex_conjL split: prod.splits)+
+
+lemma head_enabled_equiv_reflI[intro!]:
+  \<open>head_enabled_equiv c s s\<close>
+  by (simp add: head_enabled_equiv_def)
+
+lemma head_enabled_equiv_sym:
+  \<open>head_enabled_equiv c sx sy \<Longrightarrow> head_enabled_equiv c sy sx\<close>
+  by (force simp add: head_enabled_equiv_def)
+
+lemma head_guard_trans_trans[trans]:
+  \<open>head_enabled_equiv c sx sy \<Longrightarrow> head_enabled_equiv c sy sz \<Longrightarrow> head_enabled_equiv c sx sz\<close>
+  by (force simp add: head_enabled_equiv_def)
+
+
+subsubsection \<open> Do Loops \<close>
+
+fun do_loops :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
+  \<open>do_loops Skip = {#}\<close>
+| \<open>do_loops (ca;; cb) = do_loops ca \<union># do_loops cb\<close>
+| \<open>do_loops (ca \<parallel> cb) = do_loops ca \<union># do_loops cb\<close>
+| \<open>do_loops (ca \<^bold>+ cb) = do_loops ca \<union># do_loops cb\<close>
+| \<open>do_loops (ca \<box> cb) = do_loops ca \<union># do_loops cb\<close>
+| \<open>do_loops \<langle>p, q\<rangle> = {#}\<close>
+| \<open>do_loops (DO c OD) = add_mset c (do_loops c)\<close>
+
+
+subsubsection \<open> Do-Loop Enabled State Equivalence \<close>
+
+abbreviation
+  \<open>do_loop_head_enabled_equiv c sx sy \<equiv>
+    \<forall>c'\<in>#do_loops c. head_enabled_equiv c' sx sy\<close>
+
+lemma do_loop_head_enabled_equiv_iff[simp]:
+  \<open>do_loop_head_enabled_equiv Skip sx sy\<close>
+  \<open>do_loop_head_enabled_equiv \<langle>pa, qa\<rangle> sx sy\<close>
+  \<open>do_loop_head_enabled_equiv (ca ;; cb) sx sy \<longleftrightarrow>
+    do_loop_head_enabled_equiv ca sx sy \<and> do_loop_head_enabled_equiv cb sx sy\<close>
+  \<open>do_loop_head_enabled_equiv (ca \<^bold>+ cb) sx sy \<longleftrightarrow>
+    do_loop_head_enabled_equiv ca sx sy \<and> do_loop_head_enabled_equiv cb sx sy\<close>
+  \<open>do_loop_head_enabled_equiv (ca \<box> cb) sx sy \<longleftrightarrow>
+    do_loop_head_enabled_equiv ca sx sy \<and> do_loop_head_enabled_equiv cb sx sy\<close>
+  \<open>do_loop_head_enabled_equiv (ca \<parallel> cb) sx sy \<longleftrightarrow>
+    do_loop_head_enabled_equiv ca sx sy \<and> do_loop_head_enabled_equiv cb sx sy\<close>
+  \<open>do_loop_head_enabled_equiv (DO c OD) sx sy \<longleftrightarrow>
+    head_enabled_equiv c sx sy \<and> do_loop_head_enabled_equiv c sx sy\<close>
+  by (simp add: Ball_def all_conj_distrib)+
+
+paragraph \<open> Lemmas \<close>
+
+lemma no_aopstep_head_enabled_equiv_state_irrel:
+  \<open>(sx, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow>
+    head_enabled_equiv c sx sy \<Longrightarrow>
+    (sy, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+proof (induct c arbitrary: sx sy)
   case (Endet c1 c2)
   then show ?case
-    by (clarsimp simp add: all_conj_distrib if_bool_eq_disj all_tau_all_vis_iff) (* slow *)
+    by (clarsimp split: if_splits, metis not_vis_aact_iff)
 next
   case (Atomic x1 x2)
   then show ?case
-    by (force simp add: all_conj_distrib if_bool_eq_disj pre_state_def)
+    by (force simp add: if_bool_eq_disj atom_enabled_def pre_state_def)
 qed (clarsimp simp add: all_conj_distrib; fail)+ (* slow *)
 
 
-lemma btau_step_state_irrelevance':
-  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
-    sc = (s, c) \<Longrightarrow>
-    msc' = (Inl s', c') \<Longrightarrow>
-    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
-    basic_tau_aact \<alpha> \<Longrightarrow>
+subsubsection \<open> Head Enabled Unique \<close>
+
+definition
+  \<open>head_enabled_unique c s \<equiv>
+    \<forall>a\<in>#head_atoms c. \<forall>b\<in>#head_atoms c. atom_enabled a s = atom_enabled b s \<longrightarrow> a = b\<close>
+
+subsubsection \<open> Do-guards Determinism \<close>
+
+definition
+  \<open>do_loops_determ c s \<equiv>
+    (\<forall>c'\<in>#do_loops c.
+      (\<forall>a. count (head_atoms c') a \<le> Suc 0) \<and>
+      head_enabled_unique c' s)\<close>
+
+lemma do_loops_determ_iff[simp]:
+  \<open>do_loops_determ Skip s\<close>
+  \<open>do_loops_determ \<langle>pa, qa\<rangle> s\<close>
+  \<open>do_loops_determ (ca ;; cb) s \<longleftrightarrow>
+    do_loops_determ ca s \<and> do_loops_determ cb s\<close>
+  \<open>do_loops_determ (ca \<^bold>+ cb) s \<longleftrightarrow>
+    do_loops_determ ca s \<and> do_loops_determ cb s\<close>
+  \<open>do_loops_determ (ca \<box> cb) s \<longleftrightarrow>
+    do_loops_determ ca s \<and> do_loops_determ cb s\<close>
+  \<open>do_loops_determ (ca \<parallel> cb) s \<longleftrightarrow>
+    do_loops_determ ca s \<and> do_loops_determ cb s\<close>
+  \<open>do_loops_determ (DO c OD) s \<longleftrightarrow>
+    (\<forall>a. count (head_atoms c) a \<le> Suc 0) \<and>
+    head_enabled_unique c s \<and>
+    do_loops_determ c s\<close>
+  unfolding do_loops_determ_def
+  by (clarsimp simp add: ball_Un; fail)+
+
+paragraph \<open> Lemmas \<close>
+
+lemma step_tau_determ_doloop_then_state_irrel:
+  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', c') \<Longrightarrow>
+    do_loop_head_enabled_equiv c s sa \<Longrightarrow>
+    tau_aact \<alpha> \<Longrightarrow>
     (sa, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl sa, c')\<close>
-  apply (induct \<alpha> sc msc' arbitrary: s c s' c' rule: aopstep_induct)
+  apply (induct c arbitrary: \<alpha> s' c')
         apply fastforce
        apply fastforce
       apply fastforce
      apply fastforce
-    apply fastforce
-   apply (clarsimp simp add: imp_ex_conjL Ball_def del: disjCI)
-   apply (elim disjE)
-    apply (simp add: no_aopstep_state_irrelevance; fail)
-   apply blast
-  apply force
+    apply (fastforce split: if_splits simp add: ball_Un)
+   apply (fastforce split: if_splits simp add: ball_Un)
+  apply clarsimp
+  apply (metis no_aopstep_head_enabled_equiv_state_irrel)
   done
 
 lemma aopstep_do_guard_subseteq:
   \<open>(s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow>
-    do_guards c' \<subseteq> do_guards c\<close>
+    do_loops c' \<subseteq> do_loops c\<close>
   by (induct c arbitrary: s ms' c' \<alpha>)
     (fastforce simp add: if_bool_eq_disj conj_disj_distribL)+
 
@@ -3378,7 +3500,7 @@ lemma btau_reduce_state_irrelevance':
     sc = (s, c) \<Longrightarrow>
     msc' = (Inl s', c') \<Longrightarrow>
     list_all basic_tau_aact \<rho> \<Longrightarrow>
-    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
+    \<forall>p\<in>do_loops c. p s = p sa \<Longrightarrow>
     list_all basic_tau_aact \<rho> \<Longrightarrow>
     (sa, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl sa, c')\<close>
   apply (induct \<rho> sc msc' arbitrary: s c s' c' rule: aopsteps.induct)
@@ -3394,19 +3516,161 @@ lemma btau_reduce_state_irrelevance':
 
 lemma btau_reduce_state_irrelevance:
   \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<Longrightarrow>
-    \<forall>p\<in>do_guards c. p s = p sa \<Longrightarrow>
+    \<forall>p\<in>do_loops c. p s = p sa \<Longrightarrow>
     sa, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
   unfolding btau_reduce_comm_def
   by (metis btau_reduce_state_irrelevance')
 
+
+definition
+  \<open>invt_exec_prop p sc \<equiv> \<forall>\<rho> msc'. sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<longrightarrow> p msc'\<close>
+
+lemma invt_exec_prop_iff:
+  \<open>invt_exec_prop p (s, Skip) \<longleftrightarrow> p (Inl s, Skip)\<close>
+  \<open>invt_exec_prop p (s, ca ;; cb) \<longleftrightarrow>
+    p (Inl s, ca ;; cb) \<and>
+    (\<forall>\<alpha> c1'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), c1') \<longrightarrow> p (Inr (), c1' ;; cb)) \<and>
+    (ca = Skip \<longrightarrow> invt_exec_prop p (s, cb)) \<and>
+    (\<forall>s' ca'. (\<exists>\<alpha>. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', ca')) \<longrightarrow> invt_exec_prop p (s', ca' ;; cb))\<close>
+  \<open>invt_exec_prop p (s, ca \<^bold>+ cb) \<longleftrightarrow>
+    p (Inl s, ca \<^bold>+ cb) \<and>
+    invt_exec_prop p (s, ca) \<and>
+    invt_exec_prop p (s, cb)\<close>
+  \<open>invt_exec_prop p (s, ca \<box> cb) \<longleftrightarrow>
+    p (Inl s, ca \<box> cb) \<and>
+    (ca = Skip \<longrightarrow> invt_exec_prop p (s, cb)) \<and>
+    (cb = Skip \<longrightarrow> invt_exec_prop p (s, ca)) \<and>
+    (\<forall>\<alpha>. tau_aact \<alpha> \<longrightarrow>
+      (\<forall>ca' s'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', ca') \<longrightarrow> invt_exec_prop p (s', ca' \<box> cb)) \<and>
+      (\<forall>cb' s'. (s, cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', cb') \<longrightarrow> invt_exec_prop p (s', ca \<box> cb'))) \<and>
+    (\<forall>\<alpha>. vis_aact \<alpha> \<longrightarrow>
+      (\<forall>ca'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), ca') \<longrightarrow> p (Inr (), ca')) \<and>
+      (\<forall>cb'. (s, cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cb') \<longrightarrow> p (Inr (), cb')) \<and>
+      (\<forall>s' ca'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', ca') \<longrightarrow> invt_exec_prop p (s', ca')) \<and>
+      (\<forall>s' cb'. (s, cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', cb') \<longrightarrow> invt_exec_prop p (s', cb')))\<close>
+  \<open>invt_exec_prop p (s, ca \<parallel> cb) \<longleftrightarrow>
+    p (Inl s, ca \<parallel> cb) \<and>
+    (ca = Skip \<longrightarrow> cb = Skip \<longrightarrow> p (Inl s, Skip)) \<and>
+    (\<forall>\<alpha> ca'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), ca') \<longrightarrow> p (Inr (), ca' \<parallel> cb)) \<and>
+    (\<forall>\<alpha> cb'. (s, cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), cb') \<longrightarrow> p (Inr (), ca \<parallel> cb')) \<and>
+    (\<forall>\<alpha> s' ca'. (s, ca) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', ca') \<longrightarrow> invt_exec_prop p (s', ca' \<parallel> cb)) \<and>
+    (\<forall>\<alpha> s' cb'. (s, cb) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', cb') \<longrightarrow> invt_exec_prop p (s', ca \<parallel> cb'))\<close>
+  \<open>invt_exec_prop p (s, \<langle>pa, qa\<rangle>) \<longleftrightarrow>
+    (p (Inl s, \<langle>pa, qa\<rangle>) \<and>
+    (\<not> pa s \<longrightarrow> p (Inr (), \<langle>pa, qa\<rangle>)) \<and>
+    (pa s \<longrightarrow> (\<forall>a b. qa s (a, b) \<longrightarrow> p (Inl (a, b), Skip))))\<close>
+  \<open>invt_exec_prop p (s, DO c OD) \<longleftrightarrow>
+    (p (Inl s, DO c OD) \<and>
+    ((\<exists>\<alpha> c'. (s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inr (), c')) \<longrightarrow> p (Inr (), DO c OD)) \<and>
+    ((\<forall>\<alpha> a b c'. \<not> (s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl (a, b), c')) \<longrightarrow> p (Inl s, Skip)) \<and>
+    (\<forall>\<alpha> s' c'. (s, c) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (Inl s', c') \<longrightarrow> invt_exec_prop p (s', c' ;; DO c OD)))\<close>
+  (* Skip *)
+        apply (simp add: invt_exec_prop_def)
+    (* Seq *)
+       apply (simp add: invt_exec_prop_def)
+       apply (subst aopsteps_iff)
+       apply (clarsimp simp add: all_conj_distrib imp_ex_conjL imp_conjL ex_disj_distrib
+      conj_disj_distribR split_pairs split_pairs2)
+       apply blast
+    (* Indet *)
+      apply (simp add: invt_exec_prop_def)
+      apply (subst aopsteps_iff)
+      apply (clarsimp simp add: all_conj_distrib imp_ex_conjL imp_conjL ex_disj_distrib
+      conj_disj_distribR split_pairs split_pairs2)
+      apply blast
+    (* Endet *)
+     apply (simp add: invt_exec_prop_def)
+     apply (subst aopsteps_iff)
+     apply (clarsimp simp add: all_conj_distrib imp_ex_conjL imp_conjL imp_conjR ex_disj_distrib
+      conj_disj_distribR split_pairs split_pairs2)
+     apply (rule iffI, force)
+     apply clarsimp
+     apply (metis aopstep_tau_preserves_state fst_conv sum.distinct(1))
+    (* Parallel *)
+    apply (simp add: invt_exec_prop_def)
+    apply (subst aopsteps_iff)
+    apply (clarsimp simp add: all_conj_distrib imp_ex_conjL imp_conjL imp_conjR ex_disj_distrib
+      conj_disj_distribR split_pairs split_pairs2)
+    apply blast
+    (* Atom *)
+   apply (simp add: invt_exec_prop_def)
+   apply (subst aopsteps_iff)
+   apply (force simp add: all_conj_distrib imp_ex_conjL)
+    (* Do-loop *)
+  apply (simp add: invt_exec_prop_def)
+  apply (subst aopsteps_iff)
+  apply (clarsimp simp add: all_conj_distrib imp_ex_conjL imp_conjL imp_conjR ex_disj_distrib
+      conj_disj_distribR split_pairs split_pairs2)
+  apply blast
+  done
+
+
+definition
+  \<open>comm_determ sc \<equiv> \<forall>\<rho> msc'. sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<longrightarrow> (\<forall>msc''. sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc'' \<longrightarrow> snd msc' = snd msc'')\<close>
+
+definition
+  \<open>hatoms_determ \<equiv> (\<lambda>(ms,c).
+      \<forall>s. ms = Inl s \<longrightarrow> (\<forall>pq\<in>head_atoms c. \<forall>pq'\<in>head_atoms c.
+        fst pq s \<sqinter> pre_state (snd pq) s = fst pq' s \<sqinter> pre_state (snd pq') s))\<close>
+
+abbreviation \<open>invt_hatoms_determ \<equiv> invt_exec_prop hatoms_determ\<close>
+
+
+lemma aopstep_hatoms_determ_implies_comm_determ':
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc'' \<Longrightarrow>
+    hatoms_determ (Inl (fst sc), snd sc) \<Longrightarrow>
+    snd msc' = snd msc''\<close>
+  apply (induct arbitrary: msc'' rule: aopstep_induct)
+        apply force
+       apply clarsimp
+       apply (elim disjE)
+          apply force
+         apply force
+        apply force
+       apply clarsimp
+       apply (subst (asm)(2) hatoms_determ_def)
+       apply (simp split: prod.splits)
+  sorry
+
+lemma aopstep_preserves_hatoms_determ:
+  \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a msc' \<Longrightarrow>
+    msc' = (Inl s', c') \<Longrightarrow>
+    hatoms_determ sc \<Longrightarrow>
+    hatoms_determ (s', c')\<close>
+  apply (induct arbitrary: s' c' rule: aopstep_induct)
+        apply force
+       apply clarsimp
+  sorry
+
+lemma aopsteps_hatoms_determ_implies_comm_determ':
+  \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<Longrightarrow>
+    sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc'' \<Longrightarrow>
+    hatoms_determ sc \<Longrightarrow>
+    snd msc' = snd msc''\<close>
+  apply (induct arbitrary: msc'' rule: aopsteps_induct)
+    apply force
+   apply clarsimp
+   apply (metis aopstep_hatoms_determ_implies_comm_determ' snd_conv)
+  apply clarsimp
+  apply (erule disjE)
+   apply clarsimp
+   apply (frule aopstep_hatoms_determ_implies_comm_determ', blast, blast)
+   apply clarsimp
+  sorry
+
+lemma
+  \<open>hatoms_determ sc \<Longrightarrow> comm_determ sc\<close>
+  apply (clarsimp simp add: hatoms_determ_def comm_determ_def)
+  oops
 
 lemma dstep_conf_to_dexec_exact:
   assumes
     \<open>(((sx, kx), cx), ((sy, ky), cy))
       =R, F, (\<rho>x, \<rho>y)\<Rightarrow>\<^sub>\<C> (((sx', kx'), cx'), ((sy', ky'), cy'))\<close>
     \<open>sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<or> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx\<close>
-    \<open>\<forall>p\<in>do_guards cx. p sx = p sx'\<close>
-    \<open>\<forall>p\<in>do_guards cy. p sy = p sy'\<close>
+    \<open>\<forall>p\<in>do_loops cx. p sx = p sx'\<close>
+    \<open>\<forall>p\<in>do_loops cy. p sy = p sy'\<close>
   shows
     \<open>\<exists>c c'.
       (c = cx \<and> c' = cx' \<and> sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<and> sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy'

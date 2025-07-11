@@ -1,7 +1,6 @@
 theory Lang
-  imports SepAlgInstances
+  imports SepAlgInstances "HOL-Library.Multiset"
 begin
-
 
 section \<open> Language Definition \<close>
 
@@ -211,13 +210,13 @@ lemma map_atom_rev_iff:
 lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
 
 
-fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
-  \<open>all_atoms Skip = {}\<close>
-| \<open>all_atoms (ca ;; cb) = all_atoms ca \<union> all_atoms cb\<close>
-| \<open>all_atoms (ca \<parallel> cb) = (all_atoms ca \<union> all_atoms cb)\<close>
-| \<open>all_atoms (ca \<^bold>+ cb) = (all_atoms ca \<union> all_atoms cb)\<close>
-| \<open>all_atoms (ca \<box> cb) = (all_atoms ca \<union> all_atoms cb)\<close>
-| \<open>all_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
+fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) multiset\<close> where
+  \<open>all_atoms Skip = {#}\<close>
+| \<open>all_atoms (ca ;; cb) = all_atoms ca + all_atoms cb\<close>
+| \<open>all_atoms (ca \<parallel> cb) = all_atoms ca + all_atoms cb\<close>
+| \<open>all_atoms (ca \<^bold>+ cb) = all_atoms ca + all_atoms cb\<close>
+| \<open>all_atoms (ca \<box> cb) = all_atoms ca + all_atoms cb\<close>
+| \<open>all_atoms (\<langle>p, q\<rangle>) = {# (p,q) #}\<close>
 | \<open>all_atoms (DO c OD) = all_atoms c\<close>
 
 
@@ -226,7 +225,7 @@ subsubsection \<open> All atom commands predicate \<close>
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
 definition all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
-  \<open>all_atom_comm P c \<equiv> \<forall>p q. (p,q) \<in> all_atoms c \<longrightarrow> P p q\<close>
+  \<open>all_atom_comm P c \<equiv> \<forall>p q. (p,q) \<in># all_atoms c \<longrightarrow> P p q\<close>
 
 lemma all_atom_comm_simps[simp]:
   \<open>all_atom_comm P Skip\<close>
@@ -263,18 +262,19 @@ lemma all_atom_comm_top_eq[simp]:
 
 subsection \<open> Head Atoms \<close>
 
-fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) set\<close> where
-  \<open>head_atoms Skip = {}\<close>
+fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) multiset\<close> where
+  \<open>head_atoms Skip = {#}\<close>
 | \<open>head_atoms (ca ;; cb) = head_atoms ca\<close>
-| \<open>head_atoms (ca \<parallel> cb) = (head_atoms ca \<union> head_atoms cb)\<close>
-| \<open>head_atoms (ca \<^bold>+ cb) = {}\<close>
-| \<open>head_atoms (ca \<box> cb) = (head_atoms ca \<union> head_atoms cb)\<close>
-| \<open>head_atoms (\<langle>p, q\<rangle>) = {(p,q)}\<close>
+| \<open>head_atoms (ca \<parallel> cb) = (head_atoms ca + head_atoms cb)\<close>
+| \<open>head_atoms (ca \<^bold>+ cb) = {#}\<close>
+| \<open>head_atoms (ca \<box> cb) = (head_atoms ca + head_atoms cb)\<close>
+| \<open>head_atoms (\<langle>p, q\<rangle>) = {# (p,q) #}\<close>
 | \<open>head_atoms (DO c OD) = head_atoms c\<close>
 
 lemma head_atoms_subseteq_all_atoms:
-  \<open>head_atoms c \<subseteq> all_atoms c\<close>
-  by (induct c) force+
+  \<open>head_atoms c \<subseteq># all_atoms c\<close>
+  by (induct c)
+    (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
 
 
 subsection \<open> Atom Headed \<close>

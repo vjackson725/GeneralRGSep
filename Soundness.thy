@@ -89,7 +89,7 @@ lemma vis_step_impl_atom:
     \<open>(s, c) \<midarrow>Vis x\<rightarrow> (z', c')\<close>
   shows
     \<open>\<exists>p q.
-      (p, q) \<in> head_atoms c \<and>
+      (p, q) \<in># head_atoms c \<and>
       ((p s \<longrightarrow> (\<exists>s'. z' = Inl s' \<and> q s s')) \<and>
         (\<not> p s \<longrightarrow> z' = Inr ()))\<close>
 proof -
@@ -100,7 +100,7 @@ proof -
         zc' = (z', c') \<Longrightarrow>
         \<alpha> = Vis x \<Longrightarrow>
         \<exists>p q.
-          (p, q) \<in> head_atoms c \<and>
+          (p, q) \<in># head_atoms c \<and>
           ((p s \<longrightarrow> (\<exists>s'. z' = Inl s' \<and> q s s')) \<and>
             (\<not> p s \<longrightarrow> z' = Inr ()))\<close>
       apply (induct \<alpha> sc zc' arbitrary: c s z' c' rule: opstep.induct)
