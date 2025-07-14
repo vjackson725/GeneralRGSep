@@ -34,6 +34,12 @@ lemma iff_extract_agreement:
   \<open>(P \<Longrightarrow> X) \<Longrightarrow> (Q \<Longrightarrow> X) \<Longrightarrow> P = Q \<longleftrightarrow> (X \<longrightarrow> P = Q)\<close>
   by blast
 
+lemma sum_prod_and_left_unit_case_disj[iff]:
+  \<open>(\<exists>x y. a = Inl (x, y)) \<or> a = Inr ()\<close>
+  by (metis (mono_tags) eq_snd_iff obj_sumE unit.exhaust)
+
+
+(* Start of the file proper. *)
 
 type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
 
@@ -936,6 +942,7 @@ lemma aopsteps_rev_simps[simp]:
     (\<exists>s' c'. aopsteps_rev \<rho>e sc (Inl s', c') \<and> aopstep \<alpha>e (s', c') msc'')\<close>
   by force+
 
+paragraph \<open> Aopsteps-rev to Aopsteps \<close>
 
 lemma aopsteps_rev_aopsteps_to_aopsteps:
   \<open>aopsteps_rev \<rho>x sc msc' \<Longrightarrow>
@@ -947,10 +954,9 @@ lemma aopsteps_rev_aopsteps_to_aopsteps:
 lemma aopsteps_rev_to_aopsteps:
   \<open>aopsteps_rev \<rho> sc msc' \<Longrightarrow> aopsteps \<rho> sc msc'\<close>
   using aopsteps_rev_aopsteps_to_aopsteps[where \<rho>y=\<open>[]\<close> and msc'=msc' and msc''=msc', simplified]
-  apply (case_tac msc')
-  apply (rename_tac ms' c')
-  apply (case_tac ms'; simp)
-  done
+  by (case_tac msc', simp)
+
+paragraph \<open> Aopsteps to Aopsteps-rev \<close>
 
 lemma aopsteps_rev_aopsteps_to_aopsteps_rev:
   \<open>aopsteps \<rho>y sc' msc'' \<Longrightarrow>
@@ -1204,15 +1210,16 @@ lemma eaopstep_preserves_reflclC:
 subsection \<open> Extended steps \<close>
 
 inductive esteps :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> for step where
-  nil: \<open>snd msc' = snd sc \<Longrightarrow> fst msc' = Inl (fst sc) \<Longrightarrow> esteps step r F [] sc msc'\<close>
-| crashstep: \<open>
-  estep step r F \<gamma> (s, c) (Inr (), c'') \<Longrightarrow>
-    z'' = Inr () \<Longrightarrow>
-    esteps step r F [\<gamma>] (s, c) (z'', c'')\<close>
-| opstep: \<open>
-  estep step r F \<gamma> (s, c) (Inl s', c') \<and>
-  esteps step r F \<gamma>s (s', c') (z'', c'') \<Longrightarrow>
-  esteps step r F (\<gamma> # \<gamma>s) (s, c) (z'', c'')\<close>
+  esteps_nil[intro!]:
+  \<open>snd msc' = snd sc \<Longrightarrow> fst msc' = Inl (fst sc) \<Longrightarrow> esteps step r F [] sc msc'\<close>
+| esteps_crash[intro]:
+  \<open>estep step r F \<gamma> sc (Inr (), c'') \<Longrightarrow>
+    msc'' = (Inr (), c'') \<Longrightarrow>
+    esteps step r F [\<gamma>] sc msc''\<close>
+| esteps_step:
+  \<open>estep step r F \<gamma> sc (Inl s', c') \<Longrightarrow>
+    esteps step r F \<gamma>s (s', c') msc'' \<Longrightarrow>
+    esteps step r F (\<gamma> # \<gamma>s) sc msc''\<close>
 
 inductive_cases esteps_nilE[elim!]: \<open>esteps step r F [] sc zc'\<close>
 inductive_cases esteps_consE[elim]: \<open>esteps step r F (\<gamma> # \<gamma>s) sc zc'\<close>
@@ -1231,10 +1238,102 @@ abbreviation easteps_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Righta
 
 lemmas easteps_induct = esteps.induct[of aopstep, consumes 1]
 
-lemma easteps_nil_iff[simp]:
-  \<open>sc \<midarrow>r, F, []\<rightarrow>\<^sub>e\<^sub>a\<^sup>* msc' \<longleftrightarrow>
-    snd msc' = snd sc \<and> fst msc' = Inl (fst sc)\<close>
-  by (force elim: esteps.cases intro: esteps.nil)
+lemma easteps_iff[simp]:
+  \<open>esteps step R F [] sc msc' \<longleftrightarrow> snd msc' = snd sc \<and> fst msc' = Inl (fst sc)\<close>
+  \<open>esteps step R F (\<alpha> # \<rho>) sc msc'' \<longleftrightarrow>
+    estep step R F \<alpha> sc msc'' \<and> fst msc'' = Inr () \<and> \<rho> = [] \<or>
+    (\<exists>s' c'.
+      estep step R F \<alpha> sc (Inl s', c') \<and>
+      esteps step R F \<rho> (s', c') msc'')\<close>
+   apply blast
+  apply clarsimp
+  apply (rule iffI)
+   apply force
+  apply (cases msc''; simp; meson esteps_crash esteps_step; fail)
+  done
+
+
+subsection \<open> Reverse Extended Steps \<close>
+
+inductive esteps_rev :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> for step r F where
+  esteps_rev_nil[intro!]:
+  \<open>snd msc' = snd sc \<Longrightarrow> fst msc' = Inl (fst sc) \<Longrightarrow> esteps_rev step r F [] sc msc'\<close>
+| esteps_rev_rcons[intro!]: \<open>
+  esteps_rev step r F \<rho> sc (Inl s', c') \<Longrightarrow>
+  estep step r F \<alpha> (s', c') msc'' \<Longrightarrow>
+  esteps_rev step r F (\<rho> @ [\<alpha>]) sc msc''\<close>
+
+inductive_cases esteps_rev_nilE[elim!]: \<open>esteps_rev step r F [] sc zc'\<close>
+inductive_cases esteps_rev_consE[elim]: \<open>esteps_rev step r F (\<rho> @ [\<alpha>]) sc zc'\<close>
+
+lemmas esteps_rev_singleton[intro!] =
+  esteps_rev_rcons[of _ _ _ \<open>[]\<close>, OF esteps_rev_nil, simplified]
+
+
+abbreviation esteps_rev_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sub>r\<^sup>* _\<close> [55, 0, 0, 0, 55])
+  where
+    \<open>sc \<midarrow>R, F, \<rho>\<rightarrow>\<^sub>e\<^sub>r\<^sup>* msc' \<equiv> esteps_rev opstep R F \<rho> sc msc'\<close>
+
+lemmas esteps_rev_induct = esteps_rev.induct[of opstep, consumes 1, case_names Nil Rcons]
+
+abbreviation easteps_rev_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
+  (\<open>_ \<midarrow>_, _, _\<rightarrow>\<^sub>e\<^sub>a\<^sub>r\<^sup>* _\<close> [55, 0, 0, 0, 55])
+  where
+    \<open>sc \<midarrow>R, F, \<rho>\<rightarrow>\<^sub>e\<^sub>a\<^sub>r\<^sup>* msc' \<equiv> esteps_rev aopstep R F \<rho> sc msc'\<close>
+
+lemmas easteps_rev_induct = esteps_rev.induct[of aopstep, consumes 1, case_names Nil Rcons]
+
+lemma easteps_rev_iff[simp]:
+  \<open>esteps_rev step R F [] sc msc' \<longleftrightarrow> fst msc' = Inl (fst sc) \<and> snd msc' = snd sc\<close>
+  \<open>esteps_rev step R F (\<rho> @ [\<alpha>]) sc msc'' \<longleftrightarrow>
+    (\<exists>s' c'. esteps_rev step R F \<rho> sc (Inl s', c') \<and> estep step R F \<alpha> (s', c') msc'')\<close>
+  by force+
+
+paragraph \<open> Esteps-rev to Esteps \<close>
+
+lemma esteps_rev_esteps_to_esteps:
+  \<open>esteps_rev step R F \<rho>x sc msc' \<Longrightarrow>
+    (\<exists>s' c'. msc' = (Inl s', c') \<and> esteps step R F \<rho>y (s', c') msc'') \<or>
+    (fst msc' = Inr () \<and> msc'' = msc' \<and> \<rho>y = []) \<Longrightarrow>
+    esteps step R F (\<rho>x @ \<rho>y) sc msc''\<close>
+  apply (induct arbitrary: \<rho>y msc'' rule: esteps_rev.induct)
+   apply force
+  apply (metis append.assoc append_Cons append_Nil easteps_iff(2))
+  done
+
+lemma esteps_rev_to_esteps:
+  \<open>esteps_rev step R F \<rho> sc msc' \<Longrightarrow> esteps step R F \<rho> sc msc'\<close>
+  using esteps_rev_esteps_to_esteps[where \<rho>y=\<open>[]\<close> and msc'=msc' and msc''=msc', of step R F]
+  by (case_tac msc', simp)
+
+paragraph \<open> Esteps to Esteps-rev \<close>
+
+lemma aopsteps_rev_aopsteps_to_aopsteps_rev:
+  \<open>aopsteps \<rho>y sc' msc'' \<Longrightarrow>
+    sc' = (s', c') \<Longrightarrow>
+    aopsteps_rev \<rho>x sc (Inl s', c') \<Longrightarrow>
+    aopsteps_rev (\<rho>x @ \<rho>y) sc msc''\<close>
+  by (induct arbitrary: s' c' \<rho>x rule: aopsteps.induct) force+
+
+lemma aopsteps_to_aopsteps_rev:
+  \<open>aopsteps \<rho> sc msc' \<Longrightarrow> aopsteps_rev \<rho> sc msc'\<close>
+  using aopsteps_rev_aopsteps_to_aopsteps_rev[where \<rho>x=\<open>[]\<close> and sc=sc and msc''=msc', simplified]
+  by auto
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 (*
 section \<open> Double Step \<close>
@@ -2976,10 +3075,10 @@ inductive dexec
   for step L C
   where
   dexec_nil[intro!]: \<comment> \<open> safe so long as \<open>step\<close> is never \<open>([],[])\<close> \<close>
-  \<open>zz' = zz \<Longrightarrow>
-    C (snd (fst zz)) (snd (snd zz)) \<Longrightarrow>
-    L (fst (fst zz), fst (snd zz)) \<Longrightarrow>
-    dexec step L C ([], []) zz zz'\<close>
+  \<open>ss' = ss \<Longrightarrow>
+    C (snd (fst ss)) (snd (snd ss)) \<Longrightarrow>
+    L (fst (fst ss), fst (snd ss)) \<Longrightarrow>
+    dexec step L C ([], []) ss ss'\<close>
 | dexec_step[intro]:
   \<open>dexec step L C (\<rho>x, \<rho>y) ss ss' \<Longrightarrow>
     step (\<rho>x', \<rho>y') ss' ss'' \<Longrightarrow>
@@ -3015,7 +3114,8 @@ abbreviation dexec_conf :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow
   where
     \<open>ss =R, F, \<rho>xy\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<equiv> dexec (dstep_conf R F) \<top> \<top> \<rho>xy ss ss'\<close>
 
-lemmas dexec_conf_induct = dexec.inducts[of \<open>dstep_conf R F\<close> \<top> \<top> for R F, consumes 1]
+lemmas dexec_conf_induct =
+  dexec.inducts[of \<open>dstep_conf R F\<close> \<top> \<top> for R F, consumes 1, case_names Nil Append]
 
 abbreviation dexec_sync :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>\<S>\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
@@ -3279,7 +3379,7 @@ definition btau_reduce_comm
   where
     \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<equiv> \<exists>\<rho>. list_all basic_tau_aact \<rho> \<and> (s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (Inl s, c')\<close>
 
-lemma btau_reduce_comm_reflI[intro!]:
+lemma btau_reduce_comm_reflI[intro]:
   \<open>btau_reduce_comm s c c\<close>
   by (metis aopsteps_nil btau_reduce_comm_def fst_conv snd_conv list_all_simps(2))
 
@@ -3493,8 +3593,64 @@ lemma btau_reduce_state_irrelevance:
   by (metis aopsteps_tau_determ_doloop_then_state_irrel basic_tau_aact_then_tau_aact
       list.pred_mono_strong)
 
-
-(* TODO: up to here *)
+text \<open> The main workhorse of the Conformant \<rightarrow> Exact transformation. \<close>
+lemma astep_two_btau_sequencing:
+  \<open>(s, c) \<midarrow>\<alpha>a\<rightarrow>\<^sub>a (Inl s, cx') \<Longrightarrow>
+    (s, c) \<midarrow>\<alpha>b\<rightarrow>\<^sub>a (Inl s, cy') \<Longrightarrow>
+    basic_tau_aact \<alpha>a \<Longrightarrow>
+    basic_tau_aact \<alpha>b \<Longrightarrow>
+    cx' \<noteq> cy' \<Longrightarrow>
+    (\<exists>c'. (s, cy') \<midarrow>\<alpha>a\<rightarrow>\<^sub>a (Inl s, c')) \<or>
+    (\<exists>c'. (s, cx') \<midarrow>\<alpha>b\<rightarrow>\<^sub>a (Inl s, c'))\<close>
+  apply (induct c arbitrary: s \<alpha>a \<alpha>b cx' cy')
+    (* Skip *)
+        apply force
+    (* Seq *)
+       apply clarsimp
+       apply (elim disjE)
+          apply force
+         apply force
+        apply force
+       apply clarsimp
+       apply metis
+    (* Parallel *)
+      apply clarsimp
+      apply (case_tac \<open>
+  (\<exists>\<beta>a. \<alpha>a = PL \<beta>a) \<and> (\<exists>\<beta>b. \<alpha>b = PL \<beta>b) \<or>
+  (\<exists>\<beta>a. \<alpha>a = PR \<beta>a) \<and> (\<exists>\<beta>b. \<alpha>b = PR \<beta>b)\<close>)
+    (** the difficult cases **)
+       apply (elim disjE[of \<open>_ \<and> Ex _\<close>])
+        apply (clarsimp, blast)
+       apply (clarsimp, blast)
+    (** the rest **)
+      apply (elim disjE; force)
+    (* Indet *)
+     apply force
+    (* Endet *)
+    apply clarsimp
+    apply (case_tac \<open>
+  (\<exists>ca. cx' = ca \<box> c2) \<and> (\<exists>ca. cy' = ca \<box> c2) \<or>
+  (\<exists>cb. cx' = c1 \<box> cb) \<and> (\<exists>cb. cy' = c1 \<box> cb) \<or>
+  (\<exists>cb. cx' = c1 \<box> cb) \<and> (\<exists>ca. cy' = ca \<box> c2) \<or>
+  (\<exists>ca. cx' = ca \<box> c2) \<and> (\<exists>cb. cy' = c1 \<box> cb)\<close>)
+      (** the difficult cases **)
+     apply (elim disjE[of \<open>_ \<and> Ex _\<close>])
+        apply (clarsimp, metis)
+       apply (clarsimp, metis)
+      apply force
+     apply force
+    (** the easy cases **)
+    apply (elim disjE; simp; blast)
+    (* Atom *)
+   apply force
+    (* Do-loop *)
+  apply clarsimp
+  apply (elim disjE)
+     apply blast
+    apply blast
+   apply blast
+  apply (clarsimp, metis)
+  done
 
 lemma btau_reduce_left_to_dstep_exact:
   \<open>sc \<midarrow>\<rho>x\<rightarrow>\<^sub>a\<^sub>r\<^sup>* mscx' \<Longrightarrow>
@@ -3512,17 +3668,6 @@ lemma btau_reduce_left_to_dstep_exact:
   apply (subst dexec_exact_left_rcons_iff)
   apply clarsimp
   sorry
-
-lemma btau_reduce_diamond:
-  \<open>s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
-    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
-    \<forall>atx\<in>all_atoms cx.
-      \<forall>aty\<in>all_atoms cy.
-        pre_state (snd atx) sx = pre_state (snd aty) sy \<Longrightarrow>
-    \<exists>c'. sx, cx \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and> sy, cy \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c'\<close>
-  apply clarsimp
-  sorry
-
 
 definition
   \<open>invt_exec_prop p sc \<equiv> \<forall>\<rho> msc'. sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<longrightarrow> p msc'\<close>
@@ -3612,7 +3757,7 @@ definition
 
 definition
   \<open>hatoms_determ \<equiv> (\<lambda>(ms,c).
-      \<forall>s. ms = Inl s \<longrightarrow> (\<forall>pq\<in>head_atoms c. \<forall>pq'\<in>head_atoms c.
+      \<forall>s. ms = Inl s \<longrightarrow> (\<forall>pq\<in>#head_atoms c. \<forall>pq'\<in>#head_atoms c.
         fst pq s \<sqinter> pre_state (snd pq) s = fst pq' s \<sqinter> pre_state (snd pq') s))\<close>
 
 abbreviation \<open>invt_hatoms_determ \<equiv> invt_exec_prop hatoms_determ\<close>
@@ -3701,7 +3846,7 @@ proof (elim dstep_conf.cases)
      apply (rule conjI, metis btau_reduce_state_irrelevance)
      apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
      apply (rule exI[where x=\<open>[Env]\<close>], rule conjI, blast)
-      (* "; force" would be nicer, but it doesn't work because of unification order. *)
+      (* In the following, "; force" would be nicer, but it doesn't work due to unification order.*)
      apply (rule dexec_exact_step_env[OF dexec_nil, simplified], (force+)[10])
     apply (rule exI[where x=cy], rule exI[where x=cy'])
     apply (rule conjI, metis btau_reduce_state_irrelevance)
@@ -3786,10 +3931,10 @@ qed force+
 
 
 text \<open>
-  This lemma uses lemma \<open>dstep_conf_to_dexec_exact\<close>, but the proof is not simply by repeated
-  application of this theorem then concatenation of the resulting exact traces.
+  This lemma uses lemma \<open>dstep_conf_to_dexec_exact\<close>, but note the proof is *not* by simple repeated
+  application of this theorem and concatenation of the resulting exact traces.
 \<close>
-lemma dexec_conf_to_dexec_exact:
+lemma dstep_conf_to_dexec_exact:
   \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
     ss = (((s, kx), cx), ((s, ky), cy)) \<Longrightarrow>
     ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<Longrightarrow>
@@ -3805,6 +3950,32 @@ lemma dexec_conf_to_dexec_exact:
   apply (induct arbitrary: s kx cx ky cy sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y rule: dstep_conf.induct)
   apply clarsimp
   sorry
+
+lemma dexec_conf_to_eaopsteps:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    ss = (((sx, kx), c), ((sy, ky), c)) \<Longrightarrow>
+    ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
+    \<exists>ms' c' \<rho>.
+      sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and>
+      sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and>
+      \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<and>
+      \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<and>
+      ((\<not> kx' \<and> \<not> ky' \<or> \<rho>x = [] \<and> \<rho>y = []) \<and> ms' = Inl (exch4 (sx', sy')) \<or>
+        (kx' \<or> ky') \<and> (\<rho>x \<noteq> [] \<or> \<rho>y \<noteq> []) \<and> ms' = Inr ()) \<and>
+      (exch4 (sx, sy), c \<times>\<^sub>C c) \<midarrow>R, F, \<rho>\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (ms', c' \<times>\<^sub>C c')\<close>
+proof (induct arbitrary: sx kx sy ky c sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y rule: dexec_conf_induct)
+  case (Nil zz' zz)
+  then show ?case
+    by (fastforce intro!: exI[of _ \<open>[]\<close>])
+next
+  case (Append \<rho>x \<rho>y ss ss' \<rho>x' \<rho>y' ss'' _ _ _ _ _ sx'' kx'' cx'' sy'' ky'' cy'' \<rho>x'' \<rho>y'')
+  then show ?case
+    apply clarsimp
+    sorry
+qed
+
+
 
 lemma dexec_exact_and_safe_to_secure:
   \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<E>\<^sup>* ss' \<Longrightarrow>
