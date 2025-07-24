@@ -74,6 +74,50 @@ lemma eqrel_times_eqrel_eq[simp]:
 
 section \<open> relational logic  \<close>
 
+subsection \<open> refl \<close>
+
+lemma sepconj_reflp[intro]:
+  \<open>reflp (curry p) \<Longrightarrow> reflp (curry q) \<Longrightarrow> reflp (curry (p \<^emph> q))\<close>
+  nitpick[card 'a=1]
+  oops
+
+lemma conj_reflp[intro]:
+  \<open>reflp (curry p) \<Longrightarrow> reflp (curry q) \<Longrightarrow> reflp (curry (p \<sqinter> q))\<close>
+  by (simp add: reflp_on_def)
+
+lemma disj_reflpL[intro]:
+  \<open>reflp (curry p) \<Longrightarrow> reflp (curry (p \<squnion> q))\<close>
+  by (simp add: reflp_on_def)
+
+lemma disj_reflpR[intro]:
+  \<open>reflp (curry q) \<Longrightarrow> reflp (curry (p \<squnion> q))\<close>
+  by (simp add: reflp_on_def)
+
+lemma implies_reflp[intro]:
+  \<open>reflp (curry q) \<Longrightarrow> reflp (curry (p \<leadsto> q))\<close>
+  by (clarsimp simp add: reflp_on_def)
+
+lemma neg_reflp:
+  \<open>quasireflp (curry p) \<Longrightarrow> quasireflp (curry (- p))\<close>
+  apply (clarsimp simp add: reflp_on_def prepost_state_def' curry_def split: prod.splits)
+  nitpick[card 'a=2]
+  oops
+
+lemma both_quasireflp[intro]:
+  \<open>quasireflp (curry (\<lblot> p \<rblot>))\<close>
+  unfolding pred_Times_def reflp_on_def prepost_state_def' curry_def
+  by blast
+
+lemma agree_quasireflp[intro]:
+  \<open>quasireflp (curry (\<bbbA> p))\<close>
+  unfolding sec_agree_def reflp_on_def prepost_state_def' curry_def
+  by blast
+
+lemma reflp_top[intro]:
+  \<open>reflp (curry \<top>)\<close>
+  by (simp add: curry_def prepost_state_def' reflp_on_def)
+
+
 subsection \<open> quasirefl \<close>
 
 lemma sepconj_quasireflp[intro]:
@@ -130,11 +174,11 @@ lemma sepconj_symp[intro]:
 
 lemma conj_symp[intro]:
   \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<sqinter> q))\<close>
-  by (simp add: symp_def sepconj_def)
+  by (simp add: symp_def)
 
 lemma disj_symp[intro]:
   \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<squnion> q))\<close>
-  by (simp add: symp_def sepconj_def)
+  by (simp add: symp_def)
 
 lemma implies_symp[intro]:
   \<open>symp (curry p) \<Longrightarrow> symp (curry q) \<Longrightarrow> symp (curry (p \<leadsto> q))\<close>

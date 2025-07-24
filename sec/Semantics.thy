@@ -2,7 +2,8 @@
   imports "../Soundness"
 begin
 
-(* TODO: move *)
+
+section \<open> Misc (TODO: move) \<close>
 
 lemma eqrel_times_eqrel_eq[simp]:
   \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
@@ -39,7 +40,39 @@ lemma sum_prod_and_left_unit_case_disj[iff]:
   by (metis (mono_tags) eq_snd_iff obj_sumE unit.exhaust)
 
 
-(* Start of the file proper. *)
+subsection \<open> Sublist \<close>
+
+inductive sublist :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>l\<close> 55) where
+  sublist_nil[intro!]: \<open>[] \<preceq>\<^sub>l xs\<close>
+| sublist_cons[intro!]: \<open>ys' = x # ys \<Longrightarrow> xs \<preceq>\<^sub>l ys \<Longrightarrow> x # xs \<preceq>\<^sub>l ys'\<close>
+
+inductive_cases sublist_nilE[elim!]: \<open>[] \<preceq>\<^sub>l xs\<close>
+inductive_cases sublist_consE[elim]: \<open>x # xs \<preceq>\<^sub>l ys'\<close>
+
+lemma sublist_iff[simp]:
+  \<open>[] \<preceq>\<^sub>l xs\<close>
+  \<open>x # xs \<preceq>\<^sub>l ys' \<longleftrightarrow> (\<exists>ys. ys' = x # ys \<and> xs \<preceq>\<^sub>l ys)\<close>
+  by force+
+
+lemma sublist_refl[intro]: \<open>xs \<preceq>\<^sub>l xs\<close>
+  by (induct xs) blast+
+
+lemma sublist_trans[trans]: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l zs \<Longrightarrow> xs \<preceq>\<^sub>l zs\<close>
+  by (induct xs arbitrary: ys zs) force+
+
+lemma sublist_antisym: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l xs \<Longrightarrow> xs = ys\<close>
+  by (induct xs arbitrary: ys) (force elim: sublist.cases)+
+
+lemma sublist_iff_append:
+  \<open>xs \<preceq>\<^sub>l ys \<longleftrightarrow> (\<exists>zs. ys = xs @ zs)\<close>
+  by (induct xs arbitrary: ys) force+
+
+lemma ex_list_length_iff_ex_nat:
+  \<open>(\<exists>xs. P (length xs)) \<longleftrightarrow> (\<exists>n. P n)\<close>
+  by (metis (mono_tags) Ex_list_of_length)
+
+
+section \<open> RGSep-Security State Types \<close>
 
 type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
 
@@ -1309,30 +1342,17 @@ lemma esteps_rev_to_esteps:
 
 paragraph \<open> Esteps to Esteps-rev \<close>
 
-lemma aopsteps_rev_aopsteps_to_aopsteps_rev:
-  \<open>aopsteps \<rho>y sc' msc'' \<Longrightarrow>
+lemma esteps_rev_esteps_to_esteps_rev:
+  \<open>esteps step R F \<rho>y sc' msc'' \<Longrightarrow>
     sc' = (s', c') \<Longrightarrow>
-    aopsteps_rev \<rho>x sc (Inl s', c') \<Longrightarrow>
-    aopsteps_rev (\<rho>x @ \<rho>y) sc msc''\<close>
-  by (induct arbitrary: s' c' \<rho>x rule: aopsteps.induct) force+
+    esteps_rev step R F \<rho>x sc (Inl s', c') \<Longrightarrow>
+    esteps_rev step R F (\<rho>x @ \<rho>y) sc msc''\<close>
+  by (induct arbitrary: s' c' \<rho>x rule: esteps.induct) fastforce+
 
-lemma aopsteps_to_aopsteps_rev:
-  \<open>aopsteps \<rho> sc msc' \<Longrightarrow> aopsteps_rev \<rho> sc msc'\<close>
-  using aopsteps_rev_aopsteps_to_aopsteps_rev[where \<rho>x=\<open>[]\<close> and sc=sc and msc''=msc', simplified]
+lemma esteps_to_esteps_rev:
+  \<open>esteps step R F \<rho> sc msc' \<Longrightarrow> esteps_rev step R F \<rho> sc msc'\<close>
+  using esteps_rev_esteps_to_esteps_rev[where \<rho>x=\<open>[]\<close> and sc=sc and msc''=msc', of step R F, simplified]
   by auto
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 (*
@@ -3066,25 +3086,25 @@ inductive dexec
         ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
         ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
         bool) \<Rightarrow>
-      (_ \<times> _ \<Rightarrow> bool) \<Rightarrow>
+      (_ \<Rightarrow> _ \<Rightarrow> bool) \<Rightarrow>
       (_ \<Rightarrow> _ \<Rightarrow> bool) \<Rightarrow>
       _ list \<times> _ list \<Rightarrow>
       ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
       ('s \<times> 's2 comm) \<times> ('s \<times> 's2 comm) \<Rightarrow>
       bool\<close>
-  for step L C
+  for step I C
   where
   dexec_nil[intro!]: \<comment> \<open> safe so long as \<open>step\<close> is never \<open>([],[])\<close> \<close>
   \<open>ss' = ss \<Longrightarrow>
     C (snd (fst ss)) (snd (snd ss)) \<Longrightarrow>
-    L (fst (fst ss), fst (snd ss)) \<Longrightarrow>
-    dexec step L C ([], []) ss ss'\<close>
+    I (fst (fst ss)) (fst (snd ss)) \<Longrightarrow>
+    dexec step I C ([], []) ss ss'\<close>
 | dexec_step[intro]:
-  \<open>dexec step L C (\<rho>x, \<rho>y) ss ss' \<Longrightarrow>
+  \<open>dexec step I C (\<rho>x, \<rho>y) ss ss' \<Longrightarrow>
     step (\<rho>x', \<rho>y') ss' ss'' \<Longrightarrow>
     C (snd (fst ss')) (snd (snd ss')) \<Longrightarrow>
-    L (fst (fst ss'), fst (snd ss')) \<Longrightarrow>
-    dexec step L C (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') ss ss''\<close>
+    I (fst (fst ss')) (fst (snd ss')) \<Longrightarrow>
+    dexec step I C (\<rho>x @ \<rho>x', \<rho>y @ \<rho>y') ss ss''\<close>
 
 inductive_cases dexec_nilE[elim!]:
   \<open>dexec step L C ([], []) ss ss'\<close>
@@ -3107,7 +3127,7 @@ abbreviation dexec_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarr
     \<open>ss =step, L, C, \<rho>xy\<Rightarrow>\<^sup>* ss' \<equiv> dexec step L C \<rho>xy ss ss'\<close>
 
 
-definition \<open>secstate_bridge L \<equiv> \<lambda>((sx, kx), (sy, ky)). L (exch4 (sx, sy))\<close>
+definition \<open>secstate_bridge I \<equiv> \<lambda>(sx, kx) (sy, ky). I (exch4 (sx, sy))\<close>
 
 abbreviation dexec_conf :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   (\<open>_ =_, _, _\<Rightarrow>\<^sub>\<C>\<^sup>* _\<close> [50, 0, 0, 0, 50])
@@ -3120,7 +3140,7 @@ lemmas dexec_conf_induct =
 abbreviation dexec_sync :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   (\<open>_ =_, _, _, _\<Rightarrow>\<^sub>\<S>\<^sup>* _\<close> [50, 0, 0, 0, 0, 50])
   where
-    \<open>ss =R, F, L, \<rho>xy\<Rightarrow>\<^sub>\<S>\<^sup>* ss' \<equiv> dexec (dstep_secure R F) (secstate_bridge L) \<top> \<rho>xy ss ss'\<close>
+    \<open>ss =R, F, I, \<rho>xy\<Rightarrow>\<^sub>\<S>\<^sup>* ss' \<equiv> dexec (dstep_secure R F) (secstate_bridge I) \<top> \<rho>xy ss ss'\<close>
 
 lemmas dexec_sync_induct = dexec.inducts[of \<open>dstep_secure R F\<close> \<top> \<top> for R F, consumes 1]
 
@@ -3146,14 +3166,14 @@ lemma append_eq_append_singleton_right_conv:
   by (force simp add: append_eq_append_conv2 append_eq_Cons_conv conj_disj_distribL)
 
 lemma dexec_exact_left_rconsD:
-  \<open>dexec step L C \<rho>\<rho> ss ss'' \<Longrightarrow>
+  \<open>dexec step I C \<rho>\<rho> ss ss'' \<Longrightarrow>
     step = dstep_exact R F \<Longrightarrow>
     \<rho>\<rho> = (\<rho>x @ [\<alpha>], \<rho>y') \<Longrightarrow>
     (\<exists>\<rho>y \<alpha>y sx' cx' sy' cy'.
       \<rho>y' = \<rho>y @ [\<alpha>] \<and>
-      dexec step L C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
+      dexec step I C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
       dstep_exact R F ([\<alpha>], [\<alpha>]) ((sx', cx'), (sy', cy')) ss'' \<and>
-      L (sx', sy') \<and>
+      I sx' sy' \<and>
       C cx' cy')\<close>
   apply (erule dexec.cases)
    apply blast
@@ -3166,12 +3186,12 @@ lemma dexec_exact_left_rconsD:
   done
 
 lemma dexec_exact_left_rcons_iff:
-  \<open>dexec (dstep_exact R F) L C (\<rho>x @ [\<alpha>], \<rho>y') ss ss'' \<longleftrightarrow>
+  \<open>dexec (dstep_exact R F) I C (\<rho>x @ [\<alpha>], \<rho>y') ss ss'' \<longleftrightarrow>
     (\<exists>\<rho>y \<alpha>y sx' cx' sy' cy'.
       \<rho>y' = \<rho>y @ [\<alpha>] \<and>
-      dexec (dstep_exact R F) L C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
+      dexec (dstep_exact R F) I C (\<rho>x, \<rho>y) ss ((sx', cx'), (sy', cy')) \<and>
       dstep_exact R F ([\<alpha>], [\<alpha>]) ((sx', cx'), (sy', cy')) ss'' \<and>
-      L (sx', sy') \<and>
+      I sx' sy' \<and>
       C cx' cy')\<close>
   apply (rule iffI)
    apply (drule dexec_exact_left_rconsD; blast)
@@ -3372,7 +3392,9 @@ lemma basic_tau_aopstep_changes_comm:
   by (induct arbitrary: s c s' c' rule: aopstep_induct) force+
 
 
-subsubsection \<open> Basic Tau Equivalences \<close>
+subsection \<open> Basic-Tau Relations \<close>
+
+subsubsection \<open> Basic-Tau Reduction \<close>
 
 definition btau_reduce_comm
   :: \<open>('l \<times> 's) \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> bool\<close> (\<open>_, _ \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* _\<close> [55,0,55] 55)
@@ -3391,20 +3413,22 @@ lemma btau_reduce_comm_transp:
   \<open>transp (btau_reduce_comm s)\<close>
   by (rule transpI, meson aopsteps_trans btau_reduce_comm_def list_all_append)
 
-(* Note: not antisym, consider \<open>DO Skip;; Skip OD\<close> *)
+(* Note: \<open>btau_reduce_comm\<close> is not antisym, consider \<open>DO Skip;; Skip OD\<close> *)
 
+
+subsubsection \<open> Basic-Tau Equiv \<close>
 
 definition btau_equiv_trace :: \<open>aact eact list \<Rightarrow> aact eact list \<Rightarrow> bool\<close> (infix \<open>\<simeq>\<^sub>\<tau>\<^sub>B\<close> 55) where
   \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B \<rho>' \<equiv>
-    List.filter (case_eact True (Not \<circ> basic_tau_aact)) \<rho> =
-    List.filter (case_eact True (Not \<circ> basic_tau_aact)) \<rho>'\<close>
+    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho> =
+    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho>'\<close>
 
 lemma nil_btau_equiv_iff[simp]:
-  \<open>[] \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<longleftrightarrow> list_all (case_eact False basic_tau_aact) \<rho>\<close>
+  \<open>[] \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<longleftrightarrow> list_all (case_eact True basic_tau_aact) \<rho>\<close>
   by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
 
 lemma nil_btau_equiv_nil_iff[simp]:
-  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B [] \<longleftrightarrow> list_all (case_eact False basic_tau_aact) \<rho>\<close>
+  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B [] \<longleftrightarrow> list_all (case_eact True basic_tau_aact) \<rho>\<close>
   by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
 
 lemma btau_equiv_trace_reflI[intro!]:
@@ -3424,11 +3448,52 @@ lemma btau_equiv_trace_transp:
   by (metis btau_equiv_trace_def transpI)
 
 
-subsubsection \<open> Atom Enabled \<close>
+lemma btau_equiv_Env_cons_equiv:
+  \<open>Env # \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x\<close>
+  unfolding btau_equiv_trace_def
+  by simp
+
+
+lemma btau_equivR_appendL_rewrite:
+  \<open>\<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<Longrightarrow> \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y @ \<rho>z \<longleftrightarrow> \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' @ \<rho>z\<close>
+  unfolding btau_equiv_trace_def
+  by force
+
+lemma btau_equivR_appendR_rewrite:
+  \<open>\<rho>z \<simeq>\<^sub>\<tau>\<^sub>B \<rho>z' \<Longrightarrow> \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y @ \<rho>z \<longleftrightarrow> \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y @ \<rho>z'\<close>
+  unfolding btau_equiv_trace_def
+  by force
+
+lemma btau_equivL_appendL_rewrite:
+  \<open>\<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x' \<Longrightarrow> \<rho>x @ \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>z \<longleftrightarrow> \<rho>x' @ \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>z\<close>
+  unfolding btau_equiv_trace_def
+  by force
+
+lemma btau_equivL_appendR_rewrite:
+  \<open>\<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<Longrightarrow> \<rho>x @ \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>z \<longleftrightarrow> \<rho>x @ \<rho>y' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>z\<close>
+  unfolding btau_equiv_trace_def
+  by force
+
+
+subsubsection \<open> Basic-Tau Subtrace \<close>
+
+definition less_eq_btau_trace :: \<open>aact eact list \<Rightarrow> aact eact list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>\<tau>\<^sub>B\<close> 55) where
+  \<open>\<rho> \<preceq>\<^sub>\<tau>\<^sub>B \<rho>' \<equiv>
+    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho> \<preceq>\<^sub>l
+    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho>'\<close>
+
+lemma nil_less_eq_btau_trace_iff[simp]:
+  \<open>[] \<preceq>\<^sub>\<tau>\<^sub>B xs\<close>
+  unfolding less_eq_btau_trace_def
+  by force
+
+
+subsection \<open> Atom Enabled \<close>
 
 definition \<open>atom_enabled pq \<equiv> fst pq \<sqinter> pre_state (snd pq)\<close>
 
-subsubsection \<open> Head Enabled Equivalent States \<close>
+
+subsection \<open> Head Enabled Equivalent States \<close>
 
 definition
   \<open>head_enabled_equiv c sx sy \<equiv> \<forall>a\<in>#head_atoms c. atom_enabled a sx = atom_enabled a sy\<close>
@@ -3461,7 +3526,7 @@ lemma head_guard_trans_trans[trans]:
   by (force simp add: head_enabled_equiv_def)
 
 
-subsubsection \<open> Do Loops \<close>
+subsection \<open> Do Loops \<close>
 
 fun do_loops :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
   \<open>do_loops Skip = {#}\<close>
@@ -3482,7 +3547,7 @@ lemma aopstep_do_loops_subseteq:
     (fastforce simp add: if_bool_eq_disj conj_disj_distribL)+
 
 
-subsubsection \<open> Do-Loop Enabled State Equivalence \<close>
+subsection \<open> Do-Loop Enabled State Equivalence \<close>
 
 abbreviation
   \<open>do_loop_head_enabled_equiv c sx sy \<equiv>
@@ -3520,7 +3585,7 @@ next
 qed (clarsimp simp add: all_conj_distrib; fail)+ (* slow *)
 
 
-subsubsection \<open> Head Enabled Unique \<close>
+subsection \<open> Head Enabled Unique \<close>
 
 definition
   \<open>head_enabled_unique c s \<equiv>
@@ -3668,6 +3733,7 @@ lemma btau_reduce_left_to_dstep_exact:
   apply (subst dexec_exact_left_rcons_iff)
   apply clarsimp
   sorry
+
 
 definition
   \<open>invt_exec_prop p sc \<equiv> \<forall>\<rho> msc'. sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* msc' \<longrightarrow> p msc'\<close>
@@ -3930,26 +3996,159 @@ next
 qed force+
 
 
+lemma ragged_dstep_conf_completion:
+  \<open>ss' =R, F, (\<rho>xa', \<rho>ya')\<Rightarrow>\<^sub>\<C> ss'' \<Longrightarrow> \<comment> \<open> next step \<close>
+    ss' =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<C>\<^sup>* ss''' \<Longrightarrow> \<comment> \<open> old completion \<close>
+    \<rho>xa @ \<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>ya @ \<rho>y' \<Longrightarrow>
+    list_all (case_eact True basic_tau_aact) \<rho>x' \<or> list_all (case_eact True basic_tau_aact) \<rho>y' \<Longrightarrow>
+    list_all (case_eact False \<top>) \<rho>x' \<Longrightarrow>
+    list_all (case_eact False \<top>) \<rho>y' \<Longrightarrow>
+    snd (fst ss''') = snd (snd ss''') \<Longrightarrow>
+    \<rho>x = \<rho>xa @ \<rho>xa' \<Longrightarrow>
+    \<rho>y = \<rho>ya @ \<rho>ya' \<Longrightarrow>
+    \<exists>\<rho>x' \<rho>y'.
+      (\<exists>ssx'''. ss'' =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<C>\<^sup>* ssx''' \<and> snd (fst ssx''') = snd (snd ssx''')) \<and>
+      \<rho>xa @ \<rho>xa' @ \<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>ya @ \<rho>ya' @ \<rho>y' \<and>
+      (list_all (case_eact True basic_tau_aact) \<rho>x' \<or> list_all (case_eact True basic_tau_aact) \<rho>y') \<and>
+      list_all (case_eact False \<top>) \<rho>x' \<and>
+      list_all (case_eact False \<top>) \<rho>y'\<close>
+  apply (erule dstep_conf.cases)
+(* EnvEnv *)
+       apply clarify
+       apply (rename_tac lsx' ssx' lsy' ssy' lsx'' ssx'' lsy'' ssy'' u kx' cx' ky' cy')
+       apply (clarsimp simp del: split_paired_Ex simp add:
+      btau_equivR_appendR_rewrite[OF btau_equiv_Env_cons_equiv]
+      btau_equivL_appendR_rewrite[OF btau_equiv_Env_cons_equiv])
+       apply (rule_tac x=\<rho>x' in exI)
+       apply (rule_tac x=\<rho>y' in exI)
+       apply (clarsimp simp del: split_paired_Ex)
+       apply (rule_tac x=ss''' in exI)
+       apply (rule conjI)
+    (* CrashL *)
+    (* CrashR *)
+    (* LocL *)
+    (* LocR *)
+    (* LocLoc *)
+  sorry
+
+lemma ragged_dexec_conf_completion:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    ss = (((sx, False), c), (sy, False), c) \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
+    \<exists>\<rho>x' \<rho>y' ss''.
+      ss' =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<C>\<^sup>* ss'' \<and>
+      \<rho>x @ \<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y @ \<rho>y' \<and>
+      (\<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B [] \<or> \<rho>y' \<simeq>\<^sub>\<tau>\<^sub>B []) \<and>
+      list_all (case_eact False \<top>) \<rho>x' \<and>
+      list_all (case_eact False \<top>) \<rho>y' \<and>
+      snd (fst ss'') = snd (snd ss'')\<close>
+proof (induct arbitrary: \<rho>x \<rho>y rule: dexec_conf_induct)
+  case (Nil ss' ss)
+  then show ?case
+    by fastforce
+next
+  case (Append \<rho>xa \<rho>ya ss ss' \<rho>xa' \<rho>ya' ss'')
+
+  obtain \<rho>x' \<rho>y' ssa'' where IH:
+    \<open>ss' =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<C>\<^sup>* ssa''\<close>
+    \<open>\<rho>xa @ \<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>ya @ \<rho>y'\<close>
+    \<open>\<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B [] \<or> \<rho>y' \<simeq>\<^sub>\<tau>\<^sub>B []\<close>
+    \<open>list_all (case_eact False \<top>) \<rho>x'\<close>
+    \<open>list_all (case_eact False \<top>) \<rho>y'\<close>
+    \<open>snd (fst ssa'') = snd (snd ssa'')\<close>
+    using Append.prems(1) Append.hyps(2)
+    by blast
+  
+  show ?case
+    using Append.prems Append.hyps(1,3) IH
+    apply clarsimp
+    apply (frule(8) ragged_dstep_conf_completion)
+    apply (clarsimp simp add: top_fun_def)
+    done
+qed
+
+lemma matching_dexec_conf_to_exact_exec:
+  \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
+    \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y \<Longrightarrow>
+    \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
+    ss = (((sx, False), c), (sy, False), c) \<Longrightarrow>
+    ss' = (((sx', kx'), c'), ((sy', ky'), c')) \<Longrightarrow>
+    (\<exists>ms''.
+      (\<not> kx' \<and> \<not> ky' \<and> ms'' = Inl (exch4 (sx', sy')) \<or>
+        ((kx' \<or> ky') \<and> ms'' = Inr ())) \<and>
+      \<comment> \<open> we could equivalently choose \<open>\<rho>y\<close> \<close>
+      (exch4 (sx, sy), c \<times>\<^sub>C c) \<midarrow>R, F, \<rho>x\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (ms'', c' \<times>\<^sub>C c'))\<close>
+  sorry
+
+
 text \<open>
   This lemma uses lemma \<open>dstep_conf_to_dexec_exact\<close>, but note the proof is *not* by simple repeated
   application of this theorem and concatenation of the resulting exact traces.
+
+  The \<C> evaluation may end on a 'ragged edge', with non-matching commands and vis steps.
+  This is turned into a 'clean edge' with matching commands and basic-tau equivalent traces.
+  To do this, the incomplete execution must be extended. (As Vis moves are deterministic,
+  at most one execution may lag behind the other, such that it can be extended to match Vis
+  moves again.)
+    The issue to be dealt with here is that we need a relation between the commands of the ragged
+  edge, and the final command of the synchronised execution, so the induction can be extended. This
+  relationship is as follows: the synchronised-command must be a \<open>\<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>*\<close> from both commands of
+  the *Vis-completed* \<C>-execution.
 \<close>
 lemma dstep_conf_to_dexec_exact:
   \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
-    ss = (((s, kx), cx), ((s, ky), cy)) \<Longrightarrow>
-    ss' = (((sx', kx'), cx'), ((sy', ky'), cy')) \<Longrightarrow>
+    ss = (((sx, False), c), (sy, False), c) \<Longrightarrow>
+    ss' = (((sx', kx'), cx'), (sy', ky'), cy') \<Longrightarrow>
     \<rho>\<rho> = (\<rho>x, \<rho>y) \<Longrightarrow>
-    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx \<Longrightarrow>
-    s, c \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy \<Longrightarrow>
-    \<exists>cx'' cy'' \<rho>x' \<rho>y'.
-      sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cx'' \<and>
-      sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* cy'' \<and>
-      \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho>x' \<and>
-      \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y' \<and>
-      ss =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<E>\<^sup>* (((sx', kx'), cx''), ((sy', ky'), cy''))\<close>
-  apply (induct arbitrary: s kx cx ky cy sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y rule: dstep_conf.induct)
+    \<exists>\<rho>x' \<rho>y' ss''.
+      ss' =R, F, (\<rho>x', \<rho>y')\<Rightarrow>\<^sub>\<C>\<^sup>* ss'' \<and>
+      \<rho>x @ \<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>y @ \<rho>y' \<and>
+      (\<rho>x' \<simeq>\<^sub>\<tau>\<^sub>B [] \<or> \<rho>y' \<simeq>\<^sub>\<tau>\<^sub>B []) \<and>
+      (\<exists>c'' sx'' kx'' sy'' ky''.
+        ss'' = (((sx'', kx''), c''), ((sy'', ky''), c'')) \<and>
+        (\<exists>ms''.
+          (\<not> kx'' \<and> \<not> ky'' \<and> ms'' = Inl (exch4 (sx'', sy'')) \<or>
+            ((kx'' \<or> ky'') \<and> ms'' = Inr ())) \<and>
+          \<comment> \<open> we could equivalently choose \<open>\<rho>y @ \<rho>y'\<close> \<close>
+          (exch4 (sx, sy), c \<times>\<^sub>C c) \<midarrow>R, F, \<rho>x @ \<rho>x'\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (ms'', c'' \<times>\<^sub>C c'')))\<close>
+  apply (frule ragged_dexec_conf_completion, blast, blast)
   apply clarsimp
-  sorry
+  apply (frule(1) dexec_trans)
+  apply clarsimp
+  apply (frule(1) matching_dexec_conf_to_exact_exec, blast, blast, blast)
+  apply clarsimp
+  apply blast
+  done
+
+
+proof (induct arbitrary: sx c sy sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y rule: dexec_conf_induct)
+  case (Nil ss' ss)
+  then show ?case
+    by fastforce
+next
+  case (Append \<rho>xa \<rho>ya ss ss' \<rho>xb \<rho>yb ss'')
+
+  obtain \<rho>xa' \<rho>ya' msa'' sxa'' kxa'' sya'' kya'' ca'' where IH:
+    \<open>ss' =R, F, (\<rho>xa', \<rho>ya')\<Rightarrow>\<^sub>\<C>\<^sup>* (((sxa'', kxa''), ca''), ((sya'', kya''), ca''))\<close>
+    \<open>\<rho>xa @ \<rho>xa' \<simeq>\<^sub>\<tau>\<^sub>B \<rho>ya @ \<rho>ya'\<close>
+    \<open>(list_all (case_eact True basic_tau_aact) \<rho>xa' \<or> list_all (case_eact True basic_tau_aact) \<rho>ya')\<close>
+    \<open>\<not> kxa'' \<and> \<not> kya'' \<and> msa'' = Inl (exch4 (sxa'', sya'')) \<or>
+      (kxa'' \<or> kya'') \<and> msa'' = Inr ()\<close>
+    \<open>(exch4 (fst (fst (fst ss)), fst (fst (snd ss))), snd (fst ss) \<times>\<^sub>C snd (fst ss))
+      \<midarrow>R, F, \<rho>xa @ \<rho>xa'\<rightarrow>\<^sub>e\<^sub>a\<^sup>*
+      (msa'', ca'' \<times>\<^sub>C ca'')\<close>
+    using Append.prems(1) Append.hyps(2)
+    apply (clarsimp simp add: split_pairs2 top_fun_def)
+    apply (drule meta_spec2, drule meta_spec, (drule meta_mp, blast)+)
+    apply force
+    done
+
+  show ?case
+    using Append.prems Append.hyps(1,3) IH
+    apply (clarsimp simp add: split_pairs2)
+    sorry
+qed
+find_theorems \<open>_ = (_,_) \<longleftrightarrow> _ \<and> _\<close>
 
 lemma dexec_conf_to_eaopsteps:
   \<open>ss =R, F, \<rho>\<rho>\<Rightarrow>\<^sub>\<C>\<^sup>* ss' \<Longrightarrow>
@@ -3959,8 +4158,7 @@ lemma dexec_conf_to_eaopsteps:
     \<exists>ms' c' \<rho>.
       sx', cx' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and>
       sy', cy' \<leadsto>\<^sub>\<tau>\<^sub>B\<^sup>* c' \<and>
-      \<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<and>
-      \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<and>
+      (\<rho>x \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<and> \<rho>y \<preceq>\<^sub>\<tau>\<^sub>B \<rho> \<or> \<rho>x \<preceq>\<^sub>\<tau>\<^sub>B \<rho> \<and> \<rho>y \<simeq>\<^sub>\<tau>\<^sub>B \<rho>) \<and>
       ((\<not> kx' \<and> \<not> ky' \<or> \<rho>x = [] \<and> \<rho>y = []) \<and> ms' = Inl (exch4 (sx', sy')) \<or>
         (kx' \<or> ky') \<and> (\<rho>x \<noteq> [] \<or> \<rho>y \<noteq> []) \<and> ms' = Inr ()) \<and>
       (exch4 (sx, sy), c \<times>\<^sub>C c) \<midarrow>R, F, \<rho>\<rightarrow>\<^sub>e\<^sub>a\<^sup>* (ms', c' \<times>\<^sub>C c')\<close>
@@ -3971,7 +4169,7 @@ proof (induct arbitrary: sx kx sy ky c sx' kx' cx' sy' ky' cy' \<rho>x \<rho>y r
 next
   case (Append \<rho>x \<rho>y ss ss' \<rho>x' \<rho>y' ss'' _ _ _ _ _ sx'' kx'' cx'' sy'' ky'' cy'' \<rho>x'' \<rho>y'')
   then show ?case
-    apply clarsimp
+    apply (clarsimp simp add: less_eq_btau_trace_def)
     sorry
 qed
 
