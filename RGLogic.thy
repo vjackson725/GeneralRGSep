@@ -17,17 +17,17 @@ inductive rgsat ::
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa r p \<le> q \<Longrightarrow>
-    q \<le> L \<Longrightarrow>
+  \<open>p \<le> wssa R q \<Longrightarrow>
+    p \<le> wssa R I \<Longrightarrow>
     C Skip \<Longrightarrow>
-    rgsat Skip r g p q L F C\<close>
+    rgsat Skip R G p q I F C\<close>
 | rgsat_iter:
-  \<open>rgsat c r g (sswa r i) (sswa r i) (sswa r L) F C \<Longrightarrow>
-    p \<le> wssa r i \<Longrightarrow>
-    sswa r i \<le> q \<Longrightarrow>
-    sswa r L \<le> L' \<Longrightarrow>
+  \<open>rgsat c R G (sswa R i) i (sswa R I) F C \<Longrightarrow>
+    sswa R p \<le> i \<Longrightarrow>
+    sswa R i \<le> q \<Longrightarrow>
+    sswa R I \<le> I' \<Longrightarrow>
     C (Iter c) \<Longrightarrow>
-    rgsat (Iter c) r g p q L' F C\<close>
+    rgsat (Iter c) R G p q I' F C\<close>
 | rgsat_seq:
   \<open>rgsat ca r g p pp La F C \<Longrightarrow>
     rgsat cb r g pp q Lb F C \<Longrightarrow>
@@ -40,16 +40,16 @@ inductive rgsat ::
     ga \<le> g \<Longrightarrow> gb \<le> g \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
     La \<squnion> Lb \<le> L \<Longrightarrow>
-    C (ca \<^bold>+ cb) \<Longrightarrow>
-    rgsat (ca \<^bold>+ cb) r g p q L F C\<close>
+    C (ca \<^bold>\<sqinter> cb) \<Longrightarrow>
+    rgsat (ca \<^bold>\<sqinter> cb) r g p q L F C\<close>
 | rgsat_endet:
   \<open>rgsat ca r ga p qa La F C \<Longrightarrow>
     rgsat cb r gb p qb Lb F C \<Longrightarrow>
     ga \<le> g \<Longrightarrow> gb \<le> g \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
     La \<squnion> Lb \<le> L \<Longrightarrow>
-    C (ca \<box> cb) \<Longrightarrow>
-    rgsat (ca \<box> cb) r g p q L F C\<close>
+    C (ca \<^bold>\<box> cb) \<Longrightarrow>
+    rgsat (ca \<^bold>\<box> cb) r g p q L F C\<close>
 | rgsat_par:
   \<open>rgsat c1 (r \<squnion> g2) g1 p1 q1 L1 (L2 \<^emph>\<and> F) C \<Longrightarrow>
     rgsat c2 (r \<squnion> g1) g2 p2 q2 L2 (L1 \<^emph>\<and> F) C \<Longrightarrow>
@@ -106,8 +106,8 @@ inductive_cases rgsat_seqE[elim]: \<open>rgsat (c1 ;; c2) r g p q L F C\<close>
 inductive_cases rgsat_iterE[elim]: \<open>rgsat (DO c OD) r g p q L F C\<close>
 inductive_cases rgsat_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q L F C\<close>
 inductive_cases rgsat_atomE[elim]: \<open>rgsat (Atomic ap aq) r g p q L F C\<close>
-inductive_cases rgsat_indetE[elim]: \<open>rgsat (c1 \<^bold>+ c2) r g p q L F C\<close>
-inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<box> c2) r g p q L F C\<close>
+inductive_cases rgsat_indetE[elim]: \<open>rgsat (c1 \<^bold>\<sqinter> c2) r g p q L F C\<close>
+inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<^bold>\<box> c2) r g p q L F C\<close>
 
 lemma rgsat_skip_forwards:
   \<open>C Skip \<Longrightarrow> rgsat Skip r g p (sswa r p) (sswa r p) F C\<close>
@@ -326,11 +326,11 @@ lemma rgsat_precond_in_localst:
           apply blast
          apply blast
         apply blast
-       apply (meson order.trans sepconj_conj_mono sswa_stronger; fail)
+       apply (meson order.trans sepconj_conj_mono sswa_weaker; fail)
       apply blast
      apply (simp add: sepimp_conj_sepconj_conj_shunt)
-     apply (meson order.trans sepconj_conj_mono sswa_stronger; fail)
-    apply (meson order_trans sepconj_conj_mono sswa_stronger; fail)
+     apply (meson order.trans sepconj_conj_mono sswa_weaker; fail)
+    apply (meson order_trans sepconj_conj_mono sswa_weaker; fail)
    apply fast
   apply blast
   done
@@ -406,17 +406,15 @@ text \<open>
 \<close>
 
 lemma rgsat_variant_atom:
-    \<open>(\<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap)
-      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> wssa r p \<^emph>\<and> (=) f \<le> ap)\<close>
-    \<open>(\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f)
-      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> sp aq (wssa r p \<^emph>\<and> (=) f) \<le> q \<^emph>\<and> (=) f)\<close>
-    \<open>(\<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)
-      \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> rel_liftL (wssa r p \<^emph>\<and> (=) f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
-     apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis)
-    apply (rule order.antisym)
-     apply (clarsimp simp add: le_fun_def; fail)
-    apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_ex_conjL imp_conjL, blast)
-   apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis (full_types))
+    \<open>(\<forall>f\<le>F. p \<^emph>\<and> f \<le> ap) \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> p \<^emph>\<and> (=) f \<le> ap)\<close>
+    \<open>(\<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> sp aq (p \<^emph>\<and> (=) f) \<le> q \<^emph>\<and> (=) f)\<close>
+    \<open>(\<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow>
+      (\<forall>f. F f \<longrightarrow> rel_liftL (p \<^emph>\<and> (=) f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
+    apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis)
+   apply (rule order.antisym)
+    apply (clarsimp simp add: le_fun_def; fail)
+   apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_ex_conjL imp_conjL, blast)
+  apply (clarsimp simp add: le_fun_def sepconj_conj_def, fast)
   done
 
 text \<open>
@@ -424,10 +422,10 @@ text \<open>
   though it is equivalent in two.
 \<close>
 lemma rgsat_variant_atom2_equivs:
-    \<open>(wssa r p \<^emph>\<and> F \<le> ap) \<longleftrightarrow> (\<forall>f\<le>F. wssa r p \<^emph>\<and> f \<le> ap)\<close>
-    \<open>(\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longrightarrow> (sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> F)\<close>
-    \<open>(rel_liftL (wssa r p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow> (\<forall>f\<le>F. rel_liftL (wssa r p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
-    apply (clarsimp simp add: le_fun_def sepconj_conj_def, blast)
+    \<open>(\<forall>f\<le>F. p \<^emph>\<and> f \<le> ap) \<longleftrightarrow> p \<^emph>\<and> F \<le> ap\<close>
+    \<open>(\<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longrightarrow> (sp aq (p \<^emph>\<and> F) \<le> q \<^emph>\<and> F)\<close>
+    \<open>(\<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow> rel_liftL (p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g\<close>
+    apply (clarsimp simp add: le_fun_def sepconj_conj_def, fast)
    apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_conjL imp_ex_conjL; fail)
   apply (rule order.antisym; simp add: le_fun_def sepconj_conj_def imp_conjL imp_ex_conjL; metis)
   done
