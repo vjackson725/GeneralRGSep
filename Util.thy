@@ -1314,6 +1314,10 @@ lemma sp_impliesD[dest]:
 lemmas refl_rel_wlp_le_sp = order.trans[OF wlp_refl_rel_le sp_refl_rel_le]
 lemmas refl_rel_wlp_impl_sp = predicate1D[OF refl_rel_wlp_le_sp]
 
+lemma transp_wlp_stronger_strengthen:
+  \<open>wlp r p \<le> q \<Longrightarrow> transp r \<Longrightarrow> wlp r p \<le> wlp r q\<close>
+  by (clarsimp simp add: wlp_def le_fun_def, metis transp_def)
+
 lemma rel_lift_impl_iff_sp_impl:
   \<open>rel_liftL p \<sqinter> b \<le> rel_liftR q \<longleftrightarrow> sp b p \<le> q\<close>
   by (force simp add: le_fun_def sp_def wlp_def pre_state_def)

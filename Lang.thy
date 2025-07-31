@@ -552,10 +552,12 @@ lemmas wssa_stronger = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^s
 
 lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
 
-
 lemmas rely_rel_wlp_impl_sp =
   refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
+lemmas wssa_stronger_strengthen =
+  transp_wlp_stronger_strengthen[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified,
+    OF _ relyrel_trans]
 
 subsection \<open> absorption/pseduo-idempotence properties \<close>
 
