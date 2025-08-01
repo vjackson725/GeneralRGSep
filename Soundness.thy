@@ -1080,68 +1080,58 @@ next
     by (blast intro!: safe_endet[where Ia=Ia and Ib=Ib]
         intro: safe_mono[OF order.refl order.refl _ order.refl _ order.refl])
 next
-  case (rgsat_par c1 r g2 g1 p1 q1 L1 L2 F C c2 p2 q2 g p q L)
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
+  
+  obtain lsa lsb where
+    \<open>pa (lsa, snd s)\<close>
+    \<open>pb (lsb, snd s)\<close>
+    \<open>lsa ## lsb\<close>
+    \<open>fst s = lsa + lsb\<close>
+    using rgsat_par.hyps(7) rgsat_par.prems(1)
+    by (fastforce simp add: le_fun_def sepconj_conj_apply)
   then show ?case
-    sorry
-(*
-    using safe_parallel[of n c1 _ _ r g2 g1 q1 L1 L2 F c2 _ q2 q L g]
-    apply -
-    apply (clarsimp simp add: sepconj_conj_def[of p1 p2] le_fun_def[of p]
-        simp del: sup_apply top_apply)
-    apply (drule spec2, drule mp, blast)
-    apply (clarsimp simp del: sup_apply top_apply)
-    apply (rule safe_parallel[where ?q1.0=q1 and ?q2.0=q2])
-         apply (rule safe_monoD[OF _ order.refl _ order.refl order.refl order.refl order.refl],
-        assumption, blast)
-        apply (rule safe_monoD[OF _ order.refl _ order.refl order.refl order.refl order.refl],
-        assumption, blast)
-       apply blast
-      apply blast
-     apply blast
-    apply blast
-    done
-*)
+    using rgsat_par.prems(2) rgsat_par.hyps(5,6,8,9)
+      safe_parallel[of R Gb Ib F Ga Ia qa n ca lsa \<open>snd s\<close> qb cb lsb,
+        OF safe_mono_postD[OF rgsat_par.hyps(2) sswa_weaker]
+        safe_mono_postD[OF rgsat_par.hyps(4) sswa_weaker]]
+    by (cases s, simp)
 next
   case (rgsat_atom p' R p q q' I F ap aq G C)
   then show ?case
     by (intro safe_atom; simp add: rel_restr_fst_galois; blast)
 next
-  case (rgsat_frame c r g p q L F C p' f q' F' L')
+  case (rgsat_frame c R G p q I F C p' f q' F' I')
   then show ?case
     apply -
     apply (frule(1) predicate1D)
-    apply (clarsimp simp del: sup_apply simp add: 
-        sepconj_conj_apply)
-    apply (rule safe_monoD[OF _ order.refl _ order.refl order.refl order.refl order.refl])
-     apply (rule safe_frame[where f=f])
-           apply blast
+    apply (clarsimp simp del: top_apply simp add: sepconj_conj_apply)
+    apply (rule safe_frame[of R F G I q _ c _ _ f])
           apply blast
-         apply blast
-        apply blast
-       apply (simp add: sepimp_conj_sepconj_conj_shunt; fail)
-      apply blast
-     apply (simp add: sepimp_conj_sepconj_conj_shunt)
+         apply assumption
+        apply assumption
+       apply (cases s, force)
+      apply (simp add: sepimp_conj_sepconj_conj_shunt; fail)
+     apply (simp add: sepimp_conj_sepconj_conj_shunt; fail)
     apply blast
     done
 next
-  case (rgsat_weaken c r' g' p' q' L' F' C p q r g L F)
-  moreover have \<open>p' (hl, hs)\<close>
+  case (rgsat_weaken c R' G' p' q' I' F' C p q R G I F)
+  moreover have \<open>p' s\<close>
     using rgsat_weaken.hyps(3) rgsat_weaken.prems
-    by (metis rev_predicate1D)
-  moreover then have \<open>safe n c ((hl, hs)) r' g' q' L' F'\<close>
-    using rgsat_weaken.prems
-    by (fast intro: rgsat_weaken.hyps(2))
+    by blast
+  moreover then have \<open>safe R' F' G' I' q' n c s\<close>
+    using rgsat_weaken.prems rgsat_weaken.hyps(2)
+    by fast
   ultimately show ?case
-    by (meson safe_monoD[OF _ order.refl])
+    by (meson order.refl safe_monoD)
 next
-  case (rgsat_Disj p' P c r g q L F C)
-  then show ?case
-    using Sup1_E by force
+  case rgsat_Disj
+  then show ?case by fast
 next
-  case (rgsat_Conj Q c r g p L F C q')
+  case (rgsat_Conj Q c R G p I F C q')
   then show ?case
-    by (intro safe_monoD[OF safe_Conj' order.refl _ order.refl order.refl order.refl order.refl])
-      blast+
+    using safe_Conj'[of _ Q] safe_mono_postD[where q=\<open>\<Sqinter>Q\<close> and s=s and q'=q']
+    by metis
 qed
 
 end

@@ -190,8 +190,8 @@ lemma sepconj_conjI:
   by (force simp add: sepconj_conj_def)
 
 lemma sepconj_conj_apply:
-  \<open>(p \<^emph>\<and> q) (ab, c) = (\<exists>a b. a ## b \<and> ab = a + b \<and> p (a, c) \<and> q (b, c))\<close>
-  by (simp add: sepconj_conj_def)
+  \<open>(p \<^emph>\<and> q) s = (\<exists>a b. a ## b \<and> fst s = a + b \<and> p (a, snd s) \<and> q (b, snd s))\<close>
+  by (cases s, simp add: sepconj_conj_def)
 
 lemma sepconj_conj_assoc:
   \<open>(p \<^emph>\<and> q) \<^emph>\<and> r = p \<^emph>\<and> (q \<^emph>\<and> r)\<close>
