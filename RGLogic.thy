@@ -64,11 +64,10 @@ inductive rgsat ::
     sswa R q \<le> q' \<Longrightarrow>
     wssa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
-    wssa R p \<^emph>\<and> F \<le> ap \<Longrightarrow>
-    \<forall>f\<le>F. sp aq (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
-    C (Atomic ap aq) \<Longrightarrow>
-    rgsat (Atomic ap aq) R G p' q' I F C\<close>
+    \<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
+    C \<langle>ar\<rangle> \<Longrightarrow>
+    rgsat \<langle>ar\<rangle> R G p' q' I F C\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q L F C \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
@@ -105,7 +104,7 @@ inductive_cases rgsat_skipE[elim]: \<open>rgsat Skip r g p q L F C\<close>
 inductive_cases rgsat_seqE[elim]: \<open>rgsat (c1 ;; c2) r g p q L F C\<close>
 inductive_cases rgsat_iterE[elim]: \<open>rgsat (DO c OD) r g p q L F C\<close>
 inductive_cases rgsat_parE[elim]: \<open>rgsat (c1 \<parallel> c2) r g p q L F C\<close>
-inductive_cases rgsat_atomE[elim]: \<open>rgsat (Atomic ap aq) r g p q L F C\<close>
+inductive_cases rgsat_atomE[elim]: \<open>rgsat \<langle>ar\<rangle> r g p q L F C\<close>
 inductive_cases rgsat_indetE[elim]: \<open>rgsat (c1 \<^bold>\<sqinter> c2) r g p q L F C\<close>
 inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<^bold>\<box> c2) r g p q L F C\<close>
 
@@ -265,6 +264,64 @@ section \<open> Specialised Rules \<close>
 
 subsection \<open> Assert \<close>
 
+definition pred_Times_third
+  :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('c \<Rightarrow> bool) \<Rightarrow> ('a \<times> ('b \<times> 'c) \<Rightarrow> bool)\<close>
+  (infix \<open>\<times>\<^sub>P\<^sub>3\<close> 80)
+  where
+  \<open>p \<times>\<^sub>P\<^sub>3 q \<equiv> \<lambda>(a,(b,c)). p (a,b) \<and> q c\<close>
+
+lemma pred_Times_third_apply[simp]:
+  \<open>(p \<times>\<^sub>P\<^sub>3 q) x = (p (fst x, fst (snd x)) \<and> q (snd (snd x)))\<close>
+  by (simp add: pred_Times_third_def split: prod.splits)
+
+
+abbreviation
+  \<open>nocrash_pred p \<equiv> p \<times>\<^sub>P\<^sub>3 (=) Running\<close>
+
+lemmas nocrash_pred_def =
+  pred_Times_third_def[of _ \<open>(=) Running\<close>]
+
+abbreviation crash_rgsat_pretty
+  (\<open>_, _, _, _, _ \<turnstile>\<^sub>k { _ } _ { _ }\<close> [55, 0, 0, 0, 0, 55, 55, 55] 56) where
+  \<open>R, G, I, F, C \<turnstile>\<^sub>k { p } c { q } \<equiv>
+    rgsat c
+      (R \<times>\<^sub>R (=)) (G \<times>\<^sub>R (=))
+      (nocrash_pred p) (nocrash_pred q)
+      (nocrash_pred I) (nocrash_pred F)
+      C\<close>
+
+
+lemma sp_triple_relTimes_predTimes3_eq[simp]:
+  \<open>sp (ra \<times>\<^sub>R (rb \<times>\<^sub>R rc)) (p \<times>\<^sub>P\<^sub>3 q) = sp (ra \<times>\<^sub>R rb) p \<times>\<^sub>P\<^sub>3 sp rc q\<close>
+  by (force simp add: sp_def pred_Times_third_def)
+
+lemma reflp_wlp_equals_predTimes3_eq[simp]:
+  \<open>reflp ra \<Longrightarrow> reflp rb \<Longrightarrow>
+    wlp (ra \<times>\<^sub>R rb \<times>\<^sub>R (=)) (p \<times>\<^sub>P\<^sub>3 q) = wlp (ra \<times>\<^sub>R rb) p \<times>\<^sub>P\<^sub>3 q\<close>
+  by (force simp add: wlp_def pred_Times_third_def fun_eq_iff reflp_def)
+
+lemma predTimes3_sepconj_conj_distrib:
+  \<open>(p \<^emph>\<and> f) \<times>\<^sub>P\<^sub>3 q = p \<times>\<^sub>P\<^sub>3 q \<^emph>\<and> f \<times>\<^sub>P\<^sub>3 q\<close>
+  by (force simp add: pred_Times_third_def sepconj_conj_apply fun_eq_iff)
+
+lemma predTimes3_eqVal_le_iff[simp]:
+  \<open>pa \<times>\<^sub>P\<^sub>3 (=) v \<le> pb \<times>\<^sub>P\<^sub>3 (=) v \<longleftrightarrow> pa \<le> pb\<close>
+  by (force simp add: pred_Times_third_def)
+
+lemma all_impl_nocrash_pred_internalise:
+  \<open>(\<forall>p\<le>nocrash_pred P. q p) \<longleftrightarrow> (\<forall>p\<le>P. q (nocrash_pred p))\<close>
+  apply (simp add: pred_Times_third_def le_fun_def)
+  apply (intro iffI allI impI, force)
+  apply (drule_tac x=\<open>\<lambda>(l,s). \<exists>k. p (l, s, Running)\<close> in spec)
+  apply (clarsimp split: prod.splits)
+  apply (subgoal_tac \<open>(\<lambda>(l, s, k). p (l, s, Running) \<and> Running = k) = p\<close>; force)
+  done
+
+lemma sp_crash_healthy_rel_eq:
+  \<open>sp (crash_healthy_rel r) (nocrash_pred p) =
+    (\<lambda>(l', s', k'). (\<exists>s. r s (l', s', k') \<and> p s))\<close>
+  by (simp add: sp_def fun_eq_iff)
+
 lemma rgsat_assert:
   assumes
     \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
@@ -274,11 +331,33 @@ lemma rgsat_assert:
     \<open>wssa R q \<le> I\<close>
     \<open>C (Assert pa)\<close>
   shows
-    \<open>R, G, I, F, C \<turnstile> { p } Assert pa { q }\<close>
+    \<open>R, G, I, F, C \<turnstile>\<^sub>k { p } Assert pa { q }\<close>
   using assms
   unfolding Assert_def
-  by (intro rgsat_atom[where p=\<open>sswa R p\<close> and q=\<open>wssa R q\<close>];
-      simp add: sswa_weaker wssa_stronger)
+proof (intro rgsat_atom[where p=\<open>nocrash_pred (sswa R p)\<close> and q=\<open>nocrash_pred (wssa R q)\<close>])
+  show
+    \<open>\<forall>f\<le>nocrash_pred F.
+       sp (crash_healthy_rel
+            (\<lambda>(l, s) (l', s', k').
+                l' = l \<and>
+                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Crashed)))
+        (wssa (R \<times>\<^sub>R (=)) (nocrash_pred (sswa R p)) \<^emph>\<and> f)
+       \<le> nocrash_pred (wssa R q) \<^emph>\<and> f\<close>
+    using assms(1,2)
+    apply (simp add: all_impl_nocrash_pred_internalise
+        predTimes3_sepconj_conj_distrib[symmetric] sp_crash_healthy_rel_eq)
+    apply (fastforce simp add: le_fun_def sepconj_conj_apply)
+    done
+next
+  show
+    \<open>rel_liftL (wssa (R \<times>\<^sub>R (=)) (nocrash_pred (sswa R p)) \<^emph>\<and> nocrash_pred F) \<sqinter>
+    crash_healthy_rel
+     (\<lambda>(l, s) (l', s', k').
+         l' = l \<and> s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Crashed))
+    \<le> \<top> \<times>\<^sub>R G \<times>\<^sub>R (=)\<close>
+    using assms(1,3)
+    by (force simp add: predTimes3_sepconj_conj_distrib[symmetric] le_fun_def)
+qed (simp add: sswa_weaker wssa_stronger)+
 
 
 subsection \<open> Await \<close>

@@ -391,7 +391,11 @@ lemma rtranclp_tuple_rel_semidistrib:
   by (induct rule: rtranclp_induct; force)
 
 lemma rtranclp_tuple_lift_eq_left:
-  \<open>r2\<^sup>*\<^sup>* c d \<Longrightarrow> (\<lambda>(a, c) (b, d). a = b \<and> r2 c d)\<^sup>*\<^sup>* (a,c) (a,d)\<close>
+  \<open>r\<^sup>*\<^sup>* c d \<Longrightarrow> (\<lambda>(a, c) (b, d). a = b \<and> r c d)\<^sup>*\<^sup>* (a,c) (a,d)\<close>
+  by (induct rule: rtranclp_induct, fast, simp add: rtranclp.rtrancl_into_rtrancl)
+
+lemma rtranclp_tuple_lift_eq_right:
+  \<open>r\<^sup>*\<^sup>* a b \<Longrightarrow> (\<lambda>(a, c) (b, d). r a b \<and> c = d)\<^sup>*\<^sup>* (a,c) (b,c)\<close>
   by (induct rule: rtranclp_induct, fast, simp add: rtranclp.rtrancl_into_rtrancl)
 
 lemma rtranclp_eq_eq[simp]:
@@ -993,18 +997,17 @@ definition rel_Times :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Righta
   (infixr \<open>\<times>\<^sub>R\<close> 80) where
   \<open>r1 \<times>\<^sub>R r2 \<equiv> \<lambda>(a,c) (b, d). r1 a b \<and> r2 c d\<close>
 
-lemma rel_Times_iff[simp]: \<open>(r1 \<times>\<^sub>R r2) (x1, x2) (y1, y2) \<longleftrightarrow> r1 x1 y1 \<and> r2 x2 y2\<close>
+lemma rel_Times_apply:
+  \<open>(r1 \<times>\<^sub>R r2) x x' \<longleftrightarrow> r1 (fst x) (fst x') \<and> r2 (snd x) (snd x')\<close>
   by (force simp add: rel_Times_def)
 
-lemma rel_Times_left_iff: \<open>(r1 \<times>\<^sub>R r2) (x1, x2) y \<longleftrightarrow> r1 x1 (fst y) \<and> r2 x2 (snd y)\<close>
-  by (force simp add: rel_Times_def)
-
-lemma rel_Times_right_iff: \<open>(r1 \<times>\<^sub>R r2) x (y1, y2) \<longleftrightarrow> r1 (fst x) y1 \<and> r2 (snd x) y2\<close>
+lemma rel_Times_apply'[simp]:
+  \<open>(r1 \<times>\<^sub>R r2) (x,y) (x',y') \<longleftrightarrow> r1 x x' \<and> r2 y y'\<close>
   by (force simp add: rel_Times_def)
 
 lemma rel_Times_almost_assoc:
   \<open>((r1 \<times>\<^sub>R r2) \<times>\<^sub>R r3) ((a,b),c) ((a',b'),c') = (r1 \<times>\<^sub>R r2 \<times>\<^sub>R r3) (a,b,c) (a',b',c')\<close>
-  by simp
+  by (simp add: rel_Times_apply)
 
 lemma rel_Times_reflp_iff[simp]:
   \<open>reflp (r1 \<times>\<^sub>R r2) \<longleftrightarrow> reflp r1 \<and> reflp r2\<close>
@@ -1014,6 +1017,13 @@ lemma rel_Times_rtranclp_semidistrib:
   \<open>(r1 \<times>\<^sub>R r2)\<^sup>*\<^sup>* \<le> r1\<^sup>*\<^sup>* \<times>\<^sub>R r2\<^sup>*\<^sup>*\<close>
   apply (clarsimp simp add: le_fun_def rel_Times_def)
   apply (metis rtranclp_tuple_rel_semidistrib fst_conv snd_conv)
+  done
+
+lemma rel_Times_right_eq_rtranclp_distrib[simp]:
+  \<open>(r \<times>\<^sub>R (=))\<^sup>*\<^sup>* = r\<^sup>*\<^sup>* \<times>\<^sub>R (=)\<close>
+  apply (rule order.antisym)
+   apply (force dest: rtranclp_tuple_rel_semidistrib simp add: le_fun_def rel_Times_def)
+  apply (force dest: rtranclp_tuple_lift_eq_right simp add: le_fun_def rel_Times_def)
   done
 
 lemma rel_Times_left_eq_rtranclp_distrib[simp]:

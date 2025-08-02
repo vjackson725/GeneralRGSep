@@ -4,172 +4,26 @@ begin
 
 section \<open> Language Definition \<close>
 
-subsection \<open> Termination Result \<close>
-
-datatype tres = Term | Error
-
-
-subsubsection \<open> TRes is an Order \<close>
-
-instantiation tres :: ord
-begin
-definition \<open>less_eq_tres a b \<equiv> a = b \<or> a = Term \<and> b = Error\<close>
-definition \<open>less_tres a b \<equiv> a = Term \<and> b = Error\<close>
-instance by standard
-end
-
-instance tres :: preorder
-  by standard (force simp add: less_eq_tres_def less_tres_def)+
-
-instance tres :: order
-  by standard (force simp add: less_eq_tres_def)+
-
-lemma less_eq_tres_eq[simp]:
-  \<open>Term \<le> a\<close>
-  \<open>a \<le> Error\<close>
-  \<open>Error \<le> a \<longleftrightarrow> a = Error\<close>
-  \<open>a \<le> Term \<longleftrightarrow> a = Term\<close>
-  by (cases a; simp add: less_eq_tres_def)+
-
-lemma less_tres_eq[simp]:
-  \<open>Term < a \<longleftrightarrow> a = Error\<close>
-  \<open>a < Error \<longleftrightarrow> a = Term\<close>
-  \<open>a < Term \<longleftrightarrow> False\<close>
-  \<open>Error < a \<longleftrightarrow> False\<close>
-  by (cases a; simp add: less_tres_def)+
-
-
-subsubsection \<open> TRes has a Sup \<close>
-
-instantiation tres :: sup
-begin
-definition \<open>sup_tres a b \<equiv> case a of Term \<Rightarrow> b | Error \<Rightarrow> Error\<close>
-instance by standard
-end
-
-lemma sup_tres_eq[simp]:
-  \<open>Error \<squnion> a = Error\<close>
-  \<open>a \<squnion> Error = Error\<close>
-  \<open>Term \<squnion> a = a\<close>
-  \<open>a \<squnion> Term = a\<close>
-  by (simp add: sup_tres_def split: tres.splits)+
-
-instance tres :: semilattice_sup
-  by standard (force simp add: sup_tres_def split: tres.splits)+
-
-
-subsubsection \<open> TRes has an Inf \<close>
-
-instantiation tres :: inf
-begin
-definition \<open>inf_tres a b \<equiv> case a of Error \<Rightarrow> b | Term \<Rightarrow> Term\<close>
-instance by standard
-end
-
-lemma inf_tres_eq[simp]:
-  \<open>Error \<sqinter> a = a\<close>
-  \<open>a \<sqinter> Error = a\<close>
-  \<open>Term \<sqinter> a = Term\<close>
-  \<open>a \<sqinter> Term = Term\<close>
-  by (simp add: inf_tres_def split: tres.splits)+
-
-instance tres :: semilattice_inf
-  by standard (force simp add: inf_tres_def split: tres.splits)+
-
-
-subsubsection \<open> TRes has a Top \<close>
-
-instantiation tres :: top
-begin
-definition \<open>top_tres \<equiv> Error\<close>
-instance by standard
-end
-
-instance tres :: order_top
-  by standard (simp add: top_tres_def)
-
-
-subsubsection \<open> TRes has a Bot \<close>
-
-instantiation tres :: bot
-begin
-definition \<open>bot_tres \<equiv> Term\<close>
-instance by standard
-end
-
-instance tres :: order_bot
-  by standard (simp add: bot_tres_def)
-
-
-subsubsection \<open> TRes has a negation \<close>
-
-instantiation tres :: uminus
-begin
-definition \<open>uminus_tres a \<equiv> case a of Term \<Rightarrow> Error | Error \<Rightarrow> Term\<close>
-instance by standard
-end
-
-lemma uminus_tres_eq[simp]:
-  \<open>- Error = Term\<close>
-  \<open>- Term = Error\<close>
-  by (simp add: uminus_tres_def)+
-
-
-instantiation tres :: minus
-begin
-definition \<open>minus_tres (a::tres) b \<equiv> a \<sqinter> - b\<close>
-instance by standard
-end
-
-lemma minus_tres_eq[simp]:
-  \<open>Error - a = - a\<close>
-  \<open>Term - a = Term\<close>
-  \<open>a - Error = Term\<close>
-  \<open>a - Term = a\<close>
-  by (simp add: minus_tres_def)+
-
-
-subsubsection \<open> TRes is a boolean algebra \<close>
-
-instance tres :: lattice
-  by standard
-
-instance tres :: distrib_lattice
-  by standard (simp add: inf_tres_def sup_tres_def split: tres.splits)
-
-instance tres :: bounded_lattice
-  by standard
-
-instance tres :: boolean_algebra
-  by standard
-    (simp add: inf_tres_def bot_tres_def sup_tres_def top_tres_def split: tres.splits)+
-
-
 subsection \<open> Commands \<close>
 
 datatype 's comm =
-  Done tres
+  Skip
   | Seq \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>;;\<close> 75)
   | Par \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<parallel>\<close> 65)
   | Indet \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<^bold>\<sqinter>\<close> 65) \<comment> \<open> note the bold! \<close>
   | Endet \<open>'s comm\<close> \<open>'s comm\<close> (infixr \<open>\<^bold>\<box>\<close> 65) \<comment> \<open> note the bold! \<close>
-  \<comment> \<open> An atomic action is represented by a precondition and a (relational) post-condition.
-       Trying to evaluate the action outside the precondition results in a crash.
-       Trying to evaluate the action outside the domain of the postcondition results in deadlock,
-       until a state in the domain is reached. \<close>
-  | Atomic \<open>'s \<Rightarrow> bool\<close> \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_, _\<rangle>\<close> [0,0] 1000)
+  \<comment> \<open> An atomic action is represented by a relation.
+      If the current state is not in the pre-state of the relation,
+      the step is blocked. \<close>
+  | Atomic \<open>'s \<Rightarrow> 's \<Rightarrow> bool\<close> (\<open>\<langle>_\<rangle>\<close> [0] 1000)
   | Iter \<open>'s comm\<close> (\<open>DO _ OD\<close> [0] 999)
-
-abbreviation \<open>Skip \<equiv> Done Term\<close>
-abbreviation \<open>Crash \<equiv> Done Error\<close>
-
 
 subsection \<open> substitution \<close>
 
 subsection \<open> All Sub-commands \<close>
 
 fun all_subcomm_eq :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
-  \<open>all_subcomm_eq (Done r) = {Done r}\<close>
+  \<open>all_subcomm_eq Skip = {Skip}\<close>
 | \<open>all_subcomm_eq (ca ;; cb) =
     insert (ca ;; cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
 | \<open>all_subcomm_eq (ca \<parallel> cb) =
@@ -178,16 +32,16 @@ fun all_subcomm_eq :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
     insert (ca \<^bold>\<sqinter> cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
 | \<open>all_subcomm_eq (ca \<^bold>\<box> cb) =
     insert (ca \<^bold>\<box> cb) (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
-| \<open>all_subcomm_eq (\<langle>p, q\<rangle>) = {\<langle>p, q\<rangle>}\<close>
+| \<open>all_subcomm_eq \<langle>ar\<rangle> = {\<langle>ar\<rangle>}\<close>
 | \<open>all_subcomm_eq (DO c OD) = insert (DO c OD) (all_subcomm_eq c)\<close>
 
 fun all_subcomm :: \<open>'s comm \<Rightarrow> 's comm set\<close> where
-  \<open>all_subcomm (Done r) = {}\<close>
+  \<open>all_subcomm Skip = {}\<close>
 | \<open>all_subcomm (ca ;; cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
 | \<open>all_subcomm (ca \<parallel> cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
 | \<open>all_subcomm (ca \<^bold>\<sqinter> cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
 | \<open>all_subcomm (ca \<^bold>\<box> cb) = (all_subcomm_eq ca \<union> all_subcomm_eq cb)\<close>
-| \<open>all_subcomm (\<langle>p, q\<rangle>) = {}\<close>
+| \<open>all_subcomm \<langle>ar\<rangle> = {}\<close>
 | \<open>all_subcomm (DO c OD) = (all_subcomm_eq c)\<close>
 
 
@@ -285,22 +139,22 @@ instance
 end
 
 lemma less_eq_comm_simps_right[simp]:
-  \<open>c \<le> Done r \<longleftrightarrow> c = Done r\<close>
+  \<open>c \<le> Skip \<longleftrightarrow> c = Skip\<close>
   \<open>c \<le> ca ;; cb \<longleftrightarrow> c = ca ;; cb \<or> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c \<le> ca \<parallel> cb \<longleftrightarrow> c = ca \<parallel> cb \<or> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c \<le> ca \<^bold>\<sqinter> cb \<longleftrightarrow> c = ca \<^bold>\<sqinter> cb \<or> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c \<le> ca \<^bold>\<box> cb \<longleftrightarrow> c = ca \<^bold>\<box> cb \<or> c \<le> ca \<or> c \<le> cb\<close>
-  \<open>c \<le> \<langle>p, q\<rangle> \<longleftrightarrow> c = \<langle>p, q\<rangle>\<close>
+  \<open>c \<le> \<langle>ar\<rangle> \<longleftrightarrow> c = \<langle>ar\<rangle>\<close>
   \<open>c \<le> DO cx OD \<longleftrightarrow> c = DO cx OD \<or> c \<le> cx\<close>
   by (simp add: less_eq_comm_def)+
 
 lemma less_comm_simps_right[simp]:
-  \<open>c < Done r \<longleftrightarrow> False\<close>
+  \<open>c < Skip \<longleftrightarrow> False\<close>
   \<open>c < ca ;; cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c < ca \<parallel> cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c < ca \<^bold>\<sqinter> cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
   \<open>c < ca \<^bold>\<box> cb \<longleftrightarrow> c \<le> ca \<or> c \<le> cb\<close>
-  \<open>c < \<langle>p, q\<rangle> \<longleftrightarrow> False\<close>
+  \<open>c < \<langle>ar\<rangle> \<longleftrightarrow> False\<close>
   \<open>c < DO cx OD \<longleftrightarrow> c \<le> cx\<close>
   by (simp add: less_comm_def less_eq_comm_def)+
 
@@ -321,20 +175,17 @@ subsection \<open> Atoms \<close>
 
 subsection \<open> Map atomic commands \<close>
 
-fun map_atom
-  :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('u \<Rightarrow> bool) \<times> ('u \<Rightarrow> 'u \<Rightarrow> bool)) \<Rightarrow>
-      's comm \<Rightarrow> 'u comm\<close>
-  where
-  \<open>map_atom f (Done r) = Done r\<close>
+fun map_atom :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> ('u \<Rightarrow> 'u \<Rightarrow> bool)) \<Rightarrow> 's comm \<Rightarrow> 'u comm\<close> where
+  \<open>map_atom f Skip = Skip\<close>
 | \<open>map_atom f (a ;; b) = map_atom f a ;; map_atom f b\<close>
 | \<open>map_atom f (a \<parallel> b) = map_atom f a \<parallel> map_atom f b\<close>
 | \<open>map_atom f (a \<^bold>\<sqinter> b) = map_atom f a \<^bold>\<sqinter> map_atom f b\<close>
 | \<open>map_atom f (a \<^bold>\<box> b) = map_atom f a \<^bold>\<box> map_atom f b\<close>
-| \<open>map_atom f (Atomic p q) = case_prod Atomic (f p q)\<close>
+| \<open>map_atom f (Atomic ar) = Atomic (f ar)\<close>
 | \<open>map_atom f (DO a OD) = DO map_atom f a OD\<close>
 
 lemma map_atom_rev_iff:
-  \<open>map_atom f c = Done r \<longleftrightarrow> c = Done r\<close>
+  \<open>map_atom f c = Skip \<longleftrightarrow> c = Skip\<close>
   \<open>map_atom f c = c1' ;; c2' \<longleftrightarrow>
     (\<exists>c1 c2. c = c1 ;; c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
   \<open>map_atom f c = c1' \<parallel> c2' \<longleftrightarrow>
@@ -345,8 +196,7 @@ lemma map_atom_rev_iff:
       (\<exists>c1 c2. c = c1 \<^bold>\<box> c2 \<and> c1' = map_atom f c1 \<and> c2' = map_atom f c2)\<close>
   \<open>map_atom f c = DO c' OD \<longleftrightarrow>
       (\<exists>ca. c = DO ca OD \<and> c' = map_atom f ca)\<close>
-  \<open>map_atom f c = Atomic p' q' \<longleftrightarrow>
-      (\<exists>p q. f p q = (p', q') \<and> c = Atomic p q)\<close>
+  \<open>map_atom f c = Atomic ar' \<longleftrightarrow> (\<exists>ar. ar' = f ar \<and> c = Atomic ar)\<close>
         apply (induct c; (simp add: fun_eq_iff split: prod.splits; argo)+)+
   apply (induct c; force split: prod.splits)
   done
@@ -354,13 +204,13 @@ lemma map_atom_rev_iff:
 lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
 
 
-fun all_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) multiset\<close> where
-  \<open>all_atoms (Done r) = {#}\<close>
+fun all_atoms :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) multiset\<close> where
+  \<open>all_atoms Skip = {#}\<close>
 | \<open>all_atoms (ca ;; cb) = all_atoms ca + all_atoms cb\<close>
 | \<open>all_atoms (ca \<parallel> cb) = all_atoms ca + all_atoms cb\<close>
 | \<open>all_atoms (ca \<^bold>\<sqinter> cb) = all_atoms ca + all_atoms cb\<close>
 | \<open>all_atoms (ca \<^bold>\<box> cb) = all_atoms ca + all_atoms cb\<close>
-| \<open>all_atoms (\<langle>p, q\<rangle>) = {# (p,q) #}\<close>
+| \<open>all_atoms \<langle>ar\<rangle> = {# ar #}\<close>
 | \<open>all_atoms (DO c OD) = all_atoms c\<close>
 
 
@@ -368,17 +218,17 @@ subsubsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-definition all_atom_comm :: \<open>(('s \<Rightarrow> bool) \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
-  \<open>all_atom_comm P c \<equiv> \<forall>p q. (p,q) \<in># all_atoms c \<longrightarrow> P p q\<close>
+definition all_atom_comm :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
+  \<open>all_atom_comm P c \<equiv> \<forall>ar. ar \<in># all_atoms c \<longrightarrow> P ar\<close>
 
 lemma all_atom_comm_simps[simp]:
-  \<open>all_atom_comm P (Done r)\<close>
+  \<open>all_atom_comm P Skip\<close>
   \<open>all_atom_comm P (c1 ;; c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<^bold>\<sqinter> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<^bold>\<box> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
   \<open>all_atom_comm P (DO c OD) \<longleftrightarrow> all_atom_comm P c\<close>
-  \<open>all_atom_comm P (Atomic ap aq) \<longleftrightarrow> P ap aq\<close>
+  \<open>all_atom_comm P (Atomic ar) \<longleftrightarrow> P ar\<close>
   by (simp add: all_atom_comm_def all_conj_distrib)+
 
 lemma all_atom_comm_pred_mono:
@@ -406,13 +256,13 @@ lemma all_atom_comm_top_eq[simp]:
 
 subsection \<open> Head Atoms \<close>
 
-fun head_atoms :: \<open>'s comm \<Rightarrow> (('s \<Rightarrow> bool) \<times> ('s \<Rightarrow> 's \<Rightarrow> bool)) multiset\<close> where
-  \<open>head_atoms (Done r) = {#}\<close>
+fun head_atoms :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) multiset\<close> where
+  \<open>head_atoms Skip = {#}\<close>
 | \<open>head_atoms (ca ;; cb) = head_atoms ca\<close>
 | \<open>head_atoms (ca \<parallel> cb) = (head_atoms ca + head_atoms cb)\<close>
 | \<open>head_atoms (ca \<^bold>\<sqinter> cb) = {#}\<close>
 | \<open>head_atoms (ca \<^bold>\<box> cb) = (head_atoms ca + head_atoms cb)\<close>
-| \<open>head_atoms (\<langle>p, q\<rangle>) = {# (p,q) #}\<close>
+| \<open>head_atoms \<langle>ar\<rangle> = {# ar #}\<close>
 | \<open>head_atoms (DO c OD) = head_atoms c\<close>
 
 lemma head_atoms_subseteq_all_atoms:
@@ -425,30 +275,57 @@ subsection \<open> Atom Headed \<close>
 
 text \<open>
   A predicate to determine if every executable subcommand in this command is an atom.
-  (As opposed to a command like \<open>Done r; c\<close>.)
+  (As opposed to a command like \<open>Skip; c\<close>.)
 \<close>
 
 fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
-  \<open>head_atomic (Done r) = False\<close>
+  \<open>head_atomic Skip = False\<close>
 | \<open>head_atomic (ca ;; cb) = head_atomic ca\<close>
 | \<open>head_atomic (ca \<parallel> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
 | \<open>head_atomic (ca \<^bold>\<sqinter> cb) = False\<close>
 | \<open>head_atomic (ca \<^bold>\<box> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
-| \<open>head_atomic (\<langle>p, q\<rangle>) = True\<close>
+| \<open>head_atomic \<langle>ar\<rangle> = True\<close>
 | \<open>head_atomic (DO c OD) = head_atomic c\<close>
 
 
 section \<open> Specific Languages \<close>
 
+(* TODO: move *)
+
+datatype crash_st = Running | Crashed
+
+text \<open> Crashed should not be resolvable. \<close>
+definition
+  \<open>crash_healthy_rel r \<equiv>
+    (\<lambda>(l, s, k) s'. k = Running \<and> r (l,s) s' \<or> k = Crashed \<and> s' = (l, s, k))\<close>
+
+lemma crash_healthy_rel_apply[simp]:
+  \<open>crash_healthy_rel r s s' =
+    (snd (snd s) = Running \<and> r (fst s, fst (snd s)) s' \<or>
+      snd (snd s) = Crashed \<and> s' = s)\<close>
+  by (simp add: crash_healthy_rel_def split: prod.splits)
+
+
 subsection \<open> Sugared atomic programs \<close>
 
 subsubsection \<open> Assert \<close>
 
-definition \<open>Assert p \<equiv> Atomic p (=)\<close>
+text \<open>
+  Assert crashes when its precondition is not met.
+  GenRGSep has no native crash state, and it must be encoded into the
+  state model. Separation logic is not compatible with a destructive crash,
+  and, moreover, atoms see the whole state, not the local state.
+    Thus we place a crash in the shared state.
+\<close>
+definition \<open>Assert p \<equiv>
+  Atomic (crash_healthy_rel (\<lambda>(l, s) (l', s', k').
+    l' = l \<and> s' = s \<and> (p (l,s) \<and> k' = Running \<or> \<not> p (l,s) \<and> k' = Crashed)
+  ))\<close>
+
 
 subsubsection \<open> Await \<close>
 
-definition \<open>Await p \<equiv> Atomic \<top> (rel_liftL p \<sqinter> (=))\<close>
+definition \<open>Await p \<equiv> Atomic (rel_liftL p \<sqinter> (=))\<close>
 
 lemma Await_inject[simp]:
   \<open>Await p1 = Await p2 \<longleftrightarrow> p1 = p2\<close>
@@ -463,14 +340,14 @@ lemma IfThenElse_inject[simp]:
   by (force simp add: IfThenElse_def fun_eq_iff)
 
 lemma IfThenElse_distinct[simp]:
-  \<open>IfThenElse p ct cf \<noteq> Done r\<close>
+  \<open>IfThenElse p ct cf \<noteq> Skip\<close>
   \<open>IfThenElse p ct cf \<noteq> c1 ;; c2\<close>
   \<open>IfThenElse p ct cf \<noteq> c1 \<parallel> c2\<close>
-  \<open>IfThenElse p ct cf \<noteq> Atomic ap aq\<close>
-  \<open>Done r \<noteq> IfThenElse p ct cf\<close>
+  \<open>IfThenElse p ct cf \<noteq> \<langle>ar\<rangle>\<close>
+  \<open>Skip \<noteq> IfThenElse p ct cf\<close>
   \<open>c1 ;; c2 \<noteq> IfThenElse p ct cf\<close>
   \<open>c1 \<parallel> c2 \<noteq> IfThenElse p ct cf\<close>
-  \<open>Atomic ap aq \<noteq> IfThenElse p ct cf\<close>
+  \<open>\<langle>ar\<rangle> \<noteq> IfThenElse p ct cf\<close>
   by (simp add: IfThenElse_def)+
 
 
@@ -483,14 +360,14 @@ lemma WhileLoop_inject[simp]:
   by (simp add: WhileLoop_def Await_def fun_eq_iff, blast)
 
 lemma WhileLoop_distinct[simp]:
-  \<open>WhileLoop p c \<noteq> Done r\<close>
+  \<open>WhileLoop p c \<noteq> Skip\<close>
   \<open>WhileLoop p c \<noteq> c1 \<^bold>\<box> c2\<close>
   \<open>WhileLoop p c \<noteq> c1 \<parallel> c2\<close>
-  \<open>WhileLoop p c \<noteq> Atomic ap aq\<close>
-  \<open>Done r \<noteq> WhileLoop p c\<close>
+  \<open>WhileLoop p c \<noteq> \<langle>ar\<rangle>\<close>
+  \<open>Skip \<noteq> WhileLoop p c\<close>
   \<open>c1 \<^bold>\<box> c2 \<noteq> WhileLoop p c\<close>
   \<open>c1 \<parallel> c2 \<noteq> WhileLoop p c\<close>
-  \<open>Atomic ap aq \<noteq> WhileLoop p c\<close>
+  \<open>\<langle>ar\<rangle> \<noteq> WhileLoop p c\<close>
   by (simp add: WhileLoop_def; fail)+
 
 
