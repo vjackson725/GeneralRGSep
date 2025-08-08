@@ -275,7 +275,8 @@ subsection \<open> Atom Headed \<close>
 
 text \<open>
   A predicate to determine if every executable subcommand in this command is an atom.
-  (As opposed to a command like \<open>Skip; c\<close>.)
+  (As opposed to a command like \<open>Skip; c\<close>.) Note that a do-loop is also a head,
+  as when the loop's subcommand is blocked, it can reduce itself.
 \<close>
 
 fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
@@ -285,7 +286,7 @@ fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
 | \<open>head_atomic (ca \<^bold>\<sqinter> cb) = False\<close>
 | \<open>head_atomic (ca \<^bold>\<box> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
 | \<open>head_atomic \<langle>ar\<rangle> = True\<close>
-| \<open>head_atomic (DO c OD) = head_atomic c\<close>
+| \<open>head_atomic (DO c OD) = False\<close>
 
 
 section \<open> Specific Languages \<close>
