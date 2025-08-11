@@ -434,61 +434,53 @@ datatype aact =
   TauBasic | \<comment> \<open> Taus other than Taus from INdet \<close>
   AVis
 
-fun strip_aact :: \<open>aact \<Rightarrow> act\<close> where
-  \<open>strip_aact TauBasic = Tau\<close>
-| \<open>strip_aact AVis = Vis\<close>
-| \<open>strip_aact TauINdetL = Tau\<close>
-| \<open>strip_aact TauINdetR = Tau\<close>
-
-fun basic_tau_aact :: \<open>aact \<Rightarrow> bool\<close> where
-  \<open>basic_tau_aact TauBasic = True\<close>
-| \<open>basic_tau_aact AVis = False\<close>
-| \<open>basic_tau_aact TauINdetL = False\<close>
-| \<open>basic_tau_aact TauINdetR = False\<close>
-
 text \<open>
   In an aact, a tau move may be buried under parallel synchronisation labels,
   or divided into an INdet Tau, which are handled separately by the evaluation semantics.
   In programs where sub-programs may take actions (\<box>), we need an
   inductive test for whether an action is internal, as the sub-program may be a parallel.
 \<close>
-definition \<open>tau_aact \<pi>\<alpha> \<equiv> strip_aact \<pi>\<alpha> = Tau\<close>
-definition \<open>vis_aact \<pi>\<alpha> \<equiv> strip_aact \<pi>\<alpha> = Vis\<close>
+definition \<open>tau_aact \<alpha> \<equiv> \<alpha> = TauBasic \<or> \<alpha> = TauINdetL \<or> \<alpha> = TauINdetR\<close>
+definition \<open>vis_aact \<alpha> \<equiv> \<alpha> = AVis\<close>
+
+lemma not_aact_iff:
+  \<open>\<alpha> \<noteq> AVis \<longleftrightarrow> \<alpha> = TauBasic \<or> \<alpha> = TauINdetL \<or> \<alpha> = TauINdetR\<close>
+  \<open>\<alpha> \<noteq> TauBasic \<longleftrightarrow> \<alpha> = AVis \<or> \<alpha> = TauINdetL \<or> \<alpha> = TauINdetR\<close>
+  \<open>\<alpha> \<noteq> TauINdetL \<longleftrightarrow> \<alpha> = TauBasic \<or> \<alpha> = AVis \<or> \<alpha> = TauINdetR\<close>
+  \<open>\<alpha> \<noteq> TauINdetR \<longleftrightarrow> \<alpha> = TauBasic \<or> \<alpha> = TauINdetL \<or> \<alpha> = AVis\<close>
+  using aact.exhaust by blast+
 
 lemma not_tau_aact_iff[simp]:
   \<open>\<not> tau_aact \<pi>\<alpha> \<longleftrightarrow> vis_aact \<pi>\<alpha>\<close>
-  by (simp add: tau_aact_def vis_aact_def)
+  by (force simp add: tau_aact_def vis_aact_def not_aact_iff)
 
 lemma not_vis_aact_iff[simp]:
   \<open>\<not> vis_aact \<pi>\<alpha> \<longleftrightarrow> tau_aact \<pi>\<alpha>\<close>
   using not_tau_aact_iff by blast
 
 lemma vis_tau_aact_incompatible:
-  \<open>vis_aact \<pi>\<alpha> \<Longrightarrow> tau_aact \<pi>\<alpha> = False\<close>
-  \<open>tau_aact \<pi>\<alpha> \<Longrightarrow> vis_aact \<pi>\<alpha> = False\<close>
-  by (simp add: tau_aact_def vis_aact_def)+
+  \<open>vis_aact \<alpha> \<Longrightarrow> tau_aact \<alpha> = False\<close>
+  \<open>tau_aact \<alpha> \<Longrightarrow> vis_aact \<alpha> = False\<close>
+  by (simp add: tau_aact_def vis_aact_def not_aact_iff)+
 
-lemma vis_aact_not_TauBasic:
-  \<open>vis_aact \<pi>\<alpha> \<Longrightarrow> \<pi>\<alpha> = TauBasic \<longleftrightarrow> False\<close>
-  \<open>vis_aact \<pi>\<alpha> \<Longrightarrow> TauBasic = \<pi>\<alpha> \<longleftrightarrow> False\<close>
+lemma vis_aact_not_TauBasic[simp]:
+  \<open>vis_aact \<alpha> \<Longrightarrow> \<alpha> = TauBasic \<longleftrightarrow> False\<close>
+  \<open>vis_aact \<alpha> \<Longrightarrow> TauBasic = \<alpha> \<longleftrightarrow> False\<close>
+  \<open>vis_aact (snd \<pi>\<alpha>) \<Longrightarrow> \<pi>\<alpha> = (\<pi>, TauBasic) \<longleftrightarrow> False\<close>
   by (force simp add: tau_aact_def vis_aact_def)+
 
-lemma vis_aact_unit_def:
-  \<open>vis_aact \<pi>\<alpha> \<longleftrightarrow> strip_aact \<pi>\<alpha> = Vis\<close>
-  by (simp add: vis_aact_def)
-
 lemma vis_aact_simps[simp]:
-  \<open>vis_aact AVis \<longleftrightarrow> True\<close>
+  \<open>vis_aact AVis\<close>
   \<open>vis_aact TauBasic \<longleftrightarrow> False\<close>
   \<open>vis_aact TauINdetL \<longleftrightarrow> False\<close>
   \<open>vis_aact TauINdetR \<longleftrightarrow> False\<close>
   by (simp add: vis_aact_def)+
 
 lemma tau_aact_simps[simp]:
+  \<open>tau_aact TauBasic\<close>
+  \<open>tau_aact TauINdetL\<close>
+  \<open>tau_aact TauINdetR\<close>
   \<open>tau_aact AVis \<longleftrightarrow> False\<close>
-  \<open>tau_aact TauBasic \<longleftrightarrow> True\<close>
-  \<open>tau_aact TauINdetL \<longleftrightarrow> True\<close>
-  \<open>tau_aact TauINdetR \<longleftrightarrow> True\<close>
   by (simp add: tau_aact_def)+
 
 lemma all_aact_or_iff[simp]:
@@ -496,15 +488,23 @@ lemma all_aact_or_iff[simp]:
   \<open>(\<forall>\<pi>\<alpha>. tau_aact \<pi>\<alpha> \<or> P \<pi>\<alpha>) \<longleftrightarrow> (\<forall>\<pi>\<alpha>. vis_aact \<pi>\<alpha> \<longrightarrow> P \<pi>\<alpha>)\<close>
   using not_tau_aact_iff by blast+
 
-lemma basic_tau_aact_then_tau_aact[simp]:
-  \<open>basic_tau_aact \<alpha> \<Longrightarrow> tau_aact \<alpha>\<close>
-  by (induct \<alpha>) simp+
-
 lemma all_tau_all_vis_iff:
   \<open>(\<forall>\<alpha>. tau_aact \<alpha> \<longrightarrow> P \<alpha>) \<and>
    (\<forall>\<alpha>. vis_aact \<alpha> \<longrightarrow> P \<alpha>) \<longleftrightarrow>
     All P\<close>
   by force
+
+fun strip_aact where
+  \<open>strip_aact AVis = Vis\<close>
+| \<open>strip_aact _ = Tau\<close>
+
+lemma strip_aact_rev_iff[simp]:
+  \<open>strip_aact \<alpha> = Tau \<longleftrightarrow> tau_aact \<alpha>\<close>
+  \<open>Tau = strip_aact \<alpha> \<longleftrightarrow> tau_aact \<alpha>\<close>
+  \<open>strip_aact \<alpha> = Vis \<longleftrightarrow> vis_aact \<alpha>\<close>
+  \<open>Vis = strip_aact \<alpha> \<longleftrightarrow> vis_aact \<alpha>\<close>
+  unfolding tau_aact_def vis_aact_def
+  by (metis act.distinct(1) not_aact_iff(4) strip_aact.simps)+
 
 
 type_synonym 'a ptrace = \<open>(plabel \<times> aact) list\<close>
@@ -623,7 +623,8 @@ lemma aopstep_aact_cases:
     (sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow> tau_aact (snd \<pi>\<alpha>) \<Longrightarrow> fst sc' = fst sc \<Longrightarrow> P) \<Longrightarrow>
     P\<close>
   unfolding vis_aact_def tau_aact_def
-  using not_vis_aact_iff aopstep_tau_preserves_state tau_aact_def vis_aact_unit_def by blast
+  using not_vis_aact_iff aopstep_tau_preserves_state tau_aact_def vis_aact_def
+  by blast
 
 lemma aopstep_no_new_atoms:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (ms', c') \<Longrightarrow> set_mset (all_atoms c') \<subseteq> set_mset (all_atoms c)\<close>
@@ -667,7 +668,7 @@ lemma opstep_then_aopstep:
 proof (induct \<alpha> sc sc' rule: opstep_induct)
   case (Endet \<alpha> s ca cb sc')
   then show ?case
-    by (simp, metis strip_aact.simps(1) tau_aact_def vis_aact_def)
+    by (simp, (elim disjE; clarsimp simp add: tau_aact_def; metis))
 next
   case (Par \<alpha> s ca cb sc')
   then show ?case
@@ -688,16 +689,22 @@ lemma aopstep_then_opstep:
 proof (induct rule: aopstep_induct)
   case (Endet \<pi>\<alpha> s ca cb sc')
   then show ?case
-    apply clarsimp
-    apply (metis (full_types) act.exhaust snd_eqD tau_aact_def vis_aact_def
-        vis_aact_simps(2))
+    apply (cases \<open>snd \<pi>\<alpha>\<close>; simp)
+       apply metis
+      apply metis
+     apply metis
+    apply force
     done
 next
   case (DoLoop \<pi>\<alpha> s c sc')
   then show ?case
     using opstep_then_aopstep
-    apply clarsimp
-    apply (metis eq_snd_iff opstep_then_aopstep strip_aact.simps(1))
+    apply (cases \<open>snd \<pi>\<alpha>\<close>; simp)
+       apply fastforce
+      apply fastforce
+     apply clarsimp
+     apply (metis prod.exhaust opstep_then_aopstep)
+    apply fastforce
     done
 qed force+
 
@@ -791,7 +798,7 @@ lemma self_aopstep_impossible[simp]:
 lemma aopstep_endet_skip_then:
   \<open>(s, c \<^bold>\<box> Skip) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c) \<Longrightarrow> tau_aact (snd \<pi>\<alpha>) \<and> s' = s\<close>
   \<open>(s, Skip \<^bold>\<box> c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c) \<Longrightarrow> tau_aact (snd \<pi>\<alpha>) \<and> s' = s\<close>
-  by (simp, metis aopstep_tau_preserves_state split_pairs tau_aact_simps(2))+
+  by (simp, metis aopstep_tau_preserves_state split_pairs2 tau_aact_simps(1))+
 
 
 subsection \<open> parallel-annotated opsteps \<close>
@@ -1803,8 +1810,8 @@ definition basic_tau_reducts :: \<open>'l \<times> 's \<Rightarrow> ('l \<times>
   \<open>basic_tau_reducts s c \<equiv>
     {c'. \<exists>\<rho> s'.
       (s, c) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (s', c') \<and>
-      list_all (basic_tau_aact \<circ> snd) \<rho> \<and>
-      ((\<exists>\<pi>\<alpha> s'' c''. (s', c') \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s'', c'') \<and> \<not> basic_tau_aact (snd \<pi>\<alpha>)) \<or>
+      list_all ((=) TauBasic \<circ> snd) \<rho> \<and>
+      ((\<exists>\<pi>\<alpha> s'' c''. (s', c') \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s'', c'') \<and> TauBasic \<noteq> snd \<pi>\<alpha>) \<or>
         (s', c') \<midarrow>/\<rightarrow>\<^sub>a)}\<close>
 
 
@@ -1819,8 +1826,8 @@ proof (clarsimp simp add: basic_tau_reducts_def simp del: split_paired_Ex)
   fix s' c' \<rho> s'' \<pi>\<alpha>
   assume assms2:
     \<open>(s, ca) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (s', c')\<close>
-    \<open>list_all (basic_tau_aact \<circ> snd) \<rho>\<close>
-    \<open>\<not> basic_tau_aact (snd \<pi>\<alpha>)\<close>
+    \<open>list_all ((=) TauBasic \<circ> snd) \<rho>\<close>
+    \<open>TauBasic \<noteq> snd \<pi>\<alpha>\<close>
     \<open>(s', c') \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s'', ca')\<close>
   moreover then have
     \<open>(s, ca ;; cb) \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* (s', c' ;; cb)\<close>
@@ -1914,9 +1921,9 @@ lemma basic_tau_reducts_step_trans:
 
 lemma basic_tau_aact_exclusive:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
-    basic_tau_aact (snd \<pi>\<alpha>) \<Longrightarrow>
+    TauBasic = snd \<pi>\<alpha> \<Longrightarrow>
     sc \<midarrow>\<pi>\<alpha>'\<rightarrow>\<^sub>a sc' \<Longrightarrow>
-    basic_tau_aact (snd \<pi>\<alpha>')\<close>
+    TauBasic = snd \<pi>\<alpha>'\<close>
   apply (frule aopstep_tau_preserves_state, force)
   apply (induct \<pi>\<alpha> sc sc' arbitrary: \<pi>\<alpha>' rule: aopstep.induct)
         apply force
@@ -1927,8 +1934,7 @@ lemma basic_tau_aact_exclusive:
      apply (rename_tac s' c' \<alpha>')
      apply (case_tac \<open>ca = Skip \<and> cb = Skip\<close>)
       apply force
-     apply (clarsimp simp add:
-      vis_tau_aact_incompatible(2)[OF basic_tau_aact_then_tau_aact])
+     apply (clarsimp simp add: vis_tau_aact_incompatible(2))
   subgoal sorry
       (* par *)
     apply clarsimp
@@ -2976,7 +2982,7 @@ subsubsection \<open> Aopstep lemmas \<close>
 
 lemma baopsteps_tau_preserves_state:
   \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* sc' \<Longrightarrow>
-    list_all (basic_tau_aact \<circ> snd) \<rho> \<Longrightarrow>
+    list_all ((=) TauBasic \<circ> snd) \<rho> \<Longrightarrow>
     fst sc' = fst sc\<close>
   by (simp add: aopsteps_tau_preserves_state list.pred_set)
 
@@ -2999,7 +3005,7 @@ lemma tau_aopstep_state_irrelevant:
 lemma btau_astep_preserves_nextstep:
   assumes
     \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
-    \<open>basic_tau_aact (snd \<pi>\<alpha>)\<close>
+    \<open>TauBasic = snd \<pi>\<alpha>\<close>
     \<open>sc \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a scx\<close>
     \<open>\<pi>\<alpha>x \<noteq> \<pi>\<alpha>\<close>
   shows
@@ -3007,7 +3013,7 @@ lemma btau_astep_preserves_nextstep:
 proof -
   have H1: \<open>fst sc = fst sc'\<close>
     using assms(1-2)
-    by (metis aopstep_tau_preserves_state basic_tau_aact_then_tau_aact)
+    by (simp add: aopstep_tau_preserves_state)
   
   show ?thesis
     using assms H1
@@ -3023,7 +3029,7 @@ proof -
     show ?case
       using Endet.prems
       apply (cases scx, rename_tac sx cx)
-      apply (clarsimp simp add: basic_tau_aact_then_tau_aact[THEN vis_tau_aact_incompatible(2)])
+      apply (clarsimp simp add: vis_tau_aact_incompatible(2))
       apply (elim disjE[of \<open>\<pi>\<alpha> = _ \<and> _\<close>])
         apply fastforce
        apply fastforce
@@ -3079,7 +3085,7 @@ lemmas btau_astep_preserves_nextstep2 =
 
 lemma btau_aexec_preserves_nextstep:
   \<open>sc \<midarrow>\<rho>\<rightarrow>\<^sub>a\<^sup>* sc' \<Longrightarrow>
-    list_all (basic_tau_aact \<circ> snd) \<rho> \<Longrightarrow>
+    list_all ((=) TauBasic \<circ> snd) \<rho> \<Longrightarrow>
     list_all ((\<noteq>) \<pi>\<alpha>x) \<rho> \<Longrightarrow>
     sc \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a scx \<Longrightarrow>
     \<exists>cx'. sc' \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a (fst scx, cx')\<close>
@@ -3101,7 +3107,7 @@ lemma aopsteps_trans:
 
 lemma basic_tau_aopstep_changes_comm:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
-    basic_tau_aact \<alpha> \<Longrightarrow>
+    TauBasic = \<alpha> \<Longrightarrow>
     snd sc' \<noteq> snd sc\<close>
   by (induct rule: aopstep_induct) force+
 
@@ -3136,15 +3142,15 @@ subsubsection \<open> Basic-Tau Equiv \<close>
 
 definition btau_equiv_trace :: \<open>aact eact list \<Rightarrow> aact eact list \<Rightarrow> bool\<close> (infix \<open>\<simeq>\<^sub>\<tau>\<^sub>B\<close> 55) where
   \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B \<rho>' \<equiv>
-    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho> =
-    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho>'\<close>
+    List.filter (case_eact False ((\<noteq>) TauBasic)) \<rho> =
+    List.filter (case_eact False ((\<noteq>) TauBasic)) \<rho>'\<close>
 
 lemma nil_btau_equiv_iff[simp]:
-  \<open>[] \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<longleftrightarrow> list_all (case_eact True basic_tau_aact) \<rho>\<close>
+  \<open>[] \<simeq>\<^sub>\<tau>\<^sub>B \<rho> \<longleftrightarrow> list_all (case_eact True ((=) TauBasic)) \<rho>\<close>
   by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
 
 lemma nil_btau_equiv_nil_iff[simp]:
-  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B [] \<longleftrightarrow> list_all (case_eact True basic_tau_aact) \<rho>\<close>
+  \<open>\<rho> \<simeq>\<^sub>\<tau>\<^sub>B [] \<longleftrightarrow> list_all (case_eact True ((=) TauBasic)) \<rho>\<close>
   by (induct \<rho>) (simp add: btau_equiv_trace_def split: eact.splits)+
 
 lemma btau_equiv_trace_reflI[intro!]:
@@ -3195,8 +3201,8 @@ subsubsection \<open> Basic-Tau Subtrace \<close>
 
 definition less_eq_btau_trace :: \<open>aact eact list \<Rightarrow> aact eact list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>\<tau>\<^sub>B\<close> 55) where
   \<open>\<rho> \<preceq>\<^sub>\<tau>\<^sub>B \<rho>' \<equiv>
-    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho> \<preceq>\<^sub>l
-    List.filter (case_eact False (Not \<circ> basic_tau_aact)) \<rho>'\<close>
+    List.filter (case_eact False ((\<noteq>) TauBasic)) \<rho> \<preceq>\<^sub>l
+    List.filter (case_eact False ((\<noteq>) TauBasic)) \<rho>'\<close>
 
 lemma nil_less_eq_btau_trace_iff[simp]:
   \<open>[] \<preceq>\<^sub>\<tau>\<^sub>B xs\<close>
@@ -3906,6 +3912,7 @@ inductive dopstep
 
 inductive_cases dopstep_nil_leftE[elim!]: \<open>dopstep ([], \<rho>y) scxy scxy'\<close>
 inductive_cases dopstep_nil_rightE[elim!]: \<open>dopstep (\<rho>x, []) scxy scxy'\<close>
+inductive_cases dopstep_sync_moveE[elim!]: \<open>dopstep ([\<pi>\<alpha>x], [\<pi>\<alpha>y]) scxy scxy'\<close>
 
 abbreviation dopstep_pretty :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close>
   (\<open>_ =_\<Rightarrow> _\<close> [50, 0, 50])
@@ -3927,6 +3934,13 @@ lemma dopstep_simps[simp]:
       scxy' = (scx, scy') \<and>
       nonsync_aact (snd \<pi>\<alpha>) \<and>
       scy \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scy')\<close>
+  \<open>dopstep ([\<pi>\<alpha>x], [\<pi>\<alpha>y]) scxy scxy' \<longleftrightarrow>
+    \<pi>\<alpha>y = \<pi>\<alpha>x \<and>
+    (\<exists>scx scx' scy scy'.
+        scxy = (scx, scy) \<and>
+        scxy' = (scx', scy') \<and>
+        scx \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a scx' \<and>
+        scy \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a scy')\<close>
   by force+
 
 
@@ -3966,21 +3980,19 @@ inductive secure
         ( ((slx + fx, ssx), cx), ((sly + fy, ssy), cy) )
           =(\<rho>x, \<rho>y)\<Rightarrow> ( ((slfx', ssx'), cx'), ((slfy', ssy'), cy') ) \<Longrightarrow>
         \<comment> \<open> Non-tau steps establish the guarantee.
-              This condition requires some explanation.
               We want the guarantee to be established when a vis move happens
-              in either run. But this leaves the question of what we shold do
+              in \<^emph>\<open>either\<close> run. But this leaves the question of what we shold do
               with the other run. Requiring both perform a simultaneous vis step
               is too restrictive.
                 Here, we say that if either performs a vis, we must establish
-              the guarantee. But note! Due to the way dopstep is defined,
+              the guarantee. But note! Due to the way double-opstep is defined,
               when there is a one-sided step, the other side stutters. Thus
               if you want to property generalise your guarantees from single state,
-              and you \<^emph>\<open>don't\<close> know every move will be synchronised, you should use
-              the guarantee lifting \<open>Ga\<^sup>=\<^sup>= \<times>\<^sub>R Gb \<squnion> Ga \<times>\<^sub>R Gb\<^sup>=\<^sup>=\<close>.
+              and you \<^emph>\<open>don't\<close> know every move will be synchronised, you should lift
+              the guarantee as follows: \<open>Ga\<^sup>=\<^sup>= \<times>\<^sub>R Gb \<squnion> Ga \<times>\<^sub>R Gb\<^sup>=\<^sup>=\<close>.
             \<close>
-        (\<forall>\<pi>\<alpha>x \<pi>\<alpha>y.
-          (\<rho>x = [\<pi>\<alpha>x] \<and> vis_aact (snd \<pi>\<alpha>x) \<or> \<rho>y = [\<pi>\<alpha>y] \<and> vis_aact (snd \<pi>\<alpha>y)) \<longrightarrow>
-            G (ssx, ssy) (ssx', ssy')) \<and>
+        (\<forall>\<pi>\<alpha>. \<rho>x = [\<pi>\<alpha>] \<longrightarrow> vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
+        (\<forall>\<pi>\<alpha>. \<rho>y = [\<pi>\<alpha>] \<longrightarrow> vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
         (\<exists>slx'.
           slx' ## fx \<and>
           slfx' = slx' + fx \<and>
@@ -4096,12 +4108,19 @@ next
     by (metis head_atomic.simps(7))
 qed (simp add: pre_state_def)+
 
-lemma head_atomic_no_step_iff_state_not_in_head_guards:
+lemma state_not_in_head_guards_iff_not_nostep:
+  \<open>head_atomic c \<Longrightarrow>
+    pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
+      \<not> ((s, c) \<midarrow>/\<rightarrow>\<^sub>a)\<close>
+  by (metis state_in_head_guards_then_aopstep_exists
+      state_not_in_head_guards_then_no_aopstep)
+
+lemma head_atomic_nostep_iff_state_not_in_head_guards:
   \<open>head_atomic c \<Longrightarrow>
     (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow>
       \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s\<close>
-  by (metis state_in_head_guards_then_aopstep_exists
-      state_not_in_head_guards_then_no_aopstep)
+  using state_not_in_head_guards_iff_not_nostep
+  by metis
 
 lemma head_atomic_opstep_vis_aact:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
@@ -4174,7 +4193,7 @@ next
   show ?case
     using Iter.prems
     by (simp del: split_paired_All
-        add: head_atomic_no_step_iff_state_not_in_head_guards,
+        add: head_atomic_nostep_iff_state_not_in_head_guards,
         metis Iter.hyps state_not_in_head_guards_then_no_aopstep)
 qed simp+
 
@@ -4185,7 +4204,7 @@ lemma all_sec_determ_implies_paired_step_right:
   shows
     \<open>\<exists>sy'. (sy, snd sc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', snd sc')\<close>
   using assms
-  \<comment> \<open> not true, as we might get stuck. If we assume we don't, it's just the above theorem. \<close>
+  \<comment> \<open> not true, as we might get stuck. If we assume we don't, it's just the previous theorem. \<close>
   oops
 
 lemma aopstep_equiv_guard_head_state_irrelevant:
@@ -4210,11 +4229,9 @@ next
         apply (simp; fail)
        apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
       apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-     apply (subgoal_tac \<open>\<pi>\<alpha> \<noteq> (PHere, TauBasic)\<close>)
-      prefer 2
-      apply (metis snd_conv vis_aact_simps(2))
-    apply (clarsimp simp add: vis_tau_aact_incompatible)
-    sorry
+     apply (simp add: pre_state_def bex_Un, metis)
+    apply (simp add: pre_state_def bex_Un, metis)
+    done
 next
   case (Par \<pi>\<alpha> s ca cb sc')
   then show ?case sorry
@@ -4223,20 +4240,44 @@ next
   then show ?case sorry
 qed fastforce+
 
-lemma sec_determ_dstep_to_opstep:
-  \<open>((sx, c), (sy, c)) =(\<rho>x, \<rho>y)\<Rightarrow> ((sx', cx'), (sy', cy')) \<Longrightarrow>
-    sec_determ c (sx, sy) \<Longrightarrow>
-    (\<Squnion>(set_mset (head_atoms c))) sx = (\<Squnion>(set_mset (head_atoms c))) sy \<Longrightarrow>
-    cx' = cy' \<and>
-    (\<exists>\<pi>\<alpha>.
-      (\<rho>x \<noteq> [] \<longrightarrow> \<rho>x = [\<pi>\<alpha>]) \<and>
-      (\<rho>y \<noteq> [] \<longrightarrow> \<rho>y = [\<pi>\<alpha>]) \<and>
-      (exch4 (sx, sy), liftC c) \<midarrow>strip_aact (snd \<pi>\<alpha>)\<rightarrow> (exch4 (sx', sy'), liftC cx'))\<close>
-  \<comment> \<open> wrong, but close \<close>
-  apply (erule dopstep.cases)
-    apply (clarsimp simp add: exch4_def split: prod.splits)
-    apply (rename_tac \<pi> \<alpha> lsx ssx lsy ssy lsx' ssx')
-  sorry
+lemma all_sec_determ_dopstep_right_completion:
+  assumes
+    \<open>((sx, c), (sy, c)) =([\<pi>\<alpha>], [])\<Rightarrow> ((sx', c'), (sy, cy))\<close>
+    \<open>all_sec_determ c (sx, sy)\<close>
+    \<open>(\<Squnion>(set_mset (head_atoms c))) sx =
+      (\<Squnion>(set_mset (head_atoms c))) sy\<close>
+  shows
+    \<open>\<exists>sy'. ((sx, c), (sy, c)) =([\<pi>\<alpha>], [\<pi>\<alpha>])\<Rightarrow> ((sx', c'), (sy', c'))\<close>
+  using assms
+  by (simp, metis aopstep_equiv_guard_head_state_irrelevant assms(3) eq_fst_iff
+      snd_conv)
+
+lemma sync_dopstep_to_opstep:
+  \<open>((sx, c), (sy, c)) =([\<pi>\<alpha>], [\<pi>\<alpha>])\<Rightarrow> ((sx', c'), (sy', c')) \<Longrightarrow>
+    all_sec_determ c (sx, sy) \<Longrightarrow>
+    (exch4 (sx, sy), liftC c) \<midarrow>strip_aact (snd \<pi>\<alpha>)\<rightarrow> (exch4 (sx', sy'), liftC c')\<close>
+proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
+  case (Endet c1 c2)
+  then show ?case
+    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+     apply (simp add: vis_tau_aact_incompatible)
+     apply (metis fst_conv pre_state_def snd_conv vis_aopstep_impl_atom)
+    apply (simp add: vis_tau_aact_incompatible)
+    apply (metis head_atomic_opstep_vis_aact not_vis_aact_iff prod_eq_decompose(1))
+    done
+next
+  case (Iter c)
+  then show ?case
+    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+     apply (simp add: vis_tau_aact_incompatible)
+    apply (metis comm.inject(1) eq_snd_iff)
+    apply (simp add: vis_tau_aact_incompatible del: split_paired_All)
+    apply (simp only: head_atomic_nostep_iff_state_not_in_head_guards)
+    apply (elim disjE conjE exE; simp)
+    subgoal sorry \<comment> \<open> obviously true \<close>
+    apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
+    done
+qed fastforce+
 
 
 lemma aopstep_preserves_all_sec_determ:
@@ -4267,6 +4308,58 @@ lemma dopstep_preserves_all_sec_determ_right:
     all_sec_determ c \<le> all_sec_determ cy'\<close>
   using aopstep_preserves_all_sec_determ
   by (force elim!: dopstep.cases)
+
+lemma all_sec_determ_same_act_implies_same_comm:
+  assumes
+    \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
+    \<open>all_sec_determ c (sx, sy)\<close>
+  shows
+    \<open>cy' = cx'\<close>
+proof -
+  { fix sc sc'
+    assume
+      \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
+      \<open>(sy, snd sc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
+      \<open>all_sec_determ (snd sc) (fst sc, sy)\<close>
+    then have \<open>cy' = snd sc'\<close>
+    proof (induct _ sc sc' arbitrary: sy sy' cy' rule: aopstep_induct)
+      case (Endet \<pi>\<alpha> s ca cb sc')
+      then show ?case
+        apply simp
+        apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+         apply (clarsimp simp add: vis_tau_aact_incompatible)
+        apply (metis (mono_tags) pre_state_def split_pairs2 vis_aopstep_impl_atom)
+        apply (simp add: vis_tau_aact_incompatible)
+        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def
+            vis_aact_simps(2-4))
+        done
+    next
+      case (DoLoop \<pi>\<alpha> s c sc')
+      then show ?case
+        apply simp
+        apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+        apply (simp, metis snd_conv)
+        apply simp
+        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def
+            vis_aact_simps(2-4))
+        done
+    qed fastforce+
+  }
+  then show ?thesis
+    using assms
+    by fastforce
+qed
+
+lemma all_sec_determ_sync_double_step_then_same_result_comm:
+  assumes
+    \<open>((sx, c), (sy, c)) =([\<pi>\<alpha>], [\<pi>\<alpha>])\<Rightarrow> ((sx', cx'), (sy', cy'))\<close>
+    \<open>all_sec_determ c (sx, sy)\<close>
+  shows
+    \<open>cx' = cy'\<close>
+  using assms
+    sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
+  by fast
 
 
 subsection \<open> Safety Implies Security \<close>
@@ -4307,11 +4400,11 @@ proof (induct n arbitrary: c sxy)
       (* rely *)
      apply (simp add: Suc.hyps; fail)
       (* opstep *)
-    apply clarsimp
     apply (frule sec_determ_dstep_to_opstep)
       apply (simp add: le_fun_def sepconj_conj_def imp_ex_conjL,
         metis all_sec_determ_implies_sec_determ)
-     apply blast
+     apply clarsimp
+    subgoal sorry
     apply (elim disjE conjE exE)
     apply (drule meta_spec2, drule_tac x=\<open>strip_aact (snd \<pi>\<alpha>)\<close> in meta_spec2,
         drule meta_spec2, drule meta_spec2,
