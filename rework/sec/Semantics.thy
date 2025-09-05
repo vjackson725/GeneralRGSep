@@ -3973,6 +3973,14 @@ inductive secure
       R (ssx, ssy) (ssx', ssy') \<Longrightarrow>
       secure R F G I q n cc ((slx, ssx'), (sly, ssy'))) \<Longrightarrow>
     \<comment> \<open> Opsteps \<close>
+    (\<And>\<rho>x \<rho>y ssx' ssy' cx' cy'.
+        ( ((slx, ssx), cx), ((sly, ssy), cy) ) =(\<rho>x, \<rho>y)\<Rightarrow> ( ((slx', ssx'), cx'), ((sly', ssy'), cy') ) \<Longrightarrow>
+        (\<forall>\<pi>\<alpha>. \<rho>x = [\<pi>\<alpha>] \<longrightarrow> vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
+        (\<forall>\<pi>\<alpha>. \<rho>y = [\<pi>\<alpha>] \<longrightarrow> vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
+        (\<forall>\<pi>\<alpha>x. \<rho>x = [\<pi>\<alpha>x] \<longrightarrow> tau_aact (snd \<pi>\<alpha>x) \<longrightarrow> slx' = slx) \<and>
+        (\<forall>\<pi>\<alpha>y. \<rho>y = [\<pi>\<alpha>y] \<longrightarrow> tau_aact (snd \<pi>\<alpha>y) \<longrightarrow> sly' = sly) \<and>
+        secure R F G I q n (cx', cy') ((slx', ssx'), (sly', ssy')) ) \<Longrightarrow>
+    \<comment> \<open> Framed opsteps \<close>
     (\<And>fx fy \<rho>x \<rho>y slfx' slfy' ssx' ssy' cx' cy'.
         F ((fx, fy), (ssx, ssy)) \<Longrightarrow>
         slx ## fx \<Longrightarrow>
@@ -4358,7 +4366,7 @@ lemma all_sec_determ_sync_double_step_then_same_result_comm:
   shows
     \<open>cx' = cy'\<close>
   using assms
-    sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
+    all_sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
   by fast
 
 
@@ -4371,10 +4379,10 @@ theorem safety_implies_security:
     and F I q :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
     and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
   assumes
-    \<open>safe R F G I q n (liftC c) (exch4 sxy)\<close>
-    \<open>I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
+    \<open>safe R G q n (liftC c) (exch4 sxy)\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
   shows
-    \<open>secure R F G I q n (c, c) sxy\<close>
+    \<open>secure R G q n (c, c) sxy\<close>
   using assms
 proof (induct n arbitrary: c sxy)
   case (Suc n)
