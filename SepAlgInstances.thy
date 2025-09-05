@@ -189,6 +189,10 @@ lemma sepconj_conjI:
   \<open>p (a, y) \<Longrightarrow> q (b, y) \<Longrightarrow> a ## b \<Longrightarrow> x = a + b \<Longrightarrow> (p \<^emph>\<and> q) (x, y)\<close>
   by (force simp add: sepconj_conj_def)
 
+lemma sepconj_conj_revI:
+  \<open>p (b, y) \<Longrightarrow> q (a, y) \<Longrightarrow> a ## b \<Longrightarrow> x = a + b \<Longrightarrow> (p \<^emph>\<and> q) (x, y)\<close>
+  by (simp add: disjoint_sym_iff partial_add_commute sepconj_conjI)
+
 lemma sepconj_conj_apply:
   \<open>(p \<^emph>\<and> q) s = (\<exists>a b. a ## b \<and> fst s = a + b \<and> p (a, snd s) \<and> q (b, snd s))\<close>
   by (cases s, simp add: sepconj_conj_def)
@@ -218,7 +222,7 @@ subsubsection \<open> Sepimp-imp \<close>
 
 definition sepimp_conj
   :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
-  (infixr \<open>\<midarrow>\<^emph>\<^sub>\<and>\<close> 65) where
+  (infixr \<open>\<midarrow>\<^emph>\<^sub>\<and>\<close> 61) where
   \<open>p \<midarrow>\<^emph>\<^sub>\<and> q \<equiv> \<lambda>(x,y). \<forall>x1. x ## x1 \<longrightarrow> p (x1, y) \<longrightarrow> q (x + x1, y)\<close>
 
 lemma sepimp_conjI:
@@ -246,6 +250,46 @@ lemma sepconj_conj_sepimp_conj_shunt:
   by (force simp add: sepconj_conj_def sepimp_conj_def le_fun_def)
 
 lemmas sepimp_conj_sepconj_conj_shunt = sepconj_conj_sepimp_conj_shunt[symmetric]
+
+
+subsubsection \<open> septraction-conj \<close>
+
+definition septract_conj
+  :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+  (infixr \<open>\<midarrow>\<odot>\<^sub>\<and>\<close> 62) where
+  \<open>p \<midarrow>\<odot>\<^sub>\<and> q \<equiv> \<lambda>(x, y). \<exists>xb. x ## xb \<and> p (xb, y) \<and> q (x + xb, y)\<close>
+
+lemma septract_conjI:
+  \<open>x ## xb \<Longrightarrow> p (xb, y) \<Longrightarrow> q (x + xb, y) \<Longrightarrow> (p \<midarrow>\<odot>\<^sub>\<and> q) (x, y)\<close>
+  by (force simp add: septract_conj_def)
+
+lemma septract_conj_apply:
+  \<open>(p \<midarrow>\<odot>\<^sub>\<and> q) (x, y) = (\<exists>xb. x ## xb \<and> p (xb, y) \<and> q (x + xb, y))\<close>
+  by (simp add: septract_conj_def)
+
+lemma septract_conj_mono:
+  \<open>p \<le> p' \<Longrightarrow> q \<le> q' \<Longrightarrow> p \<midarrow>\<odot>\<^sub>\<and> q \<le> p' \<midarrow>\<odot>\<^sub>\<and> q'\<close>
+  by (force simp add: septract_conj_def le_fun_def)
+
+
+subsubsection \<open> sepcoimp-conj \<close>
+
+definition sepcoimp_conj
+  :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+  (infixr \<open>\<sim>\<^emph>\<^sub>\<and>\<close> 62) where
+  \<open>p \<sim>\<^emph>\<^sub>\<and> q \<equiv> \<lambda>(x, y). \<forall>xa xb. xa ## xb \<longrightarrow> x = xa + xb \<longrightarrow> p (xa, y) \<longrightarrow> q (xb, y)\<close>
+
+lemma sepcoimp_conjI:
+  \<open>(\<And>xa xb. xa ## xb \<Longrightarrow> x = xa + xb \<Longrightarrow> p (xa, y) \<Longrightarrow> q (xb, y)) \<Longrightarrow> (p \<sim>\<^emph>\<^sub>\<and> q) (x, y)\<close>
+  by (force simp add: sepcoimp_conj_def)
+
+lemma sepcoimp_conj_apply:
+  \<open>(p \<sim>\<^emph>\<^sub>\<and> q) (x, y) = (\<forall>xa xb. xa ## xb \<longrightarrow> x = xa + xb \<longrightarrow> p (xa, y) \<longrightarrow> q (xb, y))\<close>
+  by (simp add: sepcoimp_conj_def)
+
+lemma sepcoimp_conj_mono:
+  \<open>p' \<le> p \<Longrightarrow> q \<le> q' \<Longrightarrow> p \<sim>\<^emph>\<^sub>\<and> q \<le> p' \<sim>\<^emph>\<^sub>\<and> q'\<close>
+  by (force simp add: sepcoimp_conj_def le_fun_def)
 
 
 section \<open> (additive) unit \<close>
@@ -1715,6 +1759,14 @@ section \<open> Heaps and Permission-heaps \<close>
 type_synonym ('i,'v) heap = \<open>'i \<rightharpoonup> ('v discr \<times> munit)\<close>
 
 type_synonym ('i,'v) perm_heap = \<open>'i \<rightharpoonup> ('v discr \<times> rat fperm)\<close>
+
+lemma munit_option_plus_simps[simp]:
+  fixes x y :: \<open>'a::pre_perm_alg \<times> munit\<close>
+  shows
+    \<open>Some x ## my \<Longrightarrow> Some x + my = Some x\<close>
+    \<open>mx ## Some y \<Longrightarrow> mx + Some y = Some y\<close>
+  by (simp add: disjoint_option_iff)+
+
 
 definition points_to
   :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close>

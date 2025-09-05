@@ -437,6 +437,17 @@ lemmas wssa_stronger_strengthen =
   transp_wlp_stronger_strengthen[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified,
     OF _ relyrel_trans]
 
+lemma sswa_bot_rel_eq[simp]:
+  \<open>sswa \<bottom> p = p\<close>
+  by (clarsimp simp add: sp_def fun_eq_iff)
+    (metis (full_types) rtranclp_eq_eq rtranclp_reflclp sup_bot_left)
+
+lemma wssa_bot_rel_eq[simp]:
+  \<open>wssa \<bottom> p = p\<close>
+  by (clarsimp simp add: wlp_def fun_eq_iff)
+    (metis (full_types) rtranclp_eq_eq rtranclp_reflclp sup_bot_left)
+
+
 subsection \<open> absorption/pseduo-idempotence properties \<close>
 
 (*

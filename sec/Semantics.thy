@@ -1804,7 +1804,7 @@ lemma aopsteps_Skip_iif[simp]:
 section \<open> Basic Tau Reducts \<close>
 
 text \<open>
-  Uunfortunately dependent on the state the command is executed in, because of loops.
+  Unfortunately dependent on the state the command is executed in, because of loops.
 \<close>
 definition basic_tau_reducts :: \<open>'l \<times> 's \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm set\<close> where
   \<open>basic_tau_reducts s c \<equiv>
@@ -2397,11 +2397,8 @@ inductive_cases cfg_traces_envE[elim!]:
   \<open>(CTrStep sc' Env \<rho>, Running) \<in> cfg_traces sc\<close>
 *)
 
-fun nonsync_aact :: \<open>aact \<Rightarrow> bool\<close> where
-  \<open>nonsync_aact TauINdetL = False\<close>
-| \<open>nonsync_aact TauINdetR = False\<close>
-| \<open>nonsync_aact TauBasic = True\<close>
-| \<open>nonsync_aact AVis = True\<close>
+definition
+  \<open>nonsync_aact \<alpha> \<equiv> \<alpha> = TauBasic \<or> \<alpha> = AVis\<close>
 
 (*
 inductive synchronised_ctr_pair
@@ -2759,7 +2756,7 @@ inductive dstep_exact
 | dstep_exact_local[intro]:
   \<comment> \<open> all other steps must be synchronised to be secure. \<close>
   \<open>ss = (((slx, ssx), cx), ((sly, ssy), cy)) \<Longrightarrow>
-    ss' = (((slx', ssx'), cx), ((sly', ssy'), cy)) \<Longrightarrow>
+    ss' = (((slx', ssx'), cx'), ((sly', ssy'), cy')) \<Longrightarrow>
     F ((fx, fy), (ssx, ssy)) \<Longrightarrow>
     \<comment> \<open> left steps \<close>
     slx ## fx \<Longrightarrow>
@@ -3096,8 +3093,6 @@ lemma btau_aexec_preserves_nextstep:
   apply (clarsimp, blast)
   done
 
-
-thm btau_astep_preserves_nextstep
 
 lemma aopsteps_trans:
   \<open>sc \<midarrow>\<rho>a\<rightarrow>\<^sub>a\<^sup>* sc' \<Longrightarrow>
@@ -3886,6 +3881,12 @@ lemma dexec_exact_and_safe_to_secure:
 section \<open> Jul-Aug Attempt \<close>
 
 
+definition
+  \<open>must_sync \<pi>\<alpha> \<equiv>
+    fst \<pi>\<alpha> \<noteq> PHere \<or>
+    snd \<pi>\<alpha> = TauINdetL \<or>
+    snd \<pi>\<alpha> = TauINdetR\<close>
+
 
 inductive dopstep
   :: \<open>(plabel \<times> aact) list \<times> (plabel \<times> aact) list \<Rightarrow>
@@ -3894,12 +3895,12 @@ inductive dopstep
       bool\<close>
   where
     dopstep_step_left[intro!]:
-  \<open>nonsync_aact (snd \<pi>\<alpha>) \<Longrightarrow>
+  \<open>\<not> must_sync \<pi>\<alpha> \<Longrightarrow>
     \<comment> \<open> left step \<close>
     (sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<Longrightarrow>
     dopstep ([\<pi>\<alpha>], []) ((sx, cx), (sy, cy)) ((sx', cx'), (sy, cy))\<close>
 | dopstep_step_right[intro!]:
-  \<open>nonsync_aact (snd \<pi>\<alpha>) \<Longrightarrow>
+  \<open>\<not> must_sync \<pi>\<alpha> \<Longrightarrow>
     \<comment> \<open> right step \<close>
     (sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy') \<Longrightarrow>
     dopstep ([], [\<pi>\<alpha>]) ((sx, cx), (sy, cy)) ((sx, cx), (sy', cy'))\<close>
@@ -3925,14 +3926,14 @@ lemma dopstep_simps[simp]:
       \<rho>x = [\<pi>\<alpha>] \<and>
       scxy = (scx, scy) \<and>
       scxy' = (scx', scy) \<and>
-      nonsync_aact (snd \<pi>\<alpha>) \<and>
+      must_sync \<pi>\<alpha> \<and>
       scx \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scx')\<close>
   \<open>dopstep ([], \<rho>y) scxy scxy' \<longleftrightarrow>
     (\<exists>\<pi>\<alpha> scy scy' scx.
       \<rho>y = [\<pi>\<alpha>] \<and>
       scxy = (scx, scy) \<and>
       scxy' = (scx, scy') \<and>
-      nonsync_aact (snd \<pi>\<alpha>) \<and>
+      must_sync \<pi>\<alpha> \<and>
       scy \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scy')\<close>
   \<open>dopstep ([\<pi>\<alpha>x], [\<pi>\<alpha>y]) scxy scxy' \<longleftrightarrow>
     \<pi>\<alpha>y = \<pi>\<alpha>x \<and>
@@ -4004,6 +4005,14 @@ inductive secure
             secure R F G I q n (cx', cy') ((slx', ssx'), (sly', ssy')) ))) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
     secure R F G I q (Suc n) cc zz\<close>
+
+
+lemma head_atomic_implies_all_steps_vis:
+  \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
+    head_atomic (snd sc) \<Longrightarrow>
+    vis_aact (snd \<pi>\<alpha>)\<close>
+  by (induct _ sc sc' rule: aopstep_induct) auto
+
 
 fun sec_determ :: \<open>('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close> where
   \<open>sec_determ (ca \<^bold>\<box> cb) = (\<lambda>(sx, sy).
@@ -4197,6 +4206,36 @@ next
         metis Iter.hyps state_not_in_head_guards_then_no_aopstep)
 qed simp+
 
+
+lemma all_sec_determ_not_must_sync_then_only_one_action:
+  assumes
+    \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
+    \<open>\<not> must_sync \<pi>\<alpha>\<close>
+    \<open>all_sec_determ (snd sc) (fst sc, sy)\<close>
+    \<open>(sy, snd sc) \<midarrow>\<pi>\<alpha>y\<rightarrow>\<^sub>a (sy', cy')\<close>
+  shows
+    \<open>\<pi>\<alpha>y = \<pi>\<alpha> \<and> cy' = snd sc'\<close>
+  using assms
+  apply (induct _ sc sc' arbitrary: sy sy' cy' \<pi>\<alpha>y rule: aopstep_induct)
+        apply force
+       apply force
+      apply (force simp add: must_sync_def)
+     apply (simp add: must_sync_def)
+     apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+      apply (metis fst_conv head_atomic.simps(1) head_atomic_opstep_vis_aact
+      not_tau_aact_iff pre_state_def snd_conv vis_aopstep_impl_atom)
+     apply simp
+     apply (metis head_atomic.simps(1) head_atomic_opstep_vis_aact prod_eq_decompose(1)
+      tau_aact_def vis_aact_not_TauBasic(3))
+    apply (force simp add: must_sync_def)
+   apply (simp add: must_sync_def)
+   apply (elim conjE exE)
+   apply (simp add: vis_tau_aact_incompatible state_not_in_head_guards_iff_not_nostep
+      del: split_paired_All split_paired_Ex)
+   apply (clarsimp, blast)
+  apply force
+  done
+
 lemma all_sec_determ_implies_paired_step_right:
   assumes
     \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
@@ -4279,6 +4318,13 @@ next
     done
 qed fastforce+
 
+lemmas sync_dopstep_to_opstepI =
+  sync_dopstep_to_opstep[where
+    sx=\<open>(lsx,ssx)\<close> and sy=\<open>(lsy,ssy)\<close> and
+    sx'=\<open>(lsx',ssx')\<close> and sy'=\<open>(lsy',ssy')\<close>
+    for lsx ssx lsy ssy lsx' ssx' lsy' ssy',
+    simplified exch4_apply]
+
 
 lemma aopstep_preserves_all_sec_determ:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
@@ -4358,7 +4404,7 @@ lemma all_sec_determ_sync_double_step_then_same_result_comm:
   shows
     \<open>cx' = cy'\<close>
   using assms
-    sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
+    all_sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
   by fast
 
 
@@ -4400,6 +4446,16 @@ proof (induct n arbitrary: c sxy)
       (* rely *)
      apply (simp add: Suc.hyps; fail)
       (* opstep *)
+    apply simp
+    apply (drule_tac x=\<open>(fx, fy)\<close> in meta_spec, drule meta_spec2, drule meta_spec2,
+        drule meta_mp, (rule conjI; simp; fail))
+    apply (drule meta_mp)
+     apply simp
+     apply (rule sync_dopstep_to_opstepI)
+    subgoal sorry
+     apply (simp add: le_fun_def sepconj_conj_def imp_ex_conjL; fail)
+
+    oops
     apply (frule sec_determ_dstep_to_opstep)
       apply (simp add: le_fun_def sepconj_conj_def imp_ex_conjL,
         metis all_sec_determ_implies_sec_determ)
@@ -4433,245 +4489,5 @@ proof (induct n arbitrary: c sxy)
     apply blast
     done
 qed force
-
-
-section \<open> Examples \<close>
-
-(* TODO: move *)
-
-lemma eq_rtimes_R_iff:
-  \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
-  by (cases s, cases s', force)
-
-lemma top_rtimes_R_iff:
-  \<open>(\<top> \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s')\<close>
-  by (cases s, cases s', force)
-
-(* TODO: write examples: (1) Arthur's nointerference, (2) observing local state *)
-
-lemma sepimp_conj_step_mp:
-  \<open>p \<le> p' \<Longrightarrow> (p' \<midarrow>\<^emph>\<^sub>\<and> q) \<^emph>\<and> p \<le> q\<close>
-  by (meson order_refl sepimp_conj_mono sepimp_conj_sepconj_conj_shunt)
-
-lemma comp2_exch4_over_rel_times[simp]:
-  fixes ra :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
-    and rb :: \<open>'b \<Rightarrow> 'b \<Rightarrow> bool\<close>
-  shows \<open>((ra \<times>\<^sub>R rb) \<times>\<^sub>R (rc \<times>\<^sub>R rd)) \<circ>\<^sub>2 exch4 = ((ra \<times>\<^sub>R rc) \<times>\<^sub>R (rb \<times>\<^sub>R rd))\<close>
-  by (force simp add: comp_rel_def exch4_def rel_Times_def)
-
-lemma example_observing_local_state:
-  fixes F :: \<open>(('p \<rightharpoonup> 'v::perm_alg) \<times> ('p \<rightharpoonup> 'v)) \<times> ('h \<times> 'h) \<Rightarrow> bool\<close>
-  assumes
-    \<open>x \<noteq> y\<close>
-  shows
-    \<open>(=), (=) \<turnstile>\<^bsub>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4), F\<^esub>
-    { (F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)) }
-      liftC (\<langle>\<top>, (\<lambda>hl hl'. hl' = hl(x \<mapsto> v)) \<times>\<^sub>R (=)\<rangle>)
-    { (F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)) }\<close>
-  apply (simp add: liftC_def)
-  apply (rule rgsat_atom[of _ _
-        \<open>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)\<close>
-        \<open>F \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> (\<lambda>(hl, hs). hl y) \<circ> exch4)\<close>
-        ])
-        apply force
-       apply force
-      apply force
-     apply force
-    apply force
-   apply clarsimp
-   apply (clarsimp simp add: sp_def sepconj_conj_def sepimp_conj_def split: prod.splits)
-  sorry
-
-
-definition
-  \<open>location_independent Pt \<equiv> \<lambda>(p,q).
-    \<forall>h h' s s'.
-      p (h, s) \<longrightarrow>
-      q (h, s) (h', s') \<longrightarrow>
-      (\<forall>\<sigma>.
-        bij \<sigma> \<longrightarrow>
-        (\<forall>\<rho>. \<rho> \<notin> Pt \<longrightarrow> \<sigma> \<rho> = \<rho>) \<longrightarrow>
-        p (h \<circ> \<sigma>, s) \<and> q (h \<circ> \<sigma>, s) (h' \<circ> \<sigma>, s'))\<close>
-
-definition
-  \<open>value_independent Pt \<equiv> \<lambda>(p,q).
-    \<forall>h h' s s'.
-      p (h, s) \<longrightarrow>
-      q (h, s) (h', s') \<longrightarrow>
-      (\<forall>hx hx'.
-        (\<forall>\<rho>. \<rho> \<notin> Pt \<longrightarrow> hx \<rho> = hx' \<rho>) \<longrightarrow>
-        p (hx, s) \<and> q (hx, s) (hx', s'))\<close>
-
-lemma example_deAmorim_noninterference:
-  fixes S :: \<open>('p \<rightharpoonup> 'l::pre_perm_alg) \<times> 's \<Rightarrow> bool\<close>
-  assumes
-    \<open>r, g \<turnstile>\<^bsub>S, F\<^esub> { p } c { q }\<close>
-    \<open>\<forall>p q.
-        (p,q) \<in> all_atoms c \<longrightarrow>
-        (\<forall>x x'. (S \<^emph>\<and> F) x \<longrightarrow> p x \<longrightarrow> q x x' \<longrightarrow>
-          {\<rho>. fst x \<rho> \<noteq> fst x' \<rho>} \<subseteq> V)\<close>
-  shows
-    \<open>liftR r, liftR g \<turnstile>\<^bsub>\<bbbA> f \<circ> exch4, liftP F \<circ> exch4\<^esub> { liftP p \<circ> exch4 } liftC c { liftP q \<circ> exch4 }\<close>
-  sorry
-
-lemma opstep_all_atoms_antimono:
-  \<open>sc \<midarrow>\<alpha>\<rightarrow> sc' \<Longrightarrow>
-    sc = (s, c) \<Longrightarrow>
-    sc' = (s', c') \<Longrightarrow>
-    all_atoms c' \<le> all_atoms c\<close>
-  apply (induct \<alpha> sc sc' arbitrary: s c s' c' rule: opstep.induct)
-        apply force
-       apply force
-      apply force
-     apply clarsimp
-     apply (elim disjE conjE; clarsimp; blast)
-    apply clarsimp
-    apply (elim disjE conjE; clarsimp; blast)
-   apply (clarsimp split: if_splits; fail)
-  apply (clarsimp split: if_splits; fail)
-  done
-
-
-\<comment> \<open> note the instantiation of X to \<open>(FF \<midarrow>\<^emph>\<^sub>\<and> (\<bbbA> \<oo> \<circ> exch4))\<close> \<close>
-lemma pred_preserved_then_pred_all_states:
-  fixes c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
-  assumes
-    \<open>safe n c z r g q S F\<close>
-    \<open>z = s\<close>
-    \<open>\<forall>s s'. ((=) \<times>\<^sub>R r) s s' \<longrightarrow> S s \<longrightarrow> X s \<longrightarrow> X s'\<close>
-    \<open>\<forall>p q. (p, q) \<in> all_atoms c \<longrightarrow>
-      (\<forall>hl hs hl' hs'.
-        (\<forall>fl.
-          hl ## fl \<longrightarrow> F (fl, hs) \<longrightarrow> hl' ## fl \<longrightarrow>
-          p (hl + fl, hs) \<longrightarrow> q (hl + fl, hs) (hl' + fl, hs') \<longrightarrow>
-          S (hl, hs) \<longrightarrow>
-          X (hl, hs) \<longrightarrow> X (hl', hs')))\<close>
-    \<open>X s\<close>
-  shows
-    \<open>safe n c z r g q X F\<close>
-  using assms
-proof (induct n c z r g q S F arbitrary: s rule: safe.induct)
-  case (safe_nil S hl hs c r g q F)
-  then show ?case by force
-next
-  case (safe_suc c q hl hs S r n g F)
-  then show ?case
-    apply (clarsimp simp add: safe_suc_iff eq_rtimes_R_iff top_rtimes_R_iff)
-    apply (drule meta_spec2, drule meta_spec2, drule meta_mp, assumption,
-        drule meta_mp, assumption, drule meta_mp, assumption)
-    apply clarsimp
-    apply (rule_tac x=hl' in exI)
-    apply clarsimp
-    apply (drule mp[of \<open>All _\<close>])
-     apply (meson opstep_all_atoms_antimono subsetD; fail)
-    apply clarsimp
-    apply (erule opstep_act_cases, force)
-    apply (frule vis_step_impl_atom)
-    apply clarsimp
-    apply (drule spec2, drule mp, rule set_mp[OF head_atoms_subseteq_all_atoms], assumption)
-    apply metis
-    done
-qed
-
-
-subsection \<open> Aaaaa \<close>
-
-lemma pair_predicate_splitting:
-  fixes P :: \<open>'a \<times> 'a \<Rightarrow> bool\<close>
-  shows \<open>\<exists>p \<oo>::'a \<Rightarrow> 'v. P = \<lblot> p \<rblot> \<sqinter> \<bbbA> \<oo>\<close>
-  nitpick[card 'a=2, card 'v=1]
-  oops
-
-definition uset where
-  \<open>uset P \<equiv> \<lambda>x. {y. P (x,y)}\<close>
-
-definition
-  \<open>hyperset (r :: 'a \<times> 'a \<Rightarrow> bool) \<equiv>
-    {A. \<exists>x. Ex (curry r x) \<and> A = {y. r (x,y)}}\<close>
-
-definition
-  \<open>hrelify (H :: 'a set set) \<equiv>
-    \<lambda>(x,y). \<exists>A\<in>H. x\<in>A \<and> y\<in>A\<close>
-
-
-lemma
-  \<open>{} \<notin> H \<Longrightarrow>
-    (\<forall>A\<in>H. \<forall>B\<in>H. (\<exists>x. x \<in> A\<inter>B) \<longrightarrow> A \<subseteq> B \<or> B \<subseteq> A) \<longleftrightarrow>
-    (\<forall>A\<in>H. \<forall>B\<in>H. A \<subseteq> B \<longrightarrow> A = B)\<close>
-  oops
-
-lemma hyperset_hrelify_inverse:
-  fixes H :: \<open>'a set set\<close>
-  assumes \<open>{} \<notin> H\<close>
-  assumes \<open>\<forall>A\<in>H. \<forall>B\<in>H. A \<subseteq> B \<longrightarrow> A = B\<close>
-  assumes \<open>supcl H = H\<close>
-  assumes ex_defining_member:
-    \<open>\<forall>A\<in>H. \<exists>x\<in>A. \<forall>B\<in>H. x \<in> B \<longrightarrow> A \<subseteq> B\<close>
-  shows \<open>hyperset (hrelify H) = H\<close>
-  apply (simp add: hyperset_def hrelify_def)
-  apply (rule set_eqI, rule iffI)
-   apply clarsimp
-   apply (rename_tac x y A)
-   apply (rule subst[OF assms(3), of \<open>\<lambda>X. _ \<in> X\<close>])
-   apply (clarsimp simp add: supcl_def)
-   apply (rule_tac x=\<open>{A\<in>H. x\<in>A}\<close> in exI)
-   apply blast
-  apply clarsimp
-  apply (rename_tac A)
-  apply (cut_tac assms(1))
-  apply (subgoal_tac \<open>\<exists>x. x \<in> A\<close>)
-   prefer 2
-   apply (simp add: ex_in_conv, blast)
-  apply clarsimp
-  apply (rule_tac
-      Q=\<open>\<exists>x. A = {y. \<exists>B\<in>H. x \<in> B \<and> y \<in> B}\<close>
-      in iffD1)
-   apply blast
-  apply (cut_tac ex_defining_member)
-  apply (drule bspec, assumption)
-  apply clarsimp
-  apply (rename_tac a)
-  apply (rule_tac x=a in exI)
-  apply (rule iffD1[rotated, of \<open>Ball _ _\<close>], assumption)
-
-  sorry
-
-  apply (rule_tac x=x in exI)
-  apply (rule Set.equalityI, force)
-  apply clarsimp
-  apply (rename_tac x y B)
-
-  oops
-
-lemma hrelify_hyperset_inverse:
-  fixes r :: \<open>'a \<times> 'a \<Rightarrow> bool\<close>
-  assumes \<open>quasireflp (curry r)\<close>
-  assumes \<open>symp (curry r)\<close>
-  shows \<open>hrelify (hyperset r) = r\<close>
-  sledgehammer
-  sorry
-
-
-definition sec_obs (\<open>\<bbbO>\<close>) where
-  \<open>sec_obs f \<equiv> \<lambda>(x,y). \<exists>X\<in>f x. \<exists>Y\<in>f y. X \<inter> Y \<noteq> {}\<close>
-
-lemma pair_predicate_splitting:
-  fixes P :: \<open>'a \<times> 'a \<Rightarrow> bool\<close>
-  assumes \<open>quasireflp (curry P)\<close>
-  assumes \<open>symp (curry P)\<close>
-  shows \<open>P = \<bbbO> (\<lambda>x. {H. H = {x'. \<forall>y. P (x,y) \<longrightarrow> P (x',y)}})\<close>
-  using assms
-  apply (clarsimp simp add: fun_eq_iff uset_def sec_obs_def)
-  apply (rule iffI)
-   apply (clarsimp simp add: set_eq_iff symp_def)
-
-  oops
-
-
-section \<open> aaaa \<close>
-
-lemma sec_agree_eq_mp:
-  \<open>\<bbbA> (\<lambda>s. s x) \<sqinter> \<lblot> \<lambda>s. s x = s y \<rblot> \<le> \<bbbA> (\<lambda>s. s y)\<close>
-  by (clarsimp simp add: sec_agree_def)
 
 end

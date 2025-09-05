@@ -474,7 +474,7 @@ lemma sepconj_eq_eq:
   \<open>((=) h1 \<^emph> (=) h2) = (\<lambda>x. h1 ## h2 \<and> x = h1 + h2)\<close>
   by (simp add: sepconj_def fun_eq_iff)
 
-lemma sepconj_eq_eq2:
+lemma sepconj_eq_eq2[simp]:
   \<open>h1 ## h2 \<Longrightarrow> ((=) h1 \<^emph> (=) h2) = ((=) (h1 + h2))\<close>
   by (force simp add: sepconj_eq_eq)
 
