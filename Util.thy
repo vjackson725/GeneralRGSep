@@ -80,6 +80,18 @@ lemmas disjCI2 = disjCI[THEN Meson.disj_comm]
 lemma pred_conjD: \<open>(A1 \<sqinter> A2) s \<Longrightarrow> A1 \<le> B1 \<Longrightarrow> A2 \<le> B2 \<Longrightarrow> (B1 \<sqinter> B2) s\<close>
   by blast
 
+lemma conj_disj_absorb2[simp]:
+  \<open>b \<and> (a \<or> b) \<longleftrightarrow> b\<close>
+  by blast
+
+lemma disj_conj_absorb2[simp]:
+  \<open>b \<or> (a \<and> b) \<longleftrightarrow> b\<close>
+  by blast
+
+lemma conj_disj_distribR_middle:
+  \<open>(P \<and> R \<or> S \<and> T) \<and> Q \<longleftrightarrow> P \<and> Q \<and> R \<or> S \<and> Q \<and> T\<close>
+  by blast
+
 
 section \<open> Tuples \<close>
 
@@ -152,7 +164,7 @@ definition \<open>rel_lift p q \<equiv> \<lambda>a b. p a \<and> q b\<close>
 abbreviation \<open>rel_liftL p \<equiv> rel_lift p \<top>\<close>
 abbreviation \<open>rel_liftR \<equiv> rel_lift \<top>\<close>
 
-definition \<open>rel_imp_lift p \<equiv> \<lambda>a b. p a \<longrightarrow> p b\<close>
+definition \<open>rel_imp_lift p q \<equiv> \<lambda>a b. p a \<longrightarrow> q b\<close>
 
 definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
   \<open>r \<circ>\<^sub>2 f \<equiv> \<lambda>x y. r (f x) (f y)\<close>
@@ -160,17 +172,8 @@ definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarro
 lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
   by (simp add: comp_rel_def comp_def)
 
-
 lemma rel_lift_apply[simp]:
   \<open>rel_lift p q a b = (p a \<and> q b)\<close>
-  by (simp add: rel_lift_def)
-
-lemma rel_liftL_apply[simp]:
-  \<open>rel_liftL p a b = p a\<close>
-  by (simp add: rel_lift_def)
-
-lemma rel_liftR_apply[simp]:
-  \<open>rel_liftR p a b = p b\<close>
   by (simp add: rel_lift_def)
 
 
@@ -185,7 +188,8 @@ lemmas post_state_def = post_state_of_def[of UNIV, simplified]
 
 definition \<open>prepost_state \<equiv> pre_state \<squnion> post_state\<close>
 
-lemmas prepost_state_def' = prepost_state_def pre_state_def post_state_def
+lemmas prepost_state_def' =
+  prepost_state_def[simplified pre_state_def post_state_def sup_fun_def]
 
 definition \<open>pre_change_state r \<equiv> \<lambda>a. \<exists>b. r a b \<and> a \<noteq> b\<close>
 definition \<open>post_change_state r \<equiv> \<lambda>b. \<exists>a. r a b \<and> a \<noteq> b\<close>
@@ -684,6 +688,10 @@ lemma ordered_comm_monoid_add_add_min_assoc:
 lemma le_Suc_iff0: \<open>m \<le> Suc n \<longleftrightarrow> m = 0 \<or> (\<exists>m'. m = Suc m' \<and> m' \<le> n)\<close>
   by presburger
 
+lemma Suc_leq_iff:
+  \<open>Suc m' \<le> n \<longleftrightarrow> (\<exists>n'. n = Suc n' \<and> m' \<le> n')\<close>
+  by presburger
+
 lemma ge0_plus_le_then_left_le:
   fixes a :: \<open>'a :: ordered_ab_semigroup_monoid_add_imp_le\<close>
   shows \<open>0 \<le> a \<Longrightarrow> 0 \<le> b \<Longrightarrow> a + b \<le> c \<Longrightarrow> a \<le> c\<close>
@@ -874,6 +882,19 @@ lemma inf_twist_sup_idem_assoc: \<open>a \<sqinter> b \<squnion> b \<sqinter> a 
 lemma inf_abac_eq_abc:
   shows \<open>(a \<sqinter> b) \<sqinter> a \<sqinter> c = a \<sqinter> b \<sqinter> c\<close>
   by (simp add: inf.absorb1)
+
+end
+
+context distrib_lattice
+begin
+
+lemma inf_sup_absorb2[simp]:
+  \<open>b \<sqinter> (a \<squnion> b) = b\<close>
+  by (simp add: inf.absorb1)
+
+lemma sup_inf_absorb2[simp]:
+  \<open>b \<squnion> (a \<sqinter> b) = b\<close>
+  by (simp add: sup.absorb1)
 
 end
 
