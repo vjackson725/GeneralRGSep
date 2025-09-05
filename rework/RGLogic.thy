@@ -22,12 +22,11 @@ inductive rgsat ::
     C Skip \<Longrightarrow>
     rgsat Skip R G p q I F C\<close>
 | rgsat_iter:
-  \<open>rgsat c R G (sswa R i) i (sswa R I) F C \<Longrightarrow>
+  \<open>rgsat c R G (sswa R i) i I F C \<Longrightarrow>
     sswa R p \<le> i \<Longrightarrow>
     sswa R i \<le> q \<Longrightarrow>
-    sswa R I \<le> I' \<Longrightarrow>
     C (Iter c) \<Longrightarrow>
-    rgsat (Iter c) R G p q I' F C\<close>
+    rgsat (Iter c) R G p q I F C\<close>
 | rgsat_seq:
   \<open>rgsat ca r g p pp La F C \<Longrightarrow>
     rgsat cb r g pp q Lb F C \<Longrightarrow>
@@ -35,13 +34,13 @@ inductive rgsat ::
     C (ca ;; cb) \<Longrightarrow>
     rgsat (ca ;; cb) r g p q L F C\<close>
 | rgsat_indet:
-  \<open>rgsat ca r ga p qa La F C \<Longrightarrow>
-    rgsat cb r gb p qb Lb F C \<Longrightarrow>
+  \<open>rgsat ca r ga p qa Ia F C \<Longrightarrow>
+    rgsat cb r gb p qb Ib F C \<Longrightarrow>
     ga \<le> g \<Longrightarrow> gb \<le> g \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
-    La \<squnion> Lb \<le> L \<Longrightarrow>
+    Ia \<squnion> Ib \<le> I \<Longrightarrow>
     C (ca \<^bold>\<sqinter> cb) \<Longrightarrow>
-    rgsat (ca \<^bold>\<sqinter> cb) r g p q L F C\<close>
+    rgsat (ca \<^bold>\<sqinter> cb) r g p q I F C\<close>
 | rgsat_endet:
   \<open>rgsat ca r ga p qa La F C \<Longrightarrow>
     rgsat cb r gb p qb Lb F C \<Longrightarrow>
@@ -51,39 +50,40 @@ inductive rgsat ::
     C (ca \<^bold>\<box> cb) \<Longrightarrow>
     rgsat (ca \<^bold>\<box> cb) r g p q L F C\<close>
 | rgsat_par:
-  \<open>rgsat c1 (r \<squnion> g2) g1 p1 q1 L1 (L2 \<^emph>\<and> F) C \<Longrightarrow>
-    rgsat c2 (r \<squnion> g1) g2 p2 q2 L2 (L1 \<^emph>\<and> F) C \<Longrightarrow>
+  \<open>rgsat c1 (r \<squnion> g2) g1 p1 q1 I1 (I2 \<^emph>\<and> F \<squnion> F \<squnion> I2) C \<Longrightarrow>
+    rgsat c2 (r \<squnion> g1) g2 p2 q2 I2 (I1 \<^emph>\<and> F \<squnion> F \<squnion> I2) C \<Longrightarrow>
     g1 \<le> g \<Longrightarrow> g2 \<le> g \<Longrightarrow>
     p \<le> p1 \<^emph>\<and> p2 \<Longrightarrow>
     sswa (r \<squnion> g2) q1 \<^emph>\<and> sswa (r \<squnion> g1) q2 \<le> q \<Longrightarrow>
-    sswa (r \<squnion> g2) L1 \<^emph>\<and> sswa (r \<squnion> g1) L2 \<le> L \<Longrightarrow>
+    sswa (r \<squnion> g2) I1 \<^emph>\<and> sswa (r \<squnion> g1) I2 \<le> I \<Longrightarrow>
     C (c1 \<parallel> c2) \<Longrightarrow>
-    rgsat (c1 \<parallel> c2) r g p q L F C\<close>
+    rgsat (c1 \<parallel> c2) r g p q I F C\<close>
 | rgsat_atom:
   \<open>p' \<le> wssa R p \<Longrightarrow>
     sswa R q \<le> q' \<Longrightarrow>
     wssa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
+    sp ar p \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
     C \<langle>ar\<rangle> \<Longrightarrow>
     rgsat \<langle>ar\<rangle> R G p' q' I F C\<close>
 | rgsat_frame:
   \<open>rgsat c r g p q L F C \<Longrightarrow>
     p' \<le> p \<^emph>\<and> f \<Longrightarrow>
     q \<^emph>\<and> sswa (r \<squnion> g) f \<le> q' \<Longrightarrow>
-    F' \<^emph>\<and> sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
+    F' \<squnion> F' \<^emph>\<and> sswa (r \<squnion> g) f \<le> F \<Longrightarrow>
     L \<le> sswa (r \<squnion> g) f \<midarrow>\<^emph>\<^sub>\<and> L' \<Longrightarrow>
     rgsat c r g p' q' L' F' C\<close>
 | rgsat_weaken:
-  \<open>rgsat c r' g' p' q' L' F' C \<Longrightarrow>
+  \<open>rgsat c r' g' p' q' I' F' C \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
     q' \<le> q \<Longrightarrow>
     r \<le> r' \<Longrightarrow>
     g' \<le> g \<Longrightarrow>
-    L' \<le> L \<Longrightarrow>
+    I' \<le> I \<Longrightarrow>
     F \<le> F' \<Longrightarrow>
-    rgsat c r g p q L F C\<close>
+    rgsat c r g p q I F C\<close>
 | rgsat_Disj:
   \<open>p' \<le> \<Squnion>P \<Longrightarrow>
     \<forall>p\<in>P. rgsat c r g p q L F C \<Longrightarrow>
@@ -115,7 +115,7 @@ lemma rgsat_skip_forwards:
 lemma rgsat_skip_backwards:
   \<open>C Skip \<Longrightarrow> rgsat Skip r g (wssa r q) q q F C\<close>
   by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
-        where p'=\<open>wssa r q\<close> and q'=q and L'=q and F'=F]) force+
+        where p'=\<open>wssa r q\<close> and q'=q and I'=q and F'=F]) force+
 
 lemma rgsat_impossible[intro]:
   \<open>rgsat c r g \<bottom> q L F C\<close>
@@ -322,6 +322,7 @@ lemma sp_crash_healthy_rel_eq:
     (\<lambda>(l', s', k'). (\<exists>s. r s (l', s', k') \<and> p s))\<close>
   by (simp add: sp_def fun_eq_iff)
 
+(*
 lemma rgsat_assert:
   assumes
     \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
@@ -478,7 +479,7 @@ lemma rgsat_while_stable:
   done
 *)
   sorry
-
+*)
 
 subsection \<open> Atom Variants \<close>
 
