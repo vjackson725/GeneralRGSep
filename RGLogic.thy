@@ -37,27 +37,27 @@ inductive rgsat ::
     C (Iter c) \<Longrightarrow>
     rgsat (Iter c) R G p q I F C\<close>
 | rgsat_seq:
-  \<open>rgsat ca r g p pp Ia F C \<Longrightarrow>
-    rgsat cb r g pp q Ib F C \<Longrightarrow>
+  \<open>rgsat ca R G p pp Ia F C \<Longrightarrow>
+    rgsat cb R G pp q Ib F C \<Longrightarrow>
     Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
     C (ca ;; cb) \<Longrightarrow>
-    rgsat (ca ;; cb) r g p q I F C\<close>
+    rgsat (ca ;; cb) R G p q I F C\<close>
 | rgsat_indet:
-  \<open>rgsat ca r Ga p qa Ia F C \<Longrightarrow>
-    rgsat cb r Gb p qb Ib F C \<Longrightarrow>
+  \<open>rgsat ca R Ga p qa Ia F C \<Longrightarrow>
+    rgsat cb R Gb p qb Ib F C \<Longrightarrow>
     Ga \<le> G \<Longrightarrow> Gb \<le> G \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
     Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
     C (ca \<^bold>\<sqinter> cb) \<Longrightarrow>
-    rgsat (ca \<^bold>\<sqinter> cb) r G p q I F C\<close>
+    rgsat (ca \<^bold>\<sqinter> cb) R G p q I F C\<close>
 | rgsat_endet:
-  \<open>rgsat ca r Ga p qa Ia F C \<Longrightarrow>
-    rgsat cb r Gb p qb Ib F C \<Longrightarrow>
+  \<open>rgsat ca R Ga p qa Ia F C \<Longrightarrow>
+    rgsat cb R Gb p qb Ib F C \<Longrightarrow>
     Ga \<le> G \<Longrightarrow> Gb \<le> G \<Longrightarrow>
     qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
     Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
     C (ca \<^bold>\<box> cb) \<Longrightarrow>
-    rgsat (ca \<^bold>\<box> cb) r G p q I F C\<close>
+    rgsat (ca \<^bold>\<box> cb) R G p q I F C\<close>
 | rgsat_par:
   \<open>rgsat ca (R \<squnion> Gb) Ga pa qa Ia (Ib \<squnion> Ib \<^emph>\<and> F) C \<Longrightarrow>
     rgsat cb (R \<squnion> Ga) Gb pb qb Ib (Ia \<squnion> Ia \<^emph>\<and> F) C \<Longrightarrow>

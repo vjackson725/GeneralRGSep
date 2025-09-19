@@ -1848,7 +1848,7 @@ proof (induct n arbitrary: c sxy)
 qed force
 
 
-
+(*
 section \<open> Scratch Space \<close>
 
 text \<open>
@@ -2102,5 +2102,6 @@ lemma head_atomic_nostep_iff_state_not_in_head_guards:
       and you \<^emph>\<open>don't\<close> know every move will be synchronised, you should lift
       the guarantee as follows: \<open>Ga\<^sup>=\<^sup>= \<times>\<^sub>R Gb \<squnion> Ga \<times>\<^sub>R Gb\<^sup>=\<^sup>=\<close>.
     \<close>
+*)
 
 end
