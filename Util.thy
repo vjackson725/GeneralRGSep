@@ -92,6 +92,14 @@ lemma conj_disj_distribR_middle:
   \<open>(P \<and> R \<or> S \<and> T) \<and> Q \<longleftrightarrow> P \<and> Q \<and> R \<or> S \<and> Q \<and> T\<close>
   by blast
 
+lemma imp_iff_imp_iff:
+  \<open>(A \<longrightarrow> B) = (A \<longrightarrow> C) \<longleftrightarrow> (A \<longrightarrow> B = C)\<close>
+  by blast
+
+lemma ex_middle_eq_iff:
+  \<open>(\<exists>c1'. (\<exists>c1. P c1 \<and> c1' = f c1) \<and> Q c1') \<longleftrightarrow> (\<exists>c1. P c1 \<and> Q (f c1))\<close>
+  by blast
+
 
 section \<open> Tuples \<close>
 
@@ -166,15 +174,24 @@ abbreviation \<open>rel_liftR \<equiv> rel_lift \<top>\<close>
 
 definition \<open>rel_imp_lift p q \<equiv> \<lambda>a b. p a \<longrightarrow> q b\<close>
 
+lemma rel_lift_apply[simp]:
+  \<open>rel_lift p q a b = (p a \<and> q b)\<close>
+  by (simp add: rel_lift_def)
+
+
 definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
   \<open>r \<circ>\<^sub>2 f \<equiv> \<lambda>x y. r (f x) (f y)\<close>
 
 lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
   by (simp add: comp_rel_def comp_def)
 
-lemma rel_lift_apply[simp]:
-  \<open>rel_lift p q a b = (p a \<and> q b)\<close>
-  by (simp add: rel_lift_def)
+
+definition rel_image :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool)\<close> where
+  \<open>rel_image f r \<equiv> \<lambda>x x'. \<exists>y y'. r y y' \<and> x = f y \<and> x' = f y'\<close>
+
+lemma rel_image_apply[simp]:
+  \<open>rel_image f r x x' = (\<exists>y y'. r y y' \<and> x = f y \<and> x' = f y')\<close>
+  by (simp add: rel_image_def)
 
 
 definition \<open>pre_state_of B r \<equiv> \<lambda>a. \<exists>b\<in>B. r a b\<close>
@@ -200,13 +217,13 @@ subsubsection \<open> rel liftings / projs \<close>
 
 paragraph \<open> binary relations \<close>
 
-lemma liftL_mono[simp]:
-  \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: rel_lift_def le_fun_def)
-
-lemma liftR_mono[simp]:
+lemma rel_liftR_mono[simp]:
   \<open>rel_liftR p \<le> rel_liftR q \<longleftrightarrow> p \<le> q\<close>
   by (simp add: rel_lift_def)
+
+lemma rel_liftL_mono[simp]:
+  \<open>rel_liftL p \<le> rel_liftL q \<longleftrightarrow> p \<le> q\<close>
+  by (simp add: rel_lift_def le_fun_def)
 
 lemma rel_lift_top[simp]:
   \<open>rel_lift \<top> \<top> = \<top>\<close>
@@ -245,6 +262,21 @@ lemma rel_liftR_disj_distrib:
 lemma rel_liftL_conj_eq:
   \<open>rel_liftL (p \<sqinter> q) = rel_liftL p \<sqinter> rel_liftL q\<close>
   by (force simp add: rel_lift_def)
+
+
+subsubsection \<open> rel_image \<close>
+
+lemma rel_image_conj_semidistrib:
+  \<open>rel_image f (ra \<sqinter> rb) \<le> rel_image f ra \<sqinter> rel_image f rb\<close>
+  by (force simp add: rel_image_def le_fun_def)
+
+lemma rel_image_disj_distrib:
+  \<open>rel_image f (ra \<squnion> rb) = rel_image f ra \<squnion> rel_image f rb\<close>
+  by (force simp add: rel_image_def le_fun_def)
+
+lemma rel_image_mono:
+  \<open>ra \<le> rb \<Longrightarrow> rel_image f ra \<le> rel_image f rb\<close>
+  by (metis rel_image_disj_distrib sup.order_iff)
 
 
 subsubsection \<open> pre- and post-state \<close>
@@ -994,86 +1026,101 @@ end
 
 section \<open> Times \<close>
 
-definition pred_Times :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
+definition pred_times :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
   (infixr \<open>\<times>\<^sub>P\<close> 80) where
   \<open>p \<times>\<^sub>P q \<equiv> \<lambda>(a,b). p a \<and> q b\<close>
 
-lemma pred_Times_iff[simp]: \<open>(p1 \<times>\<^sub>P p2) (a, b) \<longleftrightarrow> p1 a \<and> p2 b\<close>
-  by (force simp add: pred_Times_def)
+lemma pred_times_iff[simp]: \<open>(p1 \<times>\<^sub>P p2) (a, b) \<longleftrightarrow> p1 a \<and> p2 b\<close>
+  by (force simp add: pred_times_def)
 
-lemma pred_Times_almost_assoc:
+lemma pred_times_almost_assoc:
   \<open>((p1 \<times>\<^sub>P p2) \<times>\<^sub>P p3) ((a,b),c) = (p1 \<times>\<^sub>P p2 \<times>\<^sub>P p3) (a,b,c)\<close>
   by simp
 
-lemma top_pred_Times_top_eq[simp]: \<open>\<top> \<times>\<^sub>P \<top> = \<top>\<close>
-  by (simp add: pred_Times_def fun_eq_iff)
+lemma top_pred_times_top_eq[simp]: \<open>\<top> \<times>\<^sub>P \<top> = \<top>\<close>
+  by (simp add: pred_times_def fun_eq_iff)
 
-lemma bot_pred_Times_eq[simp]: \<open>\<bottom> \<times>\<^sub>P b = \<bottom>\<close>
-  by (simp add: pred_Times_def fun_eq_iff)
+lemma bot_pred_times_eq[simp]: \<open>\<bottom> \<times>\<^sub>P b = \<bottom>\<close>
+  by (simp add: pred_times_def fun_eq_iff)
 
-lemma pred_Times_bot_eq[simp]: \<open>a \<times>\<^sub>P \<bottom> = \<bottom>\<close>
-  by (simp add: pred_Times_def fun_eq_iff)
+lemma pred_times_bot_eq[simp]: \<open>a \<times>\<^sub>P \<bottom> = \<bottom>\<close>
+  by (simp add: pred_times_def fun_eq_iff)
 
-definition rel_Times :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('c \<Rightarrow> 'd \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'c \<Rightarrow> 'b \<times> 'd \<Rightarrow> bool)\<close>
+definition rel_times :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('c \<Rightarrow> 'd \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'c \<Rightarrow> 'b \<times> 'd \<Rightarrow> bool)\<close>
   (infixr \<open>\<times>\<^sub>R\<close> 80) where
   \<open>r1 \<times>\<^sub>R r2 \<equiv> \<lambda>(a,c) (b, d). r1 a b \<and> r2 c d\<close>
 
-lemma rel_Times_apply:
+lemma rel_times_apply:
   \<open>(r1 \<times>\<^sub>R r2) x x' \<longleftrightarrow> r1 (fst x) (fst x') \<and> r2 (snd x) (snd x')\<close>
-  by (force simp add: rel_Times_def)
+  by (force simp add: rel_times_def)
 
-lemma rel_Times_apply'[simp]:
+lemma rel_times_apply'[simp]:
   \<open>(r1 \<times>\<^sub>R r2) (x,y) (x',y') \<longleftrightarrow> r1 x x' \<and> r2 y y'\<close>
-  by (force simp add: rel_Times_def)
+  by (force simp add: rel_times_def)
 
-lemma rel_Times_almost_assoc:
+lemma rel_times_almost_assoc:
   \<open>((r1 \<times>\<^sub>R r2) \<times>\<^sub>R r3) ((a,b),c) ((a',b'),c') = (r1 \<times>\<^sub>R r2 \<times>\<^sub>R r3) (a,b,c) (a',b',c')\<close>
-  by (simp add: rel_Times_apply)
+  by (simp add: rel_times_apply)
 
-lemma rel_Times_reflp_iff[simp]:
+lemma rel_times_reflp_iff[simp]:
   \<open>reflp (r1 \<times>\<^sub>R r2) \<longleftrightarrow> reflp r1 \<and> reflp r2\<close>
-  by (simp add: rel_Times_def reflp_def)
+  by (simp add: rel_times_def reflp_def)
 
-lemma rel_Times_rtranclp_semidistrib:
+lemma rel_times_rtranclp_semidistrib:
   \<open>(r1 \<times>\<^sub>R r2)\<^sup>*\<^sup>* \<le> r1\<^sup>*\<^sup>* \<times>\<^sub>R r2\<^sup>*\<^sup>*\<close>
-  apply (clarsimp simp add: le_fun_def rel_Times_def)
+  apply (clarsimp simp add: le_fun_def rel_times_def)
   apply (metis rtranclp_tuple_rel_semidistrib fst_conv snd_conv)
   done
 
-lemma rel_Times_right_eq_rtranclp_distrib[simp]:
+lemma rel_times_right_eq_rtranclp_distrib[simp]:
   \<open>(r \<times>\<^sub>R (=))\<^sup>*\<^sup>* = r\<^sup>*\<^sup>* \<times>\<^sub>R (=)\<close>
   apply (rule order.antisym)
-   apply (force dest: rtranclp_tuple_rel_semidistrib simp add: le_fun_def rel_Times_def)
-  apply (force dest: rtranclp_tuple_lift_eq_right simp add: le_fun_def rel_Times_def)
+   apply (force dest: rtranclp_tuple_rel_semidistrib simp add: le_fun_def rel_times_def)
+  apply (force dest: rtranclp_tuple_lift_eq_right simp add: le_fun_def rel_times_def)
   done
 
-lemma rel_Times_left_eq_rtranclp_distrib[simp]:
+lemma rel_times_left_eq_rtranclp_distrib[simp]:
   \<open>((=) \<times>\<^sub>R r2)\<^sup>*\<^sup>* = (=) \<times>\<^sub>R r2\<^sup>*\<^sup>*\<close>
   apply (rule order.antisym)
-   apply (force dest: rtranclp_tuple_rel_semidistrib simp add: le_fun_def rel_Times_def)
-  apply (force dest: rtranclp_tuple_lift_eq_left simp add: le_fun_def rel_Times_def)
+   apply (force dest: rtranclp_tuple_rel_semidistrib simp add: le_fun_def rel_times_def)
+  apply (force dest: rtranclp_tuple_lift_eq_left simp add: le_fun_def rel_times_def)
   done
 
-lemma rel_Times_comp[simp]:
+lemma rel_times_comp[simp]:
   \<open>(a \<times>\<^sub>R b) OO (c \<times>\<^sub>R d) = (a OO c) \<times>\<^sub>R (b OO d)\<close>
   by (force simp add: fun_eq_iff OO_def)
 
-lemma rel_Times_mono:
+lemma rel_times_mono:
   \<open>a \<le> a' \<Longrightarrow> b \<le> b' \<Longrightarrow> a \<times>\<^sub>R b \<le> a' \<times>\<^sub>R b'\<close>
   by (force simp add: fun_eq_iff)
 
-lemma rel_Times_mono_left:
+lemma rel_times_mono_left:
   \<open>a \<le> a' \<Longrightarrow> a \<times>\<^sub>R b \<le> a' \<times>\<^sub>R b\<close>
-  by (simp add: rel_Times_mono)
+  by (simp add: rel_times_mono)
 
-lemma rel_Times_mono_right:
+lemma rel_times_mono_right:
   \<open>b \<le> b' \<Longrightarrow> a \<times>\<^sub>R b \<le> a \<times>\<^sub>R b'\<close>
-  by (simp add: rel_Times_mono)
+  by (simp add: rel_times_mono)
 
 lemma Times_singleton[simp]:
   \<open>{x} \<times> B = Pair x ` B\<close>
   \<open>A \<times> {y} = flip Pair y ` A\<close>
   by force+
+
+lemma rel_image_fst_galois:
+  \<open>rel_image fst ra \<le> rb \<longleftrightarrow> ra \<le> rb \<times>\<^sub>R \<top>\<close>
+  by (force simp add: rel_times_def rel_image_def le_fun_def)
+
+lemma rel_image_snd_galois:
+  \<open>rel_image snd ra \<le> rb \<longleftrightarrow> ra \<le> \<top> \<times>\<^sub>R rb\<close>
+  by (force simp add: rel_times_def rel_image_def le_fun_def)
+
+lemma rel_times_trans: \<open>transp ra \<Longrightarrow> transp rb \<Longrightarrow> transp (ra \<times>\<^sub>R rb)\<close>
+  by (simp add: rel_times_mono transp_relcompp)
+
+lemma eqrel_times_eqrel_eq[simp]:
+  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
+  by (force simp add: rel_times_def)
 
 
 section \<open> Relations + Relations as Programs \<close>
@@ -1370,8 +1417,6 @@ lemma wlp_sp_absorb:
   by (rule order.antisym; simp add: wlp_sp_weak_absorb wlp_refl_rel_le)
 
 
-
-
 \<comment> \<open> TODO: move \<close>
 
 abbreviation map_suml :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> 'a + 'c \<Rightarrow> 'b + 'c\<close> where
@@ -1379,5 +1424,56 @@ abbreviation map_suml :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> 'a + 'c \<Ri
 
 abbreviation map_sumr :: \<open>('b \<Rightarrow> 'c) \<Rightarrow> 'a + 'b \<Rightarrow> 'a + 'c\<close> where
   \<open>map_sumr f \<equiv> map_sum (\<lambda>x. x) f\<close>
+
+lemma add_leq_Suc0_iff:
+  \<open>x + y \<le> Suc 0 \<longleftrightarrow> x \<le> Suc 0 \<and> y = 0 \<or> x = 0 \<and> y \<le> Suc 0\<close>
+  by force
+
+lemma sum_leq_Suc0_iff:
+  \<open>finite A \<Longrightarrow>
+    sum f A \<le> Suc 0 \<longleftrightarrow> (\<forall>x\<in>A. f x = 0) \<or> (\<exists>x\<in>A. f x = Suc 0 \<and> (\<forall>y\<in>A. y \<noteq> x \<longrightarrow> f y = 0))\<close>
+  apply (induct rule: finite.induct)
+   apply force
+  apply (case_tac \<open>a \<in> A\<close>)
+   apply (frule mk_disjoint_insert, clarsimp simp add: sum.insert_remove; fail)
+  apply (auto simp add: sum.insert_remove conj_disj_distribL le_Suc_eq add_is_1)
+  done
+
+lemma iff_extract_agreement:
+  \<open>(P \<Longrightarrow> X) \<Longrightarrow> (Q \<Longrightarrow> X) \<Longrightarrow> P = Q \<longleftrightarrow> (X \<longrightarrow> P = Q)\<close>
+  by blast
+
+(*
+subsection \<open> Sublist \<close>
+
+inductive sublist :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>l\<close> 55) where
+  sublist_nil[intro!]: \<open>[] \<preceq>\<^sub>l xs\<close>
+| sublist_cons[intro!]: \<open>ys' = x # ys \<Longrightarrow> xs \<preceq>\<^sub>l ys \<Longrightarrow> x # xs \<preceq>\<^sub>l ys'\<close>
+
+inductive_cases sublist_nilE[elim!]: \<open>[] \<preceq>\<^sub>l xs\<close>
+inductive_cases sublist_consE[elim]: \<open>x # xs \<preceq>\<^sub>l ys'\<close>
+
+lemma sublist_iff[simp]:
+  \<open>[] \<preceq>\<^sub>l xs\<close>
+  \<open>x # xs \<preceq>\<^sub>l ys' \<longleftrightarrow> (\<exists>ys. ys' = x # ys \<and> xs \<preceq>\<^sub>l ys)\<close>
+  by force+
+
+lemma sublist_refl[intro]: \<open>xs \<preceq>\<^sub>l xs\<close>
+  by (induct xs) blast+
+
+lemma sublist_trans[trans]: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l zs \<Longrightarrow> xs \<preceq>\<^sub>l zs\<close>
+  by (induct xs arbitrary: ys zs) force+
+
+lemma sublist_antisym: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l xs \<Longrightarrow> xs = ys\<close>
+  by (induct xs arbitrary: ys) (force elim: sublist.cases)+
+
+lemma sublist_iff_append:
+  \<open>xs \<preceq>\<^sub>l ys \<longleftrightarrow> (\<exists>zs. ys = xs @ zs)\<close>
+  by (induct xs arbitrary: ys) force+
+
+lemma ex_list_length_iff_ex_nat:
+  \<open>(\<exists>xs. P (length xs)) \<longleftrightarrow> (\<exists>n. P n)\<close>
+  by (metis (mono_tags) Ex_list_of_length)
+*)
 
 end

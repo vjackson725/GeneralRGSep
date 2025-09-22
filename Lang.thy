@@ -293,18 +293,18 @@ section \<open> Specific Languages \<close>
 
 (* TODO: move *)
 
-datatype crash_st = Running | Crashed
+datatype crash_st = Running | Failed
 
-text \<open> Crashed should not be resolvable. \<close>
+text \<open> Failed should not be resolvable. \<close>
 definition
-  \<open>crash_healthy_rel r \<equiv>
-    (\<lambda>(l, s, k) s'. k = Running \<and> r (l,s) s' \<or> k = Crashed \<and> s' = (l, s, k))\<close>
+  \<open>failure_healthy_rel r \<equiv>
+    (\<lambda>(l, s, k) s'. k = Running \<and> r (l,s) s' \<or> k = Failed \<and> s' = (l, s, k))\<close>
 
-lemma crash_healthy_rel_apply[simp]:
-  \<open>crash_healthy_rel r s s' =
+lemma failure_healthy_rel_apply[simp]:
+  \<open>failure_healthy_rel r s s' =
     (snd (snd s) = Running \<and> r (fst s, fst (snd s)) s' \<or>
-      snd (snd s) = Crashed \<and> s' = s)\<close>
-  by (simp add: crash_healthy_rel_def split: prod.splits)
+      snd (snd s) = Failed \<and> s' = s)\<close>
+  by (simp add: failure_healthy_rel_def split: prod.splits)
 
 
 subsection \<open> Sugared atomic programs \<close>
@@ -312,15 +312,15 @@ subsection \<open> Sugared atomic programs \<close>
 subsubsection \<open> Assert \<close>
 
 text \<open>
-  Assert crashes when its precondition is not met.
-  GenRGSep has no native crash state, and it must be encoded into the
-  state model. Separation logic is not compatible with a destructive crash,
+  Assert fails when its precondition is not met.
+  GenRGSep has no embedded fail state, and so it must be encoded into the
+  state model. Separation logic is not compatible with destructive failure,
   and, moreover, atoms see the whole state, not the local state.
-    Thus we place a crash in the shared state.
+  Thus we place a crash in the shared state.
 \<close>
 definition \<open>Assert p \<equiv>
-  Atomic (crash_healthy_rel (\<lambda>(l, s) (l', s', k').
-    l' = l \<and> s' = s \<and> (p (l,s) \<and> k' = Running \<or> \<not> p (l,s) \<and> k' = Crashed)
+  Atomic (failure_healthy_rel (\<lambda>(l, s) (l', s', k').
+    l' = l \<and> s' = s \<and> (p (l,s) \<and> k' = Running \<or> \<not> p (l,s) \<and> k' = Failed)
   ))\<close>
 
 
@@ -380,13 +380,9 @@ section \<open> rely/guarantee helpers \<close>
 abbreviation \<open>sswa r \<equiv> sp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
 abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
 
-subsection \<open> rel relf + trans \<close>
+lemmas relyrel_trans = rel_times_trans[OF transp_equality transp_rtranclp]
+lemmas relyrel_mono = rel_times_mono[OF order.refl rtranclp_mono]
 
-lemma relyrel_trans: \<open>transp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
-  by (metis rel_Times_left_eq_rtranclp_distrib transp_rtranclp)
-
-lemma relyrel_mono: \<open>r1 \<le> r2 \<Longrightarrow> ((=) \<times>\<^sub>R r1\<^sup>*\<^sup>*) \<le> ((=) \<times>\<^sub>R r2\<^sup>*\<^sup>*)\<close>
-  by (simp add: le_fun_def, metis mono_rtranclp)
 
 subsection \<open> step properties \<close>
 
@@ -499,11 +495,11 @@ subsection \<open> Interaction with pred-Times \<close>
 
 lemma wssa_of_pred_Times_eq[simp]:
   \<open>wssa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P wlp r\<^sup>*\<^sup>* q)\<close>
-  by (force simp add: rel_Times_def pred_Times_def wlp_def split: prod.splits)
+  by (force simp add: rel_times_def pred_times_def wlp_def split: prod.splits)
 
 lemma sp_rely_of_pred_Times_eq[simp]:
   \<open>sswa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P sp r\<^sup>*\<^sup>* q)\<close>
-  by (force simp add: rel_Times_def pred_Times_def sp_def split: prod.splits)
+  by (force simp add: rel_times_def pred_times_def sp_def split: prod.splits)
 
 
 subsection \<open> Local and shared predicate lifting \<close>

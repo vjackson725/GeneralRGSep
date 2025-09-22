@@ -85,6 +85,9 @@ lemma sp_exch4_of_rel_Times_eq[simp]:
   by (force simp add: fun_eq_iff sp_def)
 
 
+lemma
+  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile>\<^sub>k { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+
 lemma double_program_lifting':
   assumes \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
   shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>

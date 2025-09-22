@@ -207,8 +207,8 @@ lemma opstep_assert_iff[simp]:
       fst (fst sc') = fst s \<and>
       fst (snd (fst sc')) = fst (snd s) \<and>
       (p (fst s, fst (snd s)) \<and> snd (snd (fst sc')) = Running \<or>
-        \<not> p (fst s, fst (snd s)) \<and> snd (snd (fst sc')) = Crashed) \<or>
-      snd (snd s) = Crashed \<and> s = fst sc')\<close>
+        \<not> p (fst s, fst (snd s)) \<and> snd (snd (fst sc')) = Failed) \<or>
+      snd (snd s) = Failed \<and> s = fst sc')\<close>
   by (force simp add: Assert_def case_prod_beta)
 
 
@@ -563,29 +563,12 @@ lemma safe_frame:
 
 subsection \<open> Safety of Atomic \<close>
 
-(* TODO: move *)
-definition
-  \<open>rel_restr_fst r \<equiv> \<lambda>y y'. \<exists>x x'. r (x,y) (x',y')\<close>
-
-lemma rel_restr_fst_of_top_relTimes_eq[simp]:
-  \<open>rel_restr_fst (\<top> \<times>\<^sub>R r) = r\<close>
-  by (simp add: rel_restr_fst_def rel_Times_def fun_eq_iff)
-
-lemma rel_restr_fst_conj_semidistrib:
-  \<open>rel_restr_fst (ra \<sqinter> rb) \<le> rel_restr_fst ra \<sqinter> rel_restr_fst rb\<close>
-  by (force simp add: rel_restr_fst_def le_fun_def)
-
-lemma rel_restr_fst_galois:
-  \<open>rel_restr_fst r \<le> r' \<longleftrightarrow> r \<le> \<top> \<times>\<^sub>R r'\<close>
-  by (force simp add: rel_restr_fst_def le_fun_def)
-
 lemma safe_atom':
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
     \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
     sswa R p s \<Longrightarrow>
     safe R F
-      (rel_restr_fst (rel_liftL (sswa R p) \<sqinter> ar) \<squnion>
-        rel_restr_fst (rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
+      (rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
       (sswa R p \<squnion> sswa R q) \<comment> \<open> I \<close>
       (sswa R q) \<comment> \<open> q \<close>
       n \<langle>ar\<rangle> s\<close>
@@ -597,19 +580,19 @@ proof (induct n arbitrary: s)
     apply -
     apply (cases s)
     apply (rename_tac sl ss)
-    apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply)
+    apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply rel_image_apply)
     apply (rule safeI)
       (* subgoal: termination *)
        apply force
       (* subgoal: state inv *)
       apply force
       (* subgoal: rely *)
-      apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply)
+      apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply rel_image_apply)
       apply (simp add: ih sswa_step; fail)
       (* subgoal: local opstep *)
      apply (rule conjI[OF _ conjI])
       (* subsubgoal: guarantee *)
-       apply (force simp add: rel_restr_fst_def)
+       apply force
       (* subsubgoal: tau *)
       apply force
       (* subsubgoal: safe *)
@@ -618,8 +601,7 @@ proof (induct n arbitrary: s)
       (* subgoal: local framed opstep *)
     apply (rule conjI)
       (* subsubgoal: guarantee *)
-     apply (simp add: rel_restr_fst_def)
-     apply (metis disjoint_sym_iff partial_add_commute sepconj_conj_revI)
+     apply (simp, metis disjoint_sym_iff partial_add_commute sepconj_conj_revI)
       (* subsubgoal: safety after opstep *)
     apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
         simp add: safe_skip_stable_iff sp_sup)
@@ -632,8 +614,7 @@ qed simp
 lemma safe_atom:
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
     \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_restr_fst (rel_liftL (sswa R p) \<sqinter> ar) \<le> G \<Longrightarrow>
-    rel_restr_fst (rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
+    rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     wssa R p s \<Longrightarrow>
     sswa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
@@ -1283,18 +1264,14 @@ next
            apply (simp del: top_apply, metis order.trans wlp_weaker_iff_sp_stronger wssa_stronger)
           apply (simp del: top_apply, meson order_trans sepconj_conj_monoL sp_pred_mono
         wssa_stronger; fail)
-         apply (simp add: rel_restr_fst_galois del: top_apply)
-         apply (metis (no_types, lifting) inf.order_iff inf_assoc liftL_mono wssa_stronger)
-        apply (subgoal_tac \<open>rel_liftL (wssa R p \<^emph>\<and> F) \<le> rel_liftL (p \<^emph>\<and> F)\<close>)
-         prefer 2
-         apply (simp add: sepconj_conj_monoL wssa_stronger; fail)
-        apply (simp add: rel_restr_fst_galois del: top_apply)
-        apply (metis (no_types, lifting) inf.order_iff inf_assoc liftL_mono)
-       apply simp
-       apply blast
-      apply (meson order.trans sp_pred_mono wssa_stronger; fail)
-     apply blast
-    apply blast
+        apply (simp del: top_apply)
+        apply (rule order.trans[OF rel_image_mono, rotated], assumption)
+        apply (simp add: rel_image_mono inf_commute le_infI2 sepconj_conj_monoL sup.coboundedI1
+        sup.coboundedI2 wssa_stronger; fail)
+       apply fastforce
+      apply fastforce
+     apply fastforce
+    apply fastforce
     done
 next
   case (rgsat_frame c R G p q I F F' C)

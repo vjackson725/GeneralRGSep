@@ -3,84 +3,16 @@
 begin
 
 
-section \<open> Misc (TODO: move) \<close>
-
-lemma eqrel_times_eqrel_eq[simp]:
-  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
-  by (force simp add: rel_Times_def)
-
-lemma ex_helpers:
-  \<open>(\<exists>c1'. (\<exists>c1. P c1 \<and> c1' = f c1) \<and> Q c1') \<longleftrightarrow> (\<exists>c1. P c1 \<and> Q (f c1))\<close>
-  by blast
-
-lemma imp_iff_imp_iff:
-  \<open>(A \<longrightarrow> B) = (A \<longrightarrow> C) \<longleftrightarrow> (A \<longrightarrow> B = C)\<close>
-  by blast
-
-lemma add_leq_Suc0_iff:
-  \<open>x + y \<le> Suc 0 \<longleftrightarrow> x \<le> Suc 0 \<and> y = 0 \<or> x = 0 \<and> y \<le> Suc 0\<close>
-  by force
-
-lemma sum_leq_Suc0_iff:
-  \<open>finite A \<Longrightarrow>
-    sum f A \<le> Suc 0 \<longleftrightarrow> (\<forall>x\<in>A. f x = 0) \<or> (\<exists>x\<in>A. f x = Suc 0 \<and> (\<forall>y\<in>A. y \<noteq> x \<longrightarrow> f y = 0))\<close>
-  apply (induct rule: finite.induct)
-   apply force
-  apply (case_tac \<open>a \<in> A\<close>)
-   apply (frule mk_disjoint_insert, clarsimp simp add: sum.insert_remove; fail)
-  apply (auto simp add: sum.insert_remove conj_disj_distribL le_Suc_eq add_is_1)
-  done
-
-lemma iff_extract_agreement:
-  \<open>(P \<Longrightarrow> X) \<Longrightarrow> (Q \<Longrightarrow> X) \<Longrightarrow> P = Q \<longleftrightarrow> (X \<longrightarrow> P = Q)\<close>
-  by blast
-
-
-subsection \<open> Sublist \<close>
-
-inductive sublist :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>l\<close> 55) where
-  sublist_nil[intro!]: \<open>[] \<preceq>\<^sub>l xs\<close>
-| sublist_cons[intro!]: \<open>ys' = x # ys \<Longrightarrow> xs \<preceq>\<^sub>l ys \<Longrightarrow> x # xs \<preceq>\<^sub>l ys'\<close>
-
-inductive_cases sublist_nilE[elim!]: \<open>[] \<preceq>\<^sub>l xs\<close>
-inductive_cases sublist_consE[elim]: \<open>x # xs \<preceq>\<^sub>l ys'\<close>
-
-lemma sublist_iff[simp]:
-  \<open>[] \<preceq>\<^sub>l xs\<close>
-  \<open>x # xs \<preceq>\<^sub>l ys' \<longleftrightarrow> (\<exists>ys. ys' = x # ys \<and> xs \<preceq>\<^sub>l ys)\<close>
-  by force+
-
-lemma sublist_refl[intro]: \<open>xs \<preceq>\<^sub>l xs\<close>
-  by (induct xs) blast+
-
-lemma sublist_trans[trans]: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l zs \<Longrightarrow> xs \<preceq>\<^sub>l zs\<close>
-  by (induct xs arbitrary: ys zs) force+
-
-lemma sublist_antisym: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l xs \<Longrightarrow> xs = ys\<close>
-  by (induct xs arbitrary: ys) (force elim: sublist.cases)+
-
-lemma sublist_iff_append:
-  \<open>xs \<preceq>\<^sub>l ys \<longleftrightarrow> (\<exists>zs. ys = xs @ zs)\<close>
-  by (induct xs arbitrary: ys) force+
-
-lemma ex_list_length_iff_ex_nat:
-  \<open>(\<exists>xs. P (length xs)) \<longleftrightarrow> (\<exists>n. P n)\<close>
-  by (metis (mono_tags) Ex_list_of_length)
-
-
 section \<open> RGSep-Security State Types \<close>
 
 type_synonym ('a,'b) rgstate = \<open>(('a \<times> 'a) \<times> ('b \<times> 'b))\<close>
 
 type_synonym ('a,'b) secstate = \<open>(('a \<times> 'b) \<times> ('a \<times> 'b))\<close>
 
-
+(*
 section \<open> Pred-executions \<close>
 
-text \<open>
-  Predicate over all states of all executions.
-  (N.B. This does not avoid crashes.)
-\<close>
+text \<open> Predicate over all states of all executions. \<close>
 
 type_synonym 's config = \<open>'s \<times> 's comm\<close>
 
@@ -145,6 +77,7 @@ lemma pred_executions_pred_mono:
   done
 
 lemmas pred_executions_pred_monoD = pred_executions_pred_mono[rotated]
+*)
 
 
 section \<open> Double-state lifting \<close>
@@ -208,10 +141,10 @@ syntax
   "_twoPredLiftR"  :: "('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)"  ("\<bar> _ \<rblot>" [0] 997)
 
 translations
-  "_twoPredLiftBasic p" \<rightharpoonup> "(CONST pred_Times) p p"
-  "_twoPredLiftDouble p q" \<rightleftharpoons> "(CONST pred_Times) p q"
-  "_twoPredLiftL p" \<rightharpoonup> "(CONST pred_Times) p \<top>"
-  "_twoPredLiftR q" \<rightharpoonup> "(CONST pred_Times) \<top> q"
+  "_twoPredLiftBasic p" \<rightharpoonup> "(CONST pred_times) p p"
+  "_twoPredLiftDouble p q" \<rightleftharpoons> "(CONST pred_times) p q"
+  "_twoPredLiftL p" \<rightharpoonup> "(CONST pred_times) p \<top>"
+  "_twoPredLiftR q" \<rightharpoonup> "(CONST pred_times) \<top> q"
 
 
 subsection \<open> Agreement \<close>

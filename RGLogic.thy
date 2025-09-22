@@ -70,12 +70,11 @@ inductive rgsat ::
 | rgsat_atom:
   \<open>p' \<le> wssa R p \<Longrightarrow>
     sswa R q \<le> q' \<Longrightarrow>
-    \<comment> \<open> plain \<close>
+    \<comment> \<open> step \<close>
     sp ar p \<le> q \<Longrightarrow>
-    rel_liftL p \<sqinter> ar \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
-    \<comment> \<open> framed \<close>
     \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    rel_liftL (p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G \<Longrightarrow>
+    \<comment> \<open> guarantee condition \<close>
+    rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     \<comment> \<open> misc \<close>
     sswa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
@@ -374,18 +373,18 @@ lemma pred_Times_third_apply[simp]:
 
 
 abbreviation
-  \<open>nocrash_pred p \<equiv> p \<times>\<^sub>P\<^sub>3 (=) Running\<close>
+  \<open>nofailure_pred p \<equiv> p \<times>\<^sub>P\<^sub>3 (=) Running\<close>
 
-lemmas nocrash_pred_def =
+lemmas nofailure_pred_def =
   pred_Times_third_def[of _ \<open>(=) Running\<close>]
 
-abbreviation crash_rgsat_pretty
-  (\<open>_, _, _, _, _ \<turnstile>\<^sub>k { _ } _ { _ }\<close> [55, 0, 0, 0, 0, 55, 55, 55] 56) where
-  \<open>R, G, I, F, C \<turnstile>\<^sub>k { p } c { q } \<equiv>
+abbreviation failure_rgsat_pretty
+  (\<open>_, _, _, _, _ \<turnstile>\<^sub>f { _ } _ { _ }\<close> [55, 0, 0, 0, 0, 55, 55, 55] 56) where
+  \<open>R, G, I, F, C \<turnstile>\<^sub>f { p } c { q } \<equiv>
     rgsat c
       (R \<times>\<^sub>R (=)) (G \<times>\<^sub>R (=))
-      (nocrash_pred p) (nocrash_pred q)
-      (nocrash_pred I) (nocrash_pred F)
+      (nofailure_pred p) (nofailure_pred q)
+      (nofailure_pred I) (nofailure_pred F)
       C\<close>
 
 
@@ -406,8 +405,8 @@ lemma predTimes3_eqVal_le_iff[simp]:
   \<open>pa \<times>\<^sub>P\<^sub>3 (=) v \<le> pb \<times>\<^sub>P\<^sub>3 (=) v \<longleftrightarrow> pa \<le> pb\<close>
   by (force simp add: pred_Times_third_def)
 
-lemma all_impl_nocrash_pred_internalise:
-  \<open>(\<forall>p\<le>nocrash_pred P. q p) \<longleftrightarrow> (\<forall>p\<le>P. q (nocrash_pred p))\<close>
+lemma all_impl_nofailure_pred_internalise:
+  \<open>(\<forall>p\<le>nofailure_pred P. q p) \<longleftrightarrow> (\<forall>p\<le>P. q (nofailure_pred p))\<close>
   apply (simp add: pred_Times_third_def le_fun_def)
   apply (intro iffI allI impI, force)
   apply (drule_tac x=\<open>\<lambda>(l,s). \<exists>k. p (l, s, Running)\<close> in spec)
@@ -415,76 +414,78 @@ lemma all_impl_nocrash_pred_internalise:
   apply (subgoal_tac \<open>(\<lambda>(l, s, k). p (l, s, Running) \<and> Running = k) = p\<close>; force)
   done
 
-lemma sp_crash_healthy_rel_eq:
-  \<open>sp (crash_healthy_rel r) (nocrash_pred p) =
+lemma sp_failure_healthy_rel_eq:
+  \<open>sp (failure_healthy_rel r) (nofailure_pred p) =
     (\<lambda>(l', s', k'). (\<exists>s. r s (l', s', k') \<and> p s))\<close>
   by (simp add: sp_def fun_eq_iff)
 
 lemma rgsat_assert:
-  assumes plain:
+  assumes precond:
     \<open>sswa R p \<le> pa\<close>
-    \<open>sswa R p \<le> q\<close>
-    \<open>rel_liftL (sswa R p) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
-    and framed:
     \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
+    and step:
+    \<open>sswa R p \<le> q\<close>
     \<open>\<forall>f\<le>F. sswa R p \<^emph>\<and> f \<le> q \<^emph>\<and> f\<close>
-    \<open>rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
+    and guar:
+    \<open>rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     and misc:
     \<open>sswa R p \<le> I\<close>
     \<open>sswa R q \<le> I\<close>
     \<open>C (Assert pa)\<close>
   shows
-    \<open>R, G, I, F, C \<turnstile>\<^sub>k { p } Assert pa { q }\<close>
+    \<open>R, G, I, F, C \<turnstile>\<^sub>f { p } Assert pa { q }\<close>
   using assms
   unfolding Assert_def
-proof (intro rgsat_atom[where q=\<open>nocrash_pred (sswa R p)\<close>])
-  let ?ra' = \<open>(crash_healthy_rel
+proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
+  let ?ra' = \<open>(failure_healthy_rel
             (\<lambda>(l, s) (l', s', k').
                 l' = l \<and>
-                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Crashed)))\<close>
+                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
 
   show
-    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nocrash_pred p)) \<le> (nocrash_pred (sswa R p))\<close>
-    using plain
-    by (force simp add: all_impl_nocrash_pred_internalise
-        predTimes3_sepconj_conj_distrib[symmetric] sp_crash_healthy_rel_eq)
+    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p)) \<le> (nofailure_pred (sswa R p))\<close>
+    using precond
+    by (force simp add: all_impl_nofailure_pred_internalise
+        predTimes3_sepconj_conj_distrib[symmetric] sp_failure_healthy_rel_eq)
   show
-    \<open>rel_liftL (sswa (R \<times>\<^sub>R (=)) (nocrash_pred p)) \<sqinter> ?ra' \<le> \<top> \<times>\<^sub>R G \<times>\<^sub>R (=)\<close>
-    using plain
-    by (force simp add: predTimes3_sepconj_conj_distrib[symmetric] le_fun_def)
-
-  show
-    \<open>\<forall>f\<le>nocrash_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nocrash_pred p) \<^emph>\<and> f) \<le> nocrash_pred (sswa R p) \<^emph>\<and> f\<close>
-    using framed
-    by (simp add: all_impl_nocrash_pred_internalise
-        predTimes3_sepconj_conj_distrib[symmetric] sp_crash_healthy_rel_eq,
+    \<open>\<forall>f\<le>nofailure_pred F.
+       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> f\<close>
+    using precond
+    by (simp add: all_impl_nofailure_pred_internalise
+        predTimes3_sepconj_conj_distrib[symmetric] sp_failure_healthy_rel_eq,
         fastforce simp add: le_fun_def sepconj_conj_apply)
+
   show
-    \<open>rel_liftL (sswa (R \<times>\<^sub>R (=)) (nocrash_pred p) \<^emph>\<and> nocrash_pred F) \<sqinter> ?ra' \<le> \<top> \<times>\<^sub>R G \<times>\<^sub>R (=)\<close>
-    using framed
-    by (force simp add: predTimes3_sepconj_conj_distrib[symmetric] le_fun_def)
+    \<open>rel_image snd
+      (rel_liftL
+        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<squnion>
+          sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> nofailure_pred F) \<sqinter>
+        ?ra')
+    \<le> G \<times>\<^sub>R (=)\<close>
+    using guar precond
+    by (clarsimp simp add: rel_image_def le_fun_def split: prod.splits)
+      (metis fst_conv predTimes3_sepconj_conj_distrib pred_Times_third_apply snd_conv)
+
 qed (simp add: sswa_weaker wssa_stronger)+
 
 
 subsection \<open> Await \<close>
 
 lemma rgsat_await:
-  assumes
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> qa \<le> (sswa R p \<sqinter> qa) \<^emph>\<and> f\<close>
-    \<open>rel_liftL (sswa R p \<sqinter> qa) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
-    \<open>rel_liftL ((sswa R p \<^emph>\<and> F) \<sqinter> qa) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
-    \<open>sswa R (sswa R p \<sqinter> qa) \<le> q\<close>
+  assumes step: \<open>sswa R (sswa R p \<sqinter> qa) \<le> q\<close>
+    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<squnion> (sswa R p \<^emph>\<and> F)) \<sqinter> qa) \<sqinter> (=)) \<le> G\<close>
+    and frame_locality: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> qa \<le> (sswa R p \<sqinter> qa) \<^emph>\<and> f\<close>
+    and stinv:
     \<open>sswa R p \<le> I\<close>
     \<open>sswa R (sswa R p \<sqinter> qa) \<le> I\<close>
-    \<open>C (Await qa)\<close>
+    and cpred: \<open>C (Await qa)\<close>
   shows
     \<open>R, G, I, F, C \<turnstile> { p } Await qa { q }\<close>
   using assms
   unfolding Await_def
   apply (intro rgsat_atom[where p=\<open>sswa R p\<close> and q=\<open>sswa R p \<sqinter> qa\<close>])
-          apply force
-         apply (simp add: inf_assoc rel_liftL_conj_distrib; fail)+
+         apply force
+        apply (simp add: inf_assoc rel_liftL_conj_distrib inf.assoc; fail)+
   done
 
 text \<open>
@@ -500,8 +501,7 @@ subsection \<open> If-then-else \<close>
 
 lemma rgsat_if_then_else:
   assumes
-    \<open>rel_liftL (sswa R p) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
-    \<open>rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
+    \<open>rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
     and tt_guard_frame_cond:
     \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> f\<close>
     and ff_guard_frame_cond:
@@ -527,12 +527,10 @@ lemma rgsat_if_then_else:
 proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
       where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>])
   show \<open>R, G, sswa R p, F, C \<turnstile> { p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
-    using misc_assms assms(1-2) tt_guard_frame_cond
+    using misc_assms assms(1) tt_guard_frame_cond
     apply (intro rgsat_await; simp)
-      apply (meson order.eq_iff order.trans inf_mono inf_sup_ord(1) liftL_mono; fail)
-     apply (meson order.eq_iff order.trans inf_mono inf_sup_ord(1) liftL_mono; fail)
-    apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
-        wlp_weaker_iff_sp_stronger)
+     apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+    apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
     done
   show \<open>R, G, Ia, F, C \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     using body_assms
@@ -540,10 +538,10 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
   show \<open>R, G, sswa R p, F, C \<turnstile> { p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
     using ff_guard_frame_cond misc_assms assms
     apply (intro rgsat_await; simp)
-      apply (meson order.eq_iff order.trans inf_mono inf_sup_ord(1) liftL_mono; fail)
-     apply (meson order.eq_iff order.trans inf_mono inf_sup_ord(1) liftL_mono; fail)
+     apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
+        rel_liftL_conj_distrib; fail)
     apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
-        wlp_weaker_iff_sp_stronger)
+        wlp_weaker_iff_sp_stronger; fail)
     done
   show \<open>R, G, Ib, F, C \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
     using body_assms
@@ -649,7 +647,7 @@ lemma Sup_sepconjConj_framest_equiv_sepconjConj_frame:
   apply blast
   done
 
-lemma guar_rel_helper:
+lemma guar_rel_collapse_frames:
   \<open>\<Squnion>{rel_liftL (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} = rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> aq\<close>
 proof -
   have \<open>\<Squnion>{rel_liftL (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} =
@@ -660,5 +658,9 @@ proof -
   ultimately show ?thesis
     by (simp add: Sup_sepconjConj_framest_equiv_sepconjConj_frame)
 qed
+
+lemma guar_combine:
+  \<open>(rel_liftL p \<sqinter> ar) \<squnion> (rel_liftL (p \<^emph>\<and> F) \<sqinter> ar) = rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar\<close>
+  by (simp add: inf_sup_distrib2 rel_liftL_disj_distrib)
 
 end
