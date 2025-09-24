@@ -228,26 +228,62 @@ lemmas liftC_rev_iff[simp] =
     simplified liftC_def'[symmetric], THEN trans[OF eq_commute]]
 
 
+
 subsubsection \<open> unlift double command to command \<close>
 
-definition
-  \<open>unliftC \<equiv> map_atom (\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>))\<close>
+definition unliftC
+  :: \<open>(('lx \<times> 'ly) \<times> ('sx \<times> 'sy)) comm \<Rightarrow> ('lx \<times> 'sx) comm \<times> ('ly \<times> 'sy) comm\<close>
+  where
+    \<open>unliftC c \<equiv>
+      (map_atom (\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)) c, map_atom (\<lambda>ar. rel_image snd (ar \<circ>\<^sub>2 exch4)) c)\<close>
 
-lemma unliftC_atom_simp:
-  \<open>unliftC \<langle>ar\<rangle> = \<langle>\<lambda>x y. ar (exch4 (x, x)) (exch4 (y, y))\<rangle>\<close>
-  unfolding unliftC_def
-  by force
+lemma unliftC_simps[simp]:
+  \<open>unliftC Skip = (Skip, Skip)\<close>
+  \<open>unliftC (ca ;; cb) =
+    (let (cax, cay) = unliftC ca
+       ; (cbx, cby) = unliftC cb
+      in (cax ;; cbx, cay ;; cby))\<close>
+  \<open>unliftC (ca \<^bold>\<sqinter> cb) =
+    (let (cax, cay) = unliftC ca
+       ; (cbx, cby) = unliftC cb
+      in (cax \<^bold>\<sqinter> cbx, cay \<^bold>\<sqinter> cby))\<close>
+  \<open>unliftC (ca \<^bold>\<box> cb) =
+    (let (cax, cay) = unliftC ca
+       ; (cbx, cby) = unliftC cb
+      in (cax \<^bold>\<box> cbx, cay \<^bold>\<box> cby))\<close>
+  \<open>unliftC (ca \<parallel> cb) =
+    (let (cax, cay) = unliftC ca
+       ; (cbx, cby) = unliftC cb
+      in (cax \<parallel> cbx, cay \<parallel> cby))\<close>
+  \<open>unliftC (DO c OD) =
+    (let (cax, cay) = unliftC c
+      in (DO cax OD, DO cay OD))\<close>
+  \<open>unliftC \<langle>ar\<rangle> =
+    ( \<langle>rel_image fst (ar \<circ>\<^sub>2 exch4)\<rangle>, \<langle>rel_image snd (ar \<circ>\<^sub>2 exch4)\<rangle> )\<close>
+  by (simp add: unliftC_def)+
 
 lemmas unliftC_simp[simp] =
-  map_atom.simps(1-5,7)[of \<open>\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)\<close>,
+  map_atom.simps(1-5,7)[of \<open>\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)\<close>,
     simplified unliftC_def[symmetric]]
-  unliftC_atom_simp
 
-lemmas unliftC_rev_iff =
-  map_atom_rev_iff[of \<open>\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)\<close>,
-    simplified unliftC_def[symmetric]]
-  map_atom_rev_iff[of \<open>\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)\<close>,
-    simplified unliftC_def[symmetric], THEN trans[OF eq_commute]]
+
+lemma unliftC_rev_iff:
+  \<open>unliftC c = (Skip, Skip) \<longleftrightarrow> c = Skip\<close>
+  \<open>unliftC c = (cax ;; cbx, cay ;; cby) \<longleftrightarrow>
+    (\<exists>ca cb. c = ca ;; cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cax \<^bold>\<sqinter> cbx, cay \<^bold>\<sqinter> cby) \<longleftrightarrow>
+    (\<exists>ca cb. c = ca \<^bold>\<sqinter> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cax \<^bold>\<box> cbx, cay \<^bold>\<box> cby) \<longleftrightarrow>
+    (\<exists>ca cb. c = ca \<^bold>\<box> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cax \<parallel> cbx, cay \<parallel> cby) \<longleftrightarrow>
+    (\<exists>ca cb. c = ca \<parallel> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (DO cx OD, DO cy OD) \<longleftrightarrow>
+    (\<exists>c'. c = DO c' OD \<and> unliftC c' = (cx, cy))\<close>
+  \<open>unliftC c = (\<langle>arx\<rangle>, \<langle>ary\<rangle>) \<longleftrightarrow>
+    (\<exists>ar. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
+  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
+
+lemmas unliftC_rev_iff2 = unliftC_rev_iff[THEN trans[OF eq_commute]]
 
 
 subsubsection \<open> command atoms refl. closure \<close>
@@ -271,14 +307,21 @@ lemma liftC_is_reflcl[simp]:
   by (induct c) clarsimp+
 
 lemma unliftC_liftC_cancel[simp]:
-  \<open>unliftC (liftC c) = c\<close>
+  \<open>unliftC (liftC c) = (c, c)\<close>
   unfolding unliftC_def liftC_def'
-  by (induct c) (simp add: sec_agree_def)+
+  by (induct c) (force simp add: sec_agree_def fun_eq_iff)+
 
-lemma liftC_unliftC_cancel[simp]:
-  \<open>reflclC cc \<Longrightarrow> liftC (unliftC cc) = cc\<close>
+lemma reflclC_unliftC_same:
+  \<open>reflclC cc \<Longrightarrow> unliftC cc = (cx, cy) \<Longrightarrow> cx = cy\<close>
   unfolding unliftC_def liftC_def
-  by (induct cc) (clarsimp simp add: fun_eq_iff)+
+  by (induct cc arbitrary: cx cy)
+    (fastforce simp add: fun_eq_iff)+
+
+lemma reflclC_liftC_unliftC_cancel[simp]:
+  \<open>reflclC cc \<Longrightarrow> liftC (fst (unliftC cc)) = cc\<close>
+  unfolding unliftC_def liftC_def
+  using reflclC_unliftC_same
+  by (induct cc) (clarsimp simp add: fun_eq_iff; blast)+
 
 lemma liftC_cancel[simp]:
   \<open>liftC ca = liftC cb \<longleftrightarrow> ca = cb\<close>
@@ -1704,8 +1747,7 @@ theorem safety_implies_security:
     and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
   assumes
     \<open>safe R F G I q n (liftC c) (exch4 sxy)\<close>
-    \<open>I \<le> all_sec_determ c \<circ> exch4\<close>
-    \<open>I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
   shows
     \<open>secure R F G I q n (c, c) sxy\<close>
   using assms
@@ -1725,7 +1767,7 @@ proof (induct n arbitrary: c sxy)
       simplified fst_conv snd_conv sxy_split exch4_apply plus_prod_def]
 
   show ?case
-    using Suc.prems(2-3) safe_then_state_inv[OF Suc.prems(1)] safe_then_postcond[OF Suc.prems(1)]
+    using Suc.prems(2) safe_then_state_inv[OF Suc.prems(1)] safe_then_postcond[OF Suc.prems(1)]
       sxy_split
     apply (clarsimp simp del: sup_apply comp_apply)
     apply (rule secure_suc)
@@ -1752,8 +1794,7 @@ proof (induct n arbitrary: c sxy)
      apply (frule aopstep_preserves_all_sec_determ)
      apply (clarsimp simp del: comp_apply)
      apply (rule Suc_ih, assumption)
-      apply (meson le_exch4_shunt order.trans; fail)
-     apply (meson le_exch4_shunt order.trans; fail)
+     apply (meson order.trans le_exch4_shunt le_supI; fail)
         (* subgoal: framed double-step *)
     apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
      prefer 2
@@ -1772,8 +1813,7 @@ proof (induct n arbitrary: c sxy)
     apply (frule aopstep_preserves_all_sec_determ)
     apply (clarsimp simp del: comp_apply)
     apply (frule Suc_ih)
-      apply (meson le_exch4_shunt order.trans; fail)
-     apply (meson le_exch4_shunt order.trans; fail)
+     apply (meson order.trans le_exch4_shunt le_supI; fail)
     apply (frule aopstep_then_opstep)
     apply (clarsimp simp del: comp_apply)
     apply blast
