@@ -2,6 +2,11 @@
   imports "../Soundness"
 begin
 
+(* TODO: move *)
+
+definition diag (\<open>\<Delta>\<close>) where \<open>diag x = (x,x)\<close>
+declare diag_def[simp]
+
 
 section \<open> RGSep-Security State Types \<close>
 
@@ -136,7 +141,7 @@ lemma eq_exch4_iff[simp]:
   by (force simp add: exch4_def split: prod.splits)
 
 
-subsection \<open> relational lifting \<close>
+subsection \<open> Relational Predicate Lifting \<close>
 
 syntax
   "_twoPredLiftBasic"  :: "('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)"  ("\<lblot> _ \<rblot>" [0] 999)
@@ -151,16 +156,71 @@ translations
   "_twoPredLiftR q" \<rightharpoonup> "(CONST pred_times) \<top> q"
 
 
+subsubsection \<open> Pred. Lifting Lemmas \<close>
+
+lemma twoPredLift_sup_semidistrib:
+  \<open>\<lblot>p\<rblot> \<squnion> \<lblot>q\<rblot> \<le> \<lblot>p \<squnion> q\<rblot>\<close>
+  by (simp add: le_fun_def)
+
+lemma twoPredLift_Sup_semidistrib:
+  \<open>(\<Squnion>p\<in>P. \<lblot>p\<rblot>) \<le> \<lblot>\<Squnion>P\<rblot>\<close>
+  by (force simp add: le_fun_def)
+
+lemma twoPredLift_inf_distrib:
+  \<open>\<lblot>p \<sqinter> q\<rblot> = \<lblot>p\<rblot> \<sqinter> \<lblot>q\<rblot>\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma twoPredLift_Inf_distrib:
+  \<open>\<lblot>\<Sqinter>P\<rblot> = (\<Sqinter>p\<in>P. \<lblot>p\<rblot>)\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma twoPredLift_not_semidistrib:
+  \<open>\<lblot>- p\<rblot> \<le> - \<lblot>p\<rblot>\<close>
+  by (force simp add: fun_eq_iff)
+
+lemma twoPredLift_sepconj_distrib:
+  \<open>\<lblot>p \<^emph> q\<rblot> = \<lblot>p\<rblot> \<^emph> \<lblot>q\<rblot>\<close>
+  by (force simp add: fun_eq_iff sepconj_def)
+
+lemma twoPredLift_emp_distrib[simp]:
+  \<open>\<lblot>emp\<rblot> = emp\<close>
+  by (force simp add: fun_eq_iff emp_def)
+
+thm top_pred_times_top_eq
+thm bot_pred_times_eq pred_times_bot_eq
+
+
+subsubsection \<open> Exchanged Predicate Lifting \<close>
+
+definition pred_lift_exch4 (\<open>\<lblot> _ \<rblot>\<^sub>\<ddagger>\<close> [0]) where
+  \<open>pred_lift_exch4 p \<equiv> \<lblot> p \<rblot> \<circ> exch4\<close>
+
+lemma pred_lift_exch4_sepconj_conj_distrib:
+  \<open>\<lblot>p \<^emph>\<and> q\<rblot>\<^sub>\<ddagger> = \<lblot>p\<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot>q\<rblot>\<^sub>\<ddagger>\<close>
+  by (force simp add: pred_lift_exch4_def fun_eq_iff sepconj_conj_apply)
+
+lemma pred_lift_exch4_localpred_distrib:
+  \<open>\<lblot> \<L> p \<rblot>\<^sub>\<ddagger> = \<L> (\<lblot>p\<rblot>)\<close>
+  by (force simp add: pred_lift_exch4_def)
+
+lemma pred_lift_exch4_sharedpred_distrib:
+  \<open>\<lblot> \<S> p \<rblot>\<^sub>\<ddagger> = \<S> (\<lblot>p\<rblot>)\<close>
+  by (force simp add: pred_lift_exch4_def)
+
+
 subsection \<open> Agreement \<close>
 
-definition sec_agree
-  :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool\<close> (\<open>\<bbbA>\<close>)
-  where
-    \<open>\<bbbA> vf \<equiv> (\<lambda>(x,y). vf x = vf y)\<close>
+definition sec_agree :: \<open>('a \<Rightarrow> 'v) \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool\<close> (\<open>\<bbbA>\<close>) where
+  \<open>\<bbbA> vf \<equiv> (\<lambda>(x,y). vf x = vf y)\<close>
 
 lemma conj_agree_iff:
   \<open>\<bbbA> v1 \<sqinter> \<bbbA> v2 = \<bbbA> (\<lambda>x. (v1 x, v2 x))\<close>
   by (simp add: sec_agree_def exch4_def comp_def fun_eq_iff split: prod.splits)
+
+
+definition sec_agree_exch4 :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool\<close> (\<open>\<bbbA>\<^sub>\<ddagger>\<close>) where
+  \<open>\<bbbA>\<^sub>\<ddagger> h \<equiv> \<bbbA> h \<circ> exch4\<close>
+
 
 
 subsection \<open> Command Times \<close>
@@ -196,11 +256,7 @@ lemma comm_Times_rev[simp]:
 
 subsection \<open> Double-state Lifting \<close>
 
-(* TODO: move *)
-definition diag (\<open>\<Delta>\<close>) where \<open>diag x = (x,x)\<close>
-declare diag_def[simp]
-
-abbreviation(input) \<open>liftP p \<equiv> \<lblot> p \<rblot>\<close>
+abbreviation(input) \<open>liftP p \<equiv> p \<times>\<^sub>P p\<close>
 abbreviation(input) \<open>liftR r \<equiv> r \<times>\<^sub>R r\<close>
 
 
@@ -407,6 +463,84 @@ lemma all_doubled_atom_liftC_iff[simp]:
   \<open>all_atom_comm doubled_atom (liftC c)\<close>
   by (induct c)
     (force simp add: doubled_atom_def)+
+
+
+section \<open> GenRGSep Proof Security Lifting \<close>
+
+lemma genrgsep_proof_pairedst_lift:
+  assumes
+    \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
+    \<open>unliftC cc = (c, c)\<close>
+  shows
+    \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, \<top> \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } cc { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+  using assms
+proof (induct arbitrary: cc rule: rgsat.induct)
+  case (rgsat_skip R p q I C G F)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_skip)
+    sorry
+next
+  case (rgsat_iter c R G i I F C p q)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_iter)
+    sorry
+next
+  case (rgsat_seq ca R G p pp Ia F C cb q Ib I)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_seq)
+    sorry
+next
+  case (rgsat_indet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_indet)
+    sorry
+next
+  case (rgsat_endet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_endet)
+    sorry
+next
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_par)
+    sorry
+next
+  case (rgsat_atom p' R p q q' ar F G I C)
+  then show ?case
+    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_atom)
+    sorry
+next
+  case (rgsat_frame c R G p q I F F' C)
+  then show ?case
+    apply (simp add: pred_lift_exch4_sepconj_conj_distrib del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_frame)
+    sorry
+next
+  case (rgsat_weaken c r' g' p' q' I' F' C p q r g I F)
+  then show ?case
+    apply simp
+    apply (rule rgsat.rgsat_weaken)
+    sorry
+next
+  case (rgsat_Disj p' P c R G q I F C)
+  then show ?case
+    apply simp
+    apply (rule rgsat.rgsat_Disj)
+    sorry
+next
+  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
+  then show ?case
+    apply simp
+    apply (rule rgsat.rgsat_Conj)
+    sorry
+qed
 
 
 section \<open> Aligned Traces \<close>
@@ -1604,14 +1738,13 @@ lemma head_atomic_implies_all_steps_vis:
   by (induct _ sc sc' rule: aopstep_induct) auto
 
 
+subsection \<open> Security Determinism \<close>
+
 fun sec_determ :: \<open>('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close> where
   \<open>sec_determ (ca \<^bold>\<box> cb) = (\<lambda>(sx, sy).
     head_atomic ca \<and> head_atomic cb \<and>
-    (\<forall>ra \<in># head_atoms ca.
-      \<forall>rb \<in># head_atoms cb.
-        \<not> (pre_state ra sx \<and> pre_state rb sy) \<and>
-        \<not> (pre_state rb sx \<and> pre_state ra sy))
-  )\<close>
+    \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
+    \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy))\<close>
 | \<open>sec_determ (DO c OD) = (\<lambda>(sx, sy).
     head_atomic c \<and>
     pre_state (\<Squnion>(set_mset (head_atoms c))) sx =
@@ -1621,6 +1754,11 @@ fun sec_determ :: \<open>('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \
 lemma sec_determ_symp:
   \<open>symp (curry (sec_determ c))\<close>
   by (induct c) (force simp add: symp_def)+
+
+lemma head_atom_equivalence_helper:
+  \<open>\<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<longleftrightarrow>
+    (\<forall>ra \<in># head_atoms ca. \<forall>rb \<in># head_atoms cb. \<not> (pre_state ra sx \<and> pre_state rb sy))\<close>
+  by (fastforce simp add: pre_state_def)
 
 
 definition
@@ -1636,10 +1774,8 @@ lemma all_sec_determ_eq[simp]:
     (\<lambda>_. head_atomic ca) \<sqinter>
     (\<lambda>_. head_atomic cb) \<sqinter>
     (\<lambda>(sx, sy).
-      \<forall>ra\<in>#head_atoms ca.
-         \<forall>rb\<in>#head_atoms cb.
-            (pre_state ra sx \<longrightarrow> \<not> pre_state rb sy) \<and>
-            (pre_state rb sx \<longrightarrow> \<not> pre_state ra sy)) \<sqinter>
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy)) \<sqinter>
     all_sec_determ ca \<sqinter>
     all_sec_determ cb\<close>
   \<open>all_sec_determ (DO c OD) =
@@ -1654,6 +1790,62 @@ lemma all_sec_determ_eq[simp]:
 lemma all_sec_determ_implies_sec_determ:
   \<open>all_sec_determ c s \<Longrightarrow> sec_determ c s\<close>
   by (clarsimp simp add: all_sec_determ_def, blast)
+
+
+subsubsection \<open> Sec. Determ. Lemmas \<close>
+
+lemma state_in_head_guards_then_aopstep_exists:
+  \<open>pre_state (\<Squnion> set_mset (head_atoms c)) s \<Longrightarrow>
+    \<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<and> vis_aact (snd \<pi>\<alpha>)\<close>
+proof (induct c)
+  case (Seq c1 c2)
+  then show ?case
+    by (clarsimp simp add: pre_state_def, metis)
+next
+  case (Par c1 c2)
+  then show ?case
+    by (clarsimp simp add: pre_state_def, metis)
+next
+  case (Endet c1 c2)
+  then show ?case
+    by (clarsimp simp add: pre_state_def, metis)
+qed (clarsimp simp add: pre_state_def; blast)+
+
+lemma state_not_in_head_guards_then_no_aopstep:
+  \<open>head_atomic c \<Longrightarrow>
+    \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s \<Longrightarrow>
+    (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<close>
+proof (induct c)
+  case (Seq c1 c2)
+  then show ?case
+    by (metis aopstep.simps(2) head_atomic.simps(1-2) head_atoms.simps(2))
+next
+  case (Par c1 c2)
+  then show ?case
+    by (simp add: pre_state_def ball_Un, metis head_atomic.simps(1))
+next
+  case (Endet c1 c2)
+  then show ?case
+    by (simp add: pre_state_def ball_Un, metis head_atomic.simps(1))
+next
+  case (Iter c)
+  then show ?case
+    by (metis head_atomic.simps(7))
+qed (simp add: pre_state_def)+
+
+lemma state_not_in_head_guards_iff_not_nostep:
+  \<open>head_atomic c \<Longrightarrow>
+    pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
+      (\<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc')\<close>
+  by (metis state_in_head_guards_then_aopstep_exists
+      state_not_in_head_guards_then_no_aopstep)
+
+lemma head_atomic_nostep_iff_state_not_in_head_guards:
+  \<open>head_atomic c \<Longrightarrow>
+    \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
+      (s, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  using state_not_in_head_guards_iff_not_nostep
+  by metis
 
 
 subsubsection \<open> The Key Lemmas \<close>
@@ -1700,10 +1892,9 @@ proof -
       then show ?case
         apply simp
         apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-         apply (clarsimp simp add: vis_tau_aact_incompatible)
-        apply (metis (mono_tags) pre_state_def split_pairs2 vis_aopstep_impl_atom)
-        apply (simp add: vis_tau_aact_incompatible)
-        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def vis_aact_simps(2-4))
+         apply (clarsimp simp add: vis_tau_aact_incompatible pre_state_def)
+         apply (metis (mono_tags) split_pairs2 vis_aopstep_impl_atom)
+        apply (metis head_atomic_opstep_vis_aact snd_conv)
         done
     next
       case (DoLoop \<pi>\<alpha> s c sc')
@@ -1711,8 +1902,7 @@ proof -
         apply simp
         apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
         apply (simp, metis snd_conv)
-        apply simp
-        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def vis_aact_simps(2-4))
+        apply (metis head_atomic_opstep_vis_aact snd_conv)
         done
     qed fastforce+
   }
@@ -1772,38 +1962,146 @@ next
 qed (clarsimp simp add: all_conj_distrib)+
 
 
-lemma full_sync_double_aopstep_to_aopstep:
+subsection \<open>  \<close>
+
+fun sec_determ2
+  :: \<open>('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close>
+  where
+    \<open>sec_determ2 (cax \<^bold>\<box> cbx) (cay \<^bold>\<box> cby) = (\<lambda>(sx, sy).
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cax))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cby))) sy) \<and>
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cbx))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cay))) sy))\<close>
+  | \<open>sec_determ2 (DO cx OD) (DO cy OD) = \<top>\<close>
+  | \<open>sec_determ2 cx cy = \<top>\<close>
+
+lemma
   assumes
-    \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', c')\<close>
-    \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', c')\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
+    \<open>(sxy, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
+    \<open>unliftC cc = (cx, cy)\<close>
+    \<open>exch4 sxy = (sx, sy)\<close>
   shows
-    \<open>(exch4 (sx, sy), liftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), liftC c')\<close>
+    \<open>(\<exists>scx'. (sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scx') \<and> (\<exists>scy'. (sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scy')\<close>
   using assms
-proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
-  case (Endet c1 c2)
-  then show ?case
-    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-     apply (simp add: vis_tau_aact_incompatible)
-     apply (metis fst_conv pre_state_def snd_conv vis_aopstep_impl_atom)
-    apply (simp add: vis_tau_aact_incompatible)
-    apply (metis head_atomic.simps(1) head_atomic_opstep_vis_aact not_tau_aact_iff split_pairs)
+proof (induct cc arbitrary: \<pi>\<alpha> sxy sxy' cc' sx sy cx cy)
+  case (Seq cc1 cc2)
+  show ?case
+    using Seq.prems
+    apply (clarsimp split: prod.splits)
+    apply (elim disjE conjE exE)
+     apply (metis fst_conv snd_conv surjective_pairing unliftC_simps(1))
+    apply (metis Seq.hyps(1) Seq.prems(3) prod.exhaust_sel)
     done
 next
-  case (Iter c)
+  case (Par cc1 cc2)
+  show ?case
+    using Par.prems
+    apply (clarsimp split: prod.splits)
+    apply (subgoal_tac \<open>(\<exists>\<alpha>. \<pi>\<alpha> = (PHere, \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PL \<pi>', \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PR \<pi>', \<alpha>))\<close>)
+     prefer 2
+     apply force
+    apply (elim disjE[of \<open>Ex _\<close>])
+      apply (clarsimp, metis surjective_pairing)
+     apply (force dest: Par.hyps(1))
+    apply (force dest: Par.hyps(2))
+    done
+next
+  case (Indet cc1 cc2)
+  then show ?case
+    by (clarsimp split: prod.splits, metis surjective_pairing)
+next
+  case (Endet cc1 cc2)
+  show ?case
+    using Endet.prems
+    apply (clarsimp split: prod.splits)
+    apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
+     apply clarsimp
+    sorry
+next
+  case (Atomic x)
+  then show ?case
+    by (clarsimp simp add: exch4_def, metis surjective_pairing)
+next
+  case (Iter cc)
+  then show ?case
+    sorry
+qed force
+
+
+lemma key_lemma2:
+  assumes
+    \<open>unliftC cc = (c, c)\<close>
+    \<open>(exch4 (sx, sy), cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
+    \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
+    \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
+    \<open>all_sec_determ c (sx, sy)\<close>
+  shows
+    \<open>unliftC cc' = (cx', cy')\<close>
+  using assms
+proof (induct cc arbitrary: \<pi>\<alpha> sx sy c sxy' cc' sx' sy' cx' cy')
+  case (Seq cc1 cc2)
+  show ?case
+    using Seq.prems
+    apply (case_tac \<open>cc1 = Skip\<close>, force split: prod.splits)
+    apply (clarsimp split: prod.splits)
+    apply (metis Seq.hyps(1) prod.inject unliftC_rev_iff(1))
+    done
+next
+  case (Par cc1 cc2)
+  show ?case
+    using Par.prems
+    apply (clarsimp split: prod.splits)
+    apply (subgoal_tac \<open>(\<exists>\<alpha>. \<pi>\<alpha> = (PHere, \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PL \<pi>', \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PR \<pi>', \<alpha>))\<close>)
+     prefer 2
+     apply blast
+    apply (elim disjE[of \<open>Ex _\<close>])
+      apply force
+     apply (clarsimp split: prod.splits)
+     apply (metis Par.hyps(1) prod.inject)
+    apply (clarsimp split: prod.splits)
+    apply (metis Par.hyps(2) prod.inject)
+    done
+next
+  case (Indet cc1 cc2)
+  show ?case
+    using Indet.prems
+    by (clarsimp split: prod.splits, blast)
+next
+  case (Endet cc1 cc2)
+  show ?case
+    using Endet.prems
+    apply (clarsimp split: prod.splits)
+    apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
+     apply (clarsimp simp add: vis_tau_aact_incompatible)
+     apply (metis Endet.prems(4) head_atomic.simps(5) head_atomic_implies_all_steps_vis snd_conv tau_aact_def
+        vis_aact_simps(2,3,4))
+    apply (clarsimp simp add: vis_tau_aact_incompatible)
+    apply (subgoal_tac \<open>(exch4 (sx, sy), cc1) \<midarrow>/\<rightarrow>\<^sub>a \<or> (exch4 (sx, sy), cc2) \<midarrow>/\<rightarrow>\<^sub>a\<close>)
+     prefer 2
+    subgoal sorry
+    apply (rename_tac c1 c2)
+    apply (subgoal_tac \<open>cx' = cy'\<close>)
+     prefer 2
+     apply (metis Endet.prems(3,4,5) all_sec_determ_same_act_implies_same_comm)
+    apply (subgoal_tac \<open>
+      (sx, c1) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<and> (sy, c1) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy') \<or>
+      (sx, c2) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<and> (sy, c2) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>)
+     prefer 2
+     apply (simp add: state_not_in_head_guards_iff_not_nostep)
+     apply (metis eq_fst_iff)
+    apply clarsimp
+    apply (erule disjE[of \<open>_ \<and> _\<close>])
+     apply clarsimp
+    try0
+    sorry
+next
+  case (Iter cc)
   show ?case
     using Iter.prems
-    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-     apply (clarsimp simp add: vis_tau_aact_incompatible)
-     apply (drule(2) Iter.hyps)
-     apply force
-    apply (clarsimp simp add: vis_tau_aact_incompatible)
-    apply (elim disjE conjE exE; simp)
-     apply clarsimp
-     apply (metis two_steps_no_aopstep_then_no_double_aopstep surjective_pairing)
-    apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-    done
-qed fastforce+
+    apply (clarsimp split: prod.splits simp add: state_not_in_head_guards_iff_not_nostep)
+    apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
+    sledgehammer
+
+    sorry
+qed force+
 
 
 subsection \<open> Safety Implies Security \<close>
@@ -1878,73 +2176,5 @@ proof (induct arbitrary: c rule: safe.induct)
     done
 qed
 
-
-section \<open> Scratch Space \<close>
-
-lemma state_in_head_guards_then_aopstep_exists:
-  \<open>pre_state (\<Squnion> set_mset (head_atoms c)) s \<Longrightarrow>
-    \<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<and> vis_aact (snd \<pi>\<alpha>)\<close>
-proof (induct c)
-  case (Seq c1 c2)
-  then show ?case
-    by (clarsimp simp add: pre_state_def, metis)
-next
-  case (Par c1 c2)
-  then show ?case
-    by (clarsimp simp add: pre_state_def, metis)
-next
-  case (Endet c1 c2)
-  then show ?case
-    by (clarsimp simp add: pre_state_def, metis)
-qed (clarsimp simp add: pre_state_def; blast)+
-
-lemma state_not_in_head_guards_then_no_aopstep:
-  \<open>head_atomic c \<Longrightarrow>
-    \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s \<Longrightarrow>
-    (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<close>
-proof (induct c)
-  case (Seq c1 c2)
-  then show ?case
-    by (metis aopstep.simps(2) head_atomic.simps(1-2) head_atoms.simps(2))
-next
-  case (Par c1 c2)
-  then show ?case
-    by (simp add: pre_state_def ball_Un, metis head_atomic.simps(1))
-next
-  case (Endet c1 c2)
-  then show ?case
-    by (simp add: pre_state_def ball_Un, metis head_atomic.simps(1))
-next
-  case (Iter c)
-  then show ?case
-    by (metis head_atomic.simps(7))
-qed (simp add: pre_state_def)+
-
-lemma state_not_in_head_guards_iff_not_nostep:
-  \<open>head_atomic c \<Longrightarrow>
-    pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
-      \<not> ((s, c) \<midarrow>/\<rightarrow>\<^sub>a)\<close>
-  by (metis state_in_head_guards_then_aopstep_exists
-      state_not_in_head_guards_then_no_aopstep)
-
-lemma head_atomic_nostep_iff_state_not_in_head_guards:
-  \<open>head_atomic c \<Longrightarrow>
-    (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow>
-      \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s\<close>
-  using state_not_in_head_guards_iff_not_nostep
-  by metis
-
-\<comment> \<open> Non-tau steps establish the guarantee.
-      We want the guarantee to be established when a vis move happens
-      in \<^emph>\<open>either\<close> run. But this leaves the question of what we shold do
-      with the other run. Requiring both perform a simultaneous vis step
-      is too restrictive.
-        Here, we say that if either performs a vis, we must establish
-      the guarantee. But note! Due to the way double-opstep is defined,
-      when there is a one-sided step, the other side stutters. Thus
-      if you want to property generalise your guarantees from single state,
-      and you \<^emph>\<open>don't\<close> know every move will be synchronised, you should lift
-      the guarantee as follows: \<open>Ga\<^sup>=\<^sup>= \<times>\<^sub>R Gb \<squnion> Ga \<times>\<^sub>R Gb\<^sup>=\<^sup>=\<close>.
-    \<close>
 
 end
