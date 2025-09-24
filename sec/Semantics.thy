@@ -111,6 +111,10 @@ lemma comp_exch4_eq_iff[simp]:
   \<open>f \<circ> exch4 = g \<circ> exch4 \<longleftrightarrow> f = g\<close>
   by (simp add: fun_eq_iff, blast)
 
+lemma rel_comp_exch4_eq_iff[simp]:
+  \<open>ra \<circ>\<^sub>2 exch4 = rb \<circ>\<^sub>2 exch4 \<longleftrightarrow> ra = rb\<close>
+  by (force simp add: fun_eq_iff)
+
 lemma prod_destruct_exch4_eq[simp]:
   \<open>fst (fst (exch4 x)) = fst (fst x)\<close>
   \<open>fst (snd (exch4 x)) = snd (fst x)\<close>
@@ -227,6 +231,9 @@ lemmas liftC_rev_iff[simp] =
   map_atom_rev_iff[of \<open>(\<lambda>ar. liftR ar \<circ>\<^sub>2 exch4)\<close>,
     simplified liftC_def'[symmetric], THEN trans[OF eq_commute]]
 
+lemma liftC_eq_iff[simp]:
+  \<open>liftC ca = liftC cb \<longleftrightarrow> ca = cb\<close>
+  by (induct ca arbitrary: cb) (fastforce simp add: rel_times_def fun_eq_iff)+
 
 
 subsubsection \<open> unlift double command to command \<close>
@@ -301,56 +308,38 @@ inductive cfmatchC :: \<open>'a comm \<Rightarrow> 'b comm \<Rightarrow> bool\<c
   \<open>cfmatchC cx cy \<Longrightarrow> cfmatchC (DO cx OD) (DO cy OD)\<close>
 | cfmatch_atom[simp]: \<open>cfmatchC (\<langle>arx\<rangle>) (\<langle>ary\<rangle>)\<close>
 
-lemma cfmatch_simps[simp]:
-  \<open>cfmatchC (cax ;; cbx) (cay ;; cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) (cay \<parallel> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
-  \<open>cfmatchC (DO cx OD) (DO cy OD) \<longleftrightarrow> cfmatchC cx cy\<close>
-  \<comment> \<open> non-matching cases \<close>
-  \<open>cfmatchC Skip (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC Skip (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC Skip (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC Skip (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC Skip (DO cy OD) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC Skip \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) (DO cy OD) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax ;; cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<^bold>\<box> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (cax \<parallel> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC (DO cx OD) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> Skip \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> (cay ;; cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> (cay \<parallel> cby) \<longleftrightarrow> False\<close>
-  \<open>cfmatchC \<langle>arx\<rangle> (DO cy OD) \<longleftrightarrow> False\<close>
-  using cfmatchC.cases by blast+
+inductive_cases cfmatchC_Skip_leftE[elim!]: \<open>cfmatchC Skip cy\<close>
+inductive_cases cfmatchC_Seq_leftE[elim!]: \<open>cfmatchC (cax ;; cbx) cy\<close>
+inductive_cases cfmatchC_INDet_leftE[elim!]: \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) cy\<close>
+inductive_cases cfmatchC_ENDet_leftE[elim!]: \<open>cfmatchC (cax \<^bold>\<box> cbx) cy\<close>
+inductive_cases cfmatchC_Par_leftE[elim!]: \<open>cfmatchC (cax \<parallel> cbx) cy\<close>
+inductive_cases cfmatchC_Iter_leftE[elim!]: \<open>cfmatchC (DO cx OD) cy\<close>
+inductive_cases cfmatchC_Atom_leftE[elim!]: \<open>cfmatchC (\<langle>arx\<rangle>) cy\<close>
+
+inductive_cases cfmatchC_Skip_rightE[elim!]: \<open>cfmatchC cx Skip\<close>
+inductive_cases cfmatchC_Seq_rightE[elim!]: \<open>cfmatchC cx (cay ;; cby)\<close>
+inductive_cases cfmatchC_INDet_rightE[elim!]: \<open>cfmatchC cx (cay \<^bold>\<sqinter> cby)\<close>
+inductive_cases cfmatchC_ENDet_rightE[elim!]: \<open>cfmatchC cx (cay \<^bold>\<box> cby)\<close>
+inductive_cases cfmatchC_Par_rightE[elim!]: \<open>cfmatchC cx (cay \<parallel> cby)\<close>
+inductive_cases cfmatchC_Iter_rightE[elim!]: \<open>cfmatchC cx (DO cy OD)\<close>
+inductive_cases cfmatchC_Atom_rightE[elim!]: \<open>cfmatchC cx (\<langle>ary\<rangle>)\<close>
+
+lemma cfmatchC_iff[simp]:
+  \<open>cfmatchC Skip cy \<longleftrightarrow> cy = Skip\<close>
+  \<open>cfmatchC cx Skip \<longleftrightarrow> cx = Skip\<close>
+  \<open>cfmatchC (cax ;; cbx) cy \<longleftrightarrow> (\<exists>cay cby. cy = cay ;; cby \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC cx (cay ;; cby) \<longleftrightarrow> (\<exists>cax cbx. cx = cax ;; cbx \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) cy \<longleftrightarrow> (\<exists>cay cby. cy = cay \<^bold>\<sqinter> cby \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC cx (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> (\<exists>cax cbx. cx = cax \<^bold>\<sqinter> cbx \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) cy \<longleftrightarrow> (\<exists>cay cby. cy = cay \<^bold>\<box> cby \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC cx (cay \<^bold>\<box> cby) \<longleftrightarrow> (\<exists>cax cbx. cx = cax \<^bold>\<box> cbx \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) cy \<longleftrightarrow> (\<exists>cay cby. cy = cay \<parallel> cby \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC cx (cay \<parallel> cby) \<longleftrightarrow> (\<exists>cax cbx. cx = cax \<parallel> cbx \<and> cfmatchC cax cay \<and> cfmatchC cbx cby)\<close>
+  \<open>cfmatchC (DO cx' OD) cy \<longleftrightarrow> (\<exists>cy'. cy = DO cy' OD \<and> cfmatchC cx' cy')\<close>
+  \<open>cfmatchC cx (DO cy' OD) \<longleftrightarrow> (\<exists>cx'. cx = DO cx' OD \<and> cfmatchC cx' cy')\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> cy \<longleftrightarrow> (\<exists>ary. cy = \<langle>ary\<rangle>)\<close>
+  \<open>cfmatchC cx \<langle>ary\<rangle> \<longleftrightarrow> (\<exists>arx. cx = \<langle>arx\<rangle>)\<close>
+  by fastforce+
 
 lemma unliftC_produces_cfmatchC_comms:
   \<open>unliftC cc = (cx, cy) \<Longrightarrow> cfmatchC cx cy\<close>
@@ -1543,6 +1532,16 @@ qed fastforce+
 
 section \<open> Jul-Aug Attempt \<close>
 
+definition
+  \<open>determ_step sxy c \<pi>\<alpha> sxy' c' \<equiv>
+    (sxy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', c') \<longrightarrow>
+    (\<forall>cx cy.
+      unliftC c = (cx, cy) \<longrightarrow>
+      (\<forall>cx' cy'.
+        (fst sxy, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (fst sxy', cx') \<longrightarrow>
+        (snd sxy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (snd sxy', cy') \<longrightarrow>
+        cfmatchC cx' cy'))\<close>
+
 text \<open>
   TODO: describe
 \<close>
@@ -1557,45 +1556,45 @@ inductive secure
       ('l, 's) secstate \<Rightarrow>
       bool\<close>
   for R F G I q
-  where
-  secure_nil[intro!]: \<open>secure R F G I q 0 cc zz\<close>
-| secure_suc[intro]:
-  \<open>cc = (cx, cy) \<Longrightarrow>
-    zz = ((slx::'l, ssx::'s), (sly::'l, ssy::'s)) \<Longrightarrow>
+  where secureI[intro]:
+  \<open>zz = ((slx::'l, ssx::'s), (sly::'l, ssy::'s)) \<Longrightarrow>
     \<comment> \<open> Post-condition
          Note that \<^emph>\<open>both\<close> programs need to be terminated. \<close>
     cx = Skip \<longrightarrow> cy = Skip \<longrightarrow> q ((slx, sly), (ssx, ssy)) \<Longrightarrow>
     \<comment> \<open> State Invariant \<close>
     I ((slx, sly), (ssx, ssy)) \<Longrightarrow>
     \<comment> \<open> Rely Steps \<close>
-    (\<And>ssx' ssy'.
+    (\<And>n' ssx' ssy'.
+      n = Suc n' \<Longrightarrow>
       R (ssx, ssy) (ssx', ssy') \<Longrightarrow>
-      secure R F G I q n cc ((slx, ssx'), (sly, ssy'))) \<Longrightarrow>
+      secure R F G I q n' (cx, cy) ((slx, ssx'), (sly, ssy'))) \<Longrightarrow>
     \<comment> \<open> Opsteps \<close>
-    (\<And>\<pi>\<alpha> sx' sy' cx' cy'.
-        ((slx, ssx), cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<Longrightarrow>
-        ((sly, ssy), cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy') \<Longrightarrow>
-        (vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (snd sx', snd sy')) \<and>
-        (tau_aact (snd \<pi>\<alpha>) \<longrightarrow> fst sx' = slx \<and> fst sy' = sly) \<and>
-        secure R F G I q n (cx', cy') (sx', sy') ) \<Longrightarrow>
+    (\<And>n' \<pi>\<alpha> sx' sy' cx' cy'.
+      n = Suc n' \<Longrightarrow>
+      ((slx, ssx), cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<Longrightarrow>
+      ((sly, ssy), cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy') \<Longrightarrow>
+      (vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (snd sx', snd sy')) \<and>
+      (tau_aact (snd \<pi>\<alpha>) \<longrightarrow> fst sx' = slx \<and> fst sy' = sly) \<and>
+      secure R F G I q n' (cx', cy') (sx', sy') ) \<Longrightarrow>
     \<comment> \<open> Framed opsteps \<close>
-    (\<And>fx fy \<pi>\<alpha> slfx' slfy' ssx' ssy' cx' cy'.
-        F ((fx, fy), (ssx, ssy)) \<Longrightarrow>
-        slx ## fx \<Longrightarrow>
-        sly ## fy \<Longrightarrow>
-        ((slx + fx, ssx), cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((slfx', ssx'), cx') \<Longrightarrow>
-        ((sly + fy, ssy), cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((slfy', ssy'), cy') \<Longrightarrow>
-        (vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
-        (\<exists>slx'.
-          slx' ## fx \<and>
-          slfx' = slx' + fx \<and>
-          (\<exists>sly'.
-            sly' ## fy \<and>
-            slfy' = sly' + fy \<and>
-            (tau_aact (snd \<pi>\<alpha>) \<longrightarrow> slx' = slx \<and> sly' = sly) \<and>
-            secure R F G I q n (cx', cy') ((slx', ssx'), (sly', ssy')) ))) \<Longrightarrow>
+    (\<And>n' fx fy \<pi>\<alpha> slfx' slfy' ssx' ssy' cx' cy'.
+      n = Suc n' \<Longrightarrow>
+      F ((fx, fy), (ssx, ssy)) \<Longrightarrow>
+      slx ## fx \<Longrightarrow>
+      sly ## fy \<Longrightarrow>
+      ((slx + fx, ssx), cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((slfx', ssx'), cx') \<Longrightarrow>
+      ((sly + fy, ssy), cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((slfy', ssy'), cy') \<Longrightarrow>
+      (vis_aact (snd \<pi>\<alpha>) \<longrightarrow> G (ssx, ssy) (ssx', ssy')) \<and>
+      (\<exists>slx'.
+        slx' ## fx \<and>
+        slfx' = slx' + fx \<and>
+        (\<exists>sly'.
+          sly' ## fy \<and>
+          slfy' = sly' + fy \<and>
+          (tau_aact (snd \<pi>\<alpha>) \<longrightarrow> slx' = slx \<and> sly' = sly) \<and>
+          secure R F G I q n' (cx', cy') ((slx', ssx'), (sly', ssy')) ))) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
-    secure R F G I q (Suc n) cc zz\<close>
+    secure R F G I q n (cx, cy) zz\<close>
 
 
 lemma head_atomic_implies_all_steps_vis:
@@ -1722,26 +1721,6 @@ proof -
     by fastforce
 qed
 
-
-lemma sync_step_substeps_determ:
-  assumes sync_step:
-    \<open>(exch4 (sx, sy), c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), c')\<close>
-    and unsync_steps:
-    \<open>(sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
-    \<open>(sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
-    and misc:
-    \<open>all_sec_determ cx (sx, sy)\<close>
-    \<open>all_sec_determ cy (sx, sy)\<close>
-    \<open>unliftC c = (cx, cy)\<close>
-  shows
-    \<open>unliftC c' = (cx', cy')\<close>
-  using assms
-  apply (induct c arbitrary: \<pi>\<alpha> sx sy cx cy c' sx' sy' cx' cy')
-        apply force
-       apply (clarsimp split: prod.splits)
-  oops
-
-
 lemma two_steps_no_aopstep_then_no_double_aopstep:
   assumes
     \<open>all_sec_determ c (sx, sy)\<close>
@@ -1831,274 +1810,76 @@ subsection \<open> Safety Implies Security \<close>
 
 theorem safety_implies_security:
   fixes n :: nat
-    and cx cy :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
-    and sxy :: \<open>('l, 's) secstate\<close>
+    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and ss :: \<open>('l, 's) rgstate\<close>
     and F I q :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
     and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
   assumes
-    \<open>safe R F G I q n (liftC c) (exch4 sxy)\<close>
+    \<open>safe R F G I q n cc ss\<close>
+    \<open>cc = liftC c\<close>
     \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
   shows
-    \<open>secure R F G I q n (c, c) sxy\<close>
+    \<open>secure R F G I q n (c, c) (exch4 ss)\<close>
   using assms
-proof (induct n arbitrary: c sxy)
-  case (Suc n)
-
-  obtain lsx lsy ssx ssy where sxy_split:
-    \<open>sxy = ((lsx, ssx), (lsy, ssy))\<close>
+proof (induct arbitrary: c rule: safe.induct)
+  case (safeI c' s n)
+  obtain lsx lsy ssx ssy where
+    \<open>s = ((lsx, lsy), (ssx, ssy))\<close>
     by (metis surjective_pairing)
-
-  note Suc_ih = Suc.hyps[where sxy=\<open>((lsx', lsy'), (ssx', ssy'))\<close> for lsx' lsy' ssx' ssy',
-      simplified sxy_split exch4_four_apply]
-  note suc_prem_safe =
-    safe_sucD(1)[OF Suc.prems(1), simplified fst_conv snd_conv sxy_split exch4_four_apply]
-    safe_sucD(2)[OF Suc.prems(1), simplified fst_conv snd_conv sxy_split exch4_four_apply]
-    safe_sucD(3)[OF Suc.prems(1), where ?fs=\<open>(fsx, fsy)\<close> for fsx fsy,
-      simplified fst_conv snd_conv sxy_split exch4_apply plus_prod_def]
-
-  show ?case
-    using Suc.prems(2) safe_then_state_inv[OF Suc.prems(1)] safe_then_postcond[OF Suc.prems(1)]
-      sxy_split
+  then show ?case
+    using safeI.prems safeI.hyps(1-2)
     apply (clarsimp simp del: sup_apply comp_apply)
-    apply (rule secure_suc)
+    apply (rule secureI)
       (* subgoals: destructuring *)
-          apply (simp; fail)
-         apply (simp add: prod_eq_decompose; fail)
+         apply (simp add: exch4_def; fail)
       (* term *)
-        apply blast
+        apply (simp add: exch4_def; fail)
       (* subgoal: invariant *)
-       apply blast
+       apply force
       (* subgoal: rely *)
-      apply (frule suc_prem_safe(1), blast)
-      apply (force intro: Suc_ih)
+      apply (frule safeI.hyps(4), force, force, force)
+      apply (simp add: exch4_def; fail)
       (* subgoal: double-step *)
-     apply (frule_tac sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close> in
-        all_sec_determ_same_act_implies_same_comm, force, force)
-     apply (frule_tac sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close> in full_sync_double_aopstep_to_aopstep,
-        force, force)
+     apply clarsimp
+     apply (frule(1) all_sec_determ_same_act_implies_same_comm[
+          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
+      apply (simp add: le_fun_def exch4_def; fail)
+     apply (frule full_sync_double_aopstep_to_aopstep[
+          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>], blast)
+      apply (simp add: le_fun_def exch4_def; fail)
      apply (simp del: comp_apply add: exch4_two_apply)
-     apply (frule suc_prem_safe(2)[OF aopstep_then_opstep])
+     apply (frule safeI(5)[OF _ aopstep_then_opstep], blast)
+     apply (frule aopstep_preserves_all_sec_determ)
      apply (intro conjI)
        apply force
       apply force
-     apply (frule aopstep_preserves_all_sec_determ)
-     apply (clarsimp simp del: comp_apply)
-     apply (rule Suc_ih, assumption)
-     apply (meson order.trans le_exch4_shunt le_supI; fail)
+     apply (clarsimp simp del: sup_apply comp_apply del: disjCI)
+     apply (meson le_exch4_shunt order_trans)
         (* subgoal: framed double-step *)
     apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
      prefer 2
      apply (rule sepconj_conjI, assumption, assumption, force, force)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
         all_sec_determ_same_act_implies_same_comm, assumption)
-     apply (force simp add: exch4_two_apply)
+     apply force
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
         full_sync_double_aopstep_to_aopstep)
       apply force
      apply force
     apply (clarsimp simp del: comp_apply)
-    apply (frule suc_prem_safe(3)[OF aopstep_then_opstep])
+    apply (frule_tac fs=\<open>(fx, fy)\<close> in safeI(6)[OF _ aopstep_then_opstep])
+       apply force
       apply force
      apply force
     apply (frule aopstep_preserves_all_sec_determ)
-    apply (clarsimp simp del: comp_apply)
-    apply (frule Suc_ih)
-     apply (meson order.trans le_exch4_shunt le_supI; fail)
-    apply (frule aopstep_then_opstep)
-    apply (clarsimp simp del: comp_apply)
-    apply blast
+    apply (clarsimp simp del: sup_apply comp_apply)
+    apply (intro exI conjI, fast, fast, fast, fast, fast)
+    apply (meson order.trans le_exch4_shunt; fail)
     done
-qed force
-
-
-(*
-section \<open> Scratch Space \<close>
-
-text \<open>
-  Note with this theorem that we still permits can be atomic non-determinism.
-  So when starting with the same state, it is not necessarily the case
-  that the result state is the same.
-\<close>
-lemma sec_determ_implies_step_determ_up_to_scheduling:
-  assumes
-    \<open>all_sec_determ c (sx, sy)\<close>
-    \<open>(sx, c) \<midarrow>\<pi>\<alpha>x\<rightarrow>\<^sub>a (sx', cx')\<close>
-    \<open>(sy, c) \<midarrow>\<pi>\<alpha>y\<rightarrow>\<^sub>a (sy', cy')\<close>
-    \<open>fst \<pi>\<alpha>x = fst \<pi>\<alpha>y\<close> \<comment> \<open> same schedule \<close>
-    \<open>snd \<pi>\<alpha>x \<noteq> TauINdetL\<close>
-    \<open>snd \<pi>\<alpha>x \<noteq> TauINdetR\<close>
-    \<open>snd \<pi>\<alpha>y \<noteq> TauINdetL\<close>
-    \<open>snd \<pi>\<alpha>y \<noteq> TauINdetR\<close>
-  shows
-    \<open>snd \<pi>\<alpha>x = snd \<pi>\<alpha>y \<and> cx' = cy'\<close>
-  using assms
-proof (induct c arbitrary: sx sy \<pi>\<alpha>x \<pi>\<alpha>y sx' cx' sy' cy')
-  case (Seq ca cb)
-  show ?case
-    using Seq.prems Seq.hyps(1)[of _ _ \<pi>\<alpha>x _ _ \<pi>\<alpha>y]
-    by (simp, metis aopstep.simps(1))
-next
-  case (Par c1 c2)
-  show ?case
-    using Par.prems
-    apply simp
-    apply (case_tac \<open>
-      (\<exists>\<pi>x' \<alpha>'. \<pi>\<alpha>x = (PL \<pi>x', \<alpha>')) \<and> (\<exists>\<pi>y' \<alpha>'. \<pi>\<alpha>y = (PL \<pi>y', \<alpha>')) \<or>
-      (\<exists>\<pi>x' \<alpha>'. \<pi>\<alpha>x = (PR \<pi>x', \<alpha>')) \<and> (\<exists>\<pi>y' \<alpha>'. \<pi>\<alpha>y = (PR \<pi>y', \<alpha>'))\<close>)
-     apply (elim disjE[of \<open>Ex _ \<and> Ex _\<close>] conjE exE; simp; elim disjE conjE exE)
-      apply (metis Par.hyps(1) fst_conv snd_conv)
-     apply (metis Par.hyps(2) fst_conv snd_conv)
-    apply (elim disjE conjE exE; simp; fail)
-    done
-next
-  case (Indet c1 c2)
-  then show ?case by auto
-next
-  case (Endet c1 c2)
-  show ?case
-    using Endet.prems
-    apply clarsimp
-    apply (case_tac \<open>c1 = Skip\<close>, force)
-    apply (case_tac \<open>c2 = Skip\<close>, force)
-    apply (case_tac \<open>
-      (\<exists>c'. cx' = c1 \<^bold>\<box> c') \<and> (\<exists>c'. cy' = c1 \<^bold>\<box> c') \<or>
-      (\<exists>c'. cx' = c' \<^bold>\<box> c2) \<and> (\<exists>c'. cy' = c' \<^bold>\<box> c2) \<or>
-      (\<exists>c'. cx' = c' \<^bold>\<box> c2) \<and> (\<exists>c'. cy' = c1 \<^bold>\<box> c') \<or>
-      (\<exists>c'. cx' = c1 \<^bold>\<box> c') \<and> (\<exists>c'. cy' = c' \<^bold>\<box> c2) \<close>)
-     apply (elim disjE[of \<open>Ex _ \<and> Ex _\<close>])
-        apply clarsimp
-        apply (metis Endet.hyps(2)[of _ _ \<pi>\<alpha>x _ _ \<pi>\<alpha>y] comm.inject(4) not_tau_aact_iff)
-       apply clarsimp
-       apply (metis Endet.hyps(1)[of _ _ \<pi>\<alpha>x _ _ \<pi>\<alpha>y] comm.inject(4) not_tau_aact_iff)
-      apply clarsimp
-      apply (metis head_atomic_implies_all_steps_vis pre_state_def split_pairs vis_aopstep_impl_atom)
-     apply clarsimp
-     apply (metis head_atomic_implies_all_steps_vis pre_state_def split_pairs vis_aopstep_impl_atom)
-    apply clarsimp
-    apply (metis Endet.hyps(1,2) fst_conv snd_conv head_atomic_implies_all_steps_vis
-        not_tau_aact_iff pre_state_def vis_aopstep_impl_atom)
-    done
-next
-  case (Iter c)
-  show ?case
-    using Iter.prems
-    by (simp del: split_paired_All
-        add: head_atomic_nostep_iff_state_not_in_head_guards,
-        metis Iter.hyps state_not_in_head_guards_then_no_aopstep)
-qed simp+
-
-lemma all_sec_determ_implies_paired_step_right:
-  assumes
-    \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
-    \<open>all_sec_determ (snd sc) (fst sc, sy)\<close>
-  shows
-    \<open>\<exists>sy'. (sy, snd sc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', snd sc')\<close>
-  using assms
-  \<comment> \<open> not true, as we might get stuck. If we assume we don't, it's just the previous theorem. \<close>
-  oops
-
-lemma aopstep_equiv_guard_head_state_irrelevant:
-  assumes
-    \<open>sc \<midarrow>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
-    \<open>all_sec_determ (snd sc) (fst sc, sx)\<close>
-    \<open>(\<Squnion>(set_mset (head_atoms (snd sc)))) (fst sc) =
-      (\<Squnion>(set_mset (head_atoms (snd sc)))) sx\<close>
-  shows
-    \<open>\<exists>sx'. (sx, snd sc) \<midarrow>\<alpha>\<rightarrow>\<^sub>a (sx', snd sc')\<close>
-  using assms
-proof (induct _ sc sc' rule: aopstep_induct)
-  case (Seq \<pi>\<alpha> s ca cb sc')
-  then show ?case
-    by (simp add: fun_eq_iff, metis split_pairs)
-next
-  case (Endet \<pi>\<alpha> s ca cb sc')
-  then show ?case
-    apply (clarsimp simp add: fun_eq_iff)
-    apply (elim disjE conjE exE)
-         apply (simp; fail)
-        apply (simp; fail)
-       apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-      apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-     apply (simp add: pre_state_def bex_Un, metis)
-    apply (simp add: pre_state_def bex_Un, metis)
-    done
-next
-  case (Par \<pi>\<alpha> s ca cb sc')
-  then show ?case sorry
-next
-  case (DoLoop \<pi>\<alpha> s c sc')
-  then show ?case sorry
-qed fastforce+
-
-(*
-lemma all_sec_determ_dopstep_right_completion:
-  assumes
-    \<open>((sx, c), (sy, c)) =([\<pi>\<alpha>], [])\<Rightarrow> ((sx', c'), (sy, cy))\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
-    \<open>(\<Squnion>(set_mset (head_atoms c))) sx =
-      (\<Squnion>(set_mset (head_atoms c))) sy\<close>
-  shows
-    \<open>\<exists>sy'. ((sx, c), (sy, c)) =([\<pi>\<alpha>], [\<pi>\<alpha>])\<Rightarrow> ((sx', c'), (sy', c'))\<close>
-  using assms
-  by (simp, metis aopstep_equiv_guard_head_state_irrelevant assms(3) eq_fst_iff
-      snd_conv)
-*)
-
-
-
-lemma all_sec_determ_same_act_implies_same_comm:
-  assumes
-    \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
-    \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
-  shows
-    \<open>cy' = cx'\<close>
-proof -
-  { fix sc sc'
-    assume
-      \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
-      \<open>(sy, snd sc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
-      \<open>all_sec_determ (snd sc) (fst sc, sy)\<close>
-    then have \<open>cy' = snd sc'\<close>
-    proof (induct _ sc sc' arbitrary: sy sy' cy' rule: aopstep_induct)
-      case (Endet \<pi>\<alpha> s ca cb sc')
-      then show ?case
-        apply simp
-        apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-         apply (clarsimp simp add: vis_tau_aact_incompatible)
-        apply (metis (mono_tags) pre_state_def split_pairs2 vis_aopstep_impl_atom)
-        apply (simp add: vis_tau_aact_incompatible)
-        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def
-            vis_aact_simps(2-4))
-        done
-    next
-      case (DoLoop \<pi>\<alpha> s c sc')
-      then show ?case
-        apply simp
-        apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-        apply (simp, metis snd_conv)
-        apply simp
-        apply (metis head_atomic_opstep_vis_aact snd_conv tau_aact_def
-            vis_aact_simps(2-4))
-        done
-    qed fastforce+
-  }
-  then show ?thesis
-    using assms
-    by fastforce
 qed
 
-lemma all_sec_determ_sync_double_step_then_same_result_comm:
-  assumes
-    \<open>((sx, c), (sy, c)) =([\<pi>\<alpha>], [\<pi>\<alpha>])\<Rightarrow> ((sx', cx'), (sy', cy'))\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
-  shows
-    \<open>cx' = cy'\<close>
-  using assms
-    all_sec_determ_same_act_implies_same_comm[where cx'=cx' and cy'=cy']
-  by fast
 
-
+section \<open> Scratch Space \<close>
 
 lemma state_in_head_guards_then_aopstep_exists:
   \<open>pre_state (\<Squnion> set_mset (head_atoms c)) s \<Longrightarrow>
@@ -2165,6 +1946,5 @@ lemma head_atomic_nostep_iff_state_not_in_head_guards:
       and you \<^emph>\<open>don't\<close> know every move will be synchronised, you should lift
       the guarantee as follows: \<open>Ga\<^sup>=\<^sup>= \<times>\<^sub>R Gb \<squnion> Ga \<times>\<^sub>R Gb\<^sup>=\<^sup>=\<close>.
     \<close>
-*)
 
 end
