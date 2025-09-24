@@ -266,7 +266,6 @@ lemmas unliftC_simp[simp] =
   map_atom.simps(1-5,7)[of \<open>\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)\<close>,
     simplified unliftC_def[symmetric]]
 
-
 lemma unliftC_rev_iff:
   \<open>unliftC c = (Skip, Skip) \<longleftrightarrow> c = Skip\<close>
   \<open>unliftC c = (cax ;; cbx, cay ;; cby) \<longleftrightarrow>
@@ -284,6 +283,78 @@ lemma unliftC_rev_iff:
   by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
 
 lemmas unliftC_rev_iff2 = unliftC_rev_iff[THEN trans[OF eq_commute]]
+
+
+subsubsection \<open> control-flow matching \<close>
+
+inductive cfmatchC :: \<open>'a comm \<Rightarrow> 'b comm \<Rightarrow> bool\<close> where
+  cfmatch_skip[simp]: \<open>cfmatchC Skip Skip\<close>
+| cfmatch_seq[intro!]:
+  \<open>cfmatchC cax cay \<Longrightarrow> cfmatchC cbx cby \<Longrightarrow> cfmatchC (cax ;; cbx) (cay ;; cby)\<close>
+| cfmatch_indet[intro!]:
+  \<open>cfmatchC cax cay \<Longrightarrow> cfmatchC cbx cby \<Longrightarrow> cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<^bold>\<sqinter> cby)\<close>
+| cfmatch_endet[intro!]:
+  \<open>cfmatchC cax cay \<Longrightarrow> cfmatchC cbx cby \<Longrightarrow> cfmatchC (cax \<^bold>\<box> cbx) (cay \<^bold>\<box> cby)\<close>
+| cfmatch_par[intro!]:
+  \<open>cfmatchC cax cay \<Longrightarrow> cfmatchC cbx cby \<Longrightarrow> cfmatchC (cax \<parallel> cbx) (cay \<parallel> cby)\<close>
+| cfmatch_dood[intro!]:
+  \<open>cfmatchC cx cy \<Longrightarrow> cfmatchC (DO cx OD) (DO cy OD)\<close>
+| cfmatch_atom[simp]: \<open>cfmatchC (\<langle>arx\<rangle>) (\<langle>ary\<rangle>)\<close>
+
+lemma cfmatch_simps[simp]:
+  \<open>cfmatchC (cax ;; cbx) (cay ;; cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) (cay \<parallel> cby) \<longleftrightarrow> cfmatchC cax cay \<and> cfmatchC cbx cby\<close>
+  \<open>cfmatchC (DO cx OD) (DO cy OD) \<longleftrightarrow> cfmatchC cx cy\<close>
+  \<comment> \<open> non-matching cases \<close>
+  \<open>cfmatchC Skip (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC Skip (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC Skip (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC Skip (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC Skip (DO cy OD) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC Skip \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) (DO cy OD) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax ;; cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<sqinter> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<^bold>\<box> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) (DO cy OD) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (cax \<parallel> cbx) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC (DO cx OD) \<langle>ary\<rangle> \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> Skip \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> (cay ;; cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> (cay \<^bold>\<sqinter> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> (cay \<^bold>\<box> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> (cay \<parallel> cby) \<longleftrightarrow> False\<close>
+  \<open>cfmatchC \<langle>arx\<rangle> (DO cy OD) \<longleftrightarrow> False\<close>
+  using cfmatchC.cases by blast+
+
+lemma unliftC_produces_cfmatchC_comms:
+  \<open>unliftC cc = (cx, cy) \<Longrightarrow> cfmatchC cx cy\<close>
+  by (induct cc arbitrary: cx cy) (force split: prod.splits)+
 
 
 subsubsection \<open> command atoms refl. closure \<close>
@@ -1650,6 +1721,25 @@ proof -
     using assms
     by fastforce
 qed
+
+
+lemma sync_step_substeps_determ:
+  assumes sync_step:
+    \<open>(exch4 (sx, sy), c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), c')\<close>
+    and unsync_steps:
+    \<open>(sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
+    \<open>(sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
+    and misc:
+    \<open>all_sec_determ cx (sx, sy)\<close>
+    \<open>all_sec_determ cy (sx, sy)\<close>
+    \<open>unliftC c = (cx, cy)\<close>
+  shows
+    \<open>unliftC c' = (cx', cy')\<close>
+  using assms
+  apply (induct c arbitrary: \<pi>\<alpha> sx sy cx cy c' sx' sy' cx' cy')
+        apply force
+       apply (clarsimp split: prod.splits)
+  oops
 
 
 lemma two_steps_no_aopstep_then_no_double_aopstep:
