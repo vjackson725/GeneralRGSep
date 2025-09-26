@@ -2158,7 +2158,114 @@ next
 qed (clarsimp simp add: all_conj_distrib)+
 
 
-subsection \<open>  \<close>
+lemma full_sync_double_aopstep_to_aopstep:
+  assumes
+    \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', c')\<close>
+    \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', c')\<close>
+    \<open>all_sec_determ c (sx, sy)\<close>
+  shows
+    \<open>(exch4 (sx, sy), liftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), liftC c')\<close>
+  using assms
+proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
+  case (Endet c1 c2)
+  then show ?case
+    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+     apply (simp add: vis_tau_aact_incompatible)
+     apply (metis head_atomic_nostep_iff_state_not_in_head_guards)
+    apply (simp add: vis_tau_aact_incompatible)
+    apply (metis head_atomic.simps(1) head_atomic_opstep_vis_aact not_tau_aact_iff split_pairs)
+    done
+next
+  case (Iter c)
+  show ?case
+    using Iter.prems
+    apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
+     apply (clarsimp simp add: vis_tau_aact_incompatible)
+     apply (drule(2) Iter.hyps)
+     apply force
+    apply (clarsimp simp add: vis_tau_aact_incompatible)
+    apply (elim disjE conjE exE; simp)
+     apply clarsimp
+     apply (metis two_steps_no_aopstep_then_no_double_aopstep surjective_pairing)
+    apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
+    done
+qed fastforce+
+
+
+subsection \<open> Safety Implies Security \<close>
+
+theorem safety_implies_security:
+  fixes n :: nat
+    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
+    and ss :: \<open>('l, 's) rgstate\<close>
+    and F I q :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
+  assumes
+    \<open>safe R F G I q n cc ss\<close>
+    \<open>cc = liftC c\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
+  shows
+    \<open>secure R F G I q n (c, c) (exch4 ss)\<close>
+  using assms
+proof (induct arbitrary: c rule: safe.induct)
+  case (safeI c' s n)
+  obtain lsx lsy ssx ssy where
+    \<open>s = ((lsx, lsy), (ssx, ssy))\<close>
+    by (metis surjective_pairing)
+  then show ?case
+    using safeI.prems safeI.hyps(1-2)
+    apply (clarsimp simp del: sup_apply comp_apply)
+    apply (rule secureI)
+      (* subgoals: destructuring *)
+         apply (simp add: exch4_def; fail)
+      (* term *)
+        apply (simp add: exch4_def; fail)
+      (* subgoal: invariant *)
+       apply force
+      (* subgoal: rely *)
+      apply (frule safeI.hyps(4), force, force, force)
+      apply (simp add: exch4_def; fail)
+      (* subgoal: double-step *)
+     apply clarsimp
+     apply (frule(1) all_sec_determ_same_act_implies_same_comm[
+          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
+      apply (simp add: le_fun_def exch4_def; fail)
+     apply (frule full_sync_double_aopstep_to_aopstep[
+          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>], blast)
+      apply (simp add: le_fun_def exch4_def; fail)
+     apply (simp del: comp_apply add: exch4_two_apply)
+     apply (frule safeI(5)[OF _ aopstep_then_opstep], blast)
+     apply (frule aopstep_preserves_all_sec_determ)
+     apply (intro conjI)
+       apply force
+      apply force
+     apply (clarsimp simp del: sup_apply comp_apply del: disjCI)
+     apply (meson le_exch4_shunt order_trans)
+        (* subgoal: framed double-step *)
+    apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
+     prefer 2
+     apply (rule sepconj_conjI, assumption, assumption, force, force)
+    apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
+        all_sec_determ_same_act_implies_same_comm, assumption)
+     apply force
+    apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
+        full_sync_double_aopstep_to_aopstep)
+      apply force
+     apply force
+    apply (clarsimp simp del: comp_apply)
+    apply (frule_tac fs=\<open>(fx, fy)\<close> in safeI(6)[OF _ aopstep_then_opstep])
+       apply force
+      apply force
+     apply force
+    apply (frule aopstep_preserves_all_sec_determ)
+    apply (clarsimp simp del: sup_apply comp_apply)
+    apply (intro exI conjI, fast, fast, fast, fast, fast)
+    apply (meson order.trans le_exch4_shunt; fail)
+    done
+qed
+
+
+section \<open> September Attempt \<close>
 
 fun sec_determ2
   :: \<open>('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close>
@@ -2299,78 +2406,6 @@ next
     sorry
 qed force+
 
-
-subsection \<open> Safety Implies Security \<close>
-
-theorem safety_implies_security:
-  fixes n :: nat
-    and c :: \<open>('l::pre_perm_alg \<times> 's) comm\<close>
-    and ss :: \<open>('l, 's) rgstate\<close>
-    and F I q :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
-    and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
-  assumes
-    \<open>safe R F G I q n cc ss\<close>
-    \<open>cc = liftC c\<close>
-    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
-  shows
-    \<open>secure R F G I q n (c, c) (exch4 ss)\<close>
-  using assms
-proof (induct arbitrary: c rule: safe.induct)
-  case (safeI c' s n)
-  obtain lsx lsy ssx ssy where
-    \<open>s = ((lsx, lsy), (ssx, ssy))\<close>
-    by (metis surjective_pairing)
-  then show ?case
-    using safeI.prems safeI.hyps(1-2)
-    apply (clarsimp simp del: sup_apply comp_apply)
-    apply (rule secureI)
-      (* subgoals: destructuring *)
-         apply (simp add: exch4_def; fail)
-      (* term *)
-        apply (simp add: exch4_def; fail)
-      (* subgoal: invariant *)
-       apply force
-      (* subgoal: rely *)
-      apply (frule safeI.hyps(4), force, force, force)
-      apply (simp add: exch4_def; fail)
-      (* subgoal: double-step *)
-     apply clarsimp
-     apply (frule(1) all_sec_determ_same_act_implies_same_comm[
-          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
-      apply (simp add: le_fun_def exch4_def; fail)
-     apply (frule full_sync_double_aopstep_to_aopstep[
-          where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>], blast)
-      apply (simp add: le_fun_def exch4_def; fail)
-     apply (simp del: comp_apply add: exch4_two_apply)
-     apply (frule safeI(5)[OF _ aopstep_then_opstep], blast)
-     apply (frule aopstep_preserves_all_sec_determ)
-     apply (intro conjI)
-       apply force
-      apply force
-     apply (clarsimp simp del: sup_apply comp_apply del: disjCI)
-     apply (meson le_exch4_shunt order_trans)
-        (* subgoal: framed double-step *)
-    apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
-     prefer 2
-     apply (rule sepconj_conjI, assumption, assumption, force, force)
-    apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
-        all_sec_determ_same_act_implies_same_comm, assumption)
-     apply force
-    apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
-        full_sync_double_aopstep_to_aopstep)
-      apply force
-     apply force
-    apply (clarsimp simp del: comp_apply)
-    apply (frule_tac fs=\<open>(fx, fy)\<close> in safeI(6)[OF _ aopstep_then_opstep])
-       apply force
-      apply force
-     apply force
-    apply (frule aopstep_preserves_all_sec_determ)
-    apply (clarsimp simp del: sup_apply comp_apply)
-    apply (intro exI conjI, fast, fast, fast, fast, fast)
-    apply (meson order.trans le_exch4_shunt; fail)
-    done
-qed
 
 
 end
