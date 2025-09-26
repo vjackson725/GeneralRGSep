@@ -195,6 +195,14 @@ subsubsection \<open> Exchanged Predicate Lifting \<close>
 definition pred_lift_exch4 (\<open>\<lblot> _ \<rblot>\<^sub>\<ddagger>\<close> [0]) where
   \<open>pred_lift_exch4 p \<equiv> \<lblot> p \<rblot> \<circ> exch4\<close>
 
+lemma pred_lift_exch4_mono:
+  \<open>p \<le> q \<Longrightarrow> \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
+  by (simp add: pred_lift_exch4_def le_fun_def)
+
+lemma pred_lift_exch4_mono_exch4:
+  \<open>\<lblot> p \<rblot> \<le> \<lblot> q \<rblot> \<Longrightarrow> \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
+  by (force simp add: pred_lift_exch4_def le_fun_def)
+
 lemma pred_lift_exch4_sepconj_conj_distrib:
   \<open>\<lblot>p \<^emph>\<and> q\<rblot>\<^sub>\<ddagger> = \<lblot>p\<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot>q\<rblot>\<^sub>\<ddagger>\<close>
   by (force simp add: pred_lift_exch4_def fun_eq_iff sepconj_conj_apply)
@@ -439,18 +447,6 @@ lemma reflclC_liftC_unliftC_cancel[simp]:
   using reflclC_unliftC_same
   by (induct cc) (clarsimp simp add: fun_eq_iff; blast)+
 
-lemma liftC_cancel[simp]:
-  \<open>liftC ca = liftC cb \<longleftrightarrow> ca = cb\<close>
-  apply (induct cb arbitrary: ca)
-        apply (metis liftC_rev_iff(1))
-       apply (metis liftC_rev_iff(2))
-      apply (metis liftC_rev_iff(3))
-     apply (metis liftC_rev_iff(4))
-    apply (metis liftC_rev_iff(5))
-   apply (fastforce simp add: fun_eq_iff sec_agree_def)
-  apply (metis liftC_rev_iff(6))
-  done
-
 
 subsection \<open> double atom \<close>
 
@@ -467,6 +463,68 @@ lemma all_doubled_atom_liftC_iff[simp]:
 
 section \<open> GenRGSep Proof Security Lifting \<close>
 
+lemma rel_times_sup_semidistrib:
+  \<open>(ra \<times>\<^sub>R ra) \<squnion> (rb \<times>\<^sub>R rb) \<le> (ra \<squnion> rb) \<times>\<^sub>R (ra \<squnion> rb)\<close>
+  by (clarsimp simp add: rel_times_def le_fun_def)
+
+lemma rel_times_inf_distrib:
+  \<open>(ra \<times>\<^sub>R ra) \<sqinter> (rb \<times>\<^sub>R rb) \<le> (ra \<sqinter> rb) \<times>\<^sub>R (ra \<sqinter> rb)\<close>
+  by (clarsimp simp add: rel_times_def le_fun_def)
+
+lemma comp_exch4_mono:
+  \<open>p \<le> q \<Longrightarrow> p \<circ> exch4 \<le> q \<circ> exch4\<close>
+  by (simp add: le_fun_def)
+
+lemma sswa_pred_lift_exch4_semidistrib:
+  \<open>sswa (R \<times>\<^sub>R R) \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> sswa R p \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: fun_eq_iff pred_lift_exch4_def sp_def)
+  apply (metis predicate2D rel_times_apply' rel_times_rtranclp_semidistrib)
+  done
+
+lemma sswa_sup_rel_pred_lift_exch4_semidistrib:
+  \<open>sswa (ra \<times>\<^sub>R ra \<squnion> rb \<times>\<^sub>R rb) \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> sswa (ra \<squnion> rb) p \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: fun_eq_iff pred_lift_exch4_def sp_def)
+  apply (metis predicate2D rel_times_apply' rel_times_rtranclp_semidistrib rtranclp_mono
+      rel_times_sup_semidistrib)
+  done
+
+lemma wssa_pred_lift_exch4_semidistrib:
+  \<open>\<lblot> wssa R p \<rblot>\<^sub>\<ddagger> \<le> wssa (R \<times>\<^sub>R R) \<lblot> p \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: fun_eq_iff pred_lift_exch4_def wlp_def)
+  apply (metis fst_conv rel_times_def rtranclp_tuple_rel_semidistrib snd_conv)
+  done
+
+
+lemma atom_unlift_helper:
+  \<open>sp (rel_image snd (ara \<circ>\<^sub>2 exch4)) p \<le> q \<Longrightarrow>
+    rel_image fst (ara \<circ>\<^sub>2 exch4) = rel_image snd (ara \<circ>\<^sub>2 exch4) \<Longrightarrow>
+    sp ara \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: le_fun_def fun_eq_iff rel_image_def sp_def imp_ex_conjL
+      pred_lift_exch4_def)
+  apply blast
+  done
+
+text \<open> TODO: Note in the dissertation that we here again use the 'instantiation to exactly the frame' trick. \<close>
+lemma framed_atom_unlift_helper:
+  \<open>\<forall>f\<le>F. sp (rel_image fst (ara \<circ>\<^sub>2 exch4)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    \<forall>f\<le>F. sp (rel_image snd (ara \<circ>\<^sub>2 exch4)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f\<close>
+  apply (clarsimp simp add: sepconj_conj_apply sp_apply)
+  apply (rename_tac lfx' lfy' ssx' ssy' ssx ssy lsx lsy fx fy)
+  apply (drule_tac x=\<open>(=) (fx, ssx)\<close> in spec, drule mp[of _ \<open>_ (rel_image fst _)\<close>])
+   apply (simp add: le_fun_def pred_lift_exch4_def; fail)
+  apply (drule_tac x=\<open>(=) (fy, ssy)\<close> in spec, drule mp[of _ \<open>_ (rel_image snd _)\<close>])
+   apply (simp add: le_fun_def pred_lift_exch4_def; fail)
+  apply (clarsimp simp add: sp_def le_fun_def sepconj_conj_apply imp_ex_conjL pred_lift_exch4_def)
+  apply (drule spec2, drule spec2, drule mp[of \<open>Ex _\<close>], force)
+  apply (drule spec2, drule spec2, drule mp[of \<open>Ex _\<close>], force)
+  apply (drule spec, drule mp, assumption)
+  apply (drule spec, drule mp, assumption)
+  apply clarsimp
+  apply (rename_tac lsx' lsy')
+  apply blast
+  done
+
 lemma genrgsep_proof_pairedst_lift:
   assumes
     \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
@@ -479,65 +537,143 @@ proof (induct arbitrary: cc rule: rgsat.induct)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_skip)
-    sorry
+      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+     apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+    apply force
+    done
 next
   case (rgsat_iter c R G i I F C p q)
-  then show ?case
+  show ?case
+    using rgsat_iter.prems rgsat_iter.hyps(3-)
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_iter)
-    sorry
+    apply (rule rgsat.rgsat_iter[where i=\<open>\<lblot> i \<rblot>\<^sub>\<ddagger>\<close>])
+       apply (rule rgsat_weaken[OF rgsat_iter.hyps(2) _ order.refl order.refl order.refl order.refl order.refl])
+        apply blast
+       apply (metis sswa_pred_lift_exch4_semidistrib)
+      apply (metis order.trans[OF sswa_pred_lift_exch4_semidistrib pred_lift_exch4_mono])
+     apply (metis order.trans[OF sswa_pred_lift_exch4_semidistrib pred_lift_exch4_mono])
+    apply force
+    done
 next
   case (rgsat_seq ca R G p pp Ia F C cb q Ib I)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_seq)
-    sorry
+    apply (rule rgsat.rgsat_seq[where pp=\<open>\<lblot> pp \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
+        apply blast
+       apply blast
+      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+     apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+    apply force
+    done
 next
   case (rgsat_indet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_indet)
-    sorry
+    apply (rule rgsat.rgsat_indet[where qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
+            apply blast
+           apply blast
+          apply force
+         apply force
+        apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+       apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+     apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+    apply force
+    done
 next
   case (rgsat_endet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_endet)
-    sorry
+    apply (rule rgsat.rgsat_endet[where qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
+            apply blast
+           apply blast
+          apply force
+         apply force
+        apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+       apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+     apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+    apply force
+    done
 next
   case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
-  then show ?case
+  show ?case
+    using rgsat_par.prems rgsat_par.hyps(5-)
     apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_par)
-    sorry
+    apply (rule rgsat.rgsat_par[where
+          Ga=\<open>Ga \<times>\<^sub>R Ga\<close> and Gb=\<open>Gb \<times>\<^sub>R Gb\<close> and
+          pa=\<open>\<lblot> pa \<rblot>\<^sub>\<ddagger>\<close> and pb=\<open>\<lblot> pb \<rblot>\<^sub>\<ddagger>\<close> and qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
+           apply (rule rgsat_weaken[OF rgsat_par.hyps(2) order.refl order.refl _ order.refl order.refl])
+             apply blast
+            apply force
+           apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
+        del: top_apply sup_apply; fail)
+          apply (rule rgsat_weaken[OF rgsat_par.hyps(4) order.refl order.refl _ order.refl order.refl])
+            apply blast
+           apply force
+          apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
+        del: top_apply sup_apply; fail)
+         apply (metis rel_times_mono)
+        apply (metis rel_times_mono)
+       apply (metis pred_lift_exch4_mono pred_lift_exch4_sepconj_conj_distrib)
+      apply (rule order.trans[OF _ pred_lift_exch4_mono, rotated], assumption)
+      apply (simp add: pred_lift_exch4_sepconj_conj_distrib del: top_apply sup_apply)
+      apply (metis sepconj_conj_mono sswa_sup_rel_pred_lift_exch4_semidistrib)
+     apply (rule order.trans[OF _ pred_lift_exch4_mono, rotated], assumption)
+     apply (simp add: pred_lift_exch4_sepconj_conj_distrib del: top_apply sup_apply)
+     apply (metis sepconj_conj_mono sswa_sup_rel_pred_lift_exch4_semidistrib)
+    apply force
+    done
 next
   case (rgsat_atom p' R p q q' ar F G I C)
   then show ?case
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_atom)
+    apply (clarsimp simp add: unliftC_rev_iff inj_rel_image_inf_distrib[symmetric]
+        simp del: sup_apply top_apply)
+    apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger>\<close> and  q=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger>\<close>])
+           apply (meson order.trans pred_lift_exch4_mono wssa_pred_lift_exch4_semidistrib; fail)
+          apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+         apply (metis atom_unlift_helper)
+        apply (metis framed_atom_unlift_helper)
+
     sorry
 next
   case (rgsat_frame c R G p q I F F' C)
-  then show ?case
+  show ?case
+    using rgsat_frame.prems rgsat_frame(3)
     apply (simp add: pred_lift_exch4_sepconj_conj_distrib del: sup_apply top_apply)
     apply (rule rgsat.rgsat_frame)
-    sorry
+     apply (rule rgsat_weaken[OF rgsat_frame.hyps(2) order.refl order.refl order.refl order.refl order.refl])
+      apply blast
+      apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
+        sup.coboundedI1 del: sup_apply; fail)
+    apply (metis order_eq_iff sswa_sup_rel_pred_lift_exch4_semidistrib sswa_weaker)
+    done
 next
   case (rgsat_weaken c r' g' p' q' I' F' C p q r g I F)
-  then show ?case
-    apply simp
-    apply (rule rgsat.rgsat_weaken)
-    sorry
+  show ?case
+    using rgsat_weaken.prems rgsat_weaken.hyps(3-)
+    apply -
+    apply (rule rgsat.rgsat_weaken[OF rgsat_weaken.hyps(2)])
+            apply blast
+           apply (simp add: pred_lift_exch4_mono; fail)
+          apply (simp add: pred_lift_exch4_mono; fail)
+         apply (simp add: pred_lift_exch4_mono; fail)
+        apply (simp add: pred_lift_exch4_mono; fail)
+       apply force
+      apply force
+     apply (simp add: pred_lift_exch4_mono; fail)
+    apply (simp add: pred_lift_exch4_mono; fail)
+    done
 next
   case (rgsat_Disj p' P c R G q I F C)
   then show ?case
-    apply simp
+    apply -
     apply (rule rgsat.rgsat_Disj)
     sorry
 next
   case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
   then show ?case
-    apply simp
+    apply -
     apply (rule rgsat.rgsat_Conj)
     sorry
 qed

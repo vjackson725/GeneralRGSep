@@ -270,6 +270,10 @@ lemma rel_image_conj_semidistrib:
   \<open>rel_image f (ra \<sqinter> rb) \<le> rel_image f ra \<sqinter> rel_image f rb\<close>
   by (force simp add: rel_image_def le_fun_def)
 
+lemma inj_rel_image_inf_distrib:
+  \<open>inj f \<Longrightarrow> rel_image f (ra \<sqinter> rb) = rel_image f ra \<sqinter> rel_image f rb\<close>
+  by (simp add: rel_image_def fun_eq_iff inj_def, blast)
+
 lemma rel_image_disj_distrib:
   \<open>rel_image f (ra \<squnion> rb) = rel_image f ra \<squnion> rel_image f rb\<close>
   by (force simp add: rel_image_def le_fun_def)
