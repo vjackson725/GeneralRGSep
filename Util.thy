@@ -179,11 +179,23 @@ lemma rel_lift_apply[simp]:
   by (simp add: rel_lift_def)
 
 
-definition comp_rel :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
+definition comp2 :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
   \<open>r \<circ>\<^sub>2 f \<equiv> \<lambda>x y. r (f x) (f y)\<close>
 
-lemma comp_rel_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
-  by (simp add: comp_rel_def comp_def)
+lemma comp2_apply[simp]: "(r \<circ>\<^sub>2 g) x = r (g x) \<circ> g"
+  by (simp add: comp2_def comp_def)
+
+lemma comp2_fusion[simp]:
+  \<open>r \<circ>\<^sub>2 f \<circ>\<^sub>2 g = r \<circ>\<^sub>2 (f \<circ> g)\<close>
+  by (simp add: fun_eq_iff)
+
+lemma comp2_id[simp]:
+  \<open>r \<circ>\<^sub>2 id = r\<close>
+  by (simp add: fun_eq_iff)
+
+lemma comp2_exchange:
+  \<open>bij f \<Longrightarrow> ra \<circ>\<^sub>2 f = rb \<longleftrightarrow> ra = rb \<circ>\<^sub>2 inv f\<close>
+  by (simp add: fun_eq_iff, metis bij_inv_eq_iff)
 
 
 definition rel_image :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool)\<close> where
@@ -192,6 +204,11 @@ definition rel_image :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightar
 lemma rel_image_apply[simp]:
   \<open>rel_image f r x x' = (\<exists>y y'. r y y' \<and> x = f y \<and> x' = f y')\<close>
   by (simp add: rel_image_def)
+
+lemma rel_image_empty_iff[simp]:
+  \<open>rel_image f r = \<bottom> \<longleftrightarrow> r = \<bottom>\<close>
+  by (metis (mono_tags, opaque_lifting) bot2E order_bot_class.bot.extremum_unique predicate2I
+      rel_image_def)
 
 
 definition \<open>pre_state_of B r \<equiv> \<lambda>a. \<exists>b\<in>B. r a b\<close>
@@ -1119,6 +1136,14 @@ lemma rel_image_snd_galois:
   \<open>rel_image snd ra \<le> rb \<longleftrightarrow> ra \<le> \<top> \<times>\<^sub>R rb\<close>
   by (force simp add: rel_times_def rel_image_def le_fun_def)
 
+lemma rel_image_fst_of_rel_times_le_fst[simp]:
+  \<open>rel_image fst (ra \<times>\<^sub>R rb) = (if rb = \<bottom> then \<bottom> else ra)\<close>
+  by force
+
+lemma rel_image_snd_of_rel_times_le_snd[simp]:
+  \<open>rel_image snd (ra \<times>\<^sub>R rb) = (if ra = \<bottom> then \<bottom> else rb)\<close>
+  by force
+
 lemma rel_times_trans: \<open>transp ra \<Longrightarrow> transp rb \<Longrightarrow> transp (ra \<times>\<^sub>R rb)\<close>
   by (simp add: rel_times_mono transp_relcompp)
 
@@ -1251,7 +1276,7 @@ lemma wlp_inf_rel_semidistrib:
   \<open>wlp r1 p \<squnion> wlp r2 p \<le> wlp (r1 \<sqinter> r2) p\<close>
   by (force simp add: wlp_def fun_eq_iff)
 
-lemma wlp_comp_rel:
+lemma wlp_relcomp:
   \<open>wlp r1 (wlp r2 p) = wlp (r1 OO r2) p\<close>
   by (force simp add: wlp_def)
 
@@ -1341,7 +1366,7 @@ lemma sp_inf_rel_semidistrib:
   \<open>sp (r1 \<sqinter> r2) p \<le> sp r1 p \<sqinter> sp r2 p\<close>
   by (force simp add: sp_def)
 
-lemma sp_comp_rel:
+lemma sp_relcomp:
   \<open>sp r2 (sp r1 p) = sp (r1 OO r2) p\<close>
   by (force simp add: sp_def relcompp_apply)
 
@@ -1406,7 +1431,7 @@ lemma rel_lift_impl_iff_sp_impl:
 
 lemma sp_wlp_weak_absorb:
   \<open>r2 OO r1 \<le> r \<Longrightarrow> sp r2 (wlp r p) \<le> wlp r1 p\<close>
-  by (force simp add: sp_comp_rel le_fun_def sp_def wlp_def OO_def)
+  by (force simp add: sp_relcomp le_fun_def sp_def wlp_def OO_def)
 
 lemma sp_wlp_absorb:
   \<open>transp r1 \<Longrightarrow> reflp r2 \<Longrightarrow> r2 \<le> r1 \<Longrightarrow> sp r2 (wlp r1 p) = wlp r1 p\<close>
@@ -1414,7 +1439,7 @@ lemma sp_wlp_absorb:
 
 lemma wlp_sp_weak_absorb:
   \<open>r2 OO r1 \<le> r \<Longrightarrow> sp r2 p \<le> wlp r1 (sp r p)\<close>
-  by (force simp add: sp_comp_rel le_fun_def sp_def wlp_def)
+  by (force simp add: sp_relcomp le_fun_def sp_def wlp_def)
 
 lemma wlp_sp_absorb:
   \<open>reflp r1 \<Longrightarrow> transp r2 \<Longrightarrow> r1 \<le> r2 \<Longrightarrow> wlp r1 (sp r2 p) = sp r2 p\<close>

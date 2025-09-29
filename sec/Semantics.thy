@@ -108,6 +108,14 @@ lemma exch4_idem[simp]:
   \<open>exch4 (exch4 x) = x\<close>
   by (simp add: exch4_def split: prod.splits)
 
+lemma exch4_comp_idem[simp]:
+  \<open>exch4 \<circ> exch4 = id\<close>
+  by (force simp add: exch4_def)
+
+lemma inv_exch4_eq[simp]:
+  \<open>inv exch4 = exch4\<close>
+  by (simp add: inv_unique_comp)
+
 lemma exch4_eq_iff[simp]:
   \<open>exch4 a = exch4 b \<longleftrightarrow> a = b\<close>
   by (cases a, cases b, force simp add: exch4_def)
@@ -314,7 +322,8 @@ definition unliftC
   :: \<open>(('lx \<times> 'ly) \<times> ('sx \<times> 'sy)) comm \<Rightarrow> ('lx \<times> 'sx) comm \<times> ('ly \<times> 'sy) comm\<close>
   where
     \<open>unliftC c \<equiv>
-      (map_atom (\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)) c, map_atom (\<lambda>ar. rel_image snd (ar \<circ>\<^sub>2 exch4)) c)\<close>
+      ( map_atom (\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)) c
+      , map_atom (\<lambda>ar. rel_image snd (ar \<circ>\<^sub>2 exch4)) c)\<close>
 
 lemma unliftC_simps[simp]:
   \<open>unliftC Skip = (Skip, Skip)\<close>
@@ -362,6 +371,74 @@ lemma unliftC_rev_iff:
   by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
 
 lemmas unliftC_rev_iff2 = unliftC_rev_iff[THEN trans[OF eq_commute]]
+
+lemma unliftC_subcomm_eqD:
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = Skip \<Longrightarrow> c = Skip \<and> cy = Skip\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = Skip \<Longrightarrow> c = Skip \<and> cx = Skip\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax ;; cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca ;; cb \<and> cy = cay ;; cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay ;; cby \<Longrightarrow>
+    (\<exists>ca cb cax cbx.
+      c = ca ;; cb \<and> cx = cax ;; cbx \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<sqinter> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<^bold>\<sqinter> cb \<and> cy = cay \<^bold>\<sqinter> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<^bold>\<sqinter> cby \<Longrightarrow>
+    (\<exists>ca cb cax cbx.
+      c = ca \<^bold>\<sqinter> cb \<and> cx = cax \<^bold>\<sqinter> cbx \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<box> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<^bold>\<box> cb \<and> cy = cay \<^bold>\<box> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<^bold>\<box> cby \<Longrightarrow>
+    (\<exists>ca cb cax cbx.
+      c = ca \<^bold>\<box> cb \<and> cx = cax \<^bold>\<box> cbx \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<parallel> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<parallel> cb \<and> cy = cay \<parallel> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<parallel> cby \<Longrightarrow>
+    (\<exists>ca cb cax cbx.
+      c = ca \<parallel> cb \<and> cx = cax \<parallel> cbx \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = DO cx' OD \<Longrightarrow>
+    (\<exists>c' cy'. c = DO c' OD \<and> cy = DO cy' OD \<and> unliftC c' = (cx', cy'))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = DO cy' OD \<Longrightarrow>
+    (\<exists>c' cx'. c = DO c' OD \<and> cx = DO cx' OD \<and> unliftC c' = (cx', cy'))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = \<langle>arx\<rangle> \<Longrightarrow>
+    (\<exists>ar ary. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = \<langle>ary\<rangle> \<Longrightarrow>
+    (\<exists>ar arx. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
+  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
+
+lemma unliftC_comm_neqD:
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> c \<noteq> Skip \<Longrightarrow> cx \<noteq> Skip \<and> cy \<noteq> Skip\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> \<forall>ca cb. c \<noteq> ca ;; cb \<Longrightarrow> (\<forall>ca cb. cx \<noteq> ca ;; cb) \<and> (\<forall>ca cb. cy \<noteq> ca ;; cb)\<close>
+(*
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<sqinter> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<^bold>\<sqinter> cb \<and> cy = cay \<^bold>\<sqinter> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<box> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<^bold>\<box> cb \<and> cy = cay \<^bold>\<box> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<parallel> cbx \<Longrightarrow>
+    (\<exists>ca cb cay cby.
+      c = ca \<parallel> cb \<and> cy = cay \<parallel> cby \<and>
+      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = DO cx' OD \<Longrightarrow>
+    (\<exists>c' cy'. c = DO c' OD \<and> cy = DO cy' OD \<and> unliftC c' = (cx', cy'))\<close>
+  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = \<langle>arx\<rangle> \<Longrightarrow>
+    (\<exists>ar ary. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
+*)
+  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
 
 
 subsubsection \<open> control-flow matching \<close>
@@ -874,15 +951,34 @@ abbreviation pretty_aopstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Righta
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<equiv> aopstep \<pi>\<alpha> sc sc'\<close>
 
 text \<open> no steps from \<open>sc\<close> can take place \<close>
-abbreviation pretty_no_aopstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<^sub>a\<close> [60] 60) where
+definition pretty_no_aopstep :: \<open>'s \<times> 's comm \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<^sub>a\<close> [60] 60) where
   \<open>sc \<midarrow>/\<rightarrow>\<^sub>a \<equiv> \<forall>\<pi>\<alpha> sc'. \<not> aopstep \<pi>\<alpha> sc sc'\<close>
+
+lemma aopstep_do_loop_iff[simp]:
+  \<open>aopstep \<pi>\<alpha> (s, DO c OD) sc' \<longleftrightarrow>
+    \<pi>\<alpha> = (PHere, TauBasic) \<and> (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<and> sc' = (s, Skip) \<or>
+    (\<exists>s' c'. aopstep \<pi>\<alpha> (s, c) (s', c') \<and> sc' = (s', c' ;; DO c OD))\<close>
+  by (simp add: pretty_no_aopstep_def)
+
+declare aopstep.simps(6)[simp del]
+
+
+lemma pretty_no_aopstep_simps[simp]:
+  \<open>(s, Skip) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  \<open>(s, ca ;; cb) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> ca \<noteq> Skip \<and> (s, ca) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  \<open>(s, ca \<^bold>\<sqinter> cb) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> False\<close>
+  \<open>(s, ca \<^bold>\<box> cb) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> ca \<noteq> Skip \<and> cb \<noteq> Skip \<and> (s, ca) \<midarrow>/\<rightarrow>\<^sub>a \<and> (s, cb) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  \<open>(s, ca \<parallel> cb) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> (cb \<noteq> Skip \<or> ca \<noteq> Skip) \<and> (s, ca) \<midarrow>/\<rightarrow>\<^sub>a \<and> (s, cb) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  \<open>(s, DO c OD) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> False\<close>
+  \<open>(s, \<langle> ar \<rangle>) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> (\<nexists>s'. ar s s')\<close>
+  by (fastforce simp add: pretty_no_aopstep_def all_conj_distrib)+
 
 
 subsubsection \<open> aopstep lemmas \<close>
 
 lemma no_aopstep_rgstate_iff:
   \<open>sc \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> (\<forall>\<alpha> l' s' c'. \<not> aopstep \<alpha> sc ((l', s'), c'))\<close>
-  by clarsimp
+  by (clarsimp simp add: pretty_no_aopstep_def)
 
 lemma aopstep_iter_stepD:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
@@ -998,12 +1094,12 @@ next
   case (DoLoop \<alpha> s c sc')
   then show ?case
     using no_opstep_then_no_aopstep[of s c]
-    by force
+    by (force simp add: pretty_no_aopstep_def)
 qed force+
 
 lemma no_aopstep_then_no_opstep:
   \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow> (s, c) \<midarrow>/\<rightarrow>\<close>
-  by (meson opstep_then_aopstep)
+  by (meson pretty_no_aopstep_def opstep_then_aopstep)
 
 lemma aopstep_then_opstep:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow> sc \<midarrow>strip_aact (snd \<pi>\<alpha>)\<rightarrow> sc'\<close>
@@ -1023,7 +1119,7 @@ next
     apply (cases \<open>snd \<pi>\<alpha>\<close>; simp)
        apply fastforce
       apply fastforce
-     apply clarsimp
+     apply (clarsimp simp add: pretty_no_aopstep_def)
      apply (metis prod.exhaust opstep_then_aopstep)
     apply fastforce
     done
@@ -1684,7 +1780,7 @@ proof -
     case (DoLoop \<pi>\<alpha> s c sc')
     show ?case
       using DoLoop.prems
-      apply clarsimp
+      apply (clarsimp simp add: pretty_no_aopstep_def)
       apply (metis DoLoop.hyps(1) aopstep_then_aopstep_right_seqD split_pairs2)
       done
   qed fastforce+
@@ -1804,7 +1900,7 @@ lemma no_aopstep_head_enabled_equiv_state_irrel:
 proof (induct c arbitrary: sx sy)
   case (Endet c1 c2)
   then show ?case
-    by (clarsimp split: if_splits, metis not_vis_aact_iff)
+    by (clarsimp simp add: pretty_no_aopstep_def split: if_splits, metis not_vis_aact_iff)
 next
   case (Atomic x1 x2)
   then show ?case
@@ -1856,7 +1952,8 @@ proof (induct c arbitrary: \<pi>\<alpha> s' c')
   then show ?case by (simp, metis)
 next
   case (Iter c)
-  then show ?case by (simp, metis no_aopstep_head_enabled_equiv_state_irrel surj_pair)
+  then show ?case
+    by (simp, metis no_aopstep_head_enabled_equiv_state_irrel surj_pair pretty_no_aopstep_def)
 qed fastforce+
 
 
@@ -2014,7 +2111,7 @@ lemma state_not_in_head_guards_then_no_aopstep:
 proof (induct c)
   case (Seq c1 c2)
   then show ?case
-    by (metis aopstep.simps(2) head_atomic.simps(1-2) head_atoms.simps(2))
+    by (metis aopstep.simps(2) head_atomic.simps(1-2) head_atoms.simps(2) pretty_no_aopstep_def)
 next
   case (Par c1 c2)
   then show ?case
@@ -2034,13 +2131,13 @@ lemma state_not_in_head_guards_iff_not_nostep:
     pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
       (\<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc')\<close>
   by (metis state_in_head_guards_then_aopstep_exists
-      state_not_in_head_guards_then_no_aopstep)
+      state_not_in_head_guards_then_no_aopstep pretty_no_aopstep_def)
 
 lemma head_atomic_nostep_iff_state_not_in_head_guards:
   \<open>head_atomic c \<Longrightarrow>
     \<not> pre_state (\<Squnion> set_mset (head_atoms c)) s \<longleftrightarrow>
       (s, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-  using state_not_in_head_guards_iff_not_nostep
+  using state_not_in_head_guards_iff_not_nostep pretty_no_aopstep_def
   by metis
 
 
@@ -2124,13 +2221,6 @@ proof (induct c arbitrary: sx sy)
     done
 next
   case (Par ca cb)
-  have no_step_subparts:
-    \<open>(sx, ca) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>(sy, ca) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>(sx, cb) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>(sy, cb) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    using Par.prems(2-)
-    by (metis no_opstep_then_no_aopstep opstep.simps(5) opstep_then_aopstep prod.exhaust_sel)+
   moreover have \<open>ca \<noteq> Skip \<or> cb \<noteq> Skip\<close>
     using Par.prems(2)
     by (clarsimp simp add: all_conj_distrib prod_eq_decompose)
@@ -2143,12 +2233,8 @@ next
     using Endet.prems
     apply (clarsimp simp add: all_conj_distrib ball_conj_distrib)
     apply (intro conjI)
-         apply metis
-        apply metis
-       apply (metis Endet.hyps(1) not_tau_aact_iff surj_pair)
-      apply (metis Endet.hyps(2) not_tau_aact_iff surj_pair)
-     apply (metis Endet.hyps(1) not_tau_aact_iff surj_pair)
-    apply (metis Endet.hyps(2) not_tau_aact_iff surj_pair)
+     apply (blast dest: Endet.hyps(1))
+    apply (blast dest: Endet.hyps(2))
     done
 next
   case (Iter c)
@@ -2171,7 +2257,7 @@ proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
   then show ?case
     apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
      apply (simp add: vis_tau_aact_incompatible)
-     apply (metis head_atomic_nostep_iff_state_not_in_head_guards)
+     apply (metis head_atomic_nostep_iff_state_not_in_head_guards pretty_no_aopstep_def)
     apply (simp add: vis_tau_aact_incompatible)
     apply (metis head_atomic.simps(1) head_atomic_opstep_vis_aact not_tau_aact_iff split_pairs)
     done
@@ -2185,8 +2271,7 @@ next
      apply force
     apply (clarsimp simp add: vis_tau_aact_incompatible)
     apply (elim disjE conjE exE; simp)
-     apply clarsimp
-     apply (metis two_steps_no_aopstep_then_no_double_aopstep surjective_pairing)
+     apply (metis two_steps_no_aopstep_then_no_double_aopstep)
     apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
     done
 qed fastforce+
@@ -2267,31 +2352,214 @@ qed
 
 section \<open> September Attempt \<close>
 
-fun sec_determ2
-  :: \<open>('l \<times> 's) comm \<Rightarrow> ('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close>
-  where
-    \<open>sec_determ2 (cax \<^bold>\<box> cbx) (cay \<^bold>\<box> cby) = (\<lambda>(sx, sy).
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cax))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cby))) sy) \<and>
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cbx))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cay))) sy))\<close>
-  | \<open>sec_determ2 (DO cx OD) (DO cy OD) = \<top>\<close>
-  | \<open>sec_determ2 cx cy = \<top>\<close>
 
-lemma
+lemma atomrel_split_helper:
+  fixes ar :: \<open>('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> ('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> bool\<close>
+  shows
+    \<open>(\<exists>arx ary. ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4) \<longleftrightarrow>
+      ar = (rel_image fst (ar \<circ>\<^sub>2 exch4) \<times>\<^sub>R rel_image snd (ar \<circ>\<^sub>2 exch4)) \<circ>\<^sub>2 exch4\<close>
+  by fastforce
+
+lemma atomrel_split_helper2:
+  fixes ar :: \<open>('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> ('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> bool\<close>
+  shows
+    \<open>ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4 \<Longrightarrow>
+      arx = \<bottom> \<longleftrightarrow> ar = \<bottom> \<Longrightarrow>
+      ary = \<bottom> \<longleftrightarrow> ar = \<bottom> \<Longrightarrow>
+      arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4)\<close>
+  by fastforce
+
+fun loop_equiv_states :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close> where
+  \<open>loop_equiv_states (DO cc OD) = \<Sqinter>{pre_state (ar \<circ>\<^sub>2 exch4)|ar. ar \<in># head_atoms cc}\<close>
+| \<open>loop_equiv_states _ = \<top>\<close>
+
+definition all_loop_equiv_states
+  :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close>
+  where
+    \<open>all_loop_equiv_states c \<equiv> \<Sqinter>{loop_equiv_states c'|c'. c' \<le> c}\<close>
+
+lemma all_loop_equiv_states_eq[simp]:
+  \<open>all_loop_equiv_states Skip = \<top>\<close>
+  \<open>all_loop_equiv_states (ca ;; cb) = all_loop_equiv_states ca \<sqinter> all_loop_equiv_states cb\<close>
+  \<open>all_loop_equiv_states (ca \<^bold>\<sqinter> cb) = all_loop_equiv_states ca \<sqinter> all_loop_equiv_states cb\<close>
+  \<open>all_loop_equiv_states \<langle>ra\<rangle> = \<top>\<close>
+  \<open>all_loop_equiv_states (ca \<parallel> cb) = all_loop_equiv_states ca \<sqinter> all_loop_equiv_states cb\<close>
+  \<open>all_loop_equiv_states (ca \<^bold>\<box> cb) = all_loop_equiv_states ca \<sqinter> all_loop_equiv_states cb\<close>
+  \<open>all_loop_equiv_states (DO c OD) =
+    \<Sqinter>{pre_state (ar \<circ>\<^sub>2 exch4)|ar. ar \<in># head_atoms c} \<sqinter> all_loop_equiv_states c\<close>
+  by (clarsimp simp add: all_loop_equiv_states_def ex_disj_distrib Collect_disj_eq
+      conj_disj_distribL Inf_union_distrib)+
+
+
+definition
+  \<open>quasireflp_atoms \<equiv> all_atom_comm
+    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
+
+lemmas quasireflp_atoms_simps[simp] =
+  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>,
+    simplified quasireflp_atoms_def[symmetric]]
+
+lemma quasireflp_atomsD1:
+  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx'))\<close>
+  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
+
+lemma quasireflp_atomsD2:
+  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>
+  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
+
+
+definition
+  \<open>symp_atoms \<equiv> all_atom_comm
+    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx')))\<close>
+
+lemma symp_atomsD:
+  \<open>symp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>
+  by (simp add: all_atom_comm_def symp_atoms_def, blast)
+
+lemmas symp_atoms_simps[simp] =
+  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>,
+    simplified symp_atoms_def[symmetric]]
+
+
+lemma two_singlest_nostep_then_doublest_nostep:
+  assumes
+    \<open>(sx, cx) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+    \<open>(sy, cy) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+    \<open>unliftC cc = (cx, cy)\<close>
+  shows
+    \<open>(exch4 (sx, sy), cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  using assms
+proof (induct cc arbitrary: cx cy sx sy)
+  case (Seq cc1 cc2)
+  show ?case
+    using Seq.prems
+    by (force dest: Seq.hyps(1) simp add: all_conj_distrib split: prod.splits)
+next
+  case (Par cc1 cc2)
+  show ?case
+    using Par.prems
+    by (clarsimp simp add: all_conj_distrib split: prod.splits,
+        auto dest: Par.hyps(1,2))
+next
+  case (Indet cc1 cc2)
+  then show ?case
+    by (clarsimp simp add: all_conj_distrib split: prod.splits)
+next
+  case (Endet cc1 cc2)
+  show ?case
+    using Endet.prems
+    by (clarsimp simp add: all_conj_distrib split: prod.splits,
+        auto dest: Endet.hyps(1,2))
+next
+  case (Atomic ar)
+  then show ?case
+    by (clarsimp simp add: exch4_apply split_pairs2 split: prod.splits)
+next
+  case (Iter cc)
+  then show ?case
+    by (metis fst_conv pretty_no_aopstep_simps(6) unliftC_def unliftC_simp(6))
+qed (force simp add: all_conj_distrib)+
+
+
+lemma doublest_nostep_then_two_singlest_nostep:
+  assumes
+    \<open>(exch4 (sx, sy), cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+    \<open>unliftC cc = (cx, cy)\<close>
+    \<open>loop_equiv_states cc (sx, sy)\<close>
+  shows
+    \<open>(sx, cx) \<midarrow>/\<rightarrow>\<^sub>a \<and> (sy, cy) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+  using assms
+proof (induct cc arbitrary: cx cy sx sy)
+  case (Seq cc1 cc2)
+  show ?case
+    using Seq.prems
+    apply (clarsimp simp add: all_conj_distrib unliftC_comm_neqD split: prod.splits)
+    sorry
+next
+  case (Par cc1 cc2)
+  show ?case
+    using Par.prems
+    apply (clarsimp simp add: all_conj_distrib ball_Un unliftC_comm_neqD split: prod.splits)
+    apply (metis Par.hyps(1,2) cfmatchC_Skip_leftE cfmatchC_iff(2) unliftC_produces_cfmatchC_comms
+        unliftC_rev_iff(1))
+    done
+next
+  case (Indet cc1 cc2)
+  then show ?case
+    by (clarsimp simp add: all_conj_distrib split: prod.splits)
+next
+  case (Endet cc1 cc2)
+  show ?case
+    using Endet.prems
+    apply (clarsimp simp add: all_conj_distrib ball_Un split: prod.splits)
+    apply (metis (no_types, lifting) Endet.hyps(1,2) cfmatchC_Skip_leftE cfmatchC_iff(2)
+        unliftC_produces_cfmatchC_comms unliftC_rev_iff(1))
+    done
+next
+  case (Atomic ar)
+  obtain arx ary where ar_splitting:
+    \<open>ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4\<close>
+    \<open>arx = \<bottom> \<longleftrightarrow> ar = \<bottom>\<close>
+    \<open>ary = \<bottom> \<longleftrightarrow> ar = \<bottom>\<close>
+    \<open>pre_state arx = pre_state ary\<close>
+    using Atomic.prems(3)
+    by (clarsimp simp add: safe_loop_atomrel_def)
+  have ar_qreflp:
+    \<open>\<And>sx sx' sy sy'. arx sx sx' \<Longrightarrow> ary sy sy' \<Longrightarrow> ary sx sx' \<and> arx sy sy'\<close>
+    using Atomic.prems(4)[simplified ar_splitting, simplified]
+    by (metis prod_eq_decompose(2))
+  have ar_symp:
+    \<open>\<And>sy sy'. (\<exists>sx sx'. arx sx sx') \<Longrightarrow> ary sy sy' \<Longrightarrow> arx sy sy'\<close>
+    \<open>\<And>sx sx'. (\<exists>sy sy'. ary sy sy') \<Longrightarrow> arx sx sx' \<Longrightarrow> ary sx sx'\<close>
+    using Atomic.prems(5)[simplified ar_splitting, simplified]
+    by (metis prod_eq_decompose(2))+
+  have helpers:
+    \<open>(\<forall>sy'. \<not> ary sy sy') \<longrightarrow> (\<forall>sy'. \<not> arx sy sy')\<close>
+    \<open>(\<forall>sy'. \<not> arx sx sy') \<longrightarrow> (\<forall>sy'. \<not> ary sx sy')\<close>
+    using ar_splitting(2,3) ar_symp by blast+
+  show ?case
+    using Atomic.prems(1-2) ar_splitting helpers
+    apply (clarsimp simp add: fun_eq_iff pre_state_def split: if_splits)
+    sorry
+next
+  case (Iter cc)
+  then show ?case
+    by (metis pretty_no_aopstep_simps(6))
+qed (force simp add: all_conj_distrib)+
+
+
+lemma doublest_step_then_two_singlest_steps:
   assumes
     \<open>(sxy, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
     \<open>unliftC cc = (cx, cy)\<close>
     \<open>exch4 sxy = (sx, sy)\<close>
+    \<open>exch4 sxy' = (sx', sy')\<close>
+    \<open>all_loop_equiv_states cc\<close>
+    \<open>quasireflp_atoms cc\<close>
+    \<open>symp_atoms cc\<close>
   shows
-    \<open>(\<exists>scx'. (sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scx') \<and> (\<exists>scy'. (sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a scy')\<close>
+    \<open>(\<exists>cx'. (sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')) \<and> (\<exists>cy'. (sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy'))\<close>
   using assms
 proof (induct cc arbitrary: \<pi>\<alpha> sxy sxy' cc' sx sy cx cy)
   case (Seq cc1 cc2)
   show ?case
     using Seq.prems
     apply (clarsimp split: prod.splits)
-    apply (elim disjE conjE exE)
-     apply (metis fst_conv snd_conv surjective_pairing unliftC_simps(1))
-    apply (metis Seq.hyps(1) Seq.prems(3) prod.exhaust_sel)
+    apply (metis Seq.hyps(1) prod.inject surj_pair unliftC_simps(1))
     done
 next
   case (Par cc1 cc2)
@@ -2302,44 +2570,62 @@ next
      prefer 2
      apply force
     apply (elim disjE[of \<open>Ex _\<close>])
-      apply (clarsimp, metis surjective_pairing)
-     apply (force dest: Par.hyps(1))
-    apply (force dest: Par.hyps(2))
+      apply fastforce
+     apply (clarsimp simp add: ball_Un)
+     apply (frule(2) Par.hyps(1), force, force, force, force, force)
+    apply (clarsimp simp add: ball_Un)
+    apply (frule(2) Par.hyps(2), force, force, force, force, force)
     done
 next
   case (Indet cc1 cc2)
   then show ?case
-    by (clarsimp split: prod.splits, metis surjective_pairing)
+    by (fastforce split: prod.splits)
 next
   case (Endet cc1 cc2)
   show ?case
     using Endet.prems
-    apply (clarsimp split: prod.splits)
-    apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
-     apply clarsimp
-    sorry
+    apply (clarsimp simp add: ball_Un split: prod.splits)
+    apply (elim disjE conjE exE)
+         apply (metis Pair_inject surj_pair unliftC_simps(1))
+        apply (metis Pair_inject surj_pair unliftC_simps(1))
+       apply (metis Endet.hyps(1) surjective_pairing)
+      apply (metis Endet.hyps(2) surjective_pairing)
+     apply (simp add: vis_tau_aact_incompatible)
+     apply (frule(3) Endet.hyps(1), force, force, force, force)
+    apply (simp add: vis_tau_aact_incompatible)
+    apply (frule(3) Endet.hyps(2), force, force, force, force)
+    done
 next
   case (Atomic x)
   then show ?case
-    by (clarsimp simp add: exch4_def, metis surjective_pairing)
+    by (clarsimp simp add: exch4_def, metis surjective_pairing) (* slow *)
 next
   case (Iter cc)
-  then show ?case
-    sorry
+  show ?case
+    using Iter.prems
+    apply (clarsimp split: prod.splits)
+    apply (elim disjE conjE exE)
+     apply (simp, metis doublest_nostep_then_two_singlest_nostep exch4_idem)
+    apply (metis Iter.hyps surj_pair)
+    done
 qed force
 
 
 lemma key_lemma2:
+  fixes cc :: \<open>(('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's)) comm\<close>
   assumes
     \<open>unliftC cc = (c, c)\<close>
-    \<open>(exch4 (sx, sy), cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
+    \<open>(exch4 (sx, sy), cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), cc')\<close>
     \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
     \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
+    \<open>quasireflp_atoms cc\<close>
+    \<open>symp_atoms cc\<close>
+    \<open>all_loop_equiv_states cc\<close>
     \<open>all_sec_determ c (sx, sy)\<close>
   shows
     \<open>unliftC cc' = (cx', cy')\<close>
   using assms
-proof (induct cc arbitrary: \<pi>\<alpha> sx sy c sxy' cc' sx' sy' cx' cy')
+proof (induct cc arbitrary: \<pi>\<alpha> sx sy c cc' sx' sy' cx' cy')
   case (Seq cc1 cc2)
   show ?case
     using Seq.prems
@@ -2351,16 +2637,16 @@ next
   case (Par cc1 cc2)
   show ?case
     using Par.prems
-    apply (clarsimp split: prod.splits)
+    apply (clarsimp simp add: ball_Un split: prod.splits)
     apply (subgoal_tac \<open>(\<exists>\<alpha>. \<pi>\<alpha> = (PHere, \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PL \<pi>', \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PR \<pi>', \<alpha>))\<close>)
      prefer 2
      apply blast
     apply (elim disjE[of \<open>Ex _\<close>])
       apply force
      apply (clarsimp split: prod.splits)
-     apply (metis Par.hyps(1) prod.inject)
+    subgoal sorry
     apply (clarsimp split: prod.splits)
-    apply (metis Par.hyps(2) prod.inject)
+    subgoal sorry
     done
 next
   case (Indet cc1 cc2)
@@ -2377,34 +2663,33 @@ next
      apply (metis Endet.prems(4) head_atomic.simps(5) head_atomic_implies_all_steps_vis snd_conv tau_aact_def
         vis_aact_simps(2,3,4))
     apply (clarsimp simp add: vis_tau_aact_incompatible)
-    apply (subgoal_tac \<open>(exch4 (sx, sy), cc1) \<midarrow>/\<rightarrow>\<^sub>a \<or> (exch4 (sx, sy), cc2) \<midarrow>/\<rightarrow>\<^sub>a\<close>)
-     prefer 2
-    subgoal sorry
     apply (rename_tac c1 c2)
-    apply (subgoal_tac \<open>cx' = cy'\<close>)
-     prefer 2
-     apply (metis Endet.prems(3,4,5) all_sec_determ_same_act_implies_same_comm)
-    apply (subgoal_tac \<open>
-      (sx, c1) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<and> (sy, c1) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy') \<or>
-      (sx, c2) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<and> (sy, c2) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>)
-     prefer 2
-     apply (simp add: state_not_in_head_guards_iff_not_nostep)
-     apply (metis eq_fst_iff)
-    apply clarsimp
-    apply (erule disjE[of \<open>_ \<and> _\<close>])
+    apply (elim disjE[of \<open>aopstep _ (exch4 _, _) _\<close>] conjE)
+      (* left *)
+     apply (frule(1) doublest_step_then_two_singlest_steps, force, force, force, force, force)
      apply clarsimp
-    try0
-    sorry
+     apply (frule(7) Endet.hyps(1))
+     apply clarsimp
+      (* TODO: work out why this works *)
+     apply (metis all_sec_determ_same_act_implies_same_comm state_not_in_head_guards_iff_not_nostep)
+      (* right *)
+    apply (frule(1) doublest_step_then_two_singlest_steps, force, force, force, force, force)
+    apply clarsimp
+    apply (frule(7) Endet.hyps(2))
+    apply clarsimp
+    apply (metis all_sec_determ_same_act_implies_same_comm state_not_in_head_guards_iff_not_nostep)
+    done
 next
   case (Iter cc)
   show ?case
     using Iter.prems
     apply (clarsimp split: prod.splits simp add: state_not_in_head_guards_iff_not_nostep)
     apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
-    sledgehammer
-
+     apply (metis head_atomic_implies_all_steps_vis not_tau_aact_iff pretty_no_aopstep_def snd_conv
+        two_singlest_nostep_then_doublest_nostep unliftC_simps(1))
+    apply (clarsimp split: prod.splits)
     sorry
-qed force+
+qed (force simp add: ball_Un)+
 
 
 

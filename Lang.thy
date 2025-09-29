@@ -456,11 +456,11 @@ lemmas wssa_idem[simp] =
 
 lemma sswa_over_sswa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (sswa r2 p) = sswa r2 p\<close>
-  by (simp add: rel_le_rtranscp_relcompp_absorb(1) sp_comp_rel)
+  by (simp add: rel_le_rtranscp_relcompp_absorb(1) sp_relcomp)
 
 lemma wssa_over_wssa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (wssa r2 p) = wssa r2 p\<close>
-  by (simp add: rel_le_rtranscp_relcompp_absorb(2) wlp_comp_rel)
+  by (simp add: rel_le_rtranscp_relcompp_absorb(2) wlp_relcomp)
 
 lemma sswa_over_wssa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (wssa r2 p) = wssa r2 p\<close>
