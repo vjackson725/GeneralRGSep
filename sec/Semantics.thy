@@ -2055,6 +2055,38 @@ lemma head_atom_equivalence_helper:
 
 
 definition
+  \<open>head_sec_determ c \<equiv> \<Sqinter>{sec_determ c'|c'. c' \<in># head_comms c}\<close>
+
+lemma head_sec_determ_eq[simp]:
+  \<open>head_sec_determ Skip = \<top>\<close>
+  \<open>head_sec_determ (ca ;; cb) = head_sec_determ ca\<close>
+  \<open>head_sec_determ (ca \<^bold>\<sqinter> cb) = \<top>\<close>
+  \<open>head_sec_determ \<langle>ra\<rangle> = \<top>\<close>
+  \<open>head_sec_determ (ca \<parallel> cb) = head_sec_determ ca \<sqinter> head_sec_determ cb\<close>
+  \<open>head_sec_determ (ca \<^bold>\<box> cb) =
+    (\<lambda>_. head_atomic ca) \<sqinter>
+    (\<lambda>_. head_atomic cb) \<sqinter>
+    (\<lambda>(sx, sy).
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
+      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy)) \<sqinter>
+    head_sec_determ ca \<sqinter>
+    head_sec_determ cb\<close>
+  \<open>head_sec_determ (DO c OD) =
+    (\<lambda>_. head_atomic c) \<sqinter>
+    (\<lambda>(sx, sy).
+      pre_state (\<Squnion> set_mset (head_atoms c)) sx =
+      pre_state (\<Squnion> set_mset (head_atoms c)) sy) \<sqinter>
+    head_sec_determ c\<close>
+  by (clarsimp simp add: head_sec_determ_def conj_disj_distribL
+      ex_disj_distrib Collect_disj_eq; blast)+
+
+lemma head_sec_determ_implies_sec_determ:
+  \<open>head_sec_determ c s \<Longrightarrow> sec_determ c s\<close>
+  using heads_refl
+  by (force simp add: head_sec_determ_def)
+
+
+definition
   \<open>all_sec_determ c \<equiv> \<Sqinter>{sec_determ c'|c'. c' \<le> c}\<close>
 
 lemma all_sec_determ_eq[simp]:
@@ -2079,6 +2111,11 @@ lemma all_sec_determ_eq[simp]:
     all_sec_determ c\<close>
   by (clarsimp simp add: all_sec_determ_def conj_disj_distribL
       ex_disj_distrib Collect_disj_eq; blast)+
+
+lemma all_sec_determ_implies_head_sec_determ:
+  \<open>all_sec_determ c s \<Longrightarrow> head_sec_determ c s\<close>
+  by (clarsimp simp add: all_sec_determ_def head_sec_determ_def,
+      metis heads_subcomm_original)
 
 lemma all_sec_determ_implies_sec_determ:
   \<open>all_sec_determ c s \<Longrightarrow> sec_determ c s\<close>
@@ -2166,11 +2203,11 @@ proof (induct _ sc sc' rule: aopstep_induct)
     done
 qed fastforce+
 
-lemma all_sec_determ_same_act_implies_same_comm:
+lemma head_sec_determ_same_aact_implies_same_comm:
   assumes
     \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
     \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
+    \<open>head_sec_determ c (sx, sy)\<close>
   shows
     \<open>cy' = cx'\<close>
 proof -
@@ -2178,7 +2215,7 @@ proof -
     assume
       \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc'\<close>
       \<open>(sy, snd sc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
-      \<open>all_sec_determ (snd sc) (fst sc, sy)\<close>
+      \<open>head_sec_determ (snd sc) (fst sc, sy)\<close>
     then have \<open>cy' = snd sc'\<close>
     proof (induct _ sc sc' arbitrary: sy sy' cy' rule: aopstep_induct)
       case (Endet \<pi>\<alpha> s ca cb sc')
@@ -2206,7 +2243,7 @@ qed
 
 lemma two_steps_no_aopstep_then_no_double_aopstep:
   assumes
-    \<open>all_sec_determ c (sx, sy)\<close>
+    \<open>head_sec_determ c (sx, sy)\<close>
     \<open>(sx, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
     \<open>(sy, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
   shows
@@ -2217,7 +2254,7 @@ proof (induct c arbitrary: sx sy)
   show ?case
     using Seq.prems
     apply (clarsimp simp add: exch4_def split: prod.splits)
-    apply (metis Seq.hyps(1) exch4_two_apply prod.collapse)
+    apply (metis Seq.hyps(1) exch4_two_apply)
     done
 next
   case (Par ca cb)
@@ -2248,7 +2285,7 @@ lemma full_sync_double_aopstep_to_aopstep:
   assumes
     \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', c')\<close>
     \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', c')\<close>
-    \<open>all_sec_determ c (sx, sy)\<close>
+    \<open>head_sec_determ c (sx, sy)\<close>
   shows
     \<open>(exch4 (sx, sy), liftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (exch4 (sx', sy'), liftC c')\<close>
   using assms
@@ -2312,12 +2349,14 @@ proof (induct arbitrary: c rule: safe.induct)
       apply (simp add: exch4_def; fail)
       (* subgoal: double-step *)
      apply clarsimp
-     apply (frule(1) all_sec_determ_same_act_implies_same_comm[
+     apply (frule(1) head_sec_determ_same_aact_implies_same_comm[
           where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
-      apply (simp add: le_fun_def exch4_def; fail)
+      apply (simp add: le_fun_def exch4_def)
+      apply (metis all_sec_determ_implies_head_sec_determ)
      apply (frule full_sync_double_aopstep_to_aopstep[
           where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>], blast)
-      apply (simp add: le_fun_def exch4_def; fail)
+      apply (simp add: le_fun_def exch4_def)
+      apply (metis all_sec_determ_implies_head_sec_determ)
      apply (simp del: comp_apply add: exch4_two_apply)
      apply (frule safeI(5)[OF _ aopstep_then_opstep], blast)
      apply (frule aopstep_preserves_all_sec_determ)
@@ -2331,12 +2370,14 @@ proof (induct arbitrary: c rule: safe.induct)
      prefer 2
      apply (rule sepconj_conjI, assumption, assumption, force, force)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
-        all_sec_determ_same_act_implies_same_comm, assumption)
-     apply force
+        head_sec_determ_same_aact_implies_same_comm, assumption)
+     apply (simp add: le_fun_def exch4_def)
+     apply (metis all_sec_determ_implies_head_sec_determ)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
         full_sync_double_aopstep_to_aopstep)
       apply force
-     apply force
+     apply (simp add: le_fun_def exch4_def)
+     apply (metis all_sec_determ_implies_head_sec_determ)
     apply (clarsimp simp del: comp_apply)
     apply (frule_tac fs=\<open>(fx, fy)\<close> in safeI(6)[OF _ aopstep_then_opstep])
        apply force
@@ -2479,7 +2520,9 @@ lemma doublest_nostep_then_two_singlest_nostep:
   assumes
     \<open>(exch4 (sx, sy), cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
     \<open>unliftC cc = (cx, cy)\<close>
-    \<open>loop_equiv_states cc (sx, sy)\<close>
+    \<open>\<forall>ar\<in>#head_atoms cc.
+      \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
+      \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy\<close>
   shows
     \<open>(sx, cx) \<midarrow>/\<rightarrow>\<^sub>a \<and> (sy, cy) \<midarrow>/\<rightarrow>\<^sub>a\<close>
   using assms
@@ -2487,16 +2530,17 @@ proof (induct cc arbitrary: cx cy sx sy)
   case (Seq cc1 cc2)
   show ?case
     using Seq.prems
-    apply (clarsimp simp add: all_conj_distrib unliftC_comm_neqD split: prod.splits)
-    sorry
+    apply (clarsimp simp add: all_conj_distrib unliftC_comm_neqD simp del: comp2_apply
+        pred_image_apply split: prod.splits)
+    apply (metis Seq.hyps(1))
+    done
 next
   case (Par cc1 cc2)
   show ?case
     using Par.prems
-    apply (clarsimp simp add: all_conj_distrib ball_Un unliftC_comm_neqD split: prod.splits)
-    apply (metis Par.hyps(1,2) cfmatchC_Skip_leftE cfmatchC_iff(2) unliftC_produces_cfmatchC_comms
-        unliftC_rev_iff(1))
-    done
+    apply (clarsimp simp add: all_conj_distrib unliftC_comm_neqD ball_Un simp del: comp2_apply
+        split: prod.splits)
+    sorry
 next
   case (Indet cc1 cc2)
   then show ?case
@@ -2505,36 +2549,14 @@ next
   case (Endet cc1 cc2)
   show ?case
     using Endet.prems
-    apply (clarsimp simp add: all_conj_distrib ball_Un split: prod.splits)
-    apply (metis (no_types, lifting) Endet.hyps(1,2) cfmatchC_Skip_leftE cfmatchC_iff(2)
-        unliftC_produces_cfmatchC_comms unliftC_rev_iff(1))
+    apply (clarsimp simp add: all_conj_distrib ball_Un simp del: comp2_apply split: prod.splits)
+    apply (metis Endet.hyps(1,2) unliftC_comm_neqD(1) surj_pair)
     done
 next
   case (Atomic ar)
-  obtain arx ary where ar_splitting:
-    \<open>ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4\<close>
-    \<open>arx = \<bottom> \<longleftrightarrow> ar = \<bottom>\<close>
-    \<open>ary = \<bottom> \<longleftrightarrow> ar = \<bottom>\<close>
-    \<open>pre_state arx = pre_state ary\<close>
-    using Atomic.prems(3)
-    by (clarsimp simp add: safe_loop_atomrel_def)
-  have ar_qreflp:
-    \<open>\<And>sx sx' sy sy'. arx sx sx' \<Longrightarrow> ary sy sy' \<Longrightarrow> ary sx sx' \<and> arx sy sy'\<close>
-    using Atomic.prems(4)[simplified ar_splitting, simplified]
-    by (metis prod_eq_decompose(2))
-  have ar_symp:
-    \<open>\<And>sy sy'. (\<exists>sx sx'. arx sx sx') \<Longrightarrow> ary sy sy' \<Longrightarrow> arx sy sy'\<close>
-    \<open>\<And>sx sx'. (\<exists>sy sy'. ary sy sy') \<Longrightarrow> arx sx sx' \<Longrightarrow> ary sx sx'\<close>
-    using Atomic.prems(5)[simplified ar_splitting, simplified]
-    by (metis prod_eq_decompose(2))+
-  have helpers:
-    \<open>(\<forall>sy'. \<not> ary sy sy') \<longrightarrow> (\<forall>sy'. \<not> arx sy sy')\<close>
-    \<open>(\<forall>sy'. \<not> arx sx sy') \<longrightarrow> (\<forall>sy'. \<not> ary sx sy')\<close>
-    using ar_splitting(2,3) ar_symp by blast+
-  show ?case
-    using Atomic.prems(1-2) ar_splitting helpers
-    apply (clarsimp simp add: fun_eq_iff pre_state_def split: if_splits)
-    sorry
+  then show ?case
+    by (clarsimp simp add: fun_eq_iff pre_state_def split_pairs2 exch4_def split: if_splits,
+        blast)
 next
   case (Iter cc)
   then show ?case

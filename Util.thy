@@ -160,6 +160,20 @@ next
 qed
 
 
+section \<open> Prediacates \<close>
+
+definition
+  \<open>pred_image f p \<equiv> \<lambda>y. \<exists>x. f x = y \<and> p x\<close>
+
+lemma pred_image_apply[simp]:
+  \<open>pred_image f p y = (\<exists>x. y = f x \<and> p x)\<close>
+  by (force simp add: pred_image_def)
+
+lemma pred_image_empty_iff[simp]:
+  \<open>pred_image f r = \<bottom> \<longleftrightarrow> r = \<bottom>\<close>
+  by (metis (no_types, lifting) Collect_empty_eq_bot empty_Collect_eq pred_image_def)
+
+
 section \<open> Relations \<close>
 
 lemmas relpowp_simp_alt =

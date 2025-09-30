@@ -254,6 +254,28 @@ lemma all_atom_comm_top_eq[simp]:
   by force
 
 
+subsection \<open> Heads \<close>
+
+fun head_comms :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
+  \<open>head_comms Skip = {# Skip #}\<close>
+| \<open>head_comms (ca ;; cb) = add_mset (ca ;; cb) (head_comms ca)\<close>
+| \<open>head_comms (ca \<parallel> cb) = add_mset (ca \<parallel> cb) (head_comms ca + head_comms cb)\<close>
+| \<open>head_comms (ca \<^bold>\<sqinter> cb) = {# ca \<^bold>\<sqinter> cb #}\<close>
+| \<open>head_comms (ca \<^bold>\<box> cb) = add_mset (ca \<^bold>\<box> cb) (head_comms ca + head_comms cb)\<close>
+| \<open>head_comms \<langle>ar\<rangle> = {# \<langle>ar\<rangle> #}\<close>
+| \<open>head_comms (DO c OD) = add_mset (DO c OD) (head_comms c)\<close>
+
+lemma heads_subcomm_original:
+  \<open>\<forall>c'\<in>#head_comms c. c' \<le> c\<close>
+  by (induct c)
+    (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
+
+lemma heads_refl:
+  \<open>c \<in># head_comms c\<close>
+  by (induct c)
+    (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
+
+
 subsection \<open> Head Atoms \<close>
 
 fun head_atoms :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) multiset\<close> where
@@ -269,6 +291,13 @@ lemma head_atoms_subseteq_all_atoms:
   \<open>head_atoms c \<subseteq># all_atoms c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
+
+lemma head_atoms_eq_atoms_of_heads:
+  \<open>head_atoms c =
+    image_mset (\<lambda>c'. THE ar. c' = \<langle>ar\<rangle>)
+      (filter_mset (\<lambda>c'. \<exists>ar. c' = \<langle>ar\<rangle>)
+        (head_comms c))\<close>
+  by (induct c) simp+
 
 
 subsection \<open> Atom Headed \<close>
