@@ -144,7 +144,7 @@ lemma prod_part_destruct_exch4_eq[simp]:
   \<open>snd (exch4 (ab, cd)) = (snd ab, snd cd)\<close>
   by (simp add: exch4_def)+
 
-lemma le_exch4_shunt:
+lemma leq_exch4_shunt:
   \<open>p \<le> q \<circ> exch4 \<longleftrightarrow> p \<circ> exch4 \<le> q\<close>
   by (metis comp_def exch4_idem le_fun_def)
 
@@ -2125,6 +2125,22 @@ lemma all_sec_determ_implies_sec_determ:
   \<open>all_sec_determ c s \<Longrightarrow> sec_determ c s\<close>
   by (clarsimp simp add: all_sec_determ_def, blast)
 
+lemma aopstep_preserves_all_sec_determ:
+  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> all_sec_determ c \<le> all_sec_determ c'\<close>
+proof (induct c arbitrary: \<pi>\<alpha> c')
+  case (Endet c1 c2)
+  then show ?case
+    apply clarsimp
+    apply (elim disjE)
+         apply force
+        apply force
+       apply (metis head_atomic_implies_all_steps_vis split_pairs tau_aact_simps(4) vis_aact_def)
+      apply (metis head_atomic_implies_all_steps_vis split_pairs tau_aact_simps(4) vis_aact_def)
+     apply (blast dest: Endet.hyps(1))
+    apply (blast dest: Endet.hyps(2))
+    done
+qed fastforce+
+
 
 subsubsection \<open> Sec. Determ. Lemmas \<close>
 
@@ -2189,23 +2205,6 @@ lemma head_atomic_opstep_vis_aact:
     head_atomic (snd sc) \<Longrightarrow>
     vis_aact (snd \<pi>\<alpha>)\<close>
   by (induct _ sc sc' rule: aopstep_induct) fastforce+
-
-lemma aopstep_preserves_all_sec_determ:
-  \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
-    all_sec_determ (snd sc) \<le> all_sec_determ (snd sc')\<close>
-proof (induct _ sc sc' rule: aopstep_induct)
-  case (Endet \<pi>\<alpha> s ca cb sc')
-  then show ?case
-    apply clarsimp
-    apply (elim disjE conjE)
-         apply force
-        apply force
-       apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-      apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
-     apply blast
-    apply blast
-    done
-qed fastforce+
 
 lemma head_sec_determ_same_aact_implies_same_comm:
   assumes
@@ -2368,7 +2367,7 @@ proof (induct arbitrary: c rule: safe.induct)
        apply force
       apply force
      apply (clarsimp simp del: sup_apply comp_apply del: disjCI)
-     apply (meson le_exch4_shunt order_trans)
+     apply (meson leq_exch4_shunt order_trans)
         (* subgoal: framed double-step *)
     apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
      prefer 2
@@ -2390,7 +2389,7 @@ proof (induct arbitrary: c rule: safe.induct)
     apply (frule aopstep_preserves_all_sec_determ)
     apply (clarsimp simp del: sup_apply comp_apply)
     apply (intro exI conjI, fast, fast, fast, fast, fast)
-    apply (meson order.trans le_exch4_shunt; fail)
+    apply (meson order.trans leq_exch4_shunt; fail)
     done
 qed
 
@@ -2463,6 +2462,15 @@ lemma all_secure_loop_states_eq[simp]:
         \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)|ar. ar \<in># head_atoms c} \<sqinter> all_secure_loop_states c\<close>
   by (clarsimp simp add: all_secure_loop_states_def ex_disj_distrib Collect_disj_eq
       conj_disj_distribL Inf_union_distrib)+
+
+lemma all_secure_loop_states_implies_head_secure_loop_states:
+  \<open>all_secure_loop_states c s \<Longrightarrow> head_secure_loop_states c s\<close>
+  by (induct c) fastforce+
+
+lemma aopstep_preserves_all_secure_loop_states:
+  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
+    all_secure_loop_states c \<le> all_secure_loop_states c'\<close>
+  by (induct c arbitrary: \<pi>\<alpha> c') fastforce+
 
 
 definition
@@ -2603,8 +2611,8 @@ qed (force simp add: all_conj_distrib)+
 lemma doublest_step_then_two_singlest_steps:
   assumes
     \<open>(sxy, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
-    \<open>head_secure_loop_states cc (sx,sy)\<close>
     \<open>exch4 sxy = (sx, sy)\<close>
+    \<open>head_secure_loop_states cc (sx,sy)\<close>
     \<open>exch4 sxy' = (sx', sy')\<close>
   shows
     \<open>(\<exists>cx cy. unliftC cc = (cx, cy) \<and>
@@ -2694,9 +2702,9 @@ proof (induct cc arbitrary: \<pi>\<alpha> sxy c cc' sxy')
     using Seq.prems
     apply -
     apply (frule doublest_step_then_two_singlest_steps)
-       apply (rule subst[OF exch4_apply], assumption)
-      apply (simp add: exch4_def split: prod.splits; fail)
-     apply (simp add: exch4_def; fail)
+       apply (simp add: exch4_def; fail)
+      apply (rule subst[OF exch4_apply], assumption)
+     apply (simp add: exch4_def split: prod.splits; fail)
     apply (clarsimp split: prod.splits)
     apply (metis Seq.hyps(1) unliftC_rev_iff2(2))
     done
@@ -2741,5 +2749,239 @@ next
     done
 qed (force simp add: ball_Un)+
 
+
+text \<open>
+  Like \<open>safe\<close>, but with an additional secure step condition.
+\<close>
+inductive secure2
+  :: \<open>('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      (('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow>
+      ('s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      (('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow>
+      (('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow>
+      nat \<Rightarrow>
+      ('l, 's) rgstate comm \<Rightarrow>
+      ('l::pre_perm_alg, 's) rgstate \<Rightarrow>
+      bool\<close>
+  for R F G I q
+  where secure2I[intro]:
+  \<open>\<comment> \<open> bindings \<close>
+    s = (ls, ss) \<Longrightarrow>
+    \<comment> \<open> the four safety conditions: \<close>
+    \<comment> \<open> Post-condition \<close>
+    c = Skip \<longrightarrow> q s \<Longrightarrow>
+    \<comment> \<open> State Invariant \<close>
+    I s \<Longrightarrow>
+    \<comment> \<open> Rely Steps \<close>
+    (\<And>n' ss'.
+      n = Suc n' \<Longrightarrow>
+      R ss ss' \<Longrightarrow>
+      secure2 R F G I q n' c (ls, ss')) \<Longrightarrow>
+    \<comment> \<open> Opsteps \<close>
+    (\<And>n' \<alpha> ls' ss' c'.
+      n = Suc n' \<Longrightarrow>
+      (s, c) \<midarrow>\<alpha>\<rightarrow> ((ls', ss'), c') \<Longrightarrow>
+      (\<alpha> \<noteq> Tau \<longrightarrow> G ss ss') \<and>
+      (\<alpha> = Tau \<longrightarrow> ls' = ls) \<and>
+      secure2 R F G I q n' c' (ls', ss')) \<Longrightarrow>
+    \<comment> \<open> Framed opsteps \<close>
+    (\<And>n' f \<alpha> lsf' ss' c'.
+      n = Suc n' \<Longrightarrow>
+      F (f, ss) \<Longrightarrow>
+      ls ## f \<Longrightarrow>
+      ((ls + f, ss), c) \<midarrow>\<alpha>\<rightarrow> ((lsf', ss'), c') \<Longrightarrow>
+      (\<alpha> \<noteq> Tau \<longrightarrow> G ss ss') \<and>
+      (\<exists>ls'.
+        ls' ## f \<and> lsf' = ls' + f \<and>
+        (\<alpha> = Tau \<longrightarrow> ls' = ls) \<and>
+        secure2 R F G I q n' c' (ls', ss'))) \<Longrightarrow>
+    \<comment> \<open> the security conditions: \<close>
+    unliftC c = (cx, cy) \<Longrightarrow>
+    \<comment> \<open> existence of a splitting \<close>
+    (\<And>n' \<pi>\<alpha> sa sax say.
+      n = Suc n' \<Longrightarrow>
+      \<comment> \<open> the state may be framed \<close>
+      sa = s \<or> (\<exists>f. F (f, ss) \<and> ls ## f \<and> sa = (ls + f, ss)) \<Longrightarrow>
+      exch4 sa = (sax, say) \<Longrightarrow>
+      \<comment> \<open> a paired-state step has two corresponding single-steps with the commands related
+            by unlifting. \<close>
+      (\<forall>sa' c'. (sa, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', c') \<longrightarrow>
+        (\<exists>sax' say' cx' cy'.
+          unliftC c' = (cx', cy') \<and>
+          exch4 sa' = (sax', say') \<and>
+          (sax, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<and>
+          (say, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy'))) \<and>
+      \<comment> \<open> any two steps from the related inital states produce the same final command. \<close>
+      (\<forall>sax' say' cx' cy'.
+        (sax, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
+        (say, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
+        cx' = cy') ) \<Longrightarrow>
+    \<comment> \<open> conclude a step can be made \<close>
+    secure2 R F G I q n c s\<close>
+
+
+theorem safety_implies_security2:
+  fixes n :: nat
+    and cc :: \<open>('l::pre_perm_alg, 's) rgstate comm\<close>
+    and ss :: \<open>('l, 's) rgstate\<close>
+    and F I q :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
+  assumes
+    \<open>safe R F G I q n cc s\<close>
+    \<open>unliftC cc = (c, c)\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_secure_loop_states cc \<circ> exch4\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ c \<circ> exch4\<close>
+  shows
+    \<open>secure2 R F G I q n cc s\<close>
+  using assms
+proof (induct arbitrary: c rule: safe.induct)
+  case (safeI cc s n)
+
+  obtain lsx lsy ssx ssy where s_eq:
+    \<open>s = ((lsx, lsy), (ssx, ssy))\<close>
+    by (metis surjective_pairing)
+
+  show ?case
+  proof (rule secure2I[OF s_eq _ _ _ _ _ safeI.prems(1) conjI])
+    show \<open>cc = Skip \<longrightarrow> q s\<close>
+      using safeI.hyps(1)
+      by simp
+  next
+    show \<open>I s\<close>
+      using safeI.hyps(2)
+      by simp
+  next
+    fix n' ss'
+    assume
+      \<open>n = Suc n'\<close>
+      \<open>R (ssx, ssy) ss'\<close>
+    then show \<open>secure2 R F G I q n' cc ((lsx, lsy), ss')\<close>
+      using safeI.hyps(4) s_eq safeI.prems
+      by auto
+  next
+    fix n' \<alpha> ls' ss' cc'
+    assume assms2:
+      \<open>n = Suc n'\<close>
+      \<open>(s, cc) \<midarrow>\<alpha>\<rightarrow> ((ls', ss'), cc')\<close>
+
+    have head_secure_loop_states_s: \<open>head_secure_loop_states cc ((lsx, ssx), (lsy, ssy))\<close>
+      using safeI.prems safeI.hyps(2) s_eq all_secure_loop_states_implies_head_secure_loop_states
+      by fastforce
+    moreover have head_sec_determ_s: \<open>head_sec_determ c ((lsx, ssx), (lsy, ssy))\<close>
+      using safeI.prems safeI.hyps(2) s_eq all_sec_determ_implies_head_sec_determ
+      by fastforce
+    moreover obtain \<pi>\<alpha> where equiv_aopstep:
+      \<open>strip_aact (snd \<pi>\<alpha>) = \<alpha>\<close>
+      \<open>(s, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((ls', ss'), cc')\<close>
+      using assms2 opstep_then_aopstep
+      by blast
+    moreover obtain c' where \<open>unliftC cc' = (c', c')\<close>
+      using safeI.prems(1) s_eq equiv_aopstep head_secure_loop_states_s
+      by (metis aopstep_preserves_unliftC_same exch4_two_apply fst_conv snd_conv)
+    ultimately show
+      \<open>(\<alpha> \<noteq> Tau \<longrightarrow> G (ssx, ssy) ss') \<and>
+        (\<alpha> = Tau \<longrightarrow> ls' = (lsx, lsy)) \<and>
+        secure2 R F G I q n' cc' (ls', ss')\<close>
+      using s_eq assms2 safeI.prems
+      apply -
+        (** forward reasoning *)
+      apply (frule doublest_step_then_two_singlest_steps)
+         apply force
+        apply blast
+       apply (simp add: exch4_def; fail)
+      apply (frule safeI.hyps(5), force)
+      (** solve the goal *)
+      apply (clarsimp simp add: leq_exch4_shunt simp del: sup_apply comp_apply sup.bounded_iff)
+      apply (meson aopstep_preserves_all_sec_determ aopstep_preserves_all_secure_loop_states
+          order.trans)
+      done
+  next
+    fix n' f \<alpha> lsf' ss' cc'
+    assume assms2:
+      \<open>n = Suc n'\<close>
+      \<open>F (f, ssx, ssy)\<close>
+      \<open>(lsx, lsy) ## f\<close>
+      \<open>(((lsx, lsy) + f, ssx, ssy), cc) \<midarrow>\<alpha>\<rightarrow> ((lsf', ss'), cc')\<close>
+
+    obtain fx fy where f_eq: \<open>f = (fx, fy)\<close>
+      by fastforce
+
+    have \<open>all_secure_loop_states cc ((lsx + fx, ssx), (lsy + fy, ssy))\<close>
+      using safeI.prems safeI.hyps(2) s_eq assms2 f_eq
+      by (simp add: le_fun_def sepconj_conjI)
+    moreover then have head_secure_loop_states_s: \<open>head_secure_loop_states cc ((lsx + fx, ssx), (lsy + fy, ssy))\<close>
+      by (simp add: all_secure_loop_states_implies_head_secure_loop_states)
+    moreover have \<open>all_sec_determ c ((lsx + fx, ssx), (lsy + fy, ssy))\<close>
+      using safeI.prems safeI.hyps(2) s_eq assms2 f_eq
+      by (simp add: le_fun_def sepconj_conjI)
+    moreover then have head_sec_determ_s: \<open>head_sec_determ c ((lsx + fx, ssx), (lsy + fy, ssy))\<close>
+      by (simp add: all_sec_determ_implies_head_sec_determ)
+    moreover obtain \<pi>\<alpha> where equiv_aopstep:
+      \<open>strip_aact (snd \<pi>\<alpha>) = \<alpha>\<close>
+      \<open>(((lsx + fx, lsy + fy), (ssx, ssy)), cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((lsf', ss'), cc')\<close>
+      using assms2 f_eq opstep_then_aopstep
+      by fastforce
+    moreover obtain c' where \<open>unliftC cc' = (c', c')\<close>
+      using safeI.prems(1) s_eq equiv_aopstep head_secure_loop_states_s head_sec_determ_s
+      by (metis aopstep_preserves_unliftC_same exch4_four_apply)
+    ultimately show
+      \<open>(\<alpha> \<noteq> Tau \<longrightarrow> G (ssx, ssy) ss') \<and>
+       (\<exists>ls'.
+          ls' ## f \<and> lsf' = ls' + f \<and> 
+          (\<alpha> = Tau \<longrightarrow> ls' = (lsx, lsy)) \<and>
+          secure2 R F G I q n' cc' (ls', ss'))\<close>
+      using safeI.prems s_eq assms2 f_eq
+      (** forward reasoning *)
+      apply (clarsimp simp del: sup_apply comp_apply sup.bounded_iff)
+      apply (frule doublest_step_then_two_singlest_steps)
+         apply force
+        apply force
+       apply (simp add: exch4_def; fail)
+      apply (clarsimp simp del: sup_apply comp_apply sup.bounded_iff)
+      apply (frule safeI.hyps(6)[where fs=\<open>(fx, fy)\<close>])
+         apply (clarsimp simp del: sup_apply comp_apply sup.bounded_iff)
+         apply (simp; fail)
+        apply force
+       apply force
+      apply (clarsimp simp add: leq_exch4_shunt simp del: sup_apply comp_apply sup.bounded_iff)
+      apply (drule mp[of \<open>_ \<circ> exch4 \<le> _\<close>])
+       apply (metis order_trans[OF _ aopstep_preserves_all_secure_loop_states])
+      apply (drule mp[of \<open>_ \<circ> exch4 \<le> _\<close>])
+       apply (metis order_trans[OF _ aopstep_preserves_all_sec_determ])
+      apply blast
+      done
+  next
+    fix n' \<pi>\<alpha> sa sax say sa' cc'
+    assume assms2:
+      \<open>n = Suc n'\<close>
+      \<open>sa = s \<or> (\<exists>f. F (f, ssx, ssy) \<and> (lsx, lsy) ## f \<and> sa = ((lsx, lsy) + f, ssx, ssy))\<close>
+      \<open>exch4 sa = (sax, say)\<close>
+
+    have hsls: \<open>head_secure_loop_states cc (sax, say)\<close>
+      using assms2(2-3) s_eq safeI.prems safeI.hyps(2)
+      by (metis (mono_tags, lifting) all_secure_loop_states_implies_head_secure_loop_states
+          comp_def le_boolD le_fun_def le_sup_iff sepconj_conjI)
+
+    show
+      \<open>(\<forall>sa' c'. (sa, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', c') \<longrightarrow>
+        (\<exists>sax' say' cx' cy'.
+          unliftC c' = (cx', cy') \<and>
+          exch4 sa' = (sax', say') \<and>
+          (sax, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<and>
+          (say, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy')))\<close>
+      using  safeI.prems(1) assms2 hsls
+        doublest_step_then_two_singlest_steps[of \<pi>\<alpha> sa cc _ _ "fst (exch4 sa)" "snd (exch4 sa)"
+          "fst (exch4 _)" "snd (exch4 _)"]
+      by force
+    show
+      \<open>(\<forall>sax' say' cx' cy'.
+        (sax, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
+        (say, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
+        cx' = cy')\<close>
+      using  safeI.hyps(2) safeI.prems(3) assms2(2,3)
+      by (metis all_sec_determ_implies_head_sec_determ head_sec_determ_same_aact_implies_same_comm
+          sepconj_conjI comp_eq_dest_lhs s_eq sup.orderE sup1I1 sup1I2)
+  qed
+qed
 
 end
