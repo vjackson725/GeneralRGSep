@@ -2206,7 +2206,7 @@ lemma head_atomic_opstep_vis_aact:
     vis_aact (snd \<pi>\<alpha>)\<close>
   by (induct _ sc sc' rule: aopstep_induct) fastforce+
 
-lemma head_sec_determ_same_aact_implies_same_comm:
+lemma same_initcomm_and_aact_then_same_fincomm:
   assumes
     \<open>(sx, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx')\<close>
     \<open>(sy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')\<close>
@@ -2352,7 +2352,7 @@ proof (induct arbitrary: c rule: safe.induct)
       apply (simp add: exch4_def; fail)
       (* subgoal: double-step *)
      apply clarsimp
-     apply (frule(1) head_sec_determ_same_aact_implies_same_comm[
+     apply (frule(1) same_initcomm_and_aact_then_same_fincomm[
           where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
       apply (simp add: le_fun_def exch4_def)
       apply (metis all_sec_determ_implies_head_sec_determ)
@@ -2373,7 +2373,7 @@ proof (induct arbitrary: c rule: safe.induct)
      prefer 2
      apply (rule sepconj_conjI, assumption, assumption, force, force)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
-        head_sec_determ_same_aact_implies_same_comm, assumption)
+        same_initcomm_and_aact_then_same_fincomm, assumption)
      apply (simp add: le_fun_def exch4_def)
      apply (metis all_sec_determ_implies_head_sec_determ)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
@@ -2471,50 +2471,6 @@ lemma aopstep_preserves_all_secure_loop_states:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
     all_secure_loop_states c \<le> all_secure_loop_states c'\<close>
   by (induct c arbitrary: \<pi>\<alpha> c') fastforce+
-
-
-definition
-  \<open>quasireflp_atoms \<equiv> all_atom_comm
-    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
-      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
-      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
-
-lemmas quasireflp_atoms_simps[simp] =
-  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
-      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
-      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>,
-    simplified quasireflp_atoms_def[symmetric]]
-
-lemma quasireflp_atomsD1:
-  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
-    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
-    ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx'))\<close>
-  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
-
-lemma quasireflp_atomsD2:
-  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
-    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
-    ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>
-  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
-
-
-definition
-  \<open>symp_atoms \<equiv> all_atom_comm
-    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
-      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
-      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx')))\<close>
-
-lemma symp_atomsD:
-  \<open>symp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
-    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
-    ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>
-  by (simp add: all_atom_comm_def symp_atoms_def, blast)
-
-lemmas symp_atoms_simps[simp] =
-  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
-      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
-      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>,
-    simplified symp_atoms_def[symmetric]]
 
 
 lemma two_singlest_nostep_then_doublest_nostep:
@@ -2962,6 +2918,11 @@ proof (induct arbitrary: c rule: safe.induct)
       by (metis (mono_tags, lifting) all_secure_loop_states_implies_head_secure_loop_states
           comp_def le_boolD le_fun_def le_sup_iff sepconj_conjI)
 
+    have hsd: \<open>head_sec_determ c (sax, say)\<close>
+      using assms2(2-3) s_eq safeI.prems safeI.hyps(2)
+      by (clarsimp simp add: le_fun_def,
+          metis all_sec_determ_implies_head_sec_determ exch4_four_apply sepconj_conjI)
+
     show
       \<open>(\<forall>sa' c'. (sa, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', c') \<longrightarrow>
         (\<exists>sax' say' cx' cy'.
@@ -2978,10 +2939,56 @@ proof (induct arbitrary: c rule: safe.induct)
         (sax, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
         (say, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
         cx' = cy')\<close>
-      using  safeI.hyps(2) safeI.prems(3) assms2(2,3)
-      by (metis all_sec_determ_implies_head_sec_determ head_sec_determ_same_aact_implies_same_comm
+      using safeI.hyps(2) safeI.prems(3) assms2(2,3)
+      by (metis all_sec_determ_implies_head_sec_determ same_initcomm_and_aact_then_same_fincomm
           sepconj_conjI comp_eq_dest_lhs s_eq sup.orderE sup1I1 sup1I2)
   qed
 qed
+
+
+section \<open> Scratch Space \<close>
+
+definition
+  \<open>quasireflp_atoms \<equiv> all_atom_comm
+    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
+
+lemmas quasireflp_atoms_simps[simp] =
+  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>,
+    simplified quasireflp_atoms_def[symmetric]]
+
+lemma quasireflp_atomsD1:
+  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx'))\<close>
+  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
+
+lemma quasireflp_atomsD2:
+  \<open>quasireflp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy'))\<close>
+  by (simp add: all_atom_comm_def quasireflp_atoms_def, blast)
+
+
+definition
+  \<open>symp_atoms \<equiv> all_atom_comm
+    (\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx')))\<close>
+
+lemma symp_atomsD:
+  \<open>symp_atoms cc \<Longrightarrow> ar \<in># all_atoms cc \<Longrightarrow>
+    ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<Longrightarrow>
+    ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>
+  by (simp add: all_atom_comm_def symp_atoms_def, blast)
+
+lemmas symp_atoms_simps[simp] =
+  all_atom_comm_simps[of \<open>\<lambda>ar. \<forall>lx sx ly sy lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>,
+    simplified symp_atoms_def[symmetric]]
 
 end
