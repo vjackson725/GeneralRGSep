@@ -92,8 +92,16 @@ lemma conj_disj_distribR_middle:
   \<open>(P \<and> R \<or> S \<and> T) \<and> Q \<longleftrightarrow> P \<and> Q \<and> R \<or> S \<and> Q \<and> T\<close>
   by blast
 
-lemma imp_iff_imp_iff:
+lemma eq_same_implies_iff_implies_eq:
   \<open>(A \<longrightarrow> B) = (A \<longrightarrow> C) \<longleftrightarrow> (A \<longrightarrow> B = C)\<close>
+  by blast
+
+lemma eq_same_conjR_iff_implies_eq:
+  \<open>(A \<and> C) = (B \<and> C) \<longleftrightarrow> (C \<longrightarrow> A = B)\<close>
+  by blast
+
+lemma eq_same_conjL_iff_implies_eq:
+  \<open>(A \<and> B) = (A \<and> C) \<longleftrightarrow> (A \<longrightarrow> B = C)\<close>
   by blast
 
 lemma ex_middle_eq_iff:

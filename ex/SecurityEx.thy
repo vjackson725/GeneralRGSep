@@ -2,6 +2,8 @@ theory SecurityEx
   imports "../sec/Semantics"
 begin
 
+(* TODO: move *)
+
 lemma eq_rtimes_R_iff:
   \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
   by (cases s, cases s', force)
@@ -11,57 +13,29 @@ lemma top_rtimes_R_iff:
   by (cases s, cases s', force)
 
 
-section \<open> Examples \<close>
-
 definition
-  \<open>atom_guard c \<equiv> THE out. \<exists>ar. c = \<langle>ar\<rangle> \<and> out = pre_state ar\<close>
+  \<open>atom_rel c \<equiv> THE ar. c = \<langle>ar\<rangle>\<close>
 
-abbreviation secAgree_exch4 (\<open>\<bbbA>\<^sub>\<ddagger>\<close>) where
-  \<open>\<bbbA>\<^sub>\<ddagger> \<equiv> \<lambda>p. \<bbbA> p  \<circ> exch4\<close>
+abbreviation(input)
+  \<open>atom_guard c \<equiv> pre_state (atom_rel c)\<close>
 
-abbreviation predTimes_exch4 (\<open>\<lblot> _ \<rblot>\<^sub>\<ddagger>\<close>) where
-  \<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<equiv> \<lblot> p \<rblot> \<circ> exch4\<close>
-
-
-lemma predTimes_sepconj_distrib:
-  \<open>\<lblot> p \<^emph> q \<rblot> = \<lblot> p \<rblot> \<^emph> \<lblot> q \<rblot>\<close>
-  by (force simp add: pred_Times_def fun_eq_iff sepconj_def)
-
-lemma predTimes_emp_eq[simp]:
-  \<open>\<lblot> emp \<rblot> = emp\<close>
-  by (simp add: pred_Times_def fun_eq_iff emp_def)
+lemma atom_rel_atom_eq[simp]:
+  \<open>atom_rel \<langle>ar\<rangle> = ar\<close>
+  by (simp add: atom_rel_def)
 
 
 lemma sepconj_comp_exch4_distrib:
   \<open>(p \<^emph> q) \<circ> exch4 = (p \<circ> exch4) \<^emph> (q \<circ> exch4)\<close>
   by (force simp add: fun_eq_iff sepconj_def)
 
-
-lemma predTimesExch4_sepconj_conj_distrib:
-  \<open>\<lblot> p \<^emph>\<and> q \<rblot>\<^sub>\<ddagger> = \<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
-  by (force simp add: pred_Times_def fun_eq_iff sepconj_conj_def)
-
-lemma predTimesExch4_local_eq[simp]:
-  \<open>\<lblot> \<L> p \<rblot>\<^sub>\<ddagger> = \<L> (\<lblot> p \<rblot>)\<close>
-  by (force simp add: pred_Times_def fun_eq_iff sepconj_conj_def)
-
-lemma predTimesExch4_shared_eq[simp]:
-  \<open>\<lblot> \<S> p \<rblot>\<^sub>\<ddagger> = \<S> (\<lblot> p \<rblot>)\<close>
-  by (force simp add: pred_Times_def fun_eq_iff sepconj_conj_def)
-
-lemma predTimesExch4_mono:
-  \<open>p \<le> q \<Longrightarrow> \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
-  by (force simp add: pred_Times_def fun_eq_iff)
-
 lemma predTimesExch4_sup_semidistrib:
   \<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> q \<rblot>\<^sub>\<ddagger> \<le> \<lblot> p \<squnion> q \<rblot>\<^sub>\<ddagger>\<close>
-  using predTimesExch4_mono
-  by force
+  using pred_lift_exch4_mono
+  by (metis inf_sup_ord(3,4) le_supI)
 
 lemma predTimesExch4_sup_distrib:
   \<open>\<lblot> p \<sqinter> q \<rblot>\<^sub>\<ddagger> = \<lblot> p \<rblot>\<^sub>\<ddagger> \<sqinter> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
-  by (force simp add: pred_Times_def fun_eq_iff)
-
+  by (force simp add: pred_times_def fun_eq_iff)
 
 lemma sp_times_distrib[simp]:
   \<open>sp (Ra \<times>\<^sub>R Rb) (pa \<times>\<^sub>P pb) = sp Ra pa \<times>\<^sub>P sp Rb pb\<close>
@@ -73,8 +47,11 @@ lemma sp_rtrancl_times_semidistrib:
 
 lemma sswa_rel_times_prod_times_exch4_semidistrib:
   \<open>sswa (Ra \<times>\<^sub>R Rb) (\<lblot> p \<rblot>\<^sub>\<ddagger>) \<le> (sswa Ra p \<times>\<^sub>P sswa Rb p) \<circ> exch4\<close>
-  by (simp add: le_fun_def pred_Times_def sp_def)
-    (metis fst_conv rel_Times_def rtranclp_tuple_rel_semidistrib snd_conv)
+  oops
+(*
+  by (simp add: le_fun_def pred_times_def sp_def)
+    (metis fst_conv rel_times_def rtranclp_tuple_rel_semidistrib snd_conv)
+*)
 
 lemma rel_times_sup_semidistrib:
   \<open>(ra \<times>\<^sub>R rb) \<squnion> (ra \<times>\<^sub>R rb) \<le> (ra \<squnion> rb) \<times>\<^sub>R (ra \<squnion> rb)\<close>
@@ -82,11 +59,56 @@ lemma rel_times_sup_semidistrib:
 
 lemma sp_exch4_of_rel_Times_eq[simp]:
   \<open>sp ((r \<times>\<^sub>R r) \<circ>\<^sub>2 exch4) \<lblot> p \<rblot>\<^sub>\<ddagger> = \<lblot> sp r p \<rblot>\<^sub>\<ddagger>\<close>
-  by (force simp add: fun_eq_iff sp_def)
+  (* by (force simp add: fun_eq_iff sp_def) *)
+  oops
+
+definition RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> ('l, 's \<times> fail_st) rgstate comm\<close> where
+  \<open>RelAssert p \<equiv>
+    \<langle>\<lambda>(l, ((sx,flx), (sy,fly))) (l', (sx',flx'), (sy',fly')).
+      l' = l \<and> sx' = sx \<and> sy' = sy \<and>
+        ((p (l,(sx,sy)) \<or> flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
+          flx = Running \<and> fly = Running \<and> \<not> p (l,(sx,sy)) \<and> flx' = Failed \<and> fly' = Failed)\<rangle>\<close>
+
+definition Output :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l, 's \<times> fail_st) rgstate comm\<close> where
+  \<open>Output h \<equiv> RelAssert (\<bbbA>\<^sub>\<ddagger> h)\<close>
+
+
+definition purely_relational
+  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
+  where
+    \<open>purely_relational ar \<equiv>
+      (\<forall>z x' y'. (ar \<circ>\<^sub>2 exch4) (z,z) (x',y') \<longrightarrow> x' = z \<and> y' = z)\<close>
+
+lemma purely_relational_output:
+  \<open>purely_relational (atom_rel (Output h))\<close>
+  unfolding Output_def RelAssert_def sec_agree_exch4_def sec_agree_def
+  by (simp add: purely_relational_def fun_eq_iff)
+
+lemma helper:
+  \<open>A \<and> B \<and> C \<or> B \<and> C \<longleftrightarrow> B \<and> C\<close>
+  by blast
+
+lemma
+  \<open>unliftC (RelAssert p :: ('l, 's \<times> fail_st) rgstate comm) =
+    ( \<langle>\<lambda>(l,(s,fl)) (l',(s',fl')).
+        l' = l \<and> s' = s \<and>
+        (fl = Failed \<longrightarrow> fl' = Running \<longrightarrow> False) \<and>
+        (fl = Running \<longrightarrow> fl' = Failed \<longrightarrow> (\<exists>ly sy. \<not> p ((l, ly), (s, sy))))
+      \<rangle>
+    , \<langle>\<lambda>(l,(s,fl)) (l',(s',fl')).
+        l' = l \<and> s' = s \<and>
+          (fl = fl' \<or>
+            fl = Running \<and> fl' = Failed \<and> (\<exists>lx sx. \<not> p ((lx, l), (sx, s))
+          ))
+      \<rangle>
+    )\<close>
+  by (force simp add: RelAssert_def fun_eq_iff all_fail_st_eq ex_fail_st_eq)
+
+section \<open> Examples \<close>
 
 
 lemma
-  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile>\<^sub>k { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile>\<^sub>f { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
 
 lemma double_program_lifting':
   assumes \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
@@ -385,7 +407,7 @@ lemma comp2_exch4_over_rel_times[simp]:
   fixes ra :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close>
     and rb :: \<open>'b \<Rightarrow> 'b \<Rightarrow> bool\<close>
   shows \<open>((ra \<times>\<^sub>R rb) \<times>\<^sub>R (rc \<times>\<^sub>R rd)) \<circ>\<^sub>2 exch4 = ((ra \<times>\<^sub>R rc) \<times>\<^sub>R (rb \<times>\<^sub>R rd))\<close>
-  by (force simp add: comp_rel_def exch4_def rel_Times_def)
+  by (force simp add: comp_rel_def exch4_def rel_times_def)
 
 lemma example_observing_local_state:
   fixes F :: \<open>(('p \<rightharpoonup> 'v::perm_alg) \<times> ('p \<rightharpoonup> 'v)) \<times> ('h \<times> 'h) \<Rightarrow> bool\<close>

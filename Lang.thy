@@ -322,9 +322,18 @@ section \<open> Specific Languages \<close>
 
 (* TODO: move *)
 
-datatype crash_st = Running | Failed
+datatype fail_st = Running | Failed
 
-text \<open> Failed should not be resolvable. \<close>
+lemma all_fail_st_eq:
+  \<open>All P \<longleftrightarrow> P Running \<and> P Failed\<close>
+  by (metis (full_types) fail_st.exhaust)
+
+lemma ex_fail_st_eq:
+  \<open>Ex P \<longleftrightarrow> P Running \<or> P Failed\<close>
+  by (metis (full_types) fail_st.exhaust)
+
+
+text \<open> Failure should not be resolvable. \<close>
 definition
   \<open>failure_healthy_rel r \<equiv>
     (\<lambda>(l, s, k) s'. k = Running \<and> r (l,s) s' \<or> k = Failed \<and> s' = (l, s, k))\<close>
