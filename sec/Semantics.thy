@@ -3096,17 +3096,17 @@ proof (induct rule: safe.induct)
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
-    moreover have head_sec_determ_s: \<open>rev_quasireflp_doloops_head_atoms cc s\<close>
+    moreover have \<open>rev_quasireflp_doloops_head_atoms cc s\<close>
       using safeI.prems safeI.hyps(2)
       by fastforce
-    moreover then have head_sec_determ_s: \<open>rev_quasireflp_head_doloops_head_atoms cc s\<close>
+    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc s\<close>
       by (force simp add: rev_quasireflp_doloops_head_atoms_def
           rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
-    moreover have all_sec_determ_s: \<open>all_sec_determ (unliftC2 cc) ((lsx, ssx), (lsy, ssy))\<close>
+    moreover have \<open>all_sec_determ (unliftC2 cc) ((lsx, ssx), (lsy, ssy))\<close>
       using exch4_two_apply s_eq' safeI.hyps(2) safeI.prems(3)
       by auto
-    moreover have head_sec_determ_s: \<open>head_sec_determ (unliftC2 cc) ((lsx, ssx), (lsy, ssy))\<close>
-      by (simp add: all_sec_determ_implies_head_sec_determ all_sec_determ_s)
+    moreover then have \<open>head_sec_determ (unliftC2 cc) ((lsx, ssx), (lsy, ssy))\<close>
+      by (simp add: all_sec_determ_implies_head_sec_determ)
     moreover obtain \<pi>\<alpha> where equiv_aopstep:
       \<open>strip_aact (snd \<pi>\<alpha>) = \<alpha>\<close>
       \<open>(s, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((ls', ss'), cc')\<close>
@@ -3143,24 +3143,24 @@ proof (induct rule: safe.induct)
       \<open>ls ## f\<close>
       \<open>((ls + f, ss), cc) \<midarrow>\<alpha>\<rightarrow> ((lsf', ss'), cc')\<close>
 
-    have quasireflp_atoms_s: \<open>quasireflp_atoms cc (ls + f, ss)\<close>
+    have \<open>quasireflp_atoms cc (ls + f, ss)\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (metis disjoint_sym_iff partial_add_commute sepconj_conj_revI sup.order_iff sup1I2)
-    moreover then have quasireflp_atoms_s: \<open>quasireflp_head_atoms cc (ls + f, ss)\<close>
+      by (metis sepconj_conjI sup.order_iff sup1I2)
+    moreover then have \<open>quasireflp_head_atoms cc (ls + f, ss)\<close>
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
-    moreover have head_sec_determ_s: \<open>rev_quasireflp_doloops_head_atoms cc (ls + f, ss)\<close>
+    moreover have \<open>rev_quasireflp_doloops_head_atoms cc (ls + f, ss)\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
       by (meson predicate1D sepconj_conjI sup.boundedE) 
-    moreover then have head_sec_determ_s: \<open>rev_quasireflp_head_doloops_head_atoms cc (ls + f, ss)\<close>
+    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc (ls + f, ss)\<close>
       by (force simp add: rev_quasireflp_doloops_head_atoms_def
           rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
-    moreover have all_sec_determ_s: \<open>all_sec_determ (unliftC2 cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
+    moreover have \<open>all_sec_determ (unliftC2 cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
       using exch4_two_apply s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
       by (clarsimp simp add: le_fun_def all_conj_distrib sepconj_conjI)
-    moreover have head_sec_determ_s: \<open>head_sec_determ (unliftC2 cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
-      by (simp add: all_sec_determ_implies_head_sec_determ all_sec_determ_s)
+    moreover then have \<open>head_sec_determ (unliftC2 cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
+      by (simp add: all_sec_determ_implies_head_sec_determ)
     moreover obtain \<pi>\<alpha> where equiv_aopstep:
       \<open>strip_aact (snd \<pi>\<alpha>) = \<alpha>\<close>
       \<open>((ls + f, ss), cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((lsf', ss'), cc')\<close>
@@ -3198,32 +3198,44 @@ proof (induct rule: safe.induct)
     fix n' \<pi>\<alpha> sa sax say sa' cc'
     assume assms2:
       \<open>n = Suc n'\<close>
-      \<open>sa = s \<or> (\<exists>f. F (f, ssx, ssy) \<and> (lsx, lsy) ## f \<and> sa = ((lsx, lsy) + f, ssx, ssy))\<close>
+      \<open>sa = s \<or> (\<exists>f. F (f, ss) \<and> ls ## f \<and> sa = (ls + f, ss))\<close>
       \<open>exch4 sa = (sax, say)\<close>
 
-(*
-    show
-      \<open>(\<forall>sa' c'. (sa, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', c') \<longrightarrow>
-        (\<exists>sax' say' cx' cy'.
-          unliftC c' = (cx', cy') \<and>
-          exch4 sa' = (sax', say') \<and>
-          (sax, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<and>
-          (say, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy')))\<close>
-      using  safeI.prems(1) assms2 hsls
-        doublest_step_then_two_singlest_steps[of \<pi>\<alpha> sa cc _ _ "fst (exch4 sa)" "snd (exch4 sa)"
-          "fst (exch4 _)" "snd (exch4 _)"]
-      by force
-    show
-      \<open>(\<forall>sax' say' cx' cy'.
-        (sax, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
-        (say, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
-        cx' = cy')\<close>
-      using safeI.hyps(2) safeI.prems(3) assms2(2,3)
-      by (metis all_sec_determ_implies_head_sec_determ same_initcomm_and_aact_then_same_fincomm
-          sepconj_conjI comp_eq_dest_lhs s_eq sup.orderE sup1I1 sup1I2)
+    have \<open>quasireflp_atoms cc sa\<close>
+      using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
+      by (metis le_sup_iff sepconj_conjI sup.order_iff sup1I2)
+    moreover then have \<open>quasireflp_head_atoms cc sa\<close>
+      apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
+      apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
+      done
+    moreover have \<open>rev_quasireflp_doloops_head_atoms cc sa\<close>
+      using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
+      by (meson predicate1D sepconj_conjI sup.boundedE) 
+    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc sa\<close>
+      by (force simp add: rev_quasireflp_doloops_head_atoms_def
+          rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
+    ultimately show
+      \<open>\<forall>sa' cc' sax' say'.
+        (sa, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', cc') \<longrightarrow>
+        exch4 sa' = (sax', say') \<longrightarrow>
+        (sax, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', unliftC2 cc') \<and>
+        (say, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', unliftC2 cc')\<close>
+      using assms2(3)
+      by (force dest: doublest_step_then_singlest_unliftC2_step)
+
+    have \<open>all_sec_determ (unliftC2 cc) (sax, say)\<close>
+      using s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
+      by (metis (no_types, lifting) comp_def predicate1D sepconj_conjI sup.boundedE)
+    then have \<open>head_sec_determ (unliftC2 cc) (sax, say)\<close>
+      by (simp add: all_sec_determ_implies_head_sec_determ)
+    then show
+      \<open>\<forall>sax' say' cx' cy'.
+        (sax, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
+        (say, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
+        cx' = cy'\<close>
+      by (blast dest: same_initcomm_and_aact_then_same_fincomm)
   qed
 qed
-*)
 
 
 section \<open> Scratch Space \<close>
