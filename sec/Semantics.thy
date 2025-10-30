@@ -219,6 +219,10 @@ lemma pred_lift_exch4_sepconj_conj_distrib:
   \<open>\<lblot>p \<^emph>\<and> q\<rblot>\<^sub>\<ddagger> = \<lblot>p\<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot>q\<rblot>\<^sub>\<ddagger>\<close>
   by (force simp add: pred_lift_exch4_def fun_eq_iff sepconj_conj_apply)
 
+lemma pred_lift_exch4_disj_semidistrib:
+  \<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> q \<rblot>\<^sub>\<ddagger> \<le> \<lblot> p \<squnion> q \<rblot>\<^sub>\<ddagger>\<close>
+  by (force simp add: pred_lift_exch4_def fun_eq_iff)
+
 lemma pred_lift_exch4_localpred_distrib:
   \<open>\<lblot> \<L> p \<rblot>\<^sub>\<ddagger> = \<L> (\<lblot>p\<rblot>)\<close>
   by (force simp add: pred_lift_exch4_def)
@@ -320,131 +324,6 @@ lemma liftC_eq_iff[simp]:
   by (induct ca arbitrary: cb) (fastforce simp add: rel_times_def fun_eq_iff)+
 
 
-subsubsection \<open> unlift double command to command \<close>
-
-definition unliftC
-  :: \<open>(('lx \<times> 'ly) \<times> ('sx \<times> 'sy)) comm \<Rightarrow> ('lx \<times> 'sx) comm \<times> ('ly \<times> 'sy) comm\<close>
-  where
-    \<open>unliftC c \<equiv>
-      ( map_atom (\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)) c
-      , map_atom (\<lambda>ar. rel_image snd (ar \<circ>\<^sub>2 exch4)) c)\<close>
-
-lemma unliftC_simps[simp]:
-  \<open>unliftC Skip = (Skip, Skip)\<close>
-  \<open>unliftC (ca ;; cb) =
-    (let (cax, cay) = unliftC ca
-       ; (cbx, cby) = unliftC cb
-      in (cax ;; cbx, cay ;; cby))\<close>
-  \<open>unliftC (ca \<^bold>\<sqinter> cb) =
-    (let (cax, cay) = unliftC ca
-       ; (cbx, cby) = unliftC cb
-      in (cax \<^bold>\<sqinter> cbx, cay \<^bold>\<sqinter> cby))\<close>
-  \<open>unliftC (ca \<^bold>\<box> cb) =
-    (let (cax, cay) = unliftC ca
-       ; (cbx, cby) = unliftC cb
-      in (cax \<^bold>\<box> cbx, cay \<^bold>\<box> cby))\<close>
-  \<open>unliftC (ca \<parallel> cb) =
-    (let (cax, cay) = unliftC ca
-       ; (cbx, cby) = unliftC cb
-      in (cax \<parallel> cbx, cay \<parallel> cby))\<close>
-  \<open>unliftC (DO c OD) =
-    (let (cax, cay) = unliftC c
-      in (DO cax OD, DO cay OD))\<close>
-  \<open>unliftC \<langle>ar\<rangle> =
-    ( \<langle>rel_image fst (ar \<circ>\<^sub>2 exch4)\<rangle>, \<langle>rel_image snd (ar \<circ>\<^sub>2 exch4)\<rangle> )\<close>
-  by (simp add: unliftC_def)+
-
-lemmas unliftC_simp[simp] =
-  map_atom.simps(1-5,7)[of \<open>\<lambda>ar. rel_image fst (ar \<circ>\<^sub>2 exch4)\<close>,
-    simplified unliftC_def[symmetric]]
-
-lemma unliftC_rev_iff:
-  \<open>unliftC c = (Skip, Skip) \<longleftrightarrow> c = Skip\<close>
-  \<open>unliftC c = (cax ;; cbx, cay ;; cby) \<longleftrightarrow>
-    (\<exists>ca cb. c = ca ;; cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cax \<^bold>\<sqinter> cbx, cay \<^bold>\<sqinter> cby) \<longleftrightarrow>
-    (\<exists>ca cb. c = ca \<^bold>\<sqinter> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cax \<^bold>\<box> cbx, cay \<^bold>\<box> cby) \<longleftrightarrow>
-    (\<exists>ca cb. c = ca \<^bold>\<box> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cax \<parallel> cbx, cay \<parallel> cby) \<longleftrightarrow>
-    (\<exists>ca cb. c = ca \<parallel> cb \<and> unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (DO cx OD, DO cy OD) \<longleftrightarrow>
-    (\<exists>c'. c = DO c' OD \<and> unliftC c' = (cx, cy))\<close>
-  \<open>unliftC c = (\<langle>arx\<rangle>, \<langle>ary\<rangle>) \<longleftrightarrow>
-    (\<exists>ar. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
-  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
-
-lemmas unliftC_rev_iff2 = unliftC_rev_iff[THEN trans[OF eq_commute]]
-
-lemma unliftC_subcomm_eqD:
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = Skip \<Longrightarrow> c = Skip \<and> cy = Skip\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = Skip \<Longrightarrow> c = Skip \<and> cx = Skip\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax ;; cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca ;; cb \<and> cy = cay ;; cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay ;; cby \<Longrightarrow>
-    (\<exists>ca cb cax cbx.
-      c = ca ;; cb \<and> cx = cax ;; cbx \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<sqinter> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<^bold>\<sqinter> cb \<and> cy = cay \<^bold>\<sqinter> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<^bold>\<sqinter> cby \<Longrightarrow>
-    (\<exists>ca cb cax cbx.
-      c = ca \<^bold>\<sqinter> cb \<and> cx = cax \<^bold>\<sqinter> cbx \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<box> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<^bold>\<box> cb \<and> cy = cay \<^bold>\<box> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<^bold>\<box> cby \<Longrightarrow>
-    (\<exists>ca cb cax cbx.
-      c = ca \<^bold>\<box> cb \<and> cx = cax \<^bold>\<box> cbx \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<parallel> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<parallel> cb \<and> cy = cay \<parallel> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = cay \<parallel> cby \<Longrightarrow>
-    (\<exists>ca cb cax cbx.
-      c = ca \<parallel> cb \<and> cx = cax \<parallel> cbx \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = DO cx' OD \<Longrightarrow>
-    (\<exists>c' cy'. c = DO c' OD \<and> cy = DO cy' OD \<and> unliftC c' = (cx', cy'))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = DO cy' OD \<Longrightarrow>
-    (\<exists>c' cx'. c = DO c' OD \<and> cx = DO cx' OD \<and> unliftC c' = (cx', cy'))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = \<langle>arx\<rangle> \<Longrightarrow>
-    (\<exists>ar ary. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cy = \<langle>ary\<rangle> \<Longrightarrow>
-    (\<exists>ar arx. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
-  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
-
-lemma unliftC_comm_neqD:
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> c \<noteq> Skip \<Longrightarrow> cx \<noteq> Skip \<and> cy \<noteq> Skip\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> \<forall>ca cb. c \<noteq> ca ;; cb \<Longrightarrow> (\<forall>ca cb. cx \<noteq> ca ;; cb) \<and> (\<forall>ca cb. cy \<noteq> ca ;; cb)\<close>
-(*
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<sqinter> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<^bold>\<sqinter> cb \<and> cy = cay \<^bold>\<sqinter> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<^bold>\<box> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<^bold>\<box> cb \<and> cy = cay \<^bold>\<box> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = cax \<parallel> cbx \<Longrightarrow>
-    (\<exists>ca cb cay cby.
-      c = ca \<parallel> cb \<and> cy = cay \<parallel> cby \<and>
-      unliftC ca = (cax, cay) \<and> unliftC cb = (cbx, cby))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = DO cx' OD \<Longrightarrow>
-    (\<exists>c' cy'. c = DO c' OD \<and> cy = DO cy' OD \<and> unliftC c' = (cx', cy'))\<close>
-  \<open>unliftC c = (cx, cy) \<Longrightarrow> cx = \<langle>arx\<rangle> \<Longrightarrow>
-    (\<exists>ar ary. c = \<langle>ar\<rangle> \<and> arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4))\<close>
-*)
-  by (clarsimp simp add: unliftC_def map_atom_rev_iff; blast)+
-
-
 subsubsection \<open> control-flow matching \<close>
 
 inductive cfmatchC :: \<open>'a comm \<Rightarrow> 'b comm \<Rightarrow> bool\<close> where
@@ -494,10 +373,6 @@ lemma cfmatchC_iff[simp]:
   \<open>cfmatchC cx \<langle>ary\<rangle> \<longleftrightarrow> (\<exists>arx. cx = \<langle>arx\<rangle>)\<close>
   by fastforce+
 
-lemma unliftC_produces_cfmatchC_comms:
-  \<open>unliftC cc = (cx, cy) \<Longrightarrow> cfmatchC cx cy\<close>
-  by (induct cc arbitrary: cx cy) (force split: prod.splits)+
-
 
 subsubsection \<open> command atoms refl. closure \<close>
 
@@ -519,25 +394,8 @@ lemma liftC_is_reflcl[simp]:
   \<open>reflclC (liftC c)\<close>
   by (induct c) clarsimp+
 
-lemma unliftC_liftC_cancel[simp]:
-  \<open>unliftC (liftC c) = (c, c)\<close>
-  unfolding unliftC_def liftC_def'
-  by (induct c) (force simp add: sec_agree_def fun_eq_iff)+
 
-lemma reflclC_unliftC_same:
-  \<open>reflclC cc \<Longrightarrow> unliftC cc = (cx, cy) \<Longrightarrow> cx = cy\<close>
-  unfolding unliftC_def liftC_def
-  by (induct cc arbitrary: cx cy)
-    (fastforce simp add: fun_eq_iff)+
-
-lemma reflclC_liftC_unliftC_cancel[simp]:
-  \<open>reflclC cc \<Longrightarrow> liftC (fst (unliftC cc)) = cc\<close>
-  unfolding unliftC_def liftC_def
-  using reflclC_unliftC_same
-  by (induct cc) (clarsimp simp add: fun_eq_iff; blast)+
-
-
-subsubsection \<open> unlift2 \<close>
+subsubsection \<open> unlift comm \<close>
 
 definition unliftC2 :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) comm\<close> where
   \<open>unliftC2 c \<equiv> map_atom (\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) c\<close>
@@ -547,6 +405,12 @@ lemmas unliftC2_simps[simp] =
 
 lemmas unliftC2_rev_iff =
   map_atom_rev_iff[of \<open>\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)\<close>, simplified unliftC2_def[symmetric]]
+  map_atom_rev_iff[of \<open>\<lambda>ar. ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)\<close>, simplified unliftC2_def[symmetric],
+    THEN trans[OF eq_commute]]
+
+lemma unlift_lift_comm_eq[simp]:
+  \<open>unliftC2 (liftC c) = c\<close>
+  by (induct c) (simp add: fun_eq_iff)+
 
 
 subsection \<open> double atom \<close>
@@ -560,6 +424,104 @@ lemma all_doubled_atom_liftC_iff[simp]:
   \<open>all_atom_comm doubled_atom (liftC c)\<close>
   by (induct c)
     (force simp add: doubled_atom_def)+
+
+section \<open> Quasirefl Atoms \<close>
+
+
+(* TODO: move *)
+definition
+  \<open>quasireflp_step ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
+    (\<forall>lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
+
+definition
+  \<open>quasireflp_head_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># head_atoms cc}\<close>
+
+lemma quasireflp_head_atoms_simps[simp]:
+  \<open>quasireflp_head_atoms Skip = \<top>\<close>
+  \<open>quasireflp_head_atoms (c1 ;; c2) = quasireflp_head_atoms c1\<close>
+  \<open>quasireflp_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
+  \<open>quasireflp_head_atoms (c1 \<^bold>\<box> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
+  \<open>quasireflp_head_atoms (c1 \<parallel> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
+  \<open>quasireflp_head_atoms (DO c OD) = quasireflp_head_atoms c\<close>
+  \<open>quasireflp_head_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
+  by (clarsimp simp add: quasireflp_head_atoms_def; blast)+
+
+definition
+  \<open>quasireflp_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># all_atoms cc}\<close>
+
+lemma quasireflp_atoms_simps[simp]:
+  \<open>quasireflp_atoms Skip = \<top>\<close>
+  \<open>quasireflp_atoms (c1 ;; c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
+  \<open>quasireflp_atoms (c1 \<^bold>\<sqinter> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
+  \<open>quasireflp_atoms (c1 \<^bold>\<box> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
+  \<open>quasireflp_atoms (c1 \<parallel> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
+  \<open>quasireflp_atoms (DO c OD) = quasireflp_atoms c\<close>
+  \<open>quasireflp_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
+  by (clarsimp simp add: quasireflp_atoms_def; blast)+
+
+
+definition
+  \<open>quasirefl_blocking_step ar \<equiv>
+    (\<lambda>(sx, sy).
+      (Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sx) \<or>
+        Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sy) \<longrightarrow>
+      Ex ((ar \<circ>\<^sub>2 exch4) (sx, sy)))) \<circ> exch4\<close>
+
+
+definition
+  \<open>quasirefl_blocking_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_step ar|ar. ar \<in># head_atoms cc}\<close>
+
+lemma quasirefl_blocking_head_atoms_simps[simp]:
+  \<open>quasirefl_blocking_head_atoms Skip = \<top>\<close>
+  \<open>quasirefl_blocking_head_atoms (c1 ;; c2) = quasirefl_blocking_head_atoms c1\<close>
+  \<open>quasirefl_blocking_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
+  \<open>quasirefl_blocking_head_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_head_atoms c1 \<sqinter> quasirefl_blocking_head_atoms c2\<close>
+  \<open>quasirefl_blocking_head_atoms (c1 \<parallel> c2) = quasirefl_blocking_head_atoms c1 \<sqinter> quasirefl_blocking_head_atoms c2\<close>
+  \<open>quasirefl_blocking_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c\<close>
+  \<open>quasirefl_blocking_head_atoms \<langle>ar\<rangle> = quasirefl_blocking_step ar\<close>
+  by (clarsimp simp add: quasirefl_blocking_head_atoms_def; blast)+
+
+definition
+  \<open>quasirefl_blocking_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_step ar|ar. ar \<in># all_atoms cc}\<close>
+
+lemma quasirefl_blocking_atoms_simps[simp]:
+  \<open>quasirefl_blocking_atoms Skip = \<top>\<close>
+  \<open>quasirefl_blocking_atoms (c1 ;; c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
+  \<open>quasirefl_blocking_atoms (c1 \<^bold>\<sqinter> c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
+  \<open>quasirefl_blocking_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
+  \<open>quasirefl_blocking_atoms (c1 \<parallel> c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
+  \<open>quasirefl_blocking_atoms (DO c OD) = quasirefl_blocking_atoms c\<close>
+  \<open>quasirefl_blocking_atoms \<langle>ar\<rangle> = quasirefl_blocking_step ar\<close>
+  by (clarsimp simp add: quasirefl_blocking_atoms_def; blast)+
+
+
+definition
+  \<open>quasirefl_blocking_head_doloops_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_head_atoms ca|ca. DO ca OD \<in># head_comms cc}\<close>
+
+lemma quasirefl_blocking_head_doloops_head_atoms_simps[simp]:
+  \<open>quasirefl_blocking_head_doloops_head_atoms Skip = \<top>\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms (c1 ;; c2) = quasirefl_blocking_head_doloops_head_atoms c1\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_head_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_head_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms (c1 \<parallel> c2) = quasirefl_blocking_head_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_head_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c \<sqinter> quasirefl_blocking_head_doloops_head_atoms c\<close>
+  \<open>quasirefl_blocking_head_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
+  by (clarsimp simp add: quasirefl_blocking_head_doloops_head_atoms_def; blast)+
+
+definition
+  \<open>quasirefl_blocking_doloops_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_head_atoms ca|ca. DO ca OD \<le> cc}\<close>
+
+lemma quasirefl_blocking_doloops_head_atoms_simps[simp]:
+  \<open>quasirefl_blocking_doloops_head_atoms Skip = \<top>\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms (c1 ;; c2) = quasirefl_blocking_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms (c1 \<^bold>\<sqinter> c2) = quasirefl_blocking_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms (c1 \<parallel> c2) = quasirefl_blocking_doloops_head_atoms c1 \<sqinter> quasirefl_blocking_doloops_head_atoms c2\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c \<sqinter> quasirefl_blocking_doloops_head_atoms c\<close>
+  \<open>quasirefl_blocking_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
+  by (clarsimp simp add: quasirefl_blocking_doloops_head_atoms_def; blast)+
 
 
 section \<open> GenRGSep Proof Security Lifting \<close>
@@ -601,44 +563,40 @@ lemma Inf_rel_times_distrib:
   by (force simp add: rel_times_def fun_eq_iff)
 
 
-lemma atom_unlift_helper:
-  \<open>sp (rel_image snd (ara \<circ>\<^sub>2 exch4)) p \<le> q \<Longrightarrow>
-    rel_image fst (ara \<circ>\<^sub>2 exch4) = rel_image snd (ara \<circ>\<^sub>2 exch4) \<Longrightarrow>
-    sp ara \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
-  apply (clarsimp simp add: le_fun_def fun_eq_iff rel_image_def sp_def imp_ex_conjL
-      pred_lift_exch4_def)
-  apply blast
-  done
+section \<open> Proof Lifting to Paired-State Setting \<close>
 
-text \<open> TODO: Note in the dissertation that we here again use the 'instantiation to exactly the frame' trick. \<close>
+subsection \<open> Helpers\<close>
+
+lemma atom_unlift_helper:
+  \<open>sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) p \<le> q \<Longrightarrow>
+    All (quasireflp_step ara) \<Longrightarrow>
+    sp ara \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
+  by (fastforce simp add: le_fun_def fun_eq_iff rel_image_def sp_def imp_ex_conjL
+      pred_lift_exch4_def quasireflp_step_def)
+
+text \<open> TODO: Note in the writeup that we here again use the 'instantiation to exactly the frame' trick. \<close>
 lemma framed_atom_unlift_helper:
-  \<open>\<forall>f\<le>F. sp (rel_image fst (ara \<circ>\<^sub>2 exch4)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    \<forall>f\<le>F. sp (rel_image snd (ara \<circ>\<^sub>2 exch4)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+  \<open>\<forall>f\<le>F. sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    All (quasireflp_step ara) \<Longrightarrow>
     \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f\<close>
-  apply (clarsimp simp add: sepconj_conj_apply sp_apply)
+  unfolding quasireflp_step_def
+  apply (clarsimp simp add: sepconj_conj_apply sp_apply le_fun_def)
   apply (rename_tac lfx' lfy' ssx' ssy' ssx ssy lsx lsy fx fy)
-  apply (drule_tac x=\<open>(=) (fx, ssx)\<close> in spec, drule mp[of _ \<open>_ (rel_image fst _)\<close>])
+  apply (frule_tac x=\<open>(=) (fx, ssx)\<close> in spec, drule mp[of _ \<open>_ ((_ \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)))\<close>])
    apply (simp add: le_fun_def pred_lift_exch4_def; fail)
-  apply (drule_tac x=\<open>(=) (fy, ssy)\<close> in spec, drule mp[of _ \<open>_ (rel_image snd _)\<close>])
+  apply (drule_tac x=\<open>(=) (fy, ssy)\<close> in spec, drule mp[of _ \<open>_ ((_ \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)))\<close>])
    apply (simp add: le_fun_def pred_lift_exch4_def; fail)
-  apply (clarsimp simp add: sp_def le_fun_def sepconj_conj_apply imp_ex_conjL pred_lift_exch4_def)
-  apply (drule spec2, drule spec2, drule mp[of \<open>Ex _\<close>], force)
-  apply (drule spec2, drule spec2, drule mp[of \<open>Ex _\<close>], force)
-  apply (drule spec, drule mp, assumption)
-  apply (drule spec, drule mp, assumption)
-  apply clarsimp
-  apply (rename_tac lsx' lsy')
-  apply blast
+  apply (clarsimp simp add: sp_def le_fun_def sepconj_conj_apply imp_ex_conjL pred_lift_exch4_def
+      imp_conjL)
+  apply metis
   done
 
 lemma atom_lift_guar_helper:
-  \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> rel_image fst (ara \<circ>\<^sub>2 exch4)) \<le> G \<Longrightarrow>
-    rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> rel_image snd (ara \<circ>\<^sub>2 exch4)) \<le> G \<Longrightarrow>
+  \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>))) \<le> G \<Longrightarrow>
+    All (quasireflp_step ara) \<Longrightarrow>
     rel_image snd (rel_liftL (\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F \<rblot>\<^sub>\<ddagger>) \<sqinter> ara) \<le> G \<times>\<^sub>R G\<close>
-  apply (clarsimp simp add: le_fun_def sepconj_conj_apply imp_ex_conjL imp_conjL
-      all_conj_distrib pred_lift_exch4_def)
-  apply metis
-  done
+  by (clarsimp simp add: le_fun_def sepconj_conj_apply imp_ex_conjL imp_conjL
+      all_conj_distrib pred_lift_exch4_def quasireflp_step_def, blast)
 
 lemma cancellative'_lift_helper:
   \<open>cancellative' (\<Squnion> \<I>) (\<Squnion> \<I>) (sswa (\<Squnion> \<G>) F) \<Longrightarrow>
@@ -654,18 +612,23 @@ lemma cancellative'_lift_helper:
   apply auto
   done
 
-(* TODO: turn off disjunction rule for these proofs *)
+
+subsection \<open> Main Lifting Theorem\<close>
+
+(* TODO: turn off disjunction rule for these proofs.
+    Try to tighten up the qrefl side condition. *)
 lemma genrgsep_proof_pairedst_lift:
   assumes
     \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
-    \<open>unliftC cc = (c, c)\<close>
+    \<open>c = unliftC2 cc\<close>
+    \<open>All (all_atom_comm (quasireflp_step) cc)\<close>
   shows
     \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, \<top> \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } cc { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
   using assms
 proof (induct arbitrary: cc rule: rgsat.induct)
   case (rgsat_skip R p q I C G F)
   then show ?case
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_skip)
       apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib
         wlp_weaker_iff_sp_stronger; fail)
@@ -677,20 +640,24 @@ next
   case (rgsat_iter c R G i I F C p q)
   show ?case
     using rgsat_iter.prems rgsat_iter.hyps(3-)
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_iter[where i=\<open>\<lblot> i \<rblot>\<^sub>\<ddagger>\<close>])
-       apply (meson order.refl rgsat_weaken rgsat_iter.hyps(2) sswa_pred_lift_exch4_semidistrib; fail)
+       apply (rule rgsat_weaken[OF rgsat_iter.hyps(2) _ order.refl order.refl order.refl order.refl order.refl])
+         apply blast
+        apply (simp del: sup_apply; fail)
+       apply (simp add: sswa_pred_lift_exch4_semidistrib; fail)
       apply (meson order.trans pred_lift_exch4_mono sp_pred_mono sswa_pred_lift_exch4_semidistrib; fail)
      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
     apply force
     done
 next
   case (rgsat_seq ca R G p px Ia F C cb q Ib I)
-  then show ?case
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+  show ?case
+    using rgsat_seq.prems rgsat_seq.hyps(1,5-)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_seq[where pp=\<open>\<lblot> px \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
-        apply blast
-       apply blast
+        apply (rule rgsat_seq.hyps(2); force)
+       apply (rule rgsat_seq.hyps(4); force)
       apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
     apply force
@@ -699,10 +666,10 @@ next
   case (rgsat_indet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
   show ?case
     using rgsat_indet.prems rgsat_indet.hyps(5-)
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_indet[where qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
-            apply (rule rgsat_indet.hyps(2); blast)
-           apply (rule rgsat_indet.hyps(4); blast)
+            apply (rule rgsat_indet.hyps(2); force)
+           apply (rule rgsat_indet.hyps(4); force)
           apply force
          apply force
         apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
@@ -715,10 +682,10 @@ next
   case (rgsat_endet ca R Ga p qa Ia F C cb Gb qb Ib G q I)
   show ?case
     using rgsat_endet.prems rgsat_endet.hyps(5-)
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_endet[where qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
-            apply (rule rgsat_endet.hyps(2); blast)
-           apply (rule rgsat_endet.hyps(4); blast)
+            apply (rule rgsat_endet.hyps(2); force)
+           apply (rule rgsat_endet.hyps(4); force)
           apply force
          apply force
         apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
@@ -731,16 +698,18 @@ next
   case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
   show ?case
     using rgsat_par.prems rgsat_par.hyps(5-)
-    apply (clarsimp simp add: unliftC_rev_iff simp del: sup_apply top_apply)
+    apply (clarsimp simp add: unliftC2_rev_iff simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_par[where
           Ga=\<open>Ga \<times>\<^sub>R Ga\<close> and Gb=\<open>Gb \<times>\<^sub>R Gb\<close> and
           pa=\<open>\<lblot> pa \<rblot>\<^sub>\<ddagger>\<close> and pb=\<open>\<lblot> pb \<rblot>\<^sub>\<ddagger>\<close> and qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close> and qb=\<open>\<lblot> qb \<rblot>\<^sub>\<ddagger>\<close> and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
            apply (rule rgsat_weaken[OF rgsat_par.hyps(2) order.refl order.refl _ order.refl order.refl])
+              apply force
              apply force
             apply force
            apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
         del: top_apply sup_apply; fail)
           apply (rule rgsat_weaken[OF rgsat_par.hyps(4) order.refl order.refl _ order.refl order.refl])
+             apply force
             apply force
            apply force
           apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
@@ -759,13 +728,13 @@ next
 next
   case (rgsat_atom p' R p q q' ar F G I C)
   then show ?case
-    apply (clarsimp simp add: unliftC_rev_iff inj_rel_image_inf_distrib[symmetric]
+    apply (clarsimp simp add: unliftC2_rev_iff inj_rel_image_inf_distrib[symmetric]
         simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger>\<close> and  q=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger>\<close>])
            apply (meson order.trans pred_lift_exch4_mono wssa_pred_lift_exch4_semidistrib; fail)
           apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-         apply (metis atom_unlift_helper)
-        apply (metis framed_atom_unlift_helper)
+         apply (simp add: atom_unlift_helper; fail)
+        apply (simp add: framed_atom_unlift_helper; fail)
        apply (rule atom_lift_guar_helper; simp; fail)
       apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
@@ -781,13 +750,13 @@ next
       apply (rule rgsat.rgsat_frame)
        apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _order.refl order.refl order.refl order.refl order.refl _])
+      (*
     apply (rule rgsat_frame.hyps(2); blast)
        apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric] pred_lift_exch4_mono
         sup.coboundedI1 del: sup_apply; fail)
-      apply (metis order_eq_iff sswa_sup_rel_pred_lift_exch4_semidistrib sswa_weaker)
-     apply blast
-    apply blast
-    done
+        apply (metis order_eq_iff sswa_sup_rel_pred_lift_exch4_semidistrib sswa_weaker)
+*)
+    sorry
 next
   case (rgsat_weaken c r' g' p' q' I' F' C p q r g I F)
   show ?case
@@ -795,7 +764,8 @@ next
     apply -
     apply (rule rgsat.rgsat_weaken[OF rgsat_weaken.hyps(2)])
            apply (simp add: pred_lift_exch4_mono; fail)
-          apply (simp add: pred_lift_exch4_mono; fail)
+          apply force
+         apply (simp add: pred_lift_exch4_mono; fail)
         apply (simp add: pred_lift_exch4_mono; fail)
        apply force
       apply force
@@ -804,15 +774,24 @@ next
     done
 next
   case (rgsat_Disj p' P c R G q I F C)
-  then show ?case
+
+  have ih:
+    \<open>\<And>p. p \<in> P \<Longrightarrow> All (all_atom_comm quasireflp_step cc) \<Longrightarrow>
+          R \<times>\<^sub>R R, G \<times>\<^sub>R G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, \<top> \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } cc { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+    using rgsat_Disj.hyps(2) rgsat_Disj.prems(1) by blast
+
+  show ?case
+    using rgsat_Disj.prems rgsat_Disj.hyps(1)
     \<comment> \<open> inescapably false \<close>
     apply (clarsimp simp add: ball_conj_distrib simp del: top_apply)
     apply (rule rgsat.rgsat_Disj[of _ \<open>{\<lblot> p' \<rblot>\<^sub>\<ddagger>}\<close>])
      apply blast
     apply (clarsimp simp del: top_apply)
-    apply (case_tac \<open>\<forall>P'\<subseteq>P. \<Squnion>P' \<in> P\<close>)
+    apply (case_tac \<open>\<Squnion>P \<in> P\<close>)
+     apply (rule rgsat_weaken[OF ih _ order.refl order.refl order.refl order.refl order.refl, of \<open>\<Squnion>P\<close>])
+       apply blast
+      apply force
      apply (meson order_refl pred_lift_exch4_mono rgsat_weaken; fail)
-    apply (clarsimp simp del: top_apply)
     sorry
 next
   case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
@@ -1087,6 +1066,51 @@ lemma aopstep_liftC_then_output_liftC:
     apply fastforce
    apply fastforce
   apply force
+  done
+
+lemma aopstep_preserves_quasireflp_atoms:
+  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> quasireflp_atoms c \<le> quasireflp_atoms c'\<close>
+  by (simp add: quasireflp_atoms_def aopstep_preserves_conj_all_atoms_pred)
+
+lemma aopstep_preserves_quasirefl_blocking_atoms:
+  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> quasirefl_blocking_atoms c \<le> quasirefl_blocking_atoms c'\<close>
+  by (simp add: quasirefl_blocking_atoms_def aopstep_preserves_conj_all_atoms_pred)
+
+lemma aopstep_preserves_quasirefl_blocking_doloops_head_atoms:
+  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
+    quasirefl_blocking_doloops_head_atoms c \<le> quasirefl_blocking_doloops_head_atoms c'\<close>
+  unfolding quasirefl_blocking_doloops_head_atoms_def
+  apply (induct c arbitrary: \<pi>\<alpha> c')
+        apply force
+    (* Seq *)
+       apply (clarsimp simp add: le_fun_def imp_ex_conjL)
+       apply (elim disjE)
+        apply blast
+       apply (clarsimp, blast)
+    (* Par *)
+      apply (clarsimp simp add: le_fun_def imp_ex_conjL all_conj_distrib)
+      apply (elim disjE)
+        apply blast
+       apply (metis comm.distinct(29) less_eq_comm_simps_right(3))
+      apply (metis comm.distinct(29) less_eq_comm_simps_right(3))
+    (* INdet *)
+     apply (force simp add: le_fun_def imp_ex_conjL)
+    (* ENdet *)
+    apply (clarsimp simp add: le_fun_def imp_ex_conjL)
+    apply (elim disjE conjE)
+         apply blast
+        apply blast
+       apply (metis comm.distinct(39) less_eq_comm_simps_right(5))
+      apply (metis comm.distinct(39) less_eq_comm_simps_right(5))
+     apply blast
+    apply blast
+    (* Atom *)
+   apply force
+    (* Do Loop *)
+  apply (clarsimp simp add: le_fun_def imp_ex_conjL)
+  apply (elim disjE conjE)
+   apply force
+  apply (metis comm.distinct(21) comm.inject(6) less_eq_comm_simps_right(2,7))
   done
 
 
@@ -1977,21 +2001,11 @@ proof (induct c arbitrary: \<pi>\<alpha> s' c')
 next
   case (Iter c)
   then show ?case
-    by (simp, metis no_aopstep_head_enabled_equiv_state_irrel surj_pair pretty_no_aopstep_def)
+    by (simp, metis no_aopstep_head_enabled_equiv_state_irrel)
 qed fastforce+
 
 
 section \<open> Jul-Aug Attempt \<close>
-
-definition
-  \<open>determ_step sxy c \<pi>\<alpha> sxy' c' \<equiv>
-    (sxy, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', c') \<longrightarrow>
-    (\<forall>cx cy.
-      unliftC c = (cx, cy) \<longrightarrow>
-      (\<forall>cx' cy'.
-        (fst sxy, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (fst sxy', cx') \<longrightarrow>
-        (snd sxy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (snd sxy', cy') \<longrightarrow>
-        cfmatchC cx' cy'))\<close>
 
 text \<open>
   TODO: describe
@@ -2417,76 +2431,46 @@ qed
 
 section \<open> September Attempt \<close>
 
-
-lemma atomrel_split_helper:
-  fixes ar :: \<open>('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> ('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> bool\<close>
-  shows
-    \<open>(\<exists>arx ary. ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4) \<longleftrightarrow>
-      ar = (rel_image fst (ar \<circ>\<^sub>2 exch4) \<times>\<^sub>R rel_image snd (ar \<circ>\<^sub>2 exch4)) \<circ>\<^sub>2 exch4\<close>
-  by fastforce
-
-lemma atomrel_split_helper2:
-  fixes ar :: \<open>('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> ('lx \<times> 'ly) \<times> ('sx \<times> 'sy) \<Rightarrow> bool\<close>
-  shows
-    \<open>ar = arx \<times>\<^sub>R ary \<circ>\<^sub>2 exch4 \<Longrightarrow>
-      arx = \<bottom> \<longleftrightarrow> ar = \<bottom> \<Longrightarrow>
-      ary = \<bottom> \<longleftrightarrow> ar = \<bottom> \<Longrightarrow>
-      arx = rel_image fst (ar \<circ>\<^sub>2 exch4) \<and> ary = rel_image snd (ar \<circ>\<^sub>2 exch4)\<close>
-  by fastforce
-
-fun secure_loop_states :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close> where
-  \<open>secure_loop_states (DO cc OD) =
+definition secure_loop_states
+  :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close>
+  where
+  \<open>secure_loop_states c \<equiv>
     \<Sqinter>{(\<lambda>(sx,sy).
           \<not> pre_state ar (exch4 (sx, sy)) \<longrightarrow>
           \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
-          \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)|ar. ar \<in># head_atoms cc}\<close>
-| \<open>secure_loop_states _ = \<top>\<close>
+          \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)|ar.
+        \<exists>c'. c = DO c' OD \<and> ar \<in># head_atoms c'}\<close>
+
+lemma secure_loop_states_simps[simp]:
+  \<open>secure_loop_states (DO c OD) =
+    all_head_atoms (\<lambda>ar.
+      \<Sqinter>{(\<lambda>(sx,sy).
+          \<not> pre_state ar (exch4 (sx, sy)) \<longrightarrow>
+          \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
+          \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)}) c\<close>
+  \<open>secure_loop_states Skip = \<top>\<close>
+  \<open>secure_loop_states (ca \<^bold>\<sqinter> cb) = \<top>\<close>
+  \<open>secure_loop_states (ca \<^bold>\<box> cb) = \<top>\<close>
+  \<open>secure_loop_states (ca ;; cb) = \<top>\<close>
+  \<open>secure_loop_states (ca \<parallel> cb) = \<top>\<close>
+  \<open>secure_loop_states \<langle>ar\<rangle> = \<top>\<close>
+  by (simp add: secure_loop_states_def all_atom_comm_def all_head_atoms_def)+
 
 
-definition head_secure_loop_states
+abbreviation(input) head_secure_loop_states
   :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close>
   where
-    \<open>head_secure_loop_states c \<equiv> \<Sqinter>{secure_loop_states c'|c'. c' \<in># head_comms c}\<close>
+    \<open>head_secure_loop_states \<equiv> all_head_comm secure_loop_states\<close>
 
-lemma head_secure_loop_states_eq[simp]:
-  \<open>head_secure_loop_states Skip = \<top>\<close>
-  \<open>head_secure_loop_states (ca ;; cb) = head_secure_loop_states ca\<close>
-  \<open>head_secure_loop_states (ca \<^bold>\<sqinter> cb) = \<top>\<close>
-  \<open>head_secure_loop_states \<langle>ra\<rangle> = \<top>\<close>
-  \<open>head_secure_loop_states (ca \<parallel> cb) = head_secure_loop_states ca \<sqinter> head_secure_loop_states cb\<close>
-  \<open>head_secure_loop_states (ca \<^bold>\<box> cb) = head_secure_loop_states ca \<sqinter> head_secure_loop_states cb\<close>
-  \<open>head_secure_loop_states (DO c OD) =
-    \<Sqinter>{(\<lambda>(sx,sy).
-        \<not> pre_state ar (exch4 (sx, sy)) \<longrightarrow>
-        \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
-        \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)|ar. ar \<in># head_atoms c} \<sqinter> head_secure_loop_states c\<close>
-  by (clarsimp simp add: head_secure_loop_states_def ex_disj_distrib Collect_disj_eq
-      conj_disj_distribL Inf_union_distrib)+
-
-
-definition all_secure_loop_states
+abbreviation(input) all_secure_loop_states
   :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close>
   where
-    \<open>all_secure_loop_states c \<equiv> \<Sqinter>{secure_loop_states c'|c'. c' \<le> c}\<close>
+    \<open>all_secure_loop_states \<equiv> all_subcomm_eq_InfIm secure_loop_states\<close>
 
-lemma all_secure_loop_states_eq[simp]:
-  \<open>all_secure_loop_states Skip = \<top>\<close>
-  \<open>all_secure_loop_states (ca ;; cb) = all_secure_loop_states ca \<sqinter> all_secure_loop_states cb\<close>
-  \<open>all_secure_loop_states (ca \<^bold>\<sqinter> cb) = all_secure_loop_states ca \<sqinter> all_secure_loop_states cb\<close>
-  \<open>all_secure_loop_states \<langle>ra\<rangle> = \<top>\<close>
-  \<open>all_secure_loop_states (ca \<parallel> cb) = all_secure_loop_states ca \<sqinter> all_secure_loop_states cb\<close>
-  \<open>all_secure_loop_states (ca \<^bold>\<box> cb) = all_secure_loop_states ca \<sqinter> all_secure_loop_states cb\<close>
-  \<open>all_secure_loop_states (DO c OD) =
-    \<Sqinter>{(\<lambda>(sx,sy).
-        \<not> pre_state ar (exch4 (sx, sy)) \<longrightarrow>
-        \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
-        \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy)|ar. ar \<in># head_atoms c} \<sqinter> all_secure_loop_states c\<close>
-  by (clarsimp simp add: all_secure_loop_states_def ex_disj_distrib Collect_disj_eq
-      conj_disj_distribL Inf_union_distrib)+
 
 lemma all_secure_loop_states_implies_head_secure_loop_states:
   \<open>all_secure_loop_states c s \<Longrightarrow> head_secure_loop_states c s\<close>
-  by (induct c) fastforce+
+  using all_head_comm_le_all_subcomm_eq by blast
 
 lemma aopstep_preserves_all_secure_loop_states:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
@@ -2494,322 +2478,11 @@ lemma aopstep_preserves_all_secure_loop_states:
   by (induct c arbitrary: \<pi>\<alpha> c') fastforce+
 
 
-lemma two_singlest_nostep_then_doublest_nostep:
-  assumes
-    \<open>(sx, cx) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>(sy, cy) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>unliftC cc = (cx, cy)\<close>
-  shows
-    \<open>(exch4 (sx, sy), cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-  using assms
-proof (induct cc arbitrary: cx cy sx sy)
-  case (Seq cc1 cc2)
-  show ?case
-    using Seq.prems
-    by (force dest: Seq.hyps(1) simp add: all_conj_distrib split: prod.splits)
-next
-  case (Par cc1 cc2)
-  show ?case
-    using Par.prems
-    by (clarsimp simp add: all_conj_distrib split: prod.splits,
-        auto dest: Par.hyps(1,2))
-next
-  case (Indet cc1 cc2)
-  then show ?case
-    by (clarsimp simp add: all_conj_distrib split: prod.splits)
-next
-  case (Endet cc1 cc2)
-  show ?case
-    using Endet.prems
-    by (clarsimp simp add: all_conj_distrib split: prod.splits,
-        auto dest: Endet.hyps(1,2))
-next
-  case (Atomic ar)
-  then show ?case
-    by (clarsimp simp add: exch4_apply split_pairs2 split: prod.splits)
-next
-  case (Iter cc)
-  then show ?case
-    by (metis fst_conv pretty_no_aopstep_simps(6) unliftC_def unliftC_simp(6))
-qed (force simp add: all_conj_distrib)+
-
-
-lemma doublest_nostep_then_two_singlest_nostep:
-  assumes
-    \<open>(sxy, cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-    \<open>sxy = exch4 (sx, sy)\<close>
-    \<open>unliftC cc = (cx, cy)\<close>
-    \<open>\<forall>ar\<in>#head_atoms cc.
-      \<not> pre_state ar (exch4 (sx, sy)) \<longrightarrow>
-      \<not> pred_image fst (pre_state (ar \<circ>\<^sub>2 exch4)) sx \<and>
-      \<not> pred_image snd (pre_state (ar \<circ>\<^sub>2 exch4)) sy\<close>
-  shows
-    \<open>(sx, cx) \<midarrow>/\<rightarrow>\<^sub>a \<and> (sy, cy) \<midarrow>/\<rightarrow>\<^sub>a\<close>
-  using assms
-proof (induct cc arbitrary: cx cy sxy sx sy)
-  case (Seq cc1 cc2)
-  show ?case
-    using Seq.prems
-    apply (clarsimp simp add: ball_conj_distrib unliftC_comm_neqD simp del: comp2_apply
-        pred_image_apply split: prod.splits)
-    apply (metis Seq.hyps(1))
-    done
-next
-  case (Par cc1 cc2)
-  show ?case
-    using Par.prems
-    apply (clarsimp simp add: ball_Un ball_conj_distrib unliftC_comm_neqD
-        simp del: comp2_apply pred_image_apply split: prod.splits)
-    apply (meson Par.hyps(1,2) unliftC_comm_neqD(1))
-    done
-next
-  case (Indet cc1 cc2)
-  then show ?case
-    by (clarsimp simp add: all_conj_distrib split: prod.splits)
-next
-  case (Endet cc1 cc2)
-  show ?case
-    using Endet.prems
-    apply (clarsimp simp add: all_conj_distrib ball_Un ball_conj_distrib
-        simp del: comp2_apply pred_image_apply split: prod.splits)
-    apply (metis Endet.hyps(1,2) unliftC_comm_neqD(1))
-    done
-next
-  case (Atomic ar)
-  then show ?case
-    by (clarsimp simp add: fun_eq_iff pre_state_def split_pairs2 exch4_def split: if_splits,
-        blast)
-next
-  case (Iter cc)
-  then show ?case
-    by (metis pretty_no_aopstep_simps(6))
-qed (force simp add: all_conj_distrib)+
-
-lemma doublest_step_then_two_singlest_steps:
-  assumes
-    \<open>(sxy, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
-    \<open>exch4 sxy = (sx, sy)\<close>
-    \<open>head_secure_loop_states cc (sx,sy)\<close>
-    \<open>exch4 sxy' = (sx', sy')\<close>
-  shows
-    \<open>(\<exists>cx cy. unliftC cc = (cx, cy) \<and>
-        (\<exists>cx' cy'. unliftC cc' = (cx', cy') \<and>
-          (sx, cx) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', cx') \<and> (sy, cy) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', cy')))\<close>
-  using assms
-proof (induct cc arbitrary: \<pi>\<alpha> sxy sx sy sxy' sx' sy' cc')
-  case (Seq cc1 cc2)
-  show ?case
-    using Seq.prems
-    apply (clarsimp split: prod.splits)
-    apply (elim disjE conjE exE)
-     apply force
-    apply (clarsimp split: prod.splits)
-    apply (metis Seq.hyps(1) Seq.prems(4) fst_conv snd_conv)
-    done
-next
-  case (Par cc1 cc2)
-  show ?case
-    using Par.prems
-    apply (clarsimp split: prod.splits)
-    apply (subgoal_tac \<open>(\<exists>\<alpha>. \<pi>\<alpha> = (PHere, \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PL \<pi>', \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PR \<pi>', \<alpha>))\<close>)
-     prefer 2
-     apply force
-    apply (elim disjE[of \<open>Ex _\<close>])
-      apply fastforce
-     apply (clarsimp simp add: ball_Un)
-     apply (frule(2) Par.hyps(1), force, force)
-    apply (clarsimp simp add: ball_Un)
-    apply (frule(2) Par.hyps(2), force, force)
-    done
-next
-  case (Indet cc1 cc2)
-  then show ?case
-    by (fastforce split: prod.splits)
-next
-  case (Endet cc1 cc2)
-  show ?case
-    using Endet.prems
-    apply (clarsimp simp add: ball_Un split: prod.splits)
-    apply (elim disjE conjE exE)
-         apply force
-        apply force
-       apply (clarsimp split: prod.splits)
-       apply (metis Endet.hyps(1) fst_conv snd_conv)
-      apply (clarsimp split: prod.splits)
-      apply (metis Endet.hyps(2) fst_conv snd_conv)
-     apply (simp add: vis_tau_aact_incompatible)
-     apply (frule(3) Endet.hyps(1), force)
-    apply (simp add: vis_tau_aact_incompatible)
-    apply (frule(3) Endet.hyps(2), force)
-    done
-next
-  case (Atomic x)
-  then show ?case
-    by (clarsimp simp add: exch4_def, metis surjective_pairing) (* slow *)
-next
-  case (Iter cc)
-  show ?case
-    using Iter.prems
-    apply (clarsimp simp add: imp_ex_conjL split: prod.splits)
-    apply (elim disjE conjE exE)
-     apply clarsimp
-     apply (frule doublest_nostep_then_two_singlest_nostep)
-        apply (simp add: exch4_switch[symmetric]; fail)
-       apply blast
-      apply force
-     apply blast
-    apply (clarsimp split: prod.splits)
-    apply (metis Iter.hyps Iter.prems(4) Pair_inject)
-    done
-qed force
-
-
-(* TODO: move *)
-definition
-  \<open>quasireflp_step ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
-    (\<forall>lx' sx' ly' sy'.
-      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
-      ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
-
-definition
-  \<open>quasireflp_head_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># head_atoms cc}\<close>
-
-lemma quasireflp_head_atoms_simps[simp]:
-  \<open>quasireflp_head_atoms Skip = \<top>\<close>
-  \<open>quasireflp_head_atoms (c1 ;; c2) = quasireflp_head_atoms c1\<close>
-  \<open>quasireflp_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
-  \<open>quasireflp_head_atoms (c1 \<^bold>\<box> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
-  \<open>quasireflp_head_atoms (c1 \<parallel> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
-  \<open>quasireflp_head_atoms (DO c OD) = quasireflp_head_atoms c\<close>
-  \<open>quasireflp_head_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
-  by (clarsimp simp add: quasireflp_head_atoms_def; blast)+
-
-definition
-  \<open>quasireflp_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># all_atoms cc}\<close>
-
-lemma quasireflp_atoms_simps[simp]:
-  \<open>quasireflp_atoms Skip = \<top>\<close>
-  \<open>quasireflp_atoms (c1 ;; c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
-  \<open>quasireflp_atoms (c1 \<^bold>\<sqinter> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
-  \<open>quasireflp_atoms (c1 \<^bold>\<box> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
-  \<open>quasireflp_atoms (c1 \<parallel> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
-  \<open>quasireflp_atoms (DO c OD) = quasireflp_atoms c\<close>
-  \<open>quasireflp_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
-  by (clarsimp simp add: quasireflp_atoms_def; blast)+
-
-lemma aopstep_preserves_quasireflp_atoms:
-  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> quasireflp_atoms c \<le> quasireflp_atoms c'\<close>
-  by (simp add: quasireflp_atoms_def aopstep_preserves_conj_all_atoms_pred)
-
-
-definition
-  \<open>rev_quasireflp_step ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
-    ((\<exists>ly' sy'. ar ((ly,ly),(sy,sy)) ((ly', ly'), (sy', sy'))) \<longrightarrow>
-      (\<exists>lx' ly' sx' sy'. ar ((lx,ly),(sx,sy)) ((lx', ly'), (sx', sy')))) \<and>
-    ((\<exists>lx' sx'. ar ((lx,lx),(sx,sx)) ((lx', lx'), (sx', sx'))) \<longrightarrow>
-      (\<exists>lx' ly' sx' sy'. ar ((lx,ly),(sx,sy)) ((lx', ly'), (sx', sy'))))\<close>
-
-definition
-  \<open>rev_quasireflp_head_atoms cc \<equiv> \<Sqinter>{rev_quasireflp_step ar|ar. ar \<in># head_atoms cc}\<close>
-
-lemma rev_quasireflp_head_atoms_simps[simp]:
-  \<open>rev_quasireflp_head_atoms Skip = \<top>\<close>
-  \<open>rev_quasireflp_head_atoms (c1 ;; c2) = rev_quasireflp_head_atoms c1\<close>
-  \<open>rev_quasireflp_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
-  \<open>rev_quasireflp_head_atoms (c1 \<^bold>\<box> c2) = rev_quasireflp_head_atoms c1 \<sqinter> rev_quasireflp_head_atoms c2\<close>
-  \<open>rev_quasireflp_head_atoms (c1 \<parallel> c2) = rev_quasireflp_head_atoms c1 \<sqinter> rev_quasireflp_head_atoms c2\<close>
-  \<open>rev_quasireflp_head_atoms (DO c OD) = rev_quasireflp_head_atoms c\<close>
-  \<open>rev_quasireflp_head_atoms \<langle>ar\<rangle> = rev_quasireflp_step ar\<close>
-  by (clarsimp simp add: rev_quasireflp_head_atoms_def; blast)+
-
-definition
-  \<open>rev_quasireflp_atoms cc \<equiv> \<Sqinter>{rev_quasireflp_step ar|ar. ar \<in># all_atoms cc}\<close>
-
-lemma rev_quasireflp_atoms_simps[simp]:
-  \<open>rev_quasireflp_atoms Skip = \<top>\<close>
-  \<open>rev_quasireflp_atoms (c1 ;; c2) = rev_quasireflp_atoms c1 \<sqinter> rev_quasireflp_atoms c2\<close>
-  \<open>rev_quasireflp_atoms (c1 \<^bold>\<sqinter> c2) = rev_quasireflp_atoms c1 \<sqinter> rev_quasireflp_atoms c2\<close>
-  \<open>rev_quasireflp_atoms (c1 \<^bold>\<box> c2) = rev_quasireflp_atoms c1 \<sqinter> rev_quasireflp_atoms c2\<close>
-  \<open>rev_quasireflp_atoms (c1 \<parallel> c2) = rev_quasireflp_atoms c1 \<sqinter> rev_quasireflp_atoms c2\<close>
-  \<open>rev_quasireflp_atoms (DO c OD) = rev_quasireflp_atoms c\<close>
-  \<open>rev_quasireflp_atoms \<langle>ar\<rangle> = rev_quasireflp_step ar\<close>
-  by (clarsimp simp add: rev_quasireflp_atoms_def; blast)+
-
-lemma aopstep_preserves_rev_quasireflp_atoms:
-  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> rev_quasireflp_atoms c \<le> rev_quasireflp_atoms c'\<close>
-  by (simp add: rev_quasireflp_atoms_def aopstep_preserves_conj_all_atoms_pred)
-
-
-definition
-  \<open>rev_quasireflp_head_doloops_head_atoms cc \<equiv> \<Sqinter>{rev_quasireflp_head_atoms ca|ca. DO ca OD \<in># head_comms cc}\<close>
-
-lemma rev_quasireflp_head_doloops_head_atoms_simps[simp]:
-  \<open>rev_quasireflp_head_doloops_head_atoms Skip = \<top>\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms (c1 ;; c2) = rev_quasireflp_head_doloops_head_atoms c1\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms (c1 \<^bold>\<box> c2) = rev_quasireflp_head_doloops_head_atoms c1 \<sqinter> rev_quasireflp_head_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms (c1 \<parallel> c2) = rev_quasireflp_head_doloops_head_atoms c1 \<sqinter> rev_quasireflp_head_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms (DO c OD) = rev_quasireflp_head_atoms c \<sqinter> rev_quasireflp_head_doloops_head_atoms c\<close>
-  \<open>rev_quasireflp_head_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
-  by (clarsimp simp add: rev_quasireflp_head_doloops_head_atoms_def; blast)+
-
-definition
-  \<open>rev_quasireflp_doloops_head_atoms cc \<equiv> \<Sqinter>{rev_quasireflp_head_atoms ca|ca. DO ca OD \<le> cc}\<close>
-
-lemma rev_quasireflp_doloops_head_atoms_simps[simp]:
-  \<open>rev_quasireflp_doloops_head_atoms Skip = \<top>\<close>
-  \<open>rev_quasireflp_doloops_head_atoms (c1 ;; c2) = rev_quasireflp_doloops_head_atoms c1 \<sqinter> rev_quasireflp_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_doloops_head_atoms (c1 \<^bold>\<sqinter> c2) = rev_quasireflp_doloops_head_atoms c1 \<sqinter> rev_quasireflp_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_doloops_head_atoms (c1 \<^bold>\<box> c2) = rev_quasireflp_doloops_head_atoms c1 \<sqinter> rev_quasireflp_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_doloops_head_atoms (c1 \<parallel> c2) = rev_quasireflp_doloops_head_atoms c1 \<sqinter> rev_quasireflp_doloops_head_atoms c2\<close>
-  \<open>rev_quasireflp_doloops_head_atoms (DO c OD) = rev_quasireflp_head_atoms c \<sqinter> rev_quasireflp_doloops_head_atoms c\<close>
-  \<open>rev_quasireflp_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
-  by (clarsimp simp add: rev_quasireflp_doloops_head_atoms_def; blast)+
-
-lemma aopstep_preserves_rev_quasireflp_doloops_head_atoms:
-  \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
-    rev_quasireflp_doloops_head_atoms c \<le> rev_quasireflp_doloops_head_atoms c'\<close>
-  unfolding rev_quasireflp_doloops_head_atoms_def
-  apply (induct c arbitrary: \<pi>\<alpha> c')
-        apply force
-    (* Seq *)
-       apply (clarsimp simp add: le_fun_def imp_ex_conjL)
-       apply (elim disjE)
-        apply blast
-       apply (clarsimp, blast)
-    (* Par *)
-      apply (clarsimp simp add: le_fun_def imp_ex_conjL all_conj_distrib)
-      apply (elim disjE)
-        apply blast
-       apply (metis comm.distinct(29) less_eq_comm_simps_right(3))
-      apply (metis comm.distinct(29) less_eq_comm_simps_right(3))
-    (* INdet *)
-     apply (force simp add: le_fun_def imp_ex_conjL)
-    (* ENdet *)
-    apply (clarsimp simp add: le_fun_def imp_ex_conjL)
-    apply (elim disjE conjE)
-         apply blast
-        apply blast
-       apply (metis comm.distinct(39) less_eq_comm_simps_right(5))
-      apply (metis comm.distinct(39) less_eq_comm_simps_right(5))
-     apply blast
-    apply blast
-    (* Atom *)
-   apply force
-    (* Do Loop *)
-  apply (clarsimp simp add: le_fun_def imp_ex_conjL)
-  apply (elim disjE conjE)
-   apply force
-  apply (metis comm.distinct(21) comm.inject(6) less_eq_comm_simps_right(2,7))
-  done
-
-
-
 lemma doublest_nostep_then_some_singlest_unliftC2_nostep:
   assumes
     \<open>(sxy, cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
     \<open>sxy = exch4 (sx, sy)\<close>
-    \<open>rev_quasireflp_head_atoms cc sxy\<close>
+    \<open>quasirefl_blocking_head_atoms cc sxy\<close>
   shows
     \<open>(sx, unliftC2 cc) \<midarrow>/\<rightarrow>\<^sub>a \<and> (sy, unliftC2 cc) \<midarrow>/\<rightarrow>\<^sub>a\<close>
   using assms
@@ -2835,7 +2508,7 @@ next
 next
   case (Atomic ar)
   then show ?case
-    by (clarsimp simp add: exch4_def rev_quasireflp_step_def)
+    by (clarsimp simp add: exch4_def quasirefl_blocking_step_def)
 next
   case (Iter cc)
   then show ?case
@@ -2848,7 +2521,7 @@ lemma doublest_step_then_singlest_unliftC2_step:
     \<open>exch4 sxy = (sx, sy)\<close>
     \<open>exch4 sxy' = (sx', sy')\<close>
     \<open>quasireflp_head_atoms cc sxy\<close>
-    \<open>rev_quasireflp_head_doloops_head_atoms cc sxy\<close>
+    \<open>quasirefl_blocking_head_doloops_head_atoms cc sxy\<close>
   shows
     \<open>(sx, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sx', unliftC2 cc') \<and>
      (sy, unliftC2 cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sy', unliftC2 cc')\<close>
@@ -2910,69 +2583,6 @@ next
     apply (metis Iter.hyps surj_pair unliftC2_simps(2,7))
     done
 qed (fastforce split: prod.splits)+
-
-
-lemma aopstep_preserves_unliftC_same:
-  fixes cc :: \<open>(('l::pre_perm_alg \<times> 'l) \<times> ('s \<times> 's)) comm\<close>
-  assumes
-    \<open>(sxy, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sxy', cc')\<close>
-    \<open>unliftC cc = (c, c)\<close>
-    \<open>head_secure_loop_states cc (exch4 sxy)\<close>
-  shows
-    \<open>\<exists>c'. unliftC cc' = (c', c')\<close>
-  using assms
-proof (induct cc arbitrary: \<pi>\<alpha> sxy c cc' sxy')
-  case (Seq cc1 cc2)
-  show ?case
-    using Seq.prems
-    apply -
-    apply (frule doublest_step_then_two_singlest_steps)
-       apply (simp add: exch4_def; fail)
-      apply (rule subst[OF exch4_apply], assumption)
-     apply (simp add: exch4_def split: prod.splits; fail)
-    apply (clarsimp split: prod.splits)
-    apply (metis Seq.hyps(1) unliftC_rev_iff2(2))
-    done
-next
-  case (Par cc1 cc2)
-  show ?case
-    using Par.prems
-    apply (clarsimp simp add: ball_Un split: prod.splits)
-    apply (subgoal_tac \<open>(\<exists>\<alpha>. \<pi>\<alpha> = (PHere, \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PL \<pi>', \<alpha>)) \<or> (\<exists>\<pi>' \<alpha>. \<pi>\<alpha> = (PR \<pi>', \<alpha>))\<close>)
-     prefer 2
-     apply blast
-    apply (elim disjE[of \<open>Ex _\<close>])
-      apply force
-     apply (clarsimp split: prod.splits)
-     apply (metis Par.hyps(1) fst_conv snd_conv)
-    apply (clarsimp split: prod.splits)
-    apply (metis Par.hyps(2) fst_conv snd_conv)
-    done
-next
-  case (Indet cc1 cc2)
-  show ?case
-    using Indet.prems
-    by (clarsimp split: prod.splits, blast)
-next
-  case (Endet cc1 cc2)
-  show ?case
-    using Endet.prems
-    apply (clarsimp split: prod.splits)
-    apply (case_tac \<open>tau_aact (snd \<pi>\<alpha>)\<close>)
-     apply (metis Endet.hyps(1,2) unliftC_rev_iff2(4))
-    apply clarsimp
-    apply (elim disjE)
-     apply (metis Endet.hyps(1))
-    apply (metis Endet.hyps(2))
-    done
-next
-  case (Iter cc)
-  show ?case
-    using Iter.prems
-    apply (clarsimp split: prod.splits simp add: imp_ex_conjL)
-    apply (metis Iter.hyps Iter.prems(2) unliftC_rev_iff2(1,2))
-    done
-qed (force simp add: ball_Un)+
 
 
 text \<open>
@@ -3051,7 +2661,7 @@ theorem safety_implies_security2:
   assumes
     \<open>safe R F G I q n cc s\<close>
     \<open>I \<squnion> I \<^emph>\<and> F \<le> quasireflp_atoms cc\<close>
-    \<open>I \<squnion> I \<^emph>\<and> F \<le> rev_quasireflp_doloops_head_atoms cc\<close>
+    \<open>I \<squnion> I \<^emph>\<and> F \<le> quasirefl_blocking_doloops_head_atoms cc\<close>
     \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ (unliftC2 cc) \<circ> exch4\<close>
   shows
     \<open>secure2 R F G I q n cc s\<close>
@@ -3096,12 +2706,12 @@ proof (induct rule: safe.induct)
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
-    moreover have \<open>rev_quasireflp_doloops_head_atoms cc s\<close>
+    moreover have \<open>quasirefl_blocking_doloops_head_atoms cc s\<close>
       using safeI.prems safeI.hyps(2)
       by fastforce
-    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc s\<close>
-      by (force simp add: rev_quasireflp_doloops_head_atoms_def
-          rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
+    moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc s\<close>
+      by (force simp add: quasirefl_blocking_doloops_head_atoms_def
+          quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
     moreover have \<open>all_sec_determ (unliftC2 cc) ((lsx, ssx), (lsy, ssy))\<close>
       using exch4_two_apply s_eq' safeI.hyps(2) safeI.prems(3)
       by auto
@@ -3130,7 +2740,7 @@ proof (induct rule: safe.induct)
       apply (drule mp[of \<open>_ \<le> _\<close>])
        apply (blast dest: aopstep_preserves_quasireflp_atoms)
       apply (drule mp[of \<open>_ \<le> _\<close>])
-       apply (blast dest: aopstep_preserves_rev_quasireflp_doloops_head_atoms)
+       apply (blast dest: aopstep_preserves_quasirefl_blocking_doloops_head_atoms)
       apply (drule mp[of \<open>_ \<le> _\<close>])
        apply (blast dest: aopstep_preserves_all_sec_determ)
       apply blast
@@ -3150,12 +2760,12 @@ proof (induct rule: safe.induct)
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
-    moreover have \<open>rev_quasireflp_doloops_head_atoms cc (ls + f, ss)\<close>
+    moreover have \<open>quasirefl_blocking_doloops_head_atoms cc (ls + f, ss)\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
       by (meson predicate1D sepconj_conjI sup.boundedE) 
-    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc (ls + f, ss)\<close>
-      by (force simp add: rev_quasireflp_doloops_head_atoms_def
-          rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
+    moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc (ls + f, ss)\<close>
+      by (force simp add: quasirefl_blocking_doloops_head_atoms_def
+          quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
     moreover have \<open>all_sec_determ (unliftC2 cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
       using exch4_two_apply s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
       by (clarsimp simp add: le_fun_def all_conj_distrib sepconj_conjI)
@@ -3189,7 +2799,7 @@ proof (induct rule: safe.induct)
       apply (drule mp[of \<open>_ \<le> _\<close>])
        apply (meson aopstep_preserves_quasireflp_atoms order.trans; fail)
       apply (drule mp[of \<open>_ \<le> _\<close>])
-       apply (meson aopstep_preserves_rev_quasireflp_doloops_head_atoms order.trans; fail)
+       apply (meson aopstep_preserves_quasirefl_blocking_doloops_head_atoms order.trans; fail)
       apply (drule mp[of \<open>_ \<le> _\<close>])
        apply (meson aopstep_preserves_all_sec_determ order.trans)
       apply blast
@@ -3208,12 +2818,12 @@ proof (induct rule: safe.induct)
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
-    moreover have \<open>rev_quasireflp_doloops_head_atoms cc sa\<close>
+    moreover have \<open>quasirefl_blocking_doloops_head_atoms cc sa\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
       by (meson predicate1D sepconj_conjI sup.boundedE) 
-    moreover then have \<open>rev_quasireflp_head_doloops_head_atoms cc sa\<close>
-      by (force simp add: rev_quasireflp_doloops_head_atoms_def
-          rev_quasireflp_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
+    moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc sa\<close>
+      by (force simp add: quasirefl_blocking_doloops_head_atoms_def
+          quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
     ultimately show
       \<open>\<forall>sa' cc' sax' say'.
         (sa, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', cc') \<longrightarrow>
@@ -3239,7 +2849,6 @@ qed
 
 
 section \<open> Scratch Space \<close>
-
 
 definition
   \<open>symp_atoms \<equiv> all_atom_comm

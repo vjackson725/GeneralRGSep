@@ -111,16 +111,32 @@ lemma all_subcomm_no_loops:
   using all_subcomm_irrefl all_subcomm_trans by blast
 
 
+subsubsection \<open> All Subcommands Conjunctive Image \<close>
+
+definition all_subcomm_eq_InfIm :: \<open>('s comm \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
+  \<open>all_subcomm_eq_InfIm f c \<equiv> \<Sqinter>(f ` all_subcomm_eq c)\<close>
+
+lemma all_subcomm_eq_InfIm_simps[simp]:
+  \<open>all_subcomm_eq_InfIm f Skip = f Skip\<close>
+  \<open>all_subcomm_eq_InfIm f (ca ;; cb) = f (ca ;; cb) \<sqinter> all_subcomm_eq_InfIm f ca \<sqinter> all_subcomm_eq_InfIm f cb\<close>
+  \<open>all_subcomm_eq_InfIm f (ca \<parallel> cb) = f (ca \<parallel> cb) \<sqinter> all_subcomm_eq_InfIm f ca \<sqinter> all_subcomm_eq_InfIm f cb\<close>
+  \<open>all_subcomm_eq_InfIm f (ca \<^bold>\<sqinter> cb) = f (ca \<^bold>\<sqinter> cb) \<sqinter> all_subcomm_eq_InfIm f ca \<sqinter> all_subcomm_eq_InfIm f cb\<close>
+  \<open>all_subcomm_eq_InfIm f (ca \<^bold>\<box> cb) = f (ca \<^bold>\<box> cb) \<sqinter> all_subcomm_eq_InfIm f ca \<sqinter> all_subcomm_eq_InfIm f cb\<close>
+  \<open>all_subcomm_eq_InfIm f (DO c OD) = f (DO c OD) \<sqinter> all_subcomm_eq_InfIm f c\<close>
+  \<open>all_subcomm_eq_InfIm f \<langle>ar\<rangle> = f \<langle>ar\<rangle>\<close>
+  by (simp add: all_subcomm_eq_InfIm_def image_Un Inf_union_distrib inf.assoc)+
+
+
 subsubsection \<open> Command ordering \<close>
 
 instantiation comm :: (type) order
 begin
 
 definition less_eq_comm :: \<open>'a comm \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
-  \<open>less_eq_comm x y \<equiv> \<exists>c\<in>all_subcomm_eq y. x = c\<close>
+  \<open>less_eq_comm x y \<equiv> x \<in> all_subcomm_eq y\<close>
 
 definition less_comm :: \<open>'a comm \<Rightarrow> 'a comm \<Rightarrow> bool\<close> where
-  \<open>less_comm x y \<equiv> \<exists>c\<in>all_subcomm y. x = c\<close>
+  \<open>less_comm x y \<equiv> x \<in> all_subcomm y\<close>
 
 lemma less_comm_less_eq_comm_le_not:
   \<open>(x \<in> all_subcomm y) = (x \<in> all_subcomm_eq y \<and> y \<notin> all_subcomm_eq x)\<close>
@@ -203,6 +219,10 @@ lemma map_atom_rev_iff:
 
 lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
 
+lemma map_atom_fusion[simp]:
+  \<open>map_atom f (map_atom g c) = map_atom (f \<circ> g) c\<close>
+  by (induct c) simp+
+
 
 fun all_atoms :: \<open>'s comm \<Rightarrow> ('s \<Rightarrow> 's \<Rightarrow> bool) multiset\<close> where
   \<open>all_atoms Skip = {#}\<close>
@@ -218,18 +238,19 @@ subsubsection \<open> All atom commands predicate \<close>
 
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
-definition all_atom_comm :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> bool) \<Rightarrow> 's comm \<Rightarrow> bool\<close> where
-  \<open>all_atom_comm P c \<equiv> \<forall>ar. ar \<in># all_atoms c \<longrightarrow> P ar\<close>
+definition all_atom_comm :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
+  \<open>all_atom_comm f c \<equiv> \<Sqinter>{f ar| ar. ar \<in># all_atoms c}\<close>
 
 lemma all_atom_comm_simps[simp]:
-  \<open>all_atom_comm P Skip\<close>
-  \<open>all_atom_comm P (c1 ;; c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
-  \<open>all_atom_comm P (c1 \<^bold>\<sqinter> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
-  \<open>all_atom_comm P (c1 \<^bold>\<box> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
-  \<open>all_atom_comm P (c1 \<parallel> c2) \<longleftrightarrow> all_atom_comm P c1 \<and> all_atom_comm P c2\<close>
-  \<open>all_atom_comm P (DO c OD) \<longleftrightarrow> all_atom_comm P c\<close>
-  \<open>all_atom_comm P (Atomic ar) \<longleftrightarrow> P ar\<close>
-  by (simp add: all_atom_comm_def all_conj_distrib)+
+  \<open>all_atom_comm P Skip = \<top>\<close>
+  \<open>all_atom_comm P (c1 ;; c2) = all_atom_comm P c1 \<sqinter> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<^bold>\<sqinter> c2) = all_atom_comm P c1 \<sqinter> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<^bold>\<box> c2) = all_atom_comm P c1 \<sqinter> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (c1 \<parallel> c2) = all_atom_comm P c1 \<sqinter> all_atom_comm P c2\<close>
+  \<open>all_atom_comm P (DO c OD) = all_atom_comm P c\<close>
+  \<open>all_atom_comm P (Atomic ar) = P ar\<close>
+  by (simp add: all_atom_comm_def all_conj_distrib conj_disj_distribL ex_disj_distrib
+      Collect_disj_eq Inf_union_distrib; fail)+
 
 lemma all_atom_comm_pred_mono:
   \<open>P \<le> Q \<Longrightarrow> all_atom_comm P c \<Longrightarrow> all_atom_comm Q c\<close>
@@ -238,8 +259,10 @@ lemma all_atom_comm_pred_mono:
 
 lemma all_atom_comm_pred_mono':
   \<open>P \<le> Q \<Longrightarrow> all_atom_comm P \<le> all_atom_comm Q\<close>
-  unfolding all_atom_comm_def
-  by force
+  apply (clarsimp simp add: all_atom_comm_def le_fun_def)
+  apply (rule Inf_mono)
+  apply blast
+  done
 
 lemmas all_atom_comm_pred_monoD = all_atom_comm_pred_mono[rotated]
 
@@ -254,7 +277,26 @@ lemma all_atom_comm_top_eq[simp]:
   by force
 
 
-subsection \<open> Heads \<close>
+subsection \<open> All Loops \<close>
+
+definition all_loop_comm :: \<open>('s comm \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
+  \<open>all_loop_comm f c \<equiv> \<Sqinter>{f c'|c'. (DO c' OD) \<le> c}\<close>
+
+lemma all_loop_comm_simps[simp]:
+  \<open>all_loop_comm f Skip = \<top>\<close>
+  \<open>all_loop_comm f (c1 ;; c2) = all_loop_comm f c1 \<sqinter> all_loop_comm f c2\<close>
+  \<open>all_loop_comm f (c1 \<^bold>\<sqinter> c2) = all_loop_comm f c1 \<sqinter> all_loop_comm f c2\<close>
+  \<open>all_loop_comm f (c1 \<^bold>\<box> c2) = all_loop_comm f c1 \<sqinter> all_loop_comm f c2\<close>
+  \<open>all_loop_comm f (c1 \<parallel> c2) = all_loop_comm f c1 \<sqinter> all_loop_comm f c2\<close>
+  \<open>all_loop_comm f (DO c OD) = f c \<sqinter> all_loop_comm f c\<close>
+  \<open>all_loop_comm f (Atomic ar) = \<top>\<close>
+  by (simp add: all_loop_comm_def all_conj_distrib conj_disj_distribL ex_disj_distrib
+      Collect_disj_eq Inf_union_distrib; fail)+
+
+
+subsection \<open> Head Commands \<close>
+
+subsubsection \<open> Head Commands Definition \<close>
 
 fun head_comms :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
   \<open>head_comms Skip = {# Skip #}\<close>
@@ -274,6 +316,34 @@ lemma heads_refl:
   \<open>c \<in># head_comms c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
+
+lemma head_comms_subset_all_subcomm_eq:
+  \<open>set_mset (head_comms c) \<le> all_subcomm_eq c\<close>
+  by (induct c)
+    (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
+
+
+subsubsection \<open> All Head Commands \<close>
+
+definition all_head_comm :: \<open>('s comm \<Rightarrow> 'l::complete_lattice) \<Rightarrow>'s comm \<Rightarrow> 'l\<close> where
+  \<open>all_head_comm f c \<equiv> \<Sqinter>{f c'|c'. c' \<in># head_comms c}\<close>
+
+lemma all_head_comm_simps[simp]:
+  \<open>all_head_comm f Skip = f Skip\<close>
+  \<open>all_head_comm f (ca ;; cb) = f (ca ;; cb) \<sqinter> all_head_comm f ca\<close>
+  \<open>all_head_comm f (ca \<^bold>\<sqinter> cb) = f (ca \<^bold>\<sqinter> cb)\<close>
+  \<open>all_head_comm f (ca \<^bold>\<box> cb) = f (ca \<^bold>\<box> cb) \<sqinter> all_head_comm f ca \<sqinter> all_head_comm f cb\<close>
+  \<open>all_head_comm f (ca \<parallel> cb) = f (ca \<parallel> cb) \<sqinter> all_head_comm f ca \<sqinter> all_head_comm f cb\<close>
+  \<open>all_head_comm f (DO c OD) = f (DO c OD) \<sqinter> all_head_comm f c\<close>
+  \<open>all_head_comm f \<langle>ra\<rangle> = f \<langle>ra\<rangle>\<close>
+  by (clarsimp simp add: all_head_comm_def conj_disj_distribL ex_disj_distrib Collect_disj_eq
+      Inf_union_distrib inf_assoc)+
+
+lemma all_head_comm_le_all_subcomm_eq:
+  \<open>all_subcomm_eq_InfIm f c \<le> all_head_comm f c\<close>
+  unfolding all_head_comm_def all_subcomm_eq_InfIm_def
+  using head_comms_subset_all_subcomm_eq
+  by (blast intro: Inf_mono)
 
 
 subsection \<open> Head Atoms \<close>
@@ -300,14 +370,33 @@ lemma head_atoms_eq_atoms_of_heads:
   by (induct c) simp+
 
 
+subsubsection \<open> All Head Atoms \<close>
+
+definition all_head_atoms :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
+  \<open>all_head_atoms f c \<equiv> \<Sqinter>{f c'|c'. c' \<in># head_atoms c}\<close>
+
+lemma all_head_atoms_simps[simp]:
+  \<open>all_head_atoms f Skip = \<top>\<close>
+  \<open>all_head_atoms f (c1 ;; c2) = all_head_atoms f c1\<close>
+  \<open>all_head_atoms f (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
+  \<open>all_head_atoms f (c1 \<^bold>\<box> c2) = all_head_atoms f c1 \<sqinter> all_head_atoms f c2\<close>
+  \<open>all_head_atoms f (c1 \<parallel> c2) = all_head_atoms f c1 \<sqinter> all_head_atoms f c2\<close>
+  \<open>all_head_atoms f (DO c OD) = all_head_atoms f c\<close>
+  \<open>all_head_atoms f (Atomic ar) =  f ar\<close>
+  by (simp add: all_head_atoms_def all_conj_distrib conj_disj_distribL ex_disj_distrib
+      Collect_disj_eq Inf_union_distrib; fail)+
+
+
 subsection \<open> Atom Headed \<close>
 
 text \<open>
   A predicate to determine if every executable subcommand in this command is an atom.
   (As opposed to a command like \<open>Skip; c\<close>.) Note that a do-loop is also a head,
   as when the loop's subcommand is blocked, it can reduce itself.
-\<close>
 
+  Note that this is not just an application of \<open>all_head_comm\<close> as that includes all programs
+  that contain the 'principal' heads containing.
+\<close>
 fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
   \<open>head_atomic Skip = False\<close>
 | \<open>head_atomic (ca ;; cb) = head_atomic ca\<close>

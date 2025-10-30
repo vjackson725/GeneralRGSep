@@ -28,30 +28,17 @@ lemma sepconj_comp_exch4_distrib:
   \<open>(p \<^emph> q) \<circ> exch4 = (p \<circ> exch4) \<^emph> (q \<circ> exch4)\<close>
   by (force simp add: fun_eq_iff sepconj_def)
 
-lemma predTimesExch4_sup_semidistrib:
-  \<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> q \<rblot>\<^sub>\<ddagger> \<le> \<lblot> p \<squnion> q \<rblot>\<^sub>\<ddagger>\<close>
-  using pred_lift_exch4_mono
-  by (metis inf_sup_ord(3,4) le_supI)
-
-lemma predTimesExch4_sup_distrib:
-  \<open>\<lblot> p \<sqinter> q \<rblot>\<^sub>\<ddagger> = \<lblot> p \<rblot>\<^sub>\<ddagger> \<sqinter> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
-  by (force simp add: pred_times_def fun_eq_iff)
-
 lemma sp_times_distrib[simp]:
   \<open>sp (Ra \<times>\<^sub>R Rb) (pa \<times>\<^sub>P pb) = sp Ra pa \<times>\<^sub>P sp Rb pb\<close>
   by (force simp add: sp_def fun_eq_iff)
 
 lemma sp_rtrancl_times_semidistrib:
   \<open>sp (Ra \<times>\<^sub>R Rb)\<^sup>*\<^sup>* (pa \<times>\<^sub>P pb) \<le> sp Ra\<^sup>*\<^sup>* pa \<times>\<^sub>P sp Rb\<^sup>*\<^sup>* pb\<close>
-  by (metis rel_Times_rtranclp_semidistrib sp_rel_mono sp_times_distrib)
+  by (metis rel_times_rtranclp_semidistrib sp_rel_mono sp_times_distrib)
 
 lemma sswa_rel_times_prod_times_exch4_semidistrib:
   \<open>sswa (Ra \<times>\<^sub>R Rb) (\<lblot> p \<rblot>\<^sub>\<ddagger>) \<le> (sswa Ra p \<times>\<^sub>P sswa Rb p) \<circ> exch4\<close>
   oops
-(*
-  by (simp add: le_fun_def pred_times_def sp_def)
-    (metis fst_conv rel_times_def rtranclp_tuple_rel_semidistrib snd_conv)
-*)
 
 lemma rel_times_sup_semidistrib:
   \<open>(ra \<times>\<^sub>R rb) \<squnion> (ra \<times>\<^sub>R rb) \<le> (ra \<squnion> rb) \<times>\<^sub>R (ra \<squnion> rb)\<close>
@@ -79,10 +66,52 @@ definition purely_relational
     \<open>purely_relational ar \<equiv>
       (\<forall>z x' y'. (ar \<circ>\<^sub>2 exch4) (z,z) (x',y') \<longrightarrow> x' = z \<and> y' = z)\<close>
 
+definition purely_relational2
+  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
+  where
+    \<open>purely_relational2 ar \<equiv>
+      (\<forall>xa ya xa' ya' xb yb xb' yb'.
+        (ar \<circ>\<^sub>2 exch4) (xa, ya) (xa', ya') \<longrightarrow>
+        (ar \<circ>\<^sub>2 exch4) (xb, yb) (xb', yb') \<longrightarrow>
+        (ar \<circ>\<^sub>2 exch4) (xa, yb) (xa', yb') \<and>
+        (ar \<circ>\<^sub>2 exch4) (xb, ya) (xb', ya'))\<close>
+
+lemma
+  \<open>(\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, y) (x', y') \<longrightarrow> (ar \<circ>\<^sub>2 exch4) (y, x) (y', x')) \<Longrightarrow>
+    (\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, x) (x', y') \<longrightarrow>
+      (ar \<circ>\<^sub>2 exch4) (x, x) (x', x') \<and> (ar \<circ>\<^sub>2 exch4) (x, x) (y', y')) \<Longrightarrow>
+    purely_relational2 ar \<Longrightarrow>
+    purely_relational ar\<close>
+  unfolding purely_relational_def purely_relational2_def
+  oops
+
 lemma purely_relational_output:
   \<open>purely_relational (atom_rel (Output h))\<close>
   unfolding Output_def RelAssert_def sec_agree_exch4_def sec_agree_def
   by (simp add: purely_relational_def fun_eq_iff)
+
+lemma
+  \<open>purely_relational (atom_rel (Await (\<bbbA> h)))\<close>
+  unfolding Await_def purely_relational_def
+  by (clarsimp simp add: fun_eq_iff)
+
+
+lemma
+  \<open>purely_relational (atom_rel (\<langle> ar \<rangle>)) \<Longrightarrow> unliftC2 \<langle> ar \<rangle> = \<langle> case_prod (=) \<rangle>\<close>
+  unfolding Await_def purely_relational_def
+  by (clarsimp simp add: fun_eq_iff)
+
+
+
+
+
+
+
+
+
+
+
+
 
 lemma helper:
   \<open>A \<and> B \<and> C \<or> B \<and> C \<longleftrightarrow> B \<and> C\<close>
