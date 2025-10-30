@@ -1215,17 +1215,16 @@ qed
 section \<open> Soundness \<close>
 
 lemma soundness:
-  assumes \<open>rgsat c R G p q I F C\<close>
+  assumes \<open>rgsat c R G p q I F T\<close>
     and \<open>p s\<close>
-    and \<open>C = \<top>\<close>
   shows \<open>safe R F G I q n c s\<close>
   using assms
-proof (induct c R G p q I F C arbitrary: n s rule: rgsat.inducts)
-  case (rgsat_skip R p q I C F G)
+proof (induct c R G p q I F T arbitrary: n s rule: rgsat.inducts)
+  case (rgsat_skip R p q I T F G)
   then show ?case
     by (intro safe_skip[where p=p]; simp add: wlp_weaker_iff_sp_stronger)
 next
-  case (rgsat_iter c R G i I F C p q I')
+  case (rgsat_iter c R G i I F T p q I')
   then show ?case
     apply (intro safe_iter[where i=\<open>sswa R i\<close> and R=R, simplified])
       apply (meson order.refl safe_monoD sswa_weaker; fail)
@@ -1233,19 +1232,19 @@ next
     apply blast
     done
 next
-  case (rgsat_seq ca r g p pp Ia F C cb q Ib I)
+  case (rgsat_seq ca r g p pp Ia F T cb q Ib I)
   then show ?case
     by (intro safe_seq) blast+
 next
-  case (rgsat_indet ca r ga p qa Ia F C cb gb qb Ib g q I)
+  case (rgsat_indet ca r ga p qa Ia F T cb gb qb Ib g q I)
   then show ?case
     by (intro safe_indet) blast+
 next
-  case (rgsat_endet c1 r Ga p qa Ia F C c2 Gb qb Ib g q I)
+  case (rgsat_endet c1 r Ga p qa Ia F T c2 Gb qb Ib g q I)
   then show ?case
     by (intro safe_endet) blast+
 next
-  case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
   moreover obtain sla slb ss where
     \<open>pa (sla, ss)\<close>
     \<open>pb (slb, ss)\<close>
@@ -1287,7 +1286,7 @@ next
     apply force
     done
 next
-  case (rgsat_weaken c R' G' p' q' I' F' C p q R G I F)
+  case (rgsat_weaken c R' G' p' q' I' F' T p q R G I F)
   moreover have \<open>p' s\<close>
     using rgsat_weaken.hyps(3) rgsat_weaken.prems
     by blast
@@ -1302,7 +1301,7 @@ next
 next
   case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
   have Aa: \<open>\<forall>n. \<forall>G\<in>\<G>. \<forall>I\<in>\<I>. \<forall>q\<in>Q. safe R F G I q n c s\<close>
-    using rgsat_Conj.hyps(7) rgsat_Conj.prems(1,2)
+    using rgsat_Conj.hyps(7) rgsat_Conj.prems
     by blast
   then show ?case
     using rgsat_Conj.prems safe_Conj'[OF rgsat_Conj(8) rgsat_Conj(5,4,6)]

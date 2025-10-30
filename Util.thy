@@ -1089,6 +1089,7 @@ lemma bot_pred_times_eq[simp]: \<open>\<bottom> \<times>\<^sub>P b = \<bottom>\<
 lemma pred_times_bot_eq[simp]: \<open>a \<times>\<^sub>P \<bottom> = \<bottom>\<close>
   by (simp add: pred_times_def fun_eq_iff)
 
+
 definition rel_times :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('c \<Rightarrow> 'd \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'c \<Rightarrow> 'b \<times> 'd \<Rightarrow> bool)\<close>
   (infixr \<open>\<times>\<^sub>R\<close> 80) where
   \<open>r1 \<times>\<^sub>R r2 \<equiv> \<lambda>(a,c) (b, d). r1 a b \<and> r2 c d\<close>
@@ -1099,6 +1100,22 @@ lemma rel_times_apply:
 
 lemma rel_times_apply'[simp]:
   \<open>(r1 \<times>\<^sub>R r2) (x,y) (x',y') \<longleftrightarrow> r1 x x' \<and> r2 y y'\<close>
+  by (force simp add: rel_times_def)
+
+lemma top_relTimes_top[simp]:
+  \<open>\<top> \<times>\<^sub>R \<top> = \<top>\<close>
+  by fastforce
+
+lemma bot_relTimes[simp]:
+  \<open>\<bottom> \<times>\<^sub>R r = \<bottom>\<close>
+  by fastforce
+
+lemma bot_relTimes_bot[simp]:
+  \<open>r \<times>\<^sub>R \<bottom> = \<bottom>\<close>
+  by fastforce
+
+lemma eqrel_times_eqrel_eq[simp]:
+  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
   by (force simp add: rel_times_def)
 
 lemma rel_times_almost_assoc:
@@ -1168,10 +1185,6 @@ lemma rel_image_snd_of_rel_times_le_snd[simp]:
 
 lemma rel_times_trans: \<open>transp ra \<Longrightarrow> transp rb \<Longrightarrow> transp (ra \<times>\<^sub>R rb)\<close>
   by (simp add: rel_times_mono transp_relcompp)
-
-lemma eqrel_times_eqrel_eq[simp]:
-  \<open>((=) \<times>\<^sub>R (=)) = (=)\<close>
-  by (force simp add: rel_times_def)
 
 
 section \<open> Relations + Relations as Programs \<close>
