@@ -1250,7 +1250,7 @@ qed force+
 lemmas self_aopstep_endet_cluster_then_crashD = 
   self_aopstep_endet_cluster_then_crash[rotated]
 
-lemma self_aopstep_impossible[simp]:
+lemma self_aopstep_impossible:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c) = False\<close>
   \<open>(s, c1) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c1 \<^bold>\<box> c2) = False\<close>
   \<open>(s, c2) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c1 \<^bold>\<box> c2) = False\<close>
@@ -1259,7 +1259,8 @@ lemma self_aopstep_impossible[simp]:
 lemma aopstep_endet_skip_then:
   \<open>(s, c \<^bold>\<box> Skip) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c) \<Longrightarrow> tau_aact (snd \<pi>\<alpha>) \<and> s' = s\<close>
   \<open>(s, Skip \<^bold>\<box> c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c) \<Longrightarrow> tau_aact (snd \<pi>\<alpha>) \<and> s' = s\<close>
-  by (simp, metis aopstep_tau_preserves_state split_pairs2 tau_aact_simps(1))+
+  by (simp add: self_aopstep_impossible,
+      metis aopstep_tau_preserves_state split_pairs2 tau_aact_simps(1))+
 
 
 subsection \<open> parallel-annotated opsteps \<close>
@@ -1791,8 +1792,8 @@ proof -
           ((\<exists>ca'. cx = ca' \<^bold>\<box> cb) \<or> (\<exists>cb'. cx = ca \<^bold>\<box> cb'))\<close>)
        apply (elim conjE disjE[of \<open>\<exists>x y. sc' = _ x y\<close>] disjE[of \<open>\<exists>x. _ = _ x\<close>])
           apply (clarsimp, metis Endet.hyps(1) fst_conv)
-         apply (clarsimp, blast)
-        apply (clarsimp, blast)
+         apply (clarsimp simp add: self_aopstep_impossible, blast)
+        apply (clarsimp simp add: self_aopstep_impossible, blast)
        apply (clarsimp, metis Endet.hyps(2) fst_eqD)
       apply clarsimp
       apply (elim disjE; (simp; fail)?)
@@ -1857,7 +1858,7 @@ lemma basic_tau_aopstep_changes_comm:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
     TauBasic = \<alpha> \<Longrightarrow>
     snd sc' \<noteq> snd sc\<close>
-  by (induct rule: aopstep_induct) force+
+  by (induct rule: aopstep_induct) (force simp add: self_aopstep_impossible)+
 
 
 subsection \<open> Head Enabled Equivalent States \<close>
