@@ -96,6 +96,88 @@ lemma
   by (clarsimp simp add: fun_eq_iff)
 
 
+section \<open> Secure If-statement \<close>
+
+definition \<open>SecIfThenElse p ct cf \<equiv> Await (\<lblot> p \<rblot>) ;; ct \<^bold>\<box> Await (\<lblot> -p \<rblot>) ;; cf\<close>
+
+lemma ecIfThenElse_inject[simp]:
+  \<open>SecIfThenElse p1 ct1 cf1 = SecIfThenElse p2 ct2 cf2 \<longleftrightarrow> p1 = p2 \<and> ct1 = ct2 \<and> cf1 = cf2\<close>
+  by (force simp add: SecIfThenElse_def fun_eq_iff)
+
+lemma SecIfThenElse_distinct[simp]:
+  \<open>SecIfThenElse p ct cf \<noteq> Skip\<close>
+  \<open>SecIfThenElse p ct cf \<noteq> c1 ;; c2\<close>
+  \<open>SecIfThenElse p ct cf \<noteq> c1 \<parallel> c2\<close>
+  \<open>SecIfThenElse p ct cf \<noteq> \<langle>ar\<rangle>\<close>
+  \<open>Skip \<noteq> SecIfThenElse p ct cf\<close>
+  \<open>c1 ;; c2 \<noteq> SecIfThenElse p ct cf\<close>
+  \<open>c1 \<parallel> c2 \<noteq> SecIfThenElse p ct cf\<close>
+  \<open>\<langle>ar\<rangle> \<noteq> SecIfThenElse p ct cf\<close>
+  by (simp add: SecIfThenElse_def)+
+
+lemma rgsat_if_then_else:
+  assumes
+    \<open>rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
+    and tt_guard_frame_cond:
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> f\<close>
+    and ff_guard_frame_cond:
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<and> f\<close> 
+    and body_assms:
+    \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
+    \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
+    and misc_assms:
+    \<open>T RGSepAtom\<close>
+    \<open>T RGSepEndet\<close>
+    \<open>T RGSepSeq\<close>
+    \<open>sswa R p \<le> I\<close>
+    \<open>Ia \<le> I\<close>
+    \<open>Ib \<le> I\<close>
+    \<open>qa \<le> q\<close>
+    \<open>qb \<le> q\<close>
+  shows
+    \<open>R, G, I, F, T \<turnstile> { p } IfThenElse pp ctt cff { q }\<close>
+  using misc_assms
+  unfolding IfThenElse_def
+proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
+      where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>])
+  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
+    using misc_assms assms(1) tt_guard_frame_cond
+    apply (intro rgsat_await; simp)
+     apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+    apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
+    done
+  show \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
+    using body_assms
+    by blast
+  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
+    using ff_guard_frame_cond misc_assms assms
+    apply (intro rgsat_await; simp)
+     apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
+        rel_liftL_conj_distrib; fail)
+    apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
+        wlp_weaker_iff_sp_stronger; fail)
+    done
+  show \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
+    using body_assms
+    by blast
+  show \<open>sswa R p \<squnion> Ia \<le> I\<close>
+    using misc_assms
+    by simp
+  show \<open>sswa R p \<squnion> Ib \<le> I\<close>
+    using misc_assms
+    by simp
+qed simp+
+
+lemma secure_if_statement_rule:
+  assumes \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
+  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+
+
+
+
+section \<open> Old things \<close>
+
+
 lemma
   \<open>purely_relational (atom_rel (\<langle> ar \<rangle>)) \<Longrightarrow> unliftC2 \<langle> ar \<rangle> = \<langle> case_prod (=) \<rangle>\<close>
   unfolding Await_def purely_relational_def
