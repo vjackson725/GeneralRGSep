@@ -1,8 +1,16 @@
 theory SecurityEx
-  imports "../sec/Semantics"
+  imports "../sec/Security"
 begin
 
-(* TODO: move *)
+lemma parallel_inheritance:
+  \<open>sswa (R \<squnion> Gb) Ia \<le> Ia \<Longrightarrow>
+    sswa (R \<squnion> Ga) Ib \<le> Ib \<Longrightarrow>
+    Ia \<^emph>\<and> (Ib \<squnion> Ib \<^emph>\<and> F) \<le> X \<Longrightarrow>
+    Ib \<^emph>\<and> (Ia \<squnion> Ia \<^emph>\<and> F) \<le> X \<Longrightarrow>
+    sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
+    I \<^emph>\<and> F \<le> X\<close>
+  nitpick
+  sorry
 
 lemma eq_rtimes_R_iff:
   \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
@@ -49,6 +57,16 @@ lemma sp_exch4_of_rel_Times_eq[simp]:
   (* by (force simp add: fun_eq_iff sp_def) *)
   oops
 
+definition
+  \<open>nonfail_ff p \<equiv> \<lambda>(l, ((sx,flx), (sy,fly))). p (l,(sx,sy)) \<and> flx = Running \<and> fly = Running\<close>
+
+definition
+  \<open>nonfail_rel_lift_ff r \<equiv>
+    \<lambda>(l, ((sx,flx), (sy,fly))) (l', ((sx',flx'), (sy',fly'))).
+      flx = Running \<and> fly = Running \<and> r (l,(sx,sy)) (l',(sx',sy')) \<and> flx' = Running \<and> fly' = Running \<or>
+      (flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
+      \<not> r (l,(sx,sy)) (l',(sx',sy')) \<and> flx' = Failed \<and> fly' = Failed\<close>
+
 definition RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> ('l, 's \<times> fail_st) rgstate comm\<close> where
   \<open>RelAssert p \<equiv>
     \<langle>\<lambda>(l, ((sx,flx), (sy,fly))) (l', (sx',flx'), (sy',fly')).
@@ -56,48 +74,52 @@ definition RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarro
         ((p (l,(sx,sy)) \<or> flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
           flx = Running \<and> fly = Running \<and> \<not> p (l,(sx,sy)) \<and> flx' = Failed \<and> fly' = Failed)\<rangle>\<close>
 
+\<comment> \<open> We subtract off the post-states where the program crashes, as we assume these will always be
+    avoided. \<close>
+lemma rel_assert_quasireflp_steprel:
+  fixes p :: \<open>('a \<times> 'a) \<times> 'b \<times> 'b \<Rightarrow> bool\<close>
+  shows \<open>\<top> \<le> quasireflp_steprel (atom_rel (RelAssert p) - rel_liftR (- nonfail_ff \<top>))
+    \<longleftrightarrow> quasireflp (curry (p \<circ> exch4))\<close>
+  by (force simp add: RelAssert_def quasireflp_steprel_def sec_agree_exch4_def
+      sec_agree_def nonfail_ff_def reflp_on_def prepost_state_def' le_fun_def split: prod.splits)
+
+lemma rel_assert_symp_steprel:
+  \<open>\<top> \<le> symp_steprel (atom_rel (RelAssert p))
+    \<longleftrightarrow> symp (curry (p \<circ> exch4))\<close>
+  by (clarsimp simp add: RelAssert_def symp_steprel_def sec_agree_exch4_def symp_def le_fun_def
+      split: prod.splits, blast)
+
+
 definition Output :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l, 's \<times> fail_st) rgstate comm\<close> where
   \<open>Output h \<equiv> RelAssert (\<bbbA>\<^sub>\<ddagger> h)\<close>
 
-
-definition purely_relational
-  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
-  where
-    \<open>purely_relational ar \<equiv>
-      (\<forall>z x' y'. (ar \<circ>\<^sub>2 exch4) (z,z) (x',y') \<longrightarrow> x' = z \<and> y' = z)\<close>
-
-definition purely_relational2
-  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
-  where
-    \<open>purely_relational2 ar \<equiv>
-      (\<forall>xa ya xa' ya' xb yb xb' yb'.
-        (ar \<circ>\<^sub>2 exch4) (xa, ya) (xa', ya') \<longrightarrow>
-        (ar \<circ>\<^sub>2 exch4) (xb, yb) (xb', yb') \<longrightarrow>
-        (ar \<circ>\<^sub>2 exch4) (xa, yb) (xa', yb') \<and>
-        (ar \<circ>\<^sub>2 exch4) (xb, ya) (xb', ya'))\<close>
-
-lemma
-  \<open>(\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, y) (x', y') \<longrightarrow> (ar \<circ>\<^sub>2 exch4) (y, x) (y', x')) \<Longrightarrow>
-    (\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, x) (x', y') \<longrightarrow>
-      (ar \<circ>\<^sub>2 exch4) (x, x) (x', x') \<and> (ar \<circ>\<^sub>2 exch4) (x, x) (y', y')) \<Longrightarrow>
-    purely_relational2 ar \<Longrightarrow>
-    purely_relational ar\<close>
-  unfolding purely_relational_def purely_relational2_def
-  oops
-
-lemma purely_relational_output:
-  \<open>purely_relational (atom_rel (Output h))\<close>
-  unfolding Output_def RelAssert_def sec_agree_exch4_def sec_agree_def
-  by (simp add: purely_relational_def fun_eq_iff)
-
-lemma
-  \<open>purely_relational (atom_rel (Await (\<bbbA> h)))\<close>
-  unfolding Await_def purely_relational_def
-  by (clarsimp simp add: fun_eq_iff)
+\<comment> \<open> TODO: pin down the exact condition\<close>
+lemma output_quasirefl_blocking_steprel:
+  \<open>nonfail_ff (\<bbbA>\<^sub>\<ddagger> h) \<le>
+    quasirefl_blocking_steprel (atom_rel (Output h) - rel_liftR (- nonfail_ff \<top>))\<close>
+  by (clarsimp simp add: Output_def RelAssert_def quasirefl_blocking_steprel_def
+      pred_lift_exch4_def exch4_def fun_eq_iff sec_agree_exch4_def' nonfail_ff_def)
 
 
 section \<open> Secure If-statement \<close>
 
+lemma await_quasireflp_steprel:
+  \<open>\<top> \<le> quasireflp_steprel (atom_rel (Await (\<lblot> p \<rblot>\<^sub>\<ddagger>)))\<close>
+  by (force simp add: Await_def quasireflp_steprel_def reflp_on_def prepost_state_def'
+      pred_lift_exch4_def)
+
+lemma await_symp_steprel:
+  \<open>\<top> \<le> symp_steprel (atom_rel (Await (\<lblot> p \<rblot>\<^sub>\<ddagger>)))\<close>
+  by (force simp add: Await_def symp_steprel_def pred_lift_exch4_def)
+
+\<comment> \<open> The only qrefl blocking condition that is going to occur when all do-loops are lifted. \<close>
+lemma await_pred_lift_quasirefl_blocking_steprel:
+  \<open>quasirefl_blocking_steprel (atom_rel (Await (\<lblot> p \<rblot>\<^sub>\<ddagger>))) = \<bbbA>\<^sub>\<ddagger> p\<close>
+  by (force simp add: Await_def quasirefl_blocking_steprel_def
+      pred_lift_exch4_def exch4_def fun_eq_iff sec_agree_exch4_def')
+
+
+\<comment> \<open> The program produced by \<open>liftC (IfThenElse p)\<close> \<close>
 definition \<open>SecIfThenElse p ct cf \<equiv> Await (\<lblot> p \<rblot>) ;; ct \<^bold>\<box> Await (\<lblot> -p \<rblot>) ;; cf\<close>
 
 lemma ecIfThenElse_inject[simp]:
@@ -115,41 +137,37 @@ lemma SecIfThenElse_distinct[simp]:
   \<open>\<langle>ar\<rangle> \<noteq> SecIfThenElse p ct cf\<close>
   by (simp add: SecIfThenElse_def)+
 
-lemma rgsat_if_then_else:
+lemma gensep_rule_sec_if_then_else:
   assumes
-    \<open>rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
+    \<open>rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     and tt_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> f\<close>
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> \<lblot> pa \<rblot> \<le> (sswa R p \<sqinter> \<lblot> pa \<rblot>) \<^emph>\<and> f\<close>
     and ff_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<and> f\<close> 
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> \<lblot> -pa \<rblot> \<le> (sswa R p \<sqinter> \<lblot> -pa \<rblot>) \<^emph>\<and> f\<close> 
     and body_assms:
-    \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
-    \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
+    \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> pa \<rblot>) } ctt { q }\<close>
+    \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> -pa \<rblot>) } cff { q }\<close>
     and misc_assms:
     \<open>T RGSepAtom\<close>
     \<open>T RGSepEndet\<close>
     \<open>T RGSepSeq\<close>
     \<open>sswa R p \<le> I\<close>
-    \<open>Ia \<le> I\<close>
-    \<open>Ib \<le> I\<close>
-    \<open>qa \<le> q\<close>
-    \<open>qb \<le> q\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile> { p } IfThenElse pp ctt cff { q }\<close>
+    \<open>R, G, I, F, T \<turnstile> { p } SecIfThenElse pa ctt cff { q }\<close>
   using misc_assms
-  unfolding IfThenElse_def
+  unfolding SecIfThenElse_def
 proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
-      where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>])
-  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
+      where I=I and Ia=\<open>sswa R p \<squnion> I\<close> and Ib=\<open>sswa R p \<squnion> I\<close>])
+  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (\<lblot> pa \<rblot>) { sswa R (sswa R p \<sqinter> \<lblot> pa \<rblot>) }\<close>
     using misc_assms assms(1) tt_guard_frame_cond
     apply (intro rgsat_await; simp)
      apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
     apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
     done
-  show \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
+  show \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> pa \<rblot>) } ctt { q }\<close>
     using body_assms
     by blast
-  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
+  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (\<lblot> -pa \<rblot>) { sswa R (sswa R p \<sqinter> \<lblot> -pa \<rblot>) }\<close>
     using ff_guard_frame_cond misc_assms assms
     apply (intro rgsat_await; simp)
      apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
@@ -157,43 +175,95 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
     apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
         wlp_weaker_iff_sp_stronger; fail)
     done
-  show \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
+  show \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> -pa \<rblot>) } cff { q }\<close>
     using body_assms
     by blast
-  show \<open>sswa R p \<squnion> Ia \<le> I\<close>
-    using misc_assms
-    by simp
-  show \<open>sswa R p \<squnion> Ib \<le> I\<close>
-    using misc_assms
-    by simp
 qed simp+
 
-lemma secure_if_statement_rule:
-  assumes \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
-  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
+section \<open> Declassification \<close>
 
+definition Declassify :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l, 's) rgstate comm\<close> where
+  \<open>Declassify h \<equiv> Await (\<bbbA>\<^sub>\<ddagger> h)\<close>
+
+lemma declassify_quasireflp_steprel:
+  \<open>\<top> \<le> quasireflp_steprel (atom_rel (Declassify h))\<close>
+  by (clarsimp simp add: Declassify_def Await_def quasireflp_steprel_def reflp_on_def
+      prepost_state_def' sec_agree_exch4_def')
+
+lemma declassify_symp_steprel:
+  \<open>\<top> \<le> symp_steprel (atom_rel (Declassify h))\<close>
+  by (clarsimp simp add: Declassify_def Await_def symp_steprel_def sec_agree_exch4_def')
+
+lemma declassify_quasirefl_blocking_steprel:
+  \<open>quasirefl_blocking_steprel (atom_rel (Declassify h)) = \<bbbA>\<^sub>\<ddagger> h\<close>
+  by (clarsimp simp add: Declassify_def Await_def quasirefl_blocking_steprel_def
+      sec_agree_exch4_def' exch4_def)
+
+
+section \<open> Purely Relational \<close>
+
+\<comment> \<open> TODO \<close>
+
+definition purely_relational
+  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
+  where
+    \<open>purely_relational ar \<equiv>
+      (\<forall>z x' y'. (ar \<circ>\<^sub>2 exch4) (z,z) (x',y') \<longrightarrow> x' = z \<and> y' = z)\<close>
+
+definition purely_relational2
+  :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close>
+  where
+    \<open>purely_relational2 ar \<equiv>
+      (\<forall>xa ya xa' ya' xb yb xb' yb'.
+        (ar \<circ>\<^sub>2 exch4) (xa, ya) (xa', ya') \<longrightarrow>
+        (ar \<circ>\<^sub>2 exch4) (xb, yb) (xb', yb') \<longrightarrow>
+        (ar \<circ>\<^sub>2 exch4) (xa, yb) (xa', yb') \<and>
+        (ar \<circ>\<^sub>2 exch4) (xb, ya) (xb', ya'))\<close>
+
+definition pr3 :: \<open>(('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> bool\<close> where
+  \<open>pr3 ar \<equiv> ar \<sqinter> (rel_lift (case_prod (=)) \<top> \<circ>\<^sub>2 exch4) \<le> (=)\<close>
+
+lemma \<open>purely_relational ar = pr3 ar\<close>
+  unfolding pr3_def purely_relational_def
+  by (force simp add: le_fun_def)
+
+lemma
+  \<open>(\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, y) (x', y') \<longrightarrow> (ar \<circ>\<^sub>2 exch4) (y, x) (y', x')) \<Longrightarrow>
+    (\<forall>x y x' y'. (ar \<circ>\<^sub>2 exch4) (x, x) (x', y') \<longrightarrow>
+      (ar \<circ>\<^sub>2 exch4) (x, x) (x', x') \<and> (ar \<circ>\<^sub>2 exch4) (x, x) (y', y')) \<Longrightarrow>
+    purely_relational2 ar \<Longrightarrow>
+    purely_relational ar\<close>
+  unfolding purely_relational_def purely_relational2_def
+  oops
+
+lemma purely_relational_output:
+  \<open>purely_relational (atom_rel (Output h))\<close>
+  unfolding Output_def RelAssert_def sec_agree_exch4_def sec_agree_def
+  by (simp add: purely_relational_def fun_eq_iff pre_state_def, metis)
+
+lemma await_agree_purely_relational:
+  \<open>purely_relational (atom_rel (Await (\<bbbA>\<^sub>\<ddagger> h)))\<close>
+  unfolding Await_def purely_relational_def pre_state_def
+  apply (clarsimp simp add: fun_eq_iff sec_agree_def)
+  apply (rename_tac la sa lb sb)
+  sorry
+
+lemma await_purely_relational:
+  \<open>purely_relational (atom_rel (Await pp))\<close>
+  unfolding Await_def purely_relational_def
+  by (clarsimp simp add: fun_eq_iff)
+
+lemma purely_relational_atom_unlifts_to_nop:
+  fixes ar :: \<open>('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> ('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool\<close>
+  shows
+    \<open>purely_relational (atom_rel \<langle> ar \<rangle>) \<Longrightarrow>
+      unliftC \<langle> ar \<rangle> = \<langle> rel_liftL (\<lambda>(l,s). pre_state ar ((l,l),(s,s))) \<sqinter> (=) \<rangle>\<close>
+  unfolding Await_def purely_relational_def
+  by (force simp add: fun_eq_iff pre_state_def)
 
 
 
 section \<open> Old things \<close>
-
-
-lemma
-  \<open>purely_relational (atom_rel (\<langle> ar \<rangle>)) \<Longrightarrow> unliftC2 \<langle> ar \<rangle> = \<langle> case_prod (=) \<rangle>\<close>
-  unfolding Await_def purely_relational_def
-  by (clarsimp simp add: fun_eq_iff)
-
-
-
-
-
-
-
-
-
-
-
-
 
 lemma helper:
   \<open>A \<and> B \<and> C \<or> B \<and> C \<longleftrightarrow> B \<and> C\<close>
@@ -217,163 +287,6 @@ lemma
 
 section \<open> Examples \<close>
 
-
-lemma
-  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile>\<^sub>f { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
-
-lemma double_program_lifting':
-  assumes \<open>R, G, I, F, C \<turnstile> { p } c { q }\<close>
-  shows \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
-  using assms
-proof (induct rule: rgsat.induct)
-  case (rgsat_skip R p q I C G F)
-  then show ?case
-    apply (clarsimp simp del: comp_apply)
-    apply (rule rgsat.rgsat_skip)
-      apply (clarsimp simp del: comp_apply)
-      apply (frule predicate1D[OF sswa_rel_times_prod_times_exch4_semidistrib])
-      apply (simp add: le_fun_def; fail)
-     apply (clarsimp simp del: comp_apply)
-     apply (frule predicate1D[OF sswa_rel_times_prod_times_exch4_semidistrib])
-     apply (simp add: le_fun_def; fail)
-    apply (simp; fail)
-    done
-next
-  case (rgsat_iter c R G i I F C p q)
-  moreover have
-    \<open>R \<times>\<^sub>R R, G \<times>\<^sub>R G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, C \<circ> unliftC \<turnstile> { sswa (R \<times>\<^sub>R R) \<lblot> i \<rblot>\<^sub>\<ddagger> } liftC c { \<lblot> i \<rblot>\<^sub>\<ddagger> }\<close>
-    using rgsat_iter.hyps(2)
-    apply (meson le_disj_eq_absorb rgsat_weaken sswa_rel_times_prod_times_exch4_semidistrib)
-    done
-  ultimately show ?case
-    apply (clarsimp simp del: comp_apply)
-    apply (rule rgsat.rgsat_iter[where i=\<open>\<lblot> i \<rblot>\<^sub>\<ddagger>\<close>])
-       apply assumption
-      apply (clarsimp simp del: comp_apply)
-      apply (frule predicate1D[OF sswa_rel_times_prod_times_exch4_semidistrib])
-      apply (simp add: le_fun_def; fail)
-     apply (clarsimp simp del: comp_apply)
-     apply (frule predicate1D[OF sswa_rel_times_prod_times_exch4_semidistrib])
-     apply (simp add: le_fun_def; fail)
-    apply (simp; fail)
-    done
-next
-  case (rgsat_seq ca R G p pp Ia F C cb q Ib I)
-  note ih = rgsat_seq.hyps(2,4)
-  then show ?case
-    using rgsat_seq.prems rgsat_seq.hyps(5-)
-    apply (clarsimp simp del: comp_apply)
-    apply (rule rgsat.rgsat_seq)
-        apply force+
-    done
-next
-  case (rgsat_indet ca r Ga p qa Ia F C cb Gb qb Ib G q I)
-  note ih = rgsat_indet.hyps(2,4)
-  then show ?case
-    using rgsat_indet.prems rgsat_indet.hyps(5-)
-    apply (clarsimp simp del: comp_apply)
-    apply (rule rgsat.rgsat_indet)
-            apply force+
-    done
-next
-  case (rgsat_endet ca r Ga p qa Ia F C cb Gb qb Ib G q I)
-  note ih = rgsat_endet.hyps(2,4)
-  then show ?case
-    using rgsat_endet.prems rgsat_endet.hyps(5-)
-    apply (clarsimp simp del: comp_apply)
-    apply (rule rgsat.rgsat_endet)
-            apply force+
-    done
-next
-  case (rgsat_par ca R Gb Ga pa qa Ia Ib F C cb pb qb G p q I)
-  note ih = rgsat_par.hyps(2,4)
-  show ?case
-    using rgsat_par.prems rgsat_par.hyps(5-)
-    apply (clarsimp simp del: comp_apply sup_apply)
-    apply (rule rgsat.rgsat_par[where Gb=\<open>Gb \<times>\<^sub>R Gb\<close> and pa=\<open>\<lblot> pa \<rblot>\<^sub>\<ddagger>\<close> and qa=\<open>\<lblot> qa \<rblot>\<^sub>\<ddagger>\<close>
-          and Ia=\<open>\<lblot> Ia \<rblot>\<^sub>\<ddagger>\<close> and Ib=\<open>\<lblot> Ib \<rblot>\<^sub>\<ddagger>\<close>])
-           apply (rule rgsat.rgsat_weaken[OF ih(1)])
-                apply blast
-               apply blast
-              apply (clarsimp simp del: sup_apply simp add: rel_Times_mono; fail)
-             apply (rule order.refl)
-            apply (rule order.refl)
-           apply (metis predTimesExch4_sup_semidistrib predTimesExch4_sepconj_conj_distrib)
-          apply (rule rgsat.rgsat_weaken[OF ih(2)])
-               apply blast
-              apply blast
-             apply (clarsimp simp del: sup_apply simp add: rel_Times_mono; fail)
-            apply (rule order.refl)
-           apply (rule order.refl)
-          apply (metis predTimesExch4_sup_semidistrib predTimesExch4_sepconj_conj_distrib)
-         apply (simp add: rel_Times_mono; fail)
-        apply (simp add: rel_Times_mono; fail)
-       apply (metis predTimesExch4_mono predTimesExch4_sepconj_conj_distrib)
-      (* post-condition *)
-      apply (frule predTimesExch4_mono[where q=q])
-      apply (rule order.trans[rotated], assumption)
-      apply (simp add: predTimesExch4_sepconj_conj_distrib del: comp_apply)
-      apply (rule sepconj_conj_mono)
-       apply (rule order.trans[OF _ sswa_rel_times_prod_times_exch4_semidistrib])
-       apply (simp add: rel_Times_mono sswa_rel_mono; fail)
-      apply (rule order.trans[OF _ sswa_rel_times_prod_times_exch4_semidistrib])
-      apply (meson rel_Times_mono sswa_rel_mono sup.boundedI sup.cobounded1 sup.cobounded2; fail)
-      (* invariant *)
-     apply (frule predTimesExch4_mono[where q=I])
-     apply (rule order.trans[rotated], assumption)
-     apply (simp add: predTimesExch4_sepconj_conj_distrib del: comp_apply)
-     apply (rule sepconj_conj_mono)
-      apply (rule order.trans[OF _ sswa_rel_times_prod_times_exch4_semidistrib])
-      apply (simp add: rel_Times_mono sswa_rel_mono; fail)
-     apply (rule order.trans[OF _ sswa_rel_times_prod_times_exch4_semidistrib])
-     apply (simp add: rel_Times_mono sswa_rel_mono; fail)
-      (* command predicate *)
-    apply (simp; fail)
-    done
-next
-  case (rgsat_atom p' R p q q' ar G F I C)
-  then show ?case
-    using rgsat_atom.prems
-    apply (clarsimp simp del: comp_apply sup_apply)
-    apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger>\<close> and q=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger>\<close>])
-            apply (meson order.trans predTimesExch4_mono sswa_rel_times_prod_times_exch4_semidistrib
-        wlp_weaker_iff_sp_stronger; fail)
-           apply (meson order.trans predTimesExch4_mono sswa_rel_times_prod_times_exch4_semidistrib;
-        fail)
-      (* sp *)
-          apply (simp add: predTimesExch4_mono; fail)
-      (* guar *)
-         apply (force simp add: le_fun_def; fail)
-      (* framed sp *)
-        apply (clarsimp simp add: le_fun_def sp_def sepconj_conj_def imp_ex_conjL imp_conjL)
-        apply (rename_tac ssfa' ssfb' lsa' lsb' ssa ssb lsa fa lsb fb)
-        apply (frule_tac x=\<open>(=) (fa, ssa)\<close> in spec, drule mp[of \<open>\<forall>x y. _ x y \<longrightarrow> F (x,y)\<close>], metis)
-        apply (frule_tac x=\<open>(=) (fb, ssb)\<close> in spec, drule mp[of \<open>\<forall>x y. _ x y \<longrightarrow> F (x,y)\<close>], metis)
-        apply (metis prod.inject)
-      (* framed guar *)
-       apply (clarsimp simp add: le_fun_def exch4_def sepconj_conj_def imp_ex_conjL imp_conjL; fail)
-      (* invariant 1 *)
-      apply (meson order.trans predTimesExch4_mono sswa_rel_times_prod_times_exch4_semidistrib; fail)
-      (* invariant 2 *)
-     apply (meson order.trans predTimesExch4_mono sswa_rel_times_prod_times_exch4_semidistrib; fail)
-    apply force
-    done
-next
-  case (rgsat_frame c R G p q I F F' C)
-  then show ?case sorry
-next
-  case (rgsat_weaken c r' g' p' q' I' F' C p q r g I F)
-  then show ?case sorry
-next
-  case (rgsat_Disj p' P c R G q I F C)
-  then show ?case sorry
-next
-  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
-  then show ?case sorry
-qed
-
-
-
 subsection \<open> SecCSL example \<close>
 
 datatype lock = Locked | Unlocked
@@ -393,7 +306,7 @@ lemma guard_Acquire[simp]:
     (\<forall>lk. fst (snd s) x \<noteq> SLock lk) \<or>
       snd (snd s) \<or>
       \<not> snd (snd s) \<and> fst (snd s) x = SLock Unlocked\<close>
-  by (simp add: atom_guard_def Acquire_def pre_state_def split: prod.splits, blast)
+  by (simp add: Acquire_def pre_state_def split: prod.splits, blast)
 
 
 definition Release :: \<open>'x \<Rightarrow> ('l \<times> (('x \<Rightarrow> 'v s_val) \<times> bool)) comm\<close> where
@@ -405,7 +318,7 @@ definition Release :: \<open>'x \<Rightarrow> ('l \<times> (('x \<Rightarrow> 'v
 
 lemma guard_Release[simp]:
   \<open>atom_guard (Release x) s \<longleftrightarrow> True\<close>
-  by (simp add: atom_guard_def Release_def pre_state_def split: prod.splits, blast)
+  by (simp add: Release_def pre_state_def split: prod.splits, blast)
 
 
 definition Load

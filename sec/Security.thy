@@ -168,7 +168,7 @@ translations
   "_twoPredLiftR q" \<rightharpoonup> "(CONST pred_times) \<top> q"
 
 
-subsubsection \<open> Pred. Lifting Lemmas \<close>
+subsubsection \<open> Predicate Lifting Lemmas \<close>
 
 lemma twoPredLift_sup_semidistrib:
   \<open>\<lblot>p\<rblot> \<squnion> \<lblot>q\<rblot> \<le> \<lblot>p \<squnion> q\<rblot>\<close>
@@ -253,6 +253,7 @@ lemma conj_agree_iff:
 definition sec_agree_exch4 :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool\<close> (\<open>\<bbbA>\<^sub>\<ddagger>\<close>) where
   \<open>\<bbbA>\<^sub>\<ddagger> h \<equiv> \<bbbA> h \<circ> exch4\<close>
 
+lemmas sec_agree_exch4_def' = sec_agree_exch4_def sec_agree_def
 
 
 subsection \<open> Command Times \<close>
@@ -425,18 +426,36 @@ lemma all_doubled_atom_liftC_iff[simp]:
   by (induct c)
     (force simp add: doubled_atom_def)+
 
-section \<open> Quasirefl Atoms \<close>
 
+section \<open> Quasi-reflexive and Symmetric Atomic Relations \<close>
 
-(* TODO: move *)
+subsection \<open> Quasi-reflexive Atom Relations \<close>
+
 definition
-  \<open>quasireflp_step ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
+  \<open>quasireflp_steprel ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
     (\<forall>lx' sx' ly' sy'.
       ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
       ar ((lx,lx),(sx,sx)) ((lx',lx'),(sx',sx')) \<and> ar ((ly,ly),(sy,sy)) ((ly',ly'),(sy',sy')))\<close>
 
+lemma quasireflp_steprel_preserves_quasireflp:
+  fixes p :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and r :: \<open>('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool\<close>
+  assumes
+    \<open>p \<le> quasireflp_steprel r\<close>
+    \<open>quasireflp (curry (p \<circ> exch4))\<close>
+  shows
+    \<open>quasireflp (curry (sp r p \<circ> exch4))\<close>
+  using assms
+  by (clarsimp simp add: reflp_on_def prepost_state_def' quasireflp_steprel_def
+      sp_def le_fun_def, metis)
+
+lemma lifted_atom_quasireflp_steprel:
+  \<open>\<top> \<le> quasireflp_steprel (liftR r \<circ>\<^sub>2 exch4)\<close>
+  by (force simp add: rel_times_def quasireflp_steprel_def split: prod.splits)
+
+
 definition
-  \<open>quasireflp_head_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># head_atoms cc}\<close>
+  \<open>quasireflp_head_atoms cc \<equiv> \<Sqinter>{quasireflp_steprel ar|ar. ar \<in># head_atoms cc}\<close>
 
 lemma quasireflp_head_atoms_simps[simp]:
   \<open>quasireflp_head_atoms Skip = \<top>\<close>
@@ -445,11 +464,11 @@ lemma quasireflp_head_atoms_simps[simp]:
   \<open>quasireflp_head_atoms (c1 \<^bold>\<box> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
   \<open>quasireflp_head_atoms (c1 \<parallel> c2) = quasireflp_head_atoms c1 \<sqinter> quasireflp_head_atoms c2\<close>
   \<open>quasireflp_head_atoms (DO c OD) = quasireflp_head_atoms c\<close>
-  \<open>quasireflp_head_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
+  \<open>quasireflp_head_atoms \<langle>ar\<rangle> = quasireflp_steprel ar\<close>
   by (clarsimp simp add: quasireflp_head_atoms_def; blast)+
 
 definition
-  \<open>quasireflp_atoms cc \<equiv> \<Sqinter>{quasireflp_step ar|ar. ar \<in># all_atoms cc}\<close>
+  \<open>quasireflp_atoms cc \<equiv> \<Sqinter>{quasireflp_steprel ar|ar. ar \<in># all_atoms cc}\<close>
 
 lemma quasireflp_atoms_simps[simp]:
   \<open>quasireflp_atoms Skip = \<top>\<close>
@@ -458,12 +477,38 @@ lemma quasireflp_atoms_simps[simp]:
   \<open>quasireflp_atoms (c1 \<^bold>\<box> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
   \<open>quasireflp_atoms (c1 \<parallel> c2) = quasireflp_atoms c1 \<sqinter> quasireflp_atoms c2\<close>
   \<open>quasireflp_atoms (DO c OD) = quasireflp_atoms c\<close>
-  \<open>quasireflp_atoms \<langle>ar\<rangle> = quasireflp_step ar\<close>
+  \<open>quasireflp_atoms \<langle>ar\<rangle> = quasireflp_steprel ar\<close>
   by (clarsimp simp add: quasireflp_atoms_def; blast)+
 
 
+subsection \<open> Symmetric Atom Relation \<close>
+
 definition
-  \<open>quasirefl_blocking_step ar \<equiv>
+  \<open>symp_steprel ar \<equiv> \<lambda>((lx,ly),(sx,sy)).
+    \<forall>lx' sx' ly' sy'.
+      ar ((lx,ly),(sx,sy)) ((lx',ly'),(sx',sy')) \<longrightarrow>
+      ar ((ly,lx),(sy,sx)) ((ly',lx'),(sy',sx'))\<close>
+
+lemma symp_steprel_preserves_symp:
+  fixes p :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and r :: \<open>('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool\<close>
+  assumes
+    \<open>p \<le> symp_steprel r\<close>
+    \<open>symp (curry (p \<circ> exch4))\<close>
+  shows
+    \<open>symp (curry (sp r p \<circ> exch4))\<close>
+  using assms
+  by (fastforce simp add: symp_steprel_def symp_def sp_def le_fun_def)
+
+lemma lifted_atom_symp_steprel:
+  \<open>\<top> \<le> symp_steprel (liftR r \<circ>\<^sub>2 exch4)\<close>
+  by (force simp add: rel_times_def symp_steprel_def split: prod.splits)
+
+
+subsection \<open> Quasi-reflexive Blocking Step Atom Relation \<close>
+
+definition
+  \<open>quasirefl_blocking_steprel ar \<equiv>
     (\<lambda>(sx, sy).
       (Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sx) \<or>
         Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sy) \<longrightarrow>
@@ -471,7 +516,7 @@ definition
 
 
 definition
-  \<open>quasirefl_blocking_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_step ar|ar. ar \<in># head_atoms cc}\<close>
+  \<open>quasirefl_blocking_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_steprel ar|ar. ar \<in># head_atoms cc}\<close>
 
 lemma quasirefl_blocking_head_atoms_simps[simp]:
   \<open>quasirefl_blocking_head_atoms Skip = \<top>\<close>
@@ -480,11 +525,11 @@ lemma quasirefl_blocking_head_atoms_simps[simp]:
   \<open>quasirefl_blocking_head_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_head_atoms c1 \<sqinter> quasirefl_blocking_head_atoms c2\<close>
   \<open>quasirefl_blocking_head_atoms (c1 \<parallel> c2) = quasirefl_blocking_head_atoms c1 \<sqinter> quasirefl_blocking_head_atoms c2\<close>
   \<open>quasirefl_blocking_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c\<close>
-  \<open>quasirefl_blocking_head_atoms \<langle>ar\<rangle> = quasirefl_blocking_step ar\<close>
+  \<open>quasirefl_blocking_head_atoms \<langle>ar\<rangle> = quasirefl_blocking_steprel ar\<close>
   by (clarsimp simp add: quasirefl_blocking_head_atoms_def; blast)+
 
 definition
-  \<open>quasirefl_blocking_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_step ar|ar. ar \<in># all_atoms cc}\<close>
+  \<open>quasirefl_blocking_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_steprel ar|ar. ar \<in># all_atoms cc}\<close>
 
 lemma quasirefl_blocking_atoms_simps[simp]:
   \<open>quasirefl_blocking_atoms Skip = \<top>\<close>
@@ -493,7 +538,7 @@ lemma quasirefl_blocking_atoms_simps[simp]:
   \<open>quasirefl_blocking_atoms (c1 \<^bold>\<box> c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
   \<open>quasirefl_blocking_atoms (c1 \<parallel> c2) = quasirefl_blocking_atoms c1 \<sqinter> quasirefl_blocking_atoms c2\<close>
   \<open>quasirefl_blocking_atoms (DO c OD) = quasirefl_blocking_atoms c\<close>
-  \<open>quasirefl_blocking_atoms \<langle>ar\<rangle> = quasirefl_blocking_step ar\<close>
+  \<open>quasirefl_blocking_atoms \<langle>ar\<rangle> = quasirefl_blocking_steprel ar\<close>
   by (clarsimp simp add: quasirefl_blocking_atoms_def; blast)+
 
 
@@ -569,17 +614,17 @@ subsection \<open> Helpers\<close>
 
 lemma atom_unlift_helper:
   \<open>sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) p \<le> q \<Longrightarrow>
-    All (quasireflp_step ara) \<Longrightarrow>
+    All (quasireflp_steprel ara) \<Longrightarrow>
     sp ara \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
   by (fastforce simp add: le_fun_def fun_eq_iff rel_image_def sp_def imp_ex_conjL
-      pred_lift_exch4_def quasireflp_step_def)
+      pred_lift_exch4_def quasireflp_steprel_def)
 
 text \<open> TODO: Note in the writeup that we here again use the 'instantiation to exactly the frame' trick. \<close>
 lemma framed_atom_unlift_helper:
   \<open>\<forall>f\<le>F. sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
-    All (quasireflp_step ara) \<Longrightarrow>
+    All (quasireflp_steprel ara) \<Longrightarrow>
     \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f\<close>
-  unfolding quasireflp_step_def
+  unfolding quasireflp_steprel_def
   apply (clarsimp simp add: sepconj_conj_apply sp_apply le_fun_def)
   apply (rename_tac lfx' lfy' ssx' ssy' ssx ssy lsx lsy fx fy)
   apply (frule_tac x=\<open>(=) (fx, ssx)\<close> in spec, drule mp[of _ \<open>_ ((_ \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)))\<close>])
@@ -593,10 +638,10 @@ lemma framed_atom_unlift_helper:
 
 lemma atom_lift_guar_helper:
   \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>))) \<le> G \<Longrightarrow>
-    All (quasireflp_step ara) \<Longrightarrow>
+    All (quasireflp_steprel ara) \<Longrightarrow>
     rel_image snd (rel_liftL (\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F \<rblot>\<^sub>\<ddagger>) \<sqinter> ara) \<le> G \<times>\<^sub>R G\<close>
   by (clarsimp simp add: le_fun_def sepconj_conj_apply imp_ex_conjL imp_conjL
-      all_conj_distrib pred_lift_exch4_def quasireflp_step_def, blast)
+      all_conj_distrib pred_lift_exch4_def quasireflp_steprel_def, blast)
 
 lemma cancellative'_lift_helper:
   \<open>cancellative' (\<Squnion> \<I>) (\<Squnion> \<I>) (sswa (\<Squnion> \<G>) F) \<Longrightarrow>
@@ -620,7 +665,7 @@ lemma genrgsep_proof_pairedst_lift:
   assumes
     \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
     \<open>c = unliftC cc\<close>
-    \<open>All (all_atom_comm (quasireflp_step) cc)\<close>
+    \<open>All (all_atom_comm (quasireflp_steprel) cc)\<close>
     \<open>\<not> T RGSepDisj\<close>
   shows
     \<open>liftR R, liftR G, \<lblot> I \<rblot>\<^sub>\<ddagger>, \<lblot> F \<rblot>\<^sub>\<ddagger>, T \<squnion> (=) RGSepWeaken \<turnstile> { \<lblot> p \<rblot>\<^sub>\<ddagger> } cc { \<lblot> q \<rblot>\<^sub>\<ddagger> }\<close>
@@ -1262,7 +1307,7 @@ lemma aopstep_endet_skip_then:
   by (simp add: self_aopstep_impossible,
       metis aopstep_tau_preserves_state split_pairs2 tau_aact_simps(1))+
 
-
+\<comment> \<open> TODO: remove \<close>
 subsection \<open> parallel-annotated opsteps \<close>
 
 inductive aopsteps
@@ -1371,7 +1416,7 @@ lemma aopsteps_to_aopsteps_rev:
   using aopsteps_rev_aopsteps_to_aopsteps_rev[where \<rho>x=\<open>[]\<close> and sc=sc and sc''=sc', simplified]
   by auto
 
-
+\<comment> \<open> TODO: remove \<close>
 section \<open> Extended step \<close>
 
 datatype 'a eact =
@@ -1420,7 +1465,7 @@ abbreviation pretty_eastep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightar
 abbreviation prsetty_no_eastep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>_, _ '/\<rightarrow>\<^sub>e\<^sub>a\<close> [60, 0, 0] 60) where
   \<open>sc \<midarrow>r, F /\<rightarrow>\<^sub>e\<^sub>a \<equiv> \<forall>\<gamma>. \<forall>sc'::_\<times>_. \<not> estep aopstep r F \<gamma> sc sc'\<close>
 
-
+\<comment> \<open> TODO: remove \<close>
 subsection \<open> Lemmas about estep \<close>
 
 lemma estep_simps[simp]:
@@ -2367,7 +2412,7 @@ next
 next
   case (Atomic ar)
   then show ?case
-    by (clarsimp simp add: exch4_def quasirefl_blocking_step_def)
+    by (clarsimp simp add: exch4_def quasirefl_blocking_steprel_def)
 next
   case (Iter cc)
   then show ?case
@@ -2430,7 +2475,7 @@ next
 next
   case (Atomic ar)
   then show ?case
-    by (clarsimp simp add: exch4_def quasireflp_step_def, metis surjective_pairing)
+    by (clarsimp simp add: exch4_def quasireflp_steprel_def, metis surjective_pairing)
 next
   case (Iter cc)
   show ?case
