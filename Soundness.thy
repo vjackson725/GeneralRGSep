@@ -496,7 +496,7 @@ lemma safe_frame':
   assumes ni_assms:
     \<open>sswa (R \<squnion> G) F' \<le> F'\<close>
   shows
-  \<open>safe R (F \<^emph>\<and> F' \<squnion> F \<squnion> F') G I q n c s \<Longrightarrow>
+  \<open>safe R (F \<^emph>\<and> F' \<squnion> F') G I q n c s \<Longrightarrow>
     fst s ## fs \<Longrightarrow>
     F' (fs, snd s) \<Longrightarrow>
     safe R F G (I \<^emph>\<and> F') (q \<^emph>\<and> F') n c (fst s + fs, snd s)\<close>
@@ -552,7 +552,7 @@ proof (induct arbitrary: fs rule: safe.induct)
 qed
 
 lemma safe_frame:
-  \<open>safe R (F \<^emph>\<and> F' \<squnion> F \<squnion> F') G I q n c s \<Longrightarrow>
+  \<open>safe R (F \<^emph>\<and> F'\<squnion> F') G I q n c s \<Longrightarrow>
     fst s ## fs \<Longrightarrow>
     s' = (fst s + fs, snd s) \<Longrightarrow>
     sswa (R \<squnion> G) F' \<le> F' \<Longrightarrow>

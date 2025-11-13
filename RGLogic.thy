@@ -96,7 +96,7 @@ inductive rgsat ::
     T RGSepAtom \<Longrightarrow>
     rgsat \<langle>ar\<rangle> R G p' q' I F T\<close>
 | rgsat_frame:
-  \<open>rgsat c R G p q I (F \<^emph>\<and> F' \<squnion> F \<squnion> F') T \<Longrightarrow>
+  \<open>rgsat c R G p q I (F \<^emph>\<and> F' \<squnion> F') T \<Longrightarrow>
     sswa (R \<squnion> G) F' \<le> F' \<Longrightarrow>
     T RGSepFrame \<Longrightarrow>
     rgsat c R G (p \<^emph>\<and> F') (q \<^emph>\<and> F') (I \<^emph>\<and> F') F T\<close>
@@ -211,6 +211,14 @@ next
   then show ?case
     by (meson order.trans sswa_weaker wlp_weaker_iff_sp_stronger)
 qed fast+
+
+lemma rgsat_weaker_frame:
+  \<open>rgsat c R G p q I (F \<^emph>\<and> F' \<squnion> F \<squnion> F') T \<Longrightarrow>
+    sswa (R \<squnion> G) F' \<le> F' \<Longrightarrow>
+    T RGSepFrame \<Longrightarrow>
+    T RGSepWeaken \<Longrightarrow>
+    rgsat c R G (p \<^emph>\<and> F') (q \<^emph>\<and> F') (I \<^emph>\<and> F') F T\<close>
+  by (simp add: rgsat_frame rgsat_weaken sup_commute sup_left_commute)
 
 
 (* TODO: not true, because of weakening *)
