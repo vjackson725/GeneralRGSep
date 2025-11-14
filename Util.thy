@@ -1216,6 +1216,11 @@ text \<open> strongest postcondition, by way of relations \<close>
 definition sp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)\<close> where
   \<open>sp r p \<equiv> \<lambda>y. (\<exists>x. r x y \<and> p x)\<close>
 
+lemma wlp_strongest_postcondition:
+  \<open>sp r p = (LEAST q. rel_liftL p \<sqinter> r \<le> rel_liftR q)\<close>
+  by (rule Least_equality[symmetric])
+    (force simp add: sp_def le_fun_def)+
+
 lemma sp_apply:
   \<open>sp r p y = (\<exists>x. r x y \<and> p x)\<close>
   by (simp add: sp_def)
@@ -1223,6 +1228,11 @@ lemma sp_apply:
 text \<open> weakest liberal precondition, by way of relations \<close>
 definition wlp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
   \<open>wlp r q \<equiv> \<lambda>x. (\<forall>y. r x y \<longrightarrow> q y)\<close>
+
+lemma wlp_weakest_precondition:
+  \<open>wlp r q = (GREATEST p. rel_liftL p \<sqinter> r \<le> rel_liftR q)\<close>
+  by (rule Greatest_equality[symmetric])
+    (simp add: wlp_def le_fun_def)+
 
 lemma wlp_apply:
   \<open>wlp r q x = (\<forall>y. r x y \<longrightarrow> q y)\<close>
