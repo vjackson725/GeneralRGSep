@@ -262,7 +262,7 @@ inductive safe
         Note: this semantics represents termination by infinite final stuttering. \<close>
     (c = Skip \<longrightarrow> q s) \<Longrightarrow>
     \<comment> \<open> the current state obeys the state invariant \<close>
-    I s \<Longrightarrow>
+    wssa R I s \<Longrightarrow>
     \<comment> \<open> rely steps are safe \<close>
     (\<And>n' ss'. n = Suc n' \<Longrightarrow> R (snd s) ss' \<Longrightarrow> safe R F G I q n' c (fst s, ss')) \<Longrightarrow>
     \<comment> \<open> closed under opsteps \<close>
@@ -311,13 +311,13 @@ lemma safe_then_postcond:
 
 
 lemma safe_nil_iff[simp]:
-  \<open>safe R F G I q 0 c s \<longleftrightarrow> (c = Skip \<longrightarrow> q s) \<and> I s\<close>
+  \<open>safe R F G I q 0 c s \<longleftrightarrow> (c = Skip \<longrightarrow> q s) \<and> wssa R I s\<close>
   by blast
 
 lemma safe_suc_iff:
   \<open>safe R F G I q (Suc n) c s \<longleftrightarrow>
     (c = Skip \<longrightarrow> q s) \<and>
-    I s \<and>
+    wssa R I s \<and>
     (\<forall>ss'. R (snd s) ss' \<longrightarrow> safe R F G I q n c (fst s, ss')) \<and>
     (\<forall>\<alpha> s' c'.
       (s, c) \<midarrow>\<alpha>\<rightarrow> (s', c') \<longrightarrow>
@@ -373,7 +373,7 @@ lemma safe_monoD:
   apply (induct arbitrary: m rule: safe.induct)
   apply (rule safeI)
       apply (metis predicate1D)
-     apply (metis predicate1D)
+     apply (meson predicate1D relyrel_mono wlp_mono)
     apply (clarsimp simp add: Suc_leq_iff)
     apply (metis predicate2D)
    apply (clarsimp simp add: Suc_leq_iff)
@@ -412,7 +412,7 @@ subsection \<open> Safety of Skip \<close>
 
 lemma safe_skip_iff:
   \<open>safe R F G I q n Skip s \<longleftrightarrow>
-    (\<exists>sl ss. s = (sl, ss) \<and> (\<forall>k\<le>n. \<forall>ss'. (R^^k) ss ss' \<longrightarrow> q (sl, ss') \<and> I (sl, ss')))\<close>
+    (\<exists>sl ss. s = (sl, ss) \<and> (\<forall>k\<le>n. \<forall>ss'. (R^^k) ss ss' \<longrightarrow> q (sl, ss'))) \<and> wssa R I s\<close>
   apply (induct n arbitrary: s)
    apply (simp; fail)
   apply (rule iffI)
@@ -420,18 +420,17 @@ lemma safe_skip_iff:
    apply (clarsimp simp add: le_Suc_iff0)
    apply (metis relpowp_Suc_D2')
   apply (clarsimp simp add: safe_suc_iff le_Suc_iff0 all_conj_distrib imp_ex_conjL)
-  apply (metis OO_def relpowp_commute)
+  apply (metis relcomppI relpowp_commute wssa_step)
   done
 
 lemma safe_skip_stable_iff:
   assumes
-    \<open>sswa R I \<le> I\<close>
     \<open>sswa R q \<le> q\<close>
   shows
-    \<open>safe R F G I q n Skip s \<longleftrightarrow> q s \<and> I s\<close>
+    \<open>safe R F G I q n Skip s \<longleftrightarrow> q s \<and> wssa R I s\<close>
   using assms
   apply (simp add: safe_skip_iff sp_def le_fun_def imp_ex_conjL)
-  apply (metis bot_nat_0.extremum relpowp_0_I rtranclp_power split_pairs2)
+  apply (metis bot_nat_0.extremum relpowp_0_I relpowp_imp_rtranclp surjective_pairing)
   done
 
 lemma safe_skip':
@@ -512,7 +511,9 @@ proof (induct arbitrary: fs rule: safe.induct)
       (* subgoal: skip *)
         apply (force simp add: sepconj_conj_def simp del: sup_apply)
       (* subgoal: stateset *)
-       apply (metis sepconj_conjI surjective_pairing)
+       apply (metis (no_types, lifting) dual_order.antisym ni_assms sepconj_conjI sswa_weaker
+        sup.orderE sup1I2 sup_ge1 surjective_pairing wlp_rely_sepconj_conj_semidistrib
+        wssa_over_sswa_eq)
       (* subgoal: rely step *)
       apply (simp del: sup_apply top_apply inf_apply)
       apply (rule hyps(4), fast, fast, fast)
@@ -573,6 +574,11 @@ lemma safe_atom':
       (sswa R q) \<comment> \<open> q \<close>
       n \<langle>ar\<rangle> s\<close>
 proof (induct n arbitrary: s)
+  case 0
+  then show ?case
+    by (clarsimp simp del: sup_apply,
+        metis le_disj_eq_absorb sp_pred_mono2 sp_sup sup.cobounded1 wssa_over_sswa_eq)
+next
   case (Suc n)
   note ih = Suc.hyps[simplified fst_conv snd_conv]
   show ?case
@@ -585,7 +591,7 @@ proof (induct n arbitrary: s)
       (* subgoal: termination *)
        apply force
       (* subgoal: state inv *)
-      apply force
+       apply (metis le_disj_eq_absorb sp_sup sup1CI wssa_over_sswa_eq)
       (* subgoal: rely *)
       apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply rel_image_apply)
       apply (simp add: ih sswa_step; fail)
@@ -596,8 +602,9 @@ proof (induct n arbitrary: s)
       (* subsubgoal: tau *)
       apply force
       (* subsubgoal: safe *)
-     apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply)
-     apply (simp add: safe_skip_stable_iff sp_sup, blast)
+     apply (clarsimp simp add: safe_skip_stable_iff
+        simp del: sup_apply inf_apply rel_lift_apply top_apply)
+     apply (metis le_disj_eq_absorb sp_impliesD sp_sup sswa_trivial sup1CI wssa_over_sswa_eq)
       (* subgoal: local framed opstep *)
     apply (rule conjI)
       (* subsubgoal: guarantee *)
@@ -605,11 +612,13 @@ proof (induct n arbitrary: s)
       (* subsubgoal: safety after opstep *)
     apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
         simp add: safe_skip_stable_iff sp_sup)
-    apply (frule spec[of _ \<open>(=) _\<close>], frule mp, blast)
+    apply (drule spec[of _ \<open>(=) _\<close>], drule mp, blast)
     apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def)
-    apply fast
+    apply (drule spec2, drule spec2, drule mp, blast, drule spec, drule mp, fast)
+    apply clarsimp
+    apply (metis le_disj_eq_absorb sp_sup sswa_trivial sup1CI wssa_over_sswa_eq)
     done
-qed simp
+qed
 
 lemma safe_atom:
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
@@ -673,7 +682,7 @@ proof (induct arbitrary: cb q' rule: safe.inducts)
       (* subgoal: skip *)
         apply fast
       (* subgoal: stateset *)
-       apply fast
+       apply (simp add: wlp_apply; fail)
       (* subgoal: rely *)
       apply (metis safeI.hyps(4) safeI.prems safe_step_SucD)
       (* subgoal: local opstep *)
@@ -739,7 +748,9 @@ proof (induct n arbitrary: i s)
      apply clarsimp
      apply (elim disjE conjE exE)
       apply (clarsimp simp add: safe_skip_iff)
-      apply (metis rtranclp_idemp rtranclp_power safe_then_state_inv wssa_stepD)
+      apply (rule conjI)
+       apply (metis rtranclp_idemp rtranclp_power wssa_stepD)
+      apply blast
      apply (intro conjI)
        apply (metis eq_snd_iff safe_sucE)
       apply (metis opstep_tau_preserves_heap prod_eq_decompose(2))
@@ -779,6 +790,10 @@ lemma safe_indet':
       safe R F Gb Ib qb n cb s \<Longrightarrow>
       safe R F (Ga \<squnion> Gb) (Ia \<squnion> Ib) (qa \<squnion> qb) n (ca \<^bold>\<sqinter> cb) s\<close>
 proof (induct n arbitrary: ca cb s)
+  case 0
+  then show ?case
+    by (simp add: safe_suc_iff wlp_apply; fail)
+next
   case (Suc n)
   show ?case
     using Suc.prems
@@ -787,7 +802,7 @@ proof (induct n arbitrary: ca cb s)
       (* subgoal: rely *)
         apply blast
       (* subgoal: state inv *)
-       apply blast
+       apply (simp add: safe_suc_iff wlp_apply; fail)
       (* subgoal: rely *)
       apply (metis Suc.hyps nat.inject safe_sucD(1))
       (* subgoal: opstep *)
@@ -797,7 +812,7 @@ proof (induct n arbitrary: ca cb s)
     apply (clarsimp simp add: conj_disj_distribL[symmetric] simp del: sup_apply)
     apply (meson Suc_n_not_le_n order.refl inf_sup_ord(3,4) linorder_le_cases safe_mono; fail)
     done
-qed blast
+qed
 
 lemma safe_indet:
   \<open>safe R F Ga Ia qa n ca s \<Longrightarrow>
@@ -828,7 +843,7 @@ proof (induct n arbitrary: ca cb s)
       (* subgoal: skip *)
         apply blast
       (* subgoal: state inv. *)
-       apply blast
+       apply (simp add: safe_suc_iff wlp_apply; fail)
       (* subgoal: rely *)
       apply (metis Suc.hyps nat.inject safe_sucD(1))
       (* subgoal: opstep *)
@@ -866,7 +881,7 @@ proof (induct n arbitrary: ca cb s)
     apply (intro exI conjI, assumption, rule refl)
     apply (meson safe_mono order.refl sup_ge2; fail)
     done
-qed blast
+qed (simp add: safe_suc_iff wlp_apply; fail)
 
 lemma safe_endet:
   \<open>safe R F Ga Ia qa n ca s \<Longrightarrow>
@@ -885,15 +900,32 @@ lemma safe_endet:
 
 subsection \<open> Safety of parallel \<close>
 
+lemma wssa_rel_sup:
+  \<open>wssa (ra \<squnion> rb) p s \<Longrightarrow> wssa ra p s\<close>
+  \<open>wssa (ra \<squnion> rb) p s \<Longrightarrow> wssa rb p s\<close>
+  by (meson le_boolD le_funE sup_ge1 sup_ge2 wssa_rel_antimono)+
+
+lemma parallel_invariant_helper:
+  \<open>wssa (R \<squnion> Gb) Ia (sla, ss) \<Longrightarrow>
+    wssa (R \<squnion> Ga) Ib (slb, ss) \<Longrightarrow>
+    sla ## slb \<Longrightarrow>
+    wssa R (Ia \<^emph>\<and> Ib) (sla + slb, ss)\<close>
+  using wlp_rely_sepconj_conj_semidistrib wssa_rel_sup(1)
+  by (metis predicate1D sepconj_conjI)
+
 lemma safe_parallel':
   \<open>safe (R \<squnion> Gb) (Ib \<squnion> Ib \<^emph>\<and> F) Ga Ia qa n ca (sla, ss) \<Longrightarrow>
     safe (R \<squnion> Ga) (Ia \<squnion> Ia \<^emph>\<and> F) Gb Ib qb n cb (slb, ss) \<Longrightarrow>
     sla ## slb \<Longrightarrow>
     safe R F (Ga \<squnion> Gb)
-      (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib)
+      (Ia \<^emph>\<and> Ib)
       (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb)
       n (ca \<parallel> cb) (sla + slb, ss)\<close>
 proof (induct n arbitrary: ca cb sla slb ss)
+  case 0
+  then show ?case
+    by (clarsimp simp del: sup_apply simp add: parallel_invariant_helper)
+next
   case (Suc n)
 
   note safe_suc1 = safe_sucD[OF Suc.prems(1), simplified fst_conv snd_conv]
@@ -901,18 +933,17 @@ proof (induct n arbitrary: ca cb sla slb ss)
 
   show ?case
   proof (rule safeI; fast?; (intro conjI)?; (simp only: fst_conv snd_conv)?)
-    show \<open>(sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib) (sla + slb, ss)\<close>
-      using Suc.prems(3) safe_suc1(2) safe_suc2(2)
-      by (simp del: sup_apply,
-          metis Suc.prems(1,2) safe_then_state_inv sepconj_conjI sswa_trivial)
+    show \<open>wssa R (Ia \<^emph>\<and> Ib) (sla + slb, ss)\<close>
+      using Suc.prems safe_suc1(2) safe_suc2(2)
+      by (clarsimp simp add: safe_suc_iff simp del: sup_apply,
+          metis parallel_invariant_helper)
   next
     fix m ss'
     assume r_step: \<open>R ss ss'\<close>
     presume m_eq_n: \<open>Suc m = Suc n\<close>
 
     show
-      \<open>safe R F (Ga \<squnion> Gb)
-        (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib)
+      \<open>safe R F (Ga \<squnion> Gb) (Ia \<^emph>\<and> Ib)
         (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb)
         m (ca \<parallel> cb) (sla + slb, ss')\<close>
       using r_step m_eq_n Suc.prems(1-3)
@@ -946,8 +977,7 @@ proof (induct n arbitrary: ca cb sla slb ss)
     show \<open>\<alpha> = Tau \<longrightarrow> fst s' = sla + slb\<close>
       using step
       by (metis fst_conv opstep_tau_preserves_heap)
-    show \<open>safe R F (Ga \<squnion> Gb) (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib) (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb) m
-        c' s'\<close>
+    show \<open>safe R F (Ga \<squnion> Gb) (Ia \<^emph>\<and> Ib) (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb) m c' s'\<close>
       using step state_invs m_eq_n Suc.prems(3)
       apply -
       apply clarsimp
@@ -955,7 +985,9 @@ proof (induct n arbitrary: ca cb sla slb ss)
         (* case: done *)
         apply (clarsimp simp del: sup_apply simp add: safe_skip_stable_iff
           sp_rely_sepconj_conj_semidistrib_mono)
-        apply (metis Suc.prems(1-3) safe_then_postcond sepconj_conj_def sswa_trivial)
+        apply (rule conjI)
+         apply (metis Suc.prems(1-3) safe_then_postcond sepconj_conj_def sswa_trivial)
+        apply (metis (no_types, lifting) Suc.prems(1,2) parallel_invariant_helper safe.cases)
         (* case: left *)
        apply (frule safe_sucD(3)[OF Suc.prems(1), simplified fst_conv snd_conv])
          apply blast
@@ -1012,8 +1044,7 @@ proof (induct n arbitrary: ca cb sla slb ss)
             sl' ## sf \<and>
             slf' = sl' + sf \<and>
             (\<alpha> = Tau \<longrightarrow> sl' = sla + slb) \<and>
-            safe R F (Ga \<squnion> Gb)
-              (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib)
+            safe R F (Ga \<squnion> Gb) (Ia \<^emph>\<and> Ib)
               (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb)
               m c' (sl', ss')\<close>
       using assms2 m_eq_n Suc.prems(3) safe_suc1(1) safe_suc2(1) framed_invs
@@ -1022,7 +1053,8 @@ proof (induct n arbitrary: ca cb sla slb ss)
         (* subgoal: done *)
         apply (clarsimp simp del: sup_apply simp add: safe_skip_stable_iff
           sp_rely_sepconj_conj_semidistrib_mono)
-        apply (metis Suc.prems(1,2) safe_then_postcond safe_then_state_inv sepconj_conjI sswa_trivial)
+        apply (metis (no_types, opaque_lifting) Suc.prems(1,2) parallel_invariant_helper safe_sucE
+          sepconj_conjI sswa_trivial)
         (* subgoal: left *)
        apply (simp add: partial_add_assoc2[of sla slb] del: sup_apply)
        apply (frule safe_suc1(3))
@@ -1060,14 +1092,14 @@ proof (induct n arbitrary: ca cb sla slb ss)
       apply (metis disjoint_add_rightL disjoint_parts(1) disjoint_sym)
       done
   qed simp+
-qed (blast intro: sepconj_conjI)
+qed
 
 lemma safe_parallel:
   \<open>safe (R \<squnion> Gb) (Ib \<squnion> Ib \<^emph>\<and> F) Ga Ia qa n ca (sla, ss) \<Longrightarrow>
     safe (R \<squnion> Ga) (Ia \<squnion> Ia \<^emph>\<and> F) Gb Ib qb n cb (slb, ss) \<Longrightarrow>
     sla ## slb \<Longrightarrow>
     sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb \<le> q \<Longrightarrow>
-    sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
+    Ia \<^emph>\<and> Ib \<le> I \<Longrightarrow>
     Ga \<squnion> Gb \<le> G \<Longrightarrow>
     safe R F G I q n (ca \<parallel> cb) (sla + slb, ss)\<close>
   using safe_parallel' safe_mono[OF order.refl order.refl _ _ _ order.refl]
@@ -1086,13 +1118,17 @@ lemma safe_conj:
     safe R F Gb Ib qb n c s \<Longrightarrow>
     safe R F (Ga \<sqinter> Gb) (Ia \<sqinter> Ib) (qa \<sqinter> qb) n c s\<close>
 proof (induct n arbitrary: c s)
+  case 0
+  then show ?case
+    by (metis (no_types, lifting) inf1I safe_nil_iff wlp_inf)
+next
   case (Suc n)
   show ?case
     using Suc.prems assms
     apply -
     apply (rule safeI)
         apply blast
-       apply blast
+       apply (metis inf1I safe_sucE wlp_inf)
       (* subgoal: rely *)
       apply (metis Suc.hyps Suc_inject safe_sucD(1))
       (* subgoal: opstep *)
@@ -1116,7 +1152,7 @@ proof (induct n arbitrary: c s)
      apply (metis (full_types) act.exhaust inf2I sswa_step sswa_trivial)
     apply (metis Suc.hyps safe_then_state_inv)
     done
-qed blast
+qed
 
 lemma cancel_attempt1:
   fixes I F :: \<open>'r::perm_alg \<Rightarrow> bool\<close>
@@ -1151,7 +1187,8 @@ proof (induct n arbitrary: c s)
   case 0
   then show ?case
     using niassms(2-)
-    by (force simp add: ball_conj_distrib)
+    by (clarsimp simp del: Inf_apply,
+        metis INF1_I Inf1_I all_not_in_conv wlp_Inf)
 next
   case (Suc n)
   show ?case
@@ -1161,7 +1198,8 @@ next
       (* termination *)
         apply (metis Suc.hyps Inf1_I safe_then_postcond)
       (* invariant *)
-       apply (metis Suc.hyps Inf1_I safe_then_state_inv)
+       apply (clarsimp simp add: safe_suc_iff ball_conj_distrib simp del: Inf_apply)
+       apply (metis INF1_I ex_in_conv wlp_Inf)
       (* rely step *)
       apply (clarsimp simp del: Inf_apply)
       apply (rule Suc.hyps; blast)

@@ -2,15 +2,16 @@ theory SecurityEx
   imports "../sec/Security"
 begin
 
+lemma sepconjconj_disj_distrib:
+  \<open>p \<^emph>\<and> (qa \<squnion> qb) = p \<^emph>\<and> qa \<squnion> p \<^emph>\<and> qb\<close>
+  by (force simp add: sepconj_conj_def)
+
 lemma parallel_inheritance:
-  \<open>sswa (R \<squnion> Gb) Ia \<le> Ia \<Longrightarrow>
-    sswa (R \<squnion> Ga) Ib \<le> Ib \<Longrightarrow>
-    Ia \<^emph>\<and> (Ib \<squnion> Ib \<^emph>\<and> F) \<le> X \<Longrightarrow>
-    Ib \<^emph>\<and> (Ia \<squnion> Ia \<^emph>\<and> F) \<le> X \<Longrightarrow>
-    sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
-    I \<^emph>\<and> F \<le> X\<close>
-  nitpick
-  sorry
+  \<open>wssa R Ia \<^emph>\<and> wssa R Ib \<^emph>\<and> F \<le> Ia \<^emph>\<and> (Ib \<squnion> Ib \<^emph>\<and> F)\<close>
+  apply (clarsimp simp add: sepconjconj_disj_distrib le_fun_def)
+  apply (meson le_boolD le_funE sepconj_conj_mono sepconj_conj_monoL wssa_stronger)
+  done
+
 
 lemma eq_rtimes_R_iff:
   \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
@@ -73,6 +74,8 @@ definition RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarro
       l' = l \<and> sx' = sx \<and> sy' = sy \<and>
         ((p (l,(sx,sy)) \<or> flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
           flx = Running \<and> fly = Running \<and> \<not> p (l,(sx,sy)) \<and> flx' = Failed \<and> fly' = Failed)\<rangle>\<close>
+
+thm rgsat_atom[where ar=RelAssert]
 
 \<comment> \<open> We subtract off the post-states where the program crashes, as we assume these will always be
     avoided. \<close>

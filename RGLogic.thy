@@ -41,8 +41,8 @@ inductive rgsat ::
     bool\<close>
   where
   rgsat_skip:
-  \<open>sswa R p \<le> q \<Longrightarrow>
-    sswa R p \<le> I \<Longrightarrow>
+  \<open>q = sswa R p \<Longrightarrow>
+    I = sswa R p \<Longrightarrow>
     T RGSepSkip \<Longrightarrow>
     rgsat Skip R G p q I F T\<close>
 | rgsat_iter:
@@ -54,45 +54,44 @@ inductive rgsat ::
 | rgsat_seq:
   \<open>rgsat ca R G p pp Ia F T \<Longrightarrow>
     rgsat cb R G pp q Ib F T \<Longrightarrow>
-    Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
+    I = Ia \<squnion> Ib \<Longrightarrow>
     T RGSepSeq \<Longrightarrow>
     rgsat (ca ;; cb) R G p q I F T\<close>
 | rgsat_indet:
   \<open>rgsat ca R Ga p qa Ia F T \<Longrightarrow>
     rgsat cb R Gb p qb Ib F T \<Longrightarrow>
-    Ga \<le> G \<Longrightarrow> Gb \<le> G \<Longrightarrow>
-    qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
-    Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
+    G = Ga \<squnion> Gb \<Longrightarrow>
+    q = qa \<squnion> qb \<Longrightarrow>
+    I = Ia \<squnion> Ib \<Longrightarrow>
     T RGSepIndet \<Longrightarrow>
     rgsat (ca \<^bold>\<sqinter> cb) R G p q I F T\<close>
 | rgsat_endet:
   \<open>rgsat ca R Ga p qa Ia F T \<Longrightarrow>
     rgsat cb R Gb p qb Ib F T \<Longrightarrow>
-    Ga \<le> G \<Longrightarrow> Gb \<le> G \<Longrightarrow>
-    qa \<le> q \<Longrightarrow> qb \<le> q \<Longrightarrow>
-    Ia \<le> I \<Longrightarrow> Ib \<le> I \<Longrightarrow>
+    G = Ga \<squnion> Gb \<Longrightarrow>
+    q = qa \<squnion> qb \<Longrightarrow>
+    I = Ia \<squnion> Ib \<Longrightarrow>
     T RGSepEndet \<Longrightarrow>
     rgsat (ca \<^bold>\<box> cb) R G p q I F T\<close>
 | rgsat_par:
   \<open>rgsat ca (R \<squnion> Gb) Ga pa qa Ia (Ib \<squnion> Ib \<^emph>\<and> F) T \<Longrightarrow>
     rgsat cb (R \<squnion> Ga) Gb pb qb Ib (Ia \<squnion> Ia \<^emph>\<and> F) T \<Longrightarrow>
-    Ga \<le> G \<Longrightarrow> Gb \<le> G \<Longrightarrow>
-    p \<le> pa \<^emph>\<and> pb \<Longrightarrow>
-    sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb \<le> q \<Longrightarrow>
-    sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
+    G = Ga \<squnion> Gb \<Longrightarrow>
+    p = pa \<^emph>\<and> pb \<Longrightarrow>
+    q = sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb \<Longrightarrow>
+    I = Ia \<^emph>\<and> Ib \<Longrightarrow>
     T RGSepPar \<Longrightarrow>
     rgsat (ca \<parallel> cb) R G p q I F T\<close>
 | rgsat_atom:
-  \<open>p' \<le> wssa R p \<Longrightarrow>
-    sswa R q \<le> q' \<Longrightarrow>
+  \<open>p' = wssa R p \<Longrightarrow>
+    q' = sswa R q \<Longrightarrow>
     \<comment> \<open> step \<close>
     sp ar p \<le> q \<Longrightarrow>
     \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
     \<comment> \<open> guarantee condition \<close>
-    rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
+    G = rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar) \<Longrightarrow>
     \<comment> \<open> misc \<close>
-    sswa R p \<le> I \<Longrightarrow>
-    sswa R q \<le> I \<Longrightarrow>
+    I = sswa R p \<squnion> sswa R q \<Longrightarrow>
     T RGSepAtom \<Longrightarrow>
     rgsat \<langle>ar\<rangle> R G p' q' I F T\<close>
 | rgsat_frame:
@@ -101,24 +100,25 @@ inductive rgsat ::
     T RGSepFrame \<Longrightarrow>
     rgsat c R G (p \<^emph>\<and> F') (q \<^emph>\<and> F') (I \<^emph>\<and> F') F T\<close>
 | rgsat_weaken:
-  \<open>rgsat c r' g' p' q' I' F' T \<Longrightarrow>
+  \<open>rgsat c r' g' p' q' I' F' T' \<Longrightarrow>
     p \<le> p' \<Longrightarrow>
     q' \<le> q \<Longrightarrow>
     r \<le> r' \<Longrightarrow>
     g' \<le> g \<Longrightarrow>
     I' \<le> I \<Longrightarrow>
     F \<le> F' \<Longrightarrow>
+    T' \<le> T \<Longrightarrow>
     T RGSepWeaken \<Longrightarrow>
     rgsat c r g p q I F T\<close>
 | rgsat_Disj:
-  \<open>p' \<le> \<Squnion>P \<Longrightarrow>
+  \<open>p' = \<Squnion>P \<Longrightarrow>
     \<forall>p\<in>P. rgsat c R G p q I F T \<Longrightarrow>
     T RGSepDisj \<Longrightarrow>
     rgsat c R G p' q I F T\<close>
 | rgsat_Conj:
-  \<open>\<Sqinter>\<I> \<le> I' \<Longrightarrow>
-    \<Sqinter>\<G> \<le> G' \<Longrightarrow>
-    \<Sqinter>Q \<le> q' \<Longrightarrow>
+  \<open>I' = \<Sqinter>\<I> \<Longrightarrow>
+    G' = \<Sqinter>\<G> \<Longrightarrow>
+    q' =  \<Sqinter>Q \<Longrightarrow>
     \<I> \<noteq> {} \<Longrightarrow>
     \<G> \<noteq> {} \<Longrightarrow>
     Q \<noteq> {} \<Longrightarrow>
@@ -147,8 +147,9 @@ lemma rgsat_skip_forwards:
 
 lemma rgsat_skip_backwards:
   \<open>T RGSepSkip \<Longrightarrow> T RGSepWeaken \<Longrightarrow> rgsat Skip r g (wssa r q) q q F T\<close>
-  by (rule rgsat_weaken[OF rgsat_skip _ _ order.refl order.refl,
-        where p'=\<open>wssa r q\<close> and q'=q and I'=q and F'=F]) force+
+  using rgsat_weaken[OF _ order.refl _ order.refl order.refl _ order.refl] rgsat_skip
+    sswa_over_wssa_eq wssa_stronger
+  by (metis order.refl)
 
 lemma rgsat_impossible[intro]:
   \<open>T RGSepDisj \<Longrightarrow> rgsat c R G \<bottom> q I F T\<close>
@@ -160,7 +161,7 @@ lemma rgsat_disj:
     rgsat c R G pb q I F T \<Longrightarrow>
     T RGSepDisj \<Longrightarrow>
     rgsat c R G (pa \<squnion> pb) q I F T\<close>
-  using rgsat_Disj[where P=\<open>{pa, pb}\<close>, OF order.refl]
+  using rgsat_Disj[where P=\<open>{pa, pb}\<close>, OF refl]
   by simp
 
 lemma rgsat_conj:
@@ -169,7 +170,7 @@ lemma rgsat_conj:
     cancellative' I I (sswa G F) \<Longrightarrow>
     T RGSepConj \<Longrightarrow>
     rgsat c R G p (qa \<sqinter> qb) I F T\<close>
-  using rgsat_Conj[of \<open>{I}\<close> I \<open>{G}\<close> G \<open>{qa, qb}\<close> \<open>qa \<sqinter> qb\<close> c R p F T]
+  using rgsat_Conj[of I \<open>{I}\<close> G \<open>{G}\<close> \<open>qa \<sqinter> qb\<close> \<open>{qa, qb}\<close> c R p F T]
   by (simp add: rgsat_weaken[where I=\<top>] rgsat_weaken[where g=\<top>] rgsat_weaken[where q=\<top>])
 
 lemma rgsat_precond_implies_stateinv:
@@ -179,18 +180,12 @@ lemma rgsat_precond_implies_stateinv:
 proof (induct rule: rgsat.inducts)
   case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
   then show ?case
-    apply -
-    apply (rule order.trans[OF sp_pred_mono], assumption)
-    apply (rule order.trans[OF sp_rely_sepconj_conj_semidistrib])
-    apply (rule order.trans[rotated], assumption)
-    apply (rule sepconj_conj_mono;
-        meson order.trans sswa_rel_mono sswa_weaker sup_ge1)
-    done
+    by (meson order.trans sp_rely_sepconj_conj_semidistrib_mono sswa_rel_mono sup_ge1)
 next
   case (rgsat_frame c R G p q I F F' C)
   then show ?case
-    by (metis (mono_tags, lifting) order.trans sp_rely_sepconj_conj_semidistrib sepconj_conj_mono
-        sswa_rel_mono sup_ge1)
+    by (metis order_antisym_conv sp_rely_sepconj_conj_semidistrib_mono sswa_rel_mono sswa_weaker
+        sup_ge1)
 next
   case (rgsat_weaken c R' G' p' q' I' F' T p q R G I F)
   then show ?case
@@ -198,19 +193,8 @@ next
 next
   case (rgsat_Disj p' P c R G q I F C)
   then show ?case
-    by (metis (no_types, lifting) Sup_le_iff converse_rtranclp_into_rtranclp rtranclp_less_eq
-        wlp_weaker_iff_sp_stronger)
-next
-  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F C)
-  then show ?case
-    apply (clarsimp simp add: ball_conj_distrib imp_conjL ex_disj_distrib)
-    apply (meson Inf1_I equals0I le_boolD le_funE)
-    done
-next
-  case (rgsat_atom p' R p q q' ar G F I C)
-  then show ?case
-    by (meson order.trans sswa_weaker wlp_weaker_iff_sp_stronger)
-qed fast+
+    by (metis Sup_le_iff wlp_weaker_iff_sp_stronger)
+qed force+
 
 lemma rgsat_weaker_frame:
   \<open>rgsat c R G p q I (F \<^emph>\<and> F' \<squnion> F \<squnion> F') T \<Longrightarrow>
@@ -220,14 +204,91 @@ lemma rgsat_weaker_frame:
     rgsat c R G (p \<^emph>\<and> F') (q \<^emph>\<and> F') (I \<^emph>\<and> F') F T\<close>
   by (simp add: rgsat_frame rgsat_weaken sup_commute sup_left_commute)
 
+lemmas rgsat_weaken_inv =
+  rgsat.rgsat_weaken[OF _ order.refl order.refl order.refl order.refl _  order.refl order.refl]
+lemmas rgsat_weaken_frame =
+  rgsat.rgsat_weaken[OF _ order.refl order.refl order.refl order.refl order.refl _ order.refl]
 
-(* TODO: not true, because of weakening *)
-lemma rgsat_restrict_stateinv:
+
+(*
+\<comment> \<open>
+  Note that this is in the contrary direction to weakening the invariant.
+  This is only true if we ban weakening and the conjunction rule. Weakening because you can weaken
+  to a non-stable invariant, and conjunction because \<open>wssa\<close> only semi-distributes over conjunction.
+
+  TODO: parallel
+\<close>
+lemma rgsat_tighten_stateinv:
   assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
-  shows \<open>R, G, wssa R I, F, T \<turnstile> { p } c { q }\<close>
+    and \<open>\<not> T RGSepWeaken\<close>
+    and \<open>\<not> T RGSepConj\<close>
+  shows \<open>R, G, wssa R I, sswa G F, T \<squnion> (=) RGSepWeaken \<turnstile> { p } c { q }\<close>
   using assms
-  oops
-
+proof (induct rule: rgsat.inducts)
+  case (rgsat_skip q R p I T G F)
+  then show ?case
+    by (simp add: rgsat.rgsat_skip)
+next
+  case (rgsat_iter c R G i I F T p q)
+  then show ?case
+    by (blast intro: rgsat.rgsat_iter)
+next
+  case (rgsat_seq ca R G p pp Ia F T cb q Ib I)
+  then show ?case
+    apply (intro rgsat_weaken_inv[where I=\<open>wssa R I\<close> and I'=\<open>wssa R Ia \<squnion> wssa R Ib\<close>])
+      apply (force intro: rgsat.rgsat_seq)
+     apply (metis wlp_sup_semidistrib)
+    apply force
+    done
+next
+  case (rgsat_indet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    apply (intro rgsat_weaken_inv[where I=\<open>wssa R I\<close> and I'=\<open>wssa R Ia \<squnion> wssa R Ib\<close>])
+    subgoal sorry
+     apply (metis wlp_sup_semidistrib)
+    apply force
+    done
+next
+  case (rgsat_endet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    apply (intro rgsat_weaken_inv[where I=\<open>wssa R I\<close> and I'=\<open>wssa R Ia \<squnion> wssa R Ib\<close>])
+    subgoal sorry
+     apply (metis wlp_sup_semidistrib)
+    apply force
+    done
+next
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
+  then show ?case
+    apply (clarsimp simp del: sup_apply)
+    apply (intro rgsat_weaken_inv[where I=\<open>wssa R (Ia \<^emph>\<and> Ib)\<close> and I'=\<open>wssa R Ia \<^emph>\<and> wssa R Ib\<close>])
+      apply (intro rgsat.rgsat_par)
+            apply (clarsimp simp add: wlp_sup_rel simp del: sup_apply)
+    sorry
+next
+  case (rgsat_atom p' R p q' q ar F G I T)
+  then show ?case
+    apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply rel_image_apply)
+    apply (rule rgsat.rgsat_atom[OF refl refl _ _ refl])
+       apply blast
+      apply blast
+     apply (metis order.refl sp_sup wssa_over_sswa_eq)
+    apply force
+    done
+next
+  case (rgsat_frame c R G p q I F F' T)
+  then show ?case
+    apply (intro rgsat_weaken_inv[where I=\<open>wssa R (I \<^emph>\<and> F')\<close> and I'=\<open>wssa R I \<^emph>\<and> F'\<close>])
+      apply (blast intro: rgsat.rgsat_frame)
+     apply (metis order.eq_iff sswa_weaker sup_ge1 wlp_rely_sepconj_conj_semidistrib
+        wssa_over_sswa_eq)
+    apply blast
+    done
+next
+  case (rgsat_Disj p' P c R G q I F T)
+  then show ?case
+    by (metis rgsat.rgsat_Disj sup1CI)
+qed blast+
+*)
 
 lemma rgsat_par_alt:
   \<open>rgsat ca (R \<squnion> Gb) Ga pa qa Ia (Ib \<squnion> Ib \<^emph>\<and> F) T \<Longrightarrow>
@@ -237,11 +298,13 @@ lemma rgsat_par_alt:
     sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb \<le> q \<Longrightarrow>
     sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
     T RGSepPar \<Longrightarrow>
+    T RGSepWeaken \<Longrightarrow>
     rgsat (ca \<parallel> cb) R G p q I F T\<close>
   apply (rule rgsat_par)
          apply blast
-        apply blast
        apply blast
+  sledgehammer
+  sorry
       apply blast
      apply blast
     apply blast

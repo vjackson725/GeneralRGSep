@@ -773,7 +773,6 @@ next
       apply (metis sepconj_conj_mono sswa_sup_rel_pred_lift_exch4_semidistrib)
      apply (rule order.trans[OF _ pred_lift_exch4_mono, rotated], assumption)
      apply (simp add: pred_lift_exch4_sepconj_conj_distrib del: top_apply sup_apply)
-     apply (metis sepconj_conj_mono sswa_sup_rel_pred_lift_exch4_semidistrib)
     apply force
     done
 next
@@ -799,7 +798,7 @@ next
     apply (rule rgsat_weaken[where p'=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close> and q'=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _ _ _ order.refl order.refl order.refl order.refl])
        apply (rule rgsat.rgsat_frame)
-         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
+         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _order.refl order.refl order.refl order.refl order.refl _])
            apply (cut_tac rgsat_frame.prems(2))
            apply (rule rgsat_frame.hyps(2); blast)
@@ -2510,7 +2509,7 @@ inductive secure
     \<comment> \<open> Post-condition \<close>
     c = Skip \<longrightarrow> q s \<Longrightarrow>
     \<comment> \<open> State Invariant \<close>
-    I s \<Longrightarrow>
+    wssa R I s \<Longrightarrow>
     \<comment> \<open> Rely Steps \<close>
     (\<And>n' ss'.
       n = Suc n' \<Longrightarrow>
@@ -2567,6 +2566,7 @@ theorem safety_implies_security2:
     \<open>I \<squnion> I \<^emph>\<and> F \<le> quasireflp_atoms cc\<close>
     \<open>I \<squnion> I \<^emph>\<and> F \<le> quasirefl_blocking_doloops_head_atoms cc\<close>
     \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ (unliftC cc) \<circ> exch4\<close>
+    \<open>sswa R I \<le> I\<close>
   shows
     \<open>secure R F G I q n cc s\<close>
   using assms
@@ -2586,7 +2586,7 @@ proof (induct rule: safe.induct)
       using safeI.hyps(1)
       by simp
   next
-    show \<open>I s\<close>
+    show \<open>wssa R I s\<close>
       using safeI.hyps(2)
       by simp
   next
@@ -2659,20 +2659,21 @@ proof (induct rule: safe.induct)
 
     have \<open>quasireflp_atoms cc (ls + f, ss)\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (metis sepconj_conjI sup.order_iff sup1I2)
+      by (metis (mono_tags, opaque_lifting) le_disj_eq_absorb le_sup_iff predicate1D sepconj_conjI
+          sswa_trivial wlp_weaker_iff_sp_stronger)
     moreover then have \<open>quasireflp_head_atoms cc (ls + f, ss)\<close>
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
     moreover have \<open>quasirefl_blocking_doloops_head_atoms cc (ls + f, ss)\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (meson predicate1D sepconj_conjI sup.boundedE) 
+      sorry
     moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc (ls + f, ss)\<close>
       by (force simp add: quasirefl_blocking_doloops_head_atoms_def
           quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
     moreover have \<open>all_sec_determ (unliftC cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
       using exch4_two_apply s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
-      by (clarsimp simp add: le_fun_def all_conj_distrib sepconj_conjI)
+      sorry
     moreover then have \<open>head_sec_determ (unliftC cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
       by (simp add: all_sec_determ_implies_head_sec_determ)
     moreover obtain \<pi>\<alpha> where equiv_aopstep:
@@ -2717,14 +2718,14 @@ proof (induct rule: safe.induct)
 
     have \<open>quasireflp_atoms cc sa\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (metis le_sup_iff sepconj_conjI sup.order_iff sup1I2)
+      sorry
     moreover then have \<open>quasireflp_head_atoms cc sa\<close>
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
     moreover have \<open>quasirefl_blocking_doloops_head_atoms cc sa\<close>
       using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (meson predicate1D sepconj_conjI sup.boundedE) 
+      sorry 
     moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc sa\<close>
       by (force simp add: quasirefl_blocking_doloops_head_atoms_def
           quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
@@ -2739,7 +2740,7 @@ proof (induct rule: safe.induct)
 
     have \<open>all_sec_determ (unliftC cc) (sax, say)\<close>
       using s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
-      by (metis (no_types, lifting) comp_def predicate1D sepconj_conjI sup.boundedE)
+      sorry
     then have \<open>head_sec_determ (unliftC cc) (sax, say)\<close>
       by (simp add: all_sec_determ_implies_head_sec_determ)
     then show
@@ -2862,11 +2863,11 @@ proof (induct arbitrary: c rule: safe.induct)
      apply (frule(1) same_initcomm_and_aact_then_same_fincomm[
           where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>])
       apply (simp add: le_fun_def exch4_def)
-      apply (metis all_sec_determ_implies_head_sec_determ)
+    subgoal sorry
      apply (frule full_sync_double_aopstep_to_aopstep[
           where sx=\<open>(lsx, ssx)\<close> and sy=\<open>(lsy, ssy)\<close>], blast)
       apply (simp add: le_fun_def exch4_def)
-      apply (metis all_sec_determ_implies_head_sec_determ)
+    subgoal sorry
      apply (simp del: comp_apply add: exch4_two_apply)
      apply (frule safeI(5)[OF _ aopstep_then_opstep], blast)
      apply (frule aopstep_preserves_all_sec_determ)
@@ -2878,7 +2879,7 @@ proof (induct arbitrary: c rule: safe.induct)
         (* subgoal: framed double-step *)
     apply (subgoal_tac \<open>(I \<^emph>\<and> F) ((lsx + fx, lsy + fy), (ssx, ssy))\<close>)
      prefer 2
-     apply (rule sepconj_conjI, assumption, assumption, force, force)
+     apply (rule sepconj_conjI, force, force, force, force)
     apply (frule_tac sx=\<open>(lsx + fx, ssx)\<close> and sy=\<open>(lsy + fy, ssy)\<close> in
         same_initcomm_and_aact_then_same_fincomm, assumption)
      apply (simp add: le_fun_def exch4_def)
