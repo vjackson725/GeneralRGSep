@@ -799,7 +799,7 @@ next
     apply (rule rgsat_weaken[where p'=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close> and q'=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _ _ _ order.refl order.refl order.refl order.refl])
        apply (rule rgsat.rgsat_frame)
-         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
+         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _order.refl order.refl order.refl order.refl order.refl _])
            apply (cut_tac rgsat_frame.prems(2))
            apply (rule rgsat_frame.hyps(2); blast)
