@@ -818,6 +818,8 @@ lemma sswa_ignore_local[simp]:
   \<open>sswa r (\<L> pl) = \<L> pl\<close>
   \<open>sswa r (\<L> pl \<^emph>\<and> q) = \<L> pl \<^emph>\<and> sswa r q\<close>
   \<open>sswa r (p \<^emph>\<and> \<L> ql) = sswa r p \<^emph>\<and> \<L> ql\<close>
+  \<open>sswa r (\<L> pl \<sqinter> q) = \<L> pl \<sqinter> sswa r q\<close>
+  \<open>sswa r (p \<sqinter> \<L> ql) = sswa r p \<sqinter> \<L> ql\<close>
   by (force simp add: sp_def fun_eq_iff sepconj_conj_def)+
 
 lemma wssa_over_shared:
