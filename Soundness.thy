@@ -197,21 +197,6 @@ lemmas rev_opstep_preserves_all_atom_comm = opstep_preserves_all_atom_comm[rotat
 
 subsection \<open> Opstep rules for defined programs \<close>
 
-paragraph \<open> Assert \<close>
-
-lemma opstep_assert_iff[simp]:
-  \<open>opstep \<alpha> (s, Assert p) sc' \<longleftrightarrow>
-    \<alpha> = Vis \<and>
-    snd sc' = Skip \<and>
-    (snd (snd s) = Running \<and>
-      fst (fst sc') = fst s \<and>
-      fst (snd (fst sc')) = fst (snd s) \<and>
-      (p (fst s, fst (snd s)) \<and> snd (snd (fst sc')) = Running \<or>
-        \<not> p (fst s, fst (snd s)) \<and> snd (snd (fst sc')) = Failed) \<or>
-      snd (snd s) = Failed \<and> s = fst sc')\<close>
-  by (force simp add: Assert_def case_prod_beta)
-
-
 paragraph \<open> Await \<close>
 
 lemma opstep_await_iff[simp]:
@@ -565,7 +550,7 @@ subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<^sub>\<triangleright> f \<Longrightarrow>
     sswa R p s \<Longrightarrow>
     safe R F
       (rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
@@ -606,14 +591,14 @@ proof (induct n arbitrary: s)
     apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
         simp add: safe_skip_stable_iff sp_sup)
     apply (frule spec[of _ \<open>(=) _\<close>], frule mp, blast)
-    apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def)
-    apply fast
+    apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def sepconj_left_def)
+    apply (metis sswa_trivial)
     done
 qed simp
 
 lemma safe_atom:
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<^sub>\<triangleright> f \<Longrightarrow>
     rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     wssa R p s \<Longrightarrow>
     sswa R p \<le> I \<Longrightarrow>
@@ -1238,11 +1223,11 @@ next
 next
   case (rgsat_indet ca r ga p qa Ia F T cb gb qb Ib g q I)
   then show ?case
-    by (intro safe_indet) blast+
+    by (intro safe_indet) fast+
 next
   case (rgsat_endet c1 r Ga p qa Ia F T c2 Gb qb Ib g q I)
   then show ?case
-    by (intro safe_endet) blast+
+    by (intro safe_endet) fast+
 next
   case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
   moreover obtain sla slb ss where

@@ -1,5 +1,5 @@
-theory RGLogicEx
-  imports "../RGLogic"
+theory FailureEx
+  imports "../Soundness"
 begin
 
 subsection \<open> Heap predicate \<close>
@@ -200,6 +200,12 @@ lemma case_option_disj_split:
     ma = None \<and> p \<or> (\<exists>a. ma = Some a \<and> q a)\<close>
   by (metis case_optionE option.simps(4,5))
 
+lemma helper:
+  \<open>raa \<sqinter> (\<top> \<times>\<^sub>R rel_lift ((=) Running) ((=) Running)) \<le> rb \<times>\<^sub>R rel_lift ((=) Running) ((=) Running) \<Longrightarrow>
+    raa \<sqinter> (\<top> \<times>\<^sub>R rel_lift ((=) Failed) ((=) Failed)) \<le> rb \<times>\<^sub>R rel_lift ((=) Failed) ((=) Failed) \<Longrightarrow>
+    raa \<le> rb \<times>\<^sub>R (=)\<close>
+  apply (clarsimp simp add: le_fun_def all_fail_st_eq)
+  nitpick
 
 lemma rgsat_pointer_read:
 (*
@@ -247,15 +253,42 @@ proof (intro rgsat_atom[where
         rel_times_right_eq_rtranclp_distrib sp_eq_rel sp_inf_semidistrib
         sp_triple_relTimes_predTimes3_eq wlp_weaker_iff_sp_stronger wssa_ignore_local)
 
+  show G_is:
+    \<open>rel_image snd
+     (rel_liftL
+       (nofailure_pred ((pt \<^bold>\<mapsto> Discr v \<circ> fst) \<sqinter> ((\<lambda>s. p (s(x := v))) \<circ> snd)) \<squnion>
+        nofailure_pred ((pt \<^bold>\<mapsto> Discr v \<circ> fst) \<sqinter> ((\<lambda>s. p (s(x := v))) \<circ> snd)) \<^emph>\<and> nofailure_pred F) \<sqinter>
+      ?ra')
+    \<le> G \<times>\<^sub>R (=)\<close>
+    apply (rule helper)
+     apply clarsimp
+    apply (simp add: helper)
+
+  have
+    \<open>\<forall>f\<le>nofailure_pred F.
+      sp ?ra' (nofailure_pred (\<L> (pt \<^bold>\<mapsto> Discr v) \<sqinter> \<S> (\<lambda>s. p (s(x := v)))) \<^emph>\<and> f)
+        \<le> nofailure_pred (\<L> (pt \<^bold>\<mapsto> Discr v) \<sqinter> \<S> p) \<^emph>\<and> sswa (G \<times>\<^sub>R (=)) f\<close>
+    apply (clarsimp simp add: sp_failure_healthy_rel_eq subset_nofailure_pred_iff
+        predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
+    apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff)
+    apply (elim disjE)
+     apply clarsimp
+    sledgehammer
+     apply (rename_tac ss ha hb perm)
+
+    sorry
+
   show
     \<open>\<forall>f\<le>nofailure_pred F.
       sp ?ra' (nofailure_pred (\<L> (pt \<^bold>\<mapsto> Discr v) \<sqinter> \<S> (\<lambda>s. p (s(x := v)))) \<^emph>\<and> f)
         \<le> nofailure_pred (\<L> (pt \<^bold>\<mapsto> Discr v) \<sqinter> \<S> p) \<^emph>\<and> f\<close>
-    apply (simp add: atom_variant_pointwise_frame(2))
     apply (clarsimp simp add: sp_failure_healthy_rel_eq subset_nofailure_pred_iff
         predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
     apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff)
+    apply (elim disjE)
+     apply clarsimp
      apply (rename_tac ss ha hb perm)
+
     sorry
 
   show
