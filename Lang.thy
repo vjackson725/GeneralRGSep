@@ -411,6 +411,8 @@ section \<open> Specific Languages \<close>
 
 (* TODO: move *)
 
+subsection \<open> Failure State \<close>
+
 datatype fail_st = Running | Failed
 
 lemma all_fail_st_eq:
@@ -422,33 +424,200 @@ lemma ex_fail_st_eq:
   by (metis (full_types) fail_st.exhaust)
 
 
-text \<open> Failure should not be resolvable. \<close>
-definition
-  \<open>failure_healthy_rel r \<equiv>
-    (\<lambda>(l, s, k) s'. k = Running \<and> r (l,s) s' \<or> k = Failed \<and> s' = (l, s, k))\<close>
+subsubsection \<open> Instances \<close>
 
-lemma failure_healthy_rel_apply[simp]:
-  \<open>failure_healthy_rel r s s' =
-    (snd (snd s) = Running \<and> r (fst s, fst (snd s)) s' \<or>
-      snd (snd s) = Failed \<and> s' = s)\<close>
-  by (simp add: failure_healthy_rel_def split: prod.splits)
-
-
-subsection \<open> Sugared atomic programs \<close>
-
-subsubsection \<open> Assert \<close>
-
-text \<open>
-  Assert fails when its precondition is not met.
-  GenRGSep has no embedded fail state, and so it must be encoded into the
-  state model. Separation logic is not compatible with destructive failure,
-  and, moreover, atoms see the whole state, not the local state.
-  Thus we place a crash in the shared state.
+\<comment> \<open>
+  This is similar to the distributive lattice separation algebra,
+  except that addition is always allowed. This fact makes the algebra non-cancellative.
 \<close>
-definition \<open>Assert p \<equiv>
-  Atomic (failure_healthy_rel (\<lambda>(l, s) (l', s', k').
-    l' = l \<and> s' = s \<and> (p (l,s) \<and> k' = Running \<or> \<not> p (l,s) \<and> k' = Failed)
-  ))\<close>
+
+paragraph \<open> Order \<close>
+
+instantiation fail_st :: ord
+begin
+definition \<open>less_eq_fail_st a b \<equiv> a = b \<or> b = Failed\<close>
+definition \<open>less_fail_st a b \<equiv> a = Running \<and> b = Failed\<close>
+instance by standard
+end
+
+lemma less_eq_fail_st_iff[simp]:
+  \<open>Running \<le> b\<close>
+  \<open>a \<le> Failed\<close>
+  \<open>Failed \<le> b \<longleftrightarrow> b = Failed\<close>
+  \<open>a \<le> Running \<longleftrightarrow> a = Running\<close>
+  unfolding less_eq_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis (full_types))+
+
+lemma less_fail_st_iff[simp]:
+  \<open>Running < b \<longleftrightarrow> b = Failed\<close>
+  \<open>a < Failed \<longleftrightarrow> a = Running\<close>
+  \<open>Failed < b \<longleftrightarrow> False\<close>
+  \<open>a < Running \<longleftrightarrow> False\<close>
+  unfolding less_fail_st_def
+  by (cut_tac fail_st.nchotomy fail_st.simps; metis (full_types))+
+
+instance fail_st :: order
+  apply standard
+     apply (case_tac x; case_tac y; simp; fail)
+    apply (case_tac x; simp; fail)
+   apply (case_tac z; simp; fail)
+  apply (case_tac x; case_tac y; simp; fail)
+  done
+
+
+paragraph \<open> Sup \<close>
+
+instantiation fail_st :: sup
+begin
+definition \<open>sup_fail_st a b \<equiv> if a = Failed \<or> b = Failed then Failed else Running\<close>
+instance by standard
+end
+
+lemma sup_fail_st_eq[simp]:
+  \<open>a \<squnion> Running = a\<close>
+  \<open>Running \<squnion> b = b\<close>
+  \<open>a \<squnion> Failed = Failed\<close>
+  \<open>Failed \<squnion> b = Failed\<close>
+  unfolding sup_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis (full_types))+
+
+instance fail_st :: semilattice_sup
+  by standard (case_tac x; simp; fail)+
+
+
+paragraph \<open> Inf \<close>
+
+instantiation fail_st :: inf
+begin
+definition \<open>inf_fail_st a b \<equiv> if a = Running \<or> b = Running then Running else Failed\<close>
+instance by standard
+end
+
+lemma inf_fail_st_eq[simp]:
+  \<open>a \<sqinter> Running = Running\<close>
+  \<open>Running \<sqinter> b = Running\<close>
+  \<open>a \<sqinter> Failed = a\<close>
+  \<open>Failed \<sqinter> b = b\<close>
+  unfolding inf_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis)+
+
+instance fail_st :: semilattice_inf
+  by standard (case_tac x; simp; fail)+
+
+paragraph \<open> Bounds \<close>
+
+instantiation fail_st :: top
+begin
+definition \<open>top_fail_st \<equiv> Failed\<close>
+instance by standard
+end
+
+instantiation fail_st :: bot
+begin
+definition \<open>bot_fail_st \<equiv> Running\<close>
+instance by standard
+end
+
+instance fail_st :: order_top
+  by standard (case_tac a; simp add: top_fail_st_def)
+
+instance fail_st :: order_bot
+  by standard (case_tac a; simp add: bot_fail_st_def)
+
+
+paragraph \<open> Lattice \<close>
+
+\<comment> \<open> automatically a \<open>lattice\<close> \<close>
+\<comment> \<open> automatically a \<open>bounded_lattice\<close> \<close>
+instance fail_st :: distrib_lattice
+  by standard (case_tac x; simp)
+
+paragraph \<open> Boolean Algebra \<close>
+
+instantiation fail_st :: uminus
+begin
+definition \<open>uminus_fail_st a \<equiv> if a = Running then Failed else Running\<close>
+instance by standard
+end
+
+lemma uminus_fail_st_eq[simp]:
+  \<open>- Running = Failed\<close>
+  \<open>- Failed = Running\<close>
+  unfolding uminus_fail_st_def
+  by metis+
+
+instantiation fail_st :: minus
+begin
+definition \<open>minus_fail_st (a::fail_st) b \<equiv> a \<sqinter> - b\<close>
+instance by standard
+end
+
+lemma minus_fail_st_eq[simp]:
+  \<open>Running - a = Running\<close>
+  \<open>Failed - a = - a\<close>
+  \<open>a - Running = a\<close>
+  \<open>a - Failed = Running\<close>
+  unfolding minus_fail_st_def
+  by (case_tac a; simp)+
+
+instance fail_st :: boolean_algebra
+  by standard
+    (case_tac x; simp add: bot_fail_st_def top_fail_st_def)+
+
+
+paragraph \<open> Separation Logic \<close>
+
+instantiation fail_st :: plus
+begin
+definition \<open>plus_fail_st \<equiv> (\<squnion>) :: fail_st \<Rightarrow> _ \<Rightarrow> _\<close>
+instance by standard
+end
+
+instantiation fail_st :: disjoint
+begin
+definition \<open>disjoint_fail_st (a::fail_st) (b::fail_st) \<equiv> True\<close>
+instance by standard
+end
+
+lemma fail_st_disjoint_eq[simp]:
+  \<open>(a::fail_st) ## (b::fail_st)\<close>
+  unfolding disjoint_fail_st_def ..
+
+instance fail_st :: pre_perm_alg
+  apply standard
+      apply (simp add: plus_fail_st_def, metis sup.assoc)
+     apply (simp add: plus_fail_st_def, metis sup.commute)
+    apply (simp add: plus_fail_st_def)+
+  done
+
+(* TODO: move *)
+lemma (in semilattice_inf) inf_antisym:
+  \<open>a \<sqinter> cx = b \<Longrightarrow> b \<sqinter> cy = a \<Longrightarrow> a = b\<close>
+  by (metis inf.left_idem inf.commute)
+
+lemma (in semilattice_sup) sup_antisym:
+  \<open>a \<squnion> cx = b \<Longrightarrow> b \<squnion> cy = a \<Longrightarrow> a = b\<close>
+  by (metis sup.right_idem sup.commute)
+
+
+instance fail_st :: perm_alg
+  by standard (force simp add: plus_fail_st_def dest: sup_antisym)
+
+instantiation fail_st :: multiunit_sep_alg
+begin
+definition \<open>unitof_fail_st (_::fail_st) \<equiv> Running\<close>
+instance
+  by standard (simp add: unitof_fail_st_def plus_fail_st_def)+
+end
+
+instantiation fail_st :: zero
+begin
+definition \<open>zero_fail_st \<equiv> Running\<close>
+instance by standard
+end
+
+instance fail_st :: sep_alg
+  by standard (simp add: zero_fail_st_def plus_fail_st_def)+
 
 
 subsubsection \<open> Await \<close>
@@ -659,7 +828,7 @@ lemma sswa_over_shared:
   \<open>sswa r (\<S> ps) = \<S> (sp r\<^sup>*\<^sup>* ps)\<close>
   by (force simp add: sp_def fun_eq_iff sepconj_conj_def)
 
-lemma wssa_semiignore_local[simp]:
+lemma wssa_semiignore_local:
   \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
   \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
   by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+

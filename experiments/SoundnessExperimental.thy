@@ -2,6 +2,212 @@ theory SoundnessExperimental
   imports "../Soundness"
 begin
 
+section \<open> Fictional Separation Logic \<close>
+
+definition
+  \<open>perm_alg_homomorphism (f :: 'a::pre_perm_alg \<Rightarrow> 'b::pre_perm_alg) \<equiv>
+    (\<forall>a b. a ## b \<longrightarrow> f a ## f b) \<and>
+    (\<forall>a b. a ## b \<longrightarrow> f (a + b) = f a + f b)\<close>
+
+definition
+  \<open>perm_alg_diff_homomorphism f \<equiv>
+    perm_alg_homomorphism f \<and>
+    (\<forall>ax by cx. by ## f cx \<longrightarrow> f ax = by + f cx \<longrightarrow> (\<exists>bx. by = f bx \<and> bx ## cx \<and> ax = bx + cx))\<close>
+
+lemma
+  \<open>perm_alg_homomorphism (f :: 'a::perm_alg \<Rightarrow> 'b::perm_alg) \<Longrightarrow>
+    \<forall>a b. (((=) a) \<midarrow>\<odot> ((=) b)) \<circ> f \<le> (((=) a) \<circ> f) \<midarrow>\<odot> (((=) b) \<circ> f) \<Longrightarrow>
+    \<forall>p q. (p \<midarrow>\<odot> q) \<circ> f \<le> (p \<circ> f) \<midarrow>\<odot> (q \<circ> f)\<close>
+  unfolding septract_def perm_alg_homomorphism_def
+  by (simp add: fun_eq_iff le_fun_def) metis
+
+lemma
+  \<open>\<forall>xa yb. f xa ## yb \<longrightarrow> (\<exists>ya. xa ## ya \<and> yb = f ya \<and> f xa + yb = f (xa + ya))\<close>
+  oops
+
+lemma
+  \<open>perm_alg_homomorphism (f :: 'a::pre_perm_alg \<Rightarrow> 'b::pre_perm_alg) \<Longrightarrow>
+    \<forall>p q. (p \<midarrow>\<odot> q) \<circ> f \<le> (p \<circ> f) \<midarrow>\<odot> (q \<circ> f) \<Longrightarrow>
+    \<forall>p q. (p \<midarrow>\<odot> q) \<circ> f = (p \<circ> f) \<midarrow>\<odot> (q \<circ> f)\<close>
+  unfolding septract_def perm_alg_homomorphism_def
+  by (simp add: fun_eq_iff le_fun_def) metis
+
+lemma perm_alg_homomorphism_iff_sepconj_semidistrib:
+  fixes f :: \<open>'x::perm_alg \<Rightarrow> 'y::perm_alg\<close>
+  shows
+    \<open>perm_alg_homomorphism f \<longleftrightarrow>
+      (\<forall>p q. (p \<circ> f) \<^emph> (q \<circ> f) \<le> (p \<^emph> q) \<circ> f)\<close>
+  unfolding perm_alg_homomorphism_def
+  apply (intro iffI)
+   apply (fastforce simp add: sepconj_def le_fun_def)
+  apply (clarsimp simp add: all_conj_distrib[symmetric])
+  apply (drule_tac x=\<open>(=) (f a)\<close> and y=\<open>(=) (f b)\<close> in spec2)
+  apply force
+  done
+
+
+lemma perm_alg_diff_homomorphism_iff:
+  fixes f :: \<open>'x::perm_alg \<Rightarrow> 'y::perm_alg\<close>
+  assumes \<open>perm_alg_homomorphism f\<close>
+  shows
+    \<open>perm_alg_diff_homomorphism f \<longleftrightarrow>
+      (\<forall>p q. (p \<circ> f) \<midarrow>\<odot> (q \<circ> f) = (p \<midarrow>\<odot> q) \<circ> f)\<close>
+  using assms
+  unfolding perm_alg_homomorphism_def perm_alg_diff_homomorphism_def
+  apply (clarsimp simp add: septract_def le_fun_def fun_eq_iff)
+  apply (intro iffI allI)
+    apply metis
+   apply clarsimp
+  apply (rename_tac cx "by")
+  oops
+
+definition
+  \<open>perm_alg_hm_nice (f :: 'b::pre_perm_alg \<Rightarrow> 'a::pre_perm_alg) \<equiv>
+    \<forall>ax ay::'a. \<forall>bxy by::'b::pre_perm_alg.
+      ax ## f by \<longrightarrow>
+      f bxy = ax + f by \<longrightarrow>
+      (\<exists>bx. bx ## by \<and> ax = f bx \<and> bxy = bx + by)\<close>
+
+lemma perm_alg_hm_nice_def2:
+  fixes f :: \<open>'b::pre_perm_alg \<Rightarrow> 'a::pre_perm_alg\<close>
+  shows
+    \<open>perm_alg_hm_nice f \<longleftrightarrow>
+      (\<forall>ax::'a. \<forall>bxy::'b.
+        ((=) ax \<midarrow>\<odot> (=) (f bxy)) \<circ> f \<le> ((=) ax \<circ> f) \<midarrow>\<odot> (=) bxy
+      )\<close>
+  unfolding septract_def
+  by (clarsimp simp add: perm_alg_hm_nice_def le_fun_def sepimp_def)
+    (rule iffI; metis disjoint_sym partial_add_commute)
+
+\<comment> \<open>
+  Still weaker than \<open>(p \<midarrow>\<odot> q) \<circ> f \<le> (p \<circ> f) \<midarrow>\<odot> (q \<circ> f)\<close>
+\<close>
+lemma perm_alg_hm_nice_def3:
+  fixes f :: \<open>'b::pre_perm_alg \<Rightarrow> 'a::pre_perm_alg\<close>
+  shows
+    \<open>perm_alg_hm_nice f \<longleftrightarrow>
+      (\<forall>p. \<forall>b. (p \<midarrow>\<odot> (=) (f b)) \<circ> f \<le> (p \<circ> f) \<midarrow>\<odot> (=) b)\<close>
+  by (force simp add: perm_alg_hm_nice_def2 septract_def fun_eq_iff le_fun_def)
+
+lemma perm_alg_hm_nice_implies_strict_revmono:
+  fixes f :: \<open>'b::perm_alg \<Rightarrow> 'a::perm_alg\<close>
+  assumes \<open>perm_alg_hm_nice f\<close>
+  shows \<open>\<forall>bx by::'b. f bx \<prec> f by \<longrightarrow> bx \<prec> by\<close>
+  using assms
+  unfolding perm_alg_hm_nice_def
+  by (simp add: less_sepadd_def)
+    (metis disjoint_sym_iff partial_add_commute positivity)
+
+definition
+  \<open>perm_alg_homomorphism_strong f \<equiv>
+    perm_alg_homomorphism f \<and>
+    (\<forall>xya xb yb. xb ## yb \<longrightarrow> f xya = xb + yb \<longrightarrow>
+      (\<exists>xa ya. xa ## ya \<and> xb = f xa \<and> yb = f ya \<and> xya = xa + ya))\<close>
+
+
+\<comment> \<open>
+  Related to
+    Jonas Braband Jensen and Lars Birkedal. 2012. Fictional Separation Logic.
+    ESOP 2012, LNCS 7211, pp. 377–396.
+\<close>
+lemma algebra_abstraction:
+  fixes b2a :: \<open>'lb::pre_perm_alg \<Rightarrow> 'la::pre_perm_alg\<close>
+    and sb :: \<open>'lb::pre_perm_alg \<times> 's\<close>
+    and F I :: \<open>'la \<times> 's \<Rightarrow> bool\<close>
+  assumes f_sepconj_hm: \<open>perm_alg_homomorphism b2a\<close>
+    and \<open>perm_alg_hm_nice b2a\<close>
+  shows
+  \<open>safe R F G I q n c sa \<Longrightarrow>
+    sa = apfst b2a sb \<Longrightarrow>
+    safe R (F \<circ> apfst b2a) G (I \<circ> apfst b2a) (q \<circ> apfst b2a) n (map_atom (\<lambda>r. r \<circ>\<^sub>2 apfst b2a) c) sb\<close>
+proof (induct arbitrary: sb rule: safe.inducts)
+  case (safeI c sa n)
+  show ?case
+    using safeI.prems safeI.hyps(1-2)
+    apply (clarsimp simp del: comp_apply comp2_apply)
+    apply (rule safe.safeI)
+        apply (force simp add: map_atom_rev_iff)
+       apply force
+      apply (frule safeI.hyps(4)[where sb=\<open>(sbl, sbs)\<close> for sbl sbs]; force)
+      (* non-framed step *)
+     apply (subgoal_tac \<open>\<exists>cb'. c' = map_atom (\<lambda>r. r \<circ>\<^sub>2 apfst b2a) cb'\<close>)
+      prefer 2
+    subgoal sorry
+     apply (elim exE)
+     apply (frule_tac \<alpha>=\<alpha> and s'=\<open>apfst b2a s'\<close> and c'=cb' in safeI.hyps(5))
+      apply (clarsimp simp del: comp_apply comp2_apply)
+    subgoal sorry
+     apply (clarsimp simp del: comp_apply comp2_apply)
+     apply (metis (no_types, lifting) fst_conv opstep_tau_preserves_heap)
+      (* framed step *)
+     apply (subgoal_tac \<open>\<exists>cb'. c' = map_atom (\<lambda>r. r \<circ>\<^sub>2 apfst b2a) cb'\<close>)
+      prefer 2
+    subgoal sorry
+    apply (elim exE)
+    apply (frule_tac \<alpha>=\<alpha> and lfs'=\<open>b2a lfs'\<close> and ss'=ss' and fs=\<open>b2a fs\<close> and c'=cb' in safeI.hyps(6))
+       apply (clarsimp simp del: comp_apply comp2_apply)
+    subgoal sorry
+      apply (simp, metis f_sepconj_hm perm_alg_homomorphism_def)
+     apply force
+    apply (elim exE conjE)
+    apply (rule conjI)
+     apply force
+    apply (clarsimp simp del: comp_apply comp2_apply)
+    apply (cut_tac assms(2))
+    apply (metis (no_types, lifting) fst_conv opstep_tau_preserves_heap perm_alg_hm_nice_def)
+    done
+qed
+
+lemma sswa_apfst_apply[simp]:
+  \<open>sswa R (\<lambda>x. p (apfst f x)) (ls, ss) = sswa R p (f ls, ss)\<close>
+  by (clarsimp simp add: sp_def fun_eq_iff)
+
+lemma sswa_comp_apfst_eq:
+  \<open>sswa R (p \<circ> apfst f) = sswa R p \<circ> apfst f\<close>
+  by (clarsimp simp add: sp_def fun_eq_iff)
+
+lemma sup_comp_apfst_distrib:
+  \<open>(pa \<squnion> pb) \<circ> apfst f = (pa \<circ> apfst f) \<squnion> (pb \<circ> apfst f)\<close>
+  by (clarsimp simp add: fun_eq_iff)
+
+lemma inf_comp_apfst_distrib:
+  \<open>(pa \<sqinter> pb) \<circ> apfst f = (pa \<circ> apfst f) \<sqinter> (pb \<circ> apfst f)\<close>
+  by (clarsimp simp add: fun_eq_iff)
+
+lemma sepconjconj_comp_apfst_semidistrib:
+  assumes \<open>perm_alg_homomorphism f\<close>
+  shows \<open>(pa \<circ> apfst f) \<^emph>\<and> (pb \<circ> apfst f) \<le> (pa \<^emph>\<and> pb) \<circ> apfst f\<close>
+  using assms
+  by (clarsimp simp add: perm_alg_homomorphism_def sepconj_conj_def, blast)
+
+lemma sepconjconj_comp_apfst_distrib:
+  assumes \<open>perm_alg_homomorphism_strong f\<close>
+  shows \<open>(pa \<circ> apfst f) \<^emph>\<and> (pb \<circ> apfst f) = (pa \<^emph>\<and> pb) \<circ> apfst f\<close>
+  using assms
+  unfolding perm_alg_homomorphism_def perm_alg_homomorphism_strong_def
+  by (clarsimp simp add: sepconj_conj_def fun_eq_iff, fast)
+
+lemma rel_liftL_comp_semidistrib:
+  \<open>rel_liftL (p \<circ> f) \<le> rel_liftL p \<circ>\<^sub>2 f\<close>
+  by force
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+\<comment> \<open> Old \<close>
 section \<open> Alternate safe with restricted rely condition \<close>
 
 subsubsection \<open> Safe alternates \<close>

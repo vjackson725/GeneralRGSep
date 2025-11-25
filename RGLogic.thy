@@ -384,114 +384,23 @@ qed
 
 section \<open> Specialised Rules \<close>
 
-subsection \<open> Assert \<close>
 
-definition pred_Times_third
-  :: \<open>('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('c \<Rightarrow> bool) \<Rightarrow> ('a \<times> ('b \<times> 'c) \<Rightarrow> bool)\<close>
-  (infix \<open>\<times>\<^sub>P\<^sub>3\<close> 80)
-  where
-  \<open>p \<times>\<^sub>P\<^sub>3 q \<equiv> \<lambda>(a,(b,c)). p (a,b) \<and> q c\<close>
+subsection \<open> Frame Locality \<close>
 
-lemma pred_Times_third_apply[simp]:
-  \<open>(p \<times>\<^sub>P\<^sub>3 q) x = (p (fst x, fst (snd x)) \<and> q (snd (snd x)))\<close>
-  by (simp add: pred_Times_third_def split: prod.splits)
+definition \<open>frame_local F p p' \<equiv> \<forall>f\<le>F. (p \<^emph>\<and> f) \<sqinter> p' \<le> (p \<sqinter> p') \<^emph>\<and> f\<close>
 
+lemma frame_local_share_only:
+  \<open>\<forall>la lb ss. p' (la, ss) \<longrightarrow> p' (lb, ss) \<Longrightarrow>
+    frame_local F p p'\<close>
+  unfolding frame_local_def sepconj_conj_def
+  by blast
 
-abbreviation
-  \<open>nofailure_pred p \<equiv> p \<times>\<^sub>P\<^sub>3 (=) Running\<close>
-
-lemmas nofailure_pred_def =
-  pred_Times_third_def[of _ \<open>(=) Running\<close>]
-
-abbreviation failure_rgsat_pretty
-  (\<open>_, _, _, _, _ \<turnstile>\<^sub>f { _ } _ { _ }\<close> [55, 0, 0, 0, 0, 55, 55, 55] 56) where
-  \<open>R, G, I, F, T \<turnstile>\<^sub>f { p } c { q } \<equiv>
-    rgsat c
-      (R \<times>\<^sub>R (=)) (G \<times>\<^sub>R (=))
-      (nofailure_pred p) (nofailure_pred q)
-      (nofailure_pred I) (nofailure_pred F)
-      T\<close>
-
-
-lemma sp_triple_relTimes_predTimes3_eq[simp]:
-  \<open>sp (ra \<times>\<^sub>R (rb \<times>\<^sub>R rc)) (p \<times>\<^sub>P\<^sub>3 q) = sp (ra \<times>\<^sub>R rb) p \<times>\<^sub>P\<^sub>3 sp rc q\<close>
-  by (force simp add: sp_def pred_Times_third_def)
-
-lemma reflp_wlp_equals_predTimes3_eq[simp]:
-  \<open>reflp ra \<Longrightarrow> reflp rb \<Longrightarrow>
-    wlp (ra \<times>\<^sub>R rb \<times>\<^sub>R (=)) (p \<times>\<^sub>P\<^sub>3 q) = wlp (ra \<times>\<^sub>R rb) p \<times>\<^sub>P\<^sub>3 q\<close>
-  by (force simp add: wlp_def pred_Times_third_def fun_eq_iff reflp_def)
-
-lemma predTimes3_sepconj_conj_distrib:
-  \<open>(p \<^emph>\<and> f) \<times>\<^sub>P\<^sub>3 q = p \<times>\<^sub>P\<^sub>3 q \<^emph>\<and> f \<times>\<^sub>P\<^sub>3 q\<close>
-  by (force simp add: pred_Times_third_def sepconj_conj_apply fun_eq_iff)
-
-lemma predTimes3_eqVal_le_iff[simp]:
-  \<open>pa \<times>\<^sub>P\<^sub>3 (=) v \<le> pb \<times>\<^sub>P\<^sub>3 (=) v \<longleftrightarrow> pa \<le> pb\<close>
-  by (force simp add: pred_Times_third_def)
-
-lemma all_impl_nofailure_pred_internalise:
-  \<open>(\<forall>p\<le>nofailure_pred P. q p) \<longleftrightarrow> (\<forall>p\<le>P. q (nofailure_pred p))\<close>
-  apply (simp add: pred_Times_third_def le_fun_def)
-  apply (intro iffI allI impI, force)
-  apply (drule_tac x=\<open>\<lambda>(l,s). \<exists>k. p (l, s, Running)\<close> in spec)
-  apply (clarsimp split: prod.splits)
-  apply (subgoal_tac \<open>(\<lambda>(l, s, k). p (l, s, Running) \<and> Running = k) = p\<close>; force)
-  done
-
-lemma sp_failure_healthy_rel_eq:
-  \<open>sp (failure_healthy_rel r) (nofailure_pred p) =
-    (\<lambda>(l', s', k'). (\<exists>s. r s (l', s', k') \<and> p s))\<close>
-  by (simp add: sp_def fun_eq_iff)
-
-lemma rgsat_assert:
-  assumes precond:
-    \<open>sswa R p \<le> pa\<close>
-    \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
-    and step:
-    \<open>sswa R p \<le> q\<close>
-    \<open>\<forall>f\<le>F. sswa R p \<^emph>\<and> f \<le> q \<^emph>\<and> f\<close>
-    and guar:
-    \<open>rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
-    and misc:
-    \<open>sswa R p \<le> I\<close>
-    \<open>sswa R q \<le> I\<close>
-    \<open>T RGSepAtom\<close>
-  shows
-    \<open>R, G, I, F, T \<turnstile>\<^sub>f { p } Assert pa { q }\<close>
-  using assms
-  unfolding Assert_def
-proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
-  let ?ra' = \<open>(failure_healthy_rel
-            (\<lambda>(l, s) (l', s', k').
-                l' = l \<and>
-                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
-
-  show
-    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p)) \<le> (nofailure_pred (sswa R p))\<close>
-    using precond
-    by (force simp add: all_impl_nofailure_pred_internalise
-        predTimes3_sepconj_conj_distrib[symmetric] sp_failure_healthy_rel_eq)
-  show
-    \<open>\<forall>f\<le>nofailure_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> f\<close>
-    using precond
-    by (simp add: all_impl_nofailure_pred_internalise
-        predTimes3_sepconj_conj_distrib[symmetric] sp_failure_healthy_rel_eq,
-        fastforce simp add: le_fun_def sepconj_conj_apply)
-
-  show
-    \<open>rel_image snd
-      (rel_liftL
-        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<squnion>
-          sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> nofailure_pred F) \<sqinter>
-        ?ra')
-    \<le> G \<times>\<^sub>R (=)\<close>
-    using guar precond
-    by (clarsimp simp add: rel_image_def le_fun_def split: prod.splits)
-      (metis fst_conv predTimes3_sepconj_conj_distrib pred_Times_third_apply snd_conv)
-
-qed (simp add: sswa_weaker wssa_stronger)+
+lemma frame_local_base_restricted:
+  \<open>\<forall>la lb ss. p (la, ss) \<longrightarrow> la \<preceq> lb \<longrightarrow> p' (lb, ss) \<longrightarrow> p' (la, ss) \<Longrightarrow>
+    frame_local F p p'\<close>
+  unfolding frame_local_def sepconj_conj_def
+  using partial_le_plus
+  by blast
 
 
 subsection \<open> Await \<close>
@@ -520,6 +429,12 @@ text \<open>
     This doesn't prevent all deadlocks, but does ensure that, if one does occur,
   some of the blame for it falls on the environment specification.
 \<close>
+
+\<comment> \<open> Technically a more general property about stable predicates and conjunction,
+  but helpful for await in particular. \<close>
+lemma await_post_stable_guard:
+  \<open>sswa R p' \<le> p' \<Longrightarrow> sswa R (sswa R p \<sqinter> p') = sswa R p \<sqinter> p'\<close>
+  by (metis order.eq_iff sp_inf_semidistrib sswa_over_sswa_eq sswa_weaker)
 
 
 subsection \<open> If-then-else \<close>
@@ -577,6 +492,12 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
     by simp
 qed simp+
 
+\<comment> \<open> Unfortunately, \<open>b\<close> and \<open>-b\<close> have to separately be shown stable. \<close>
+lemma await_post_stable_neg_guard:
+  \<open>sswa R p' \<le> p' \<Longrightarrow> sswa R (sswa R p \<sqinter> -p') = sswa R p \<sqinter> -p'\<close>
+  nitpick[card 'a=1, card 'b=2]
+  oops
+
 
 subsection \<open> WhileLoop \<close>
 
@@ -602,7 +523,7 @@ lemma rgsat_while:
     (rule order.refl|simp)+
 
 
-subsection \<open> Atom Variants \<close>
+section \<open> Atom Variants \<close>
 
 text \<open>
   For the atom rule, show we don't need to conj with the atom-precondition

@@ -111,10 +111,8 @@ lemma ex_middle_eq_iff:
 
 section \<open> Tuples \<close>
 
-lemma prod_eq_decompose:
-  \<open>a = (b,c) \<longleftrightarrow> fst a = b \<and> snd a = c\<close>
-  \<open>(b,c) = a \<longleftrightarrow> fst a = b \<and> snd a = c\<close>
-  by force+
+(* TODO: replace uses with new HOL lemmas *)
+lemmas prod_eq_decompose = split_pairs split_pairs2
 
 lemma common_if_prod[simp]:
   \<open>(if P then a1 else a2, if P then b1 else b2) = (if P then (a1,b1) else (a2,b2))\<close>
@@ -323,6 +321,14 @@ lemma rel_image_mono:
 
 
 subsubsection \<open> pre- and post-state \<close>
+
+lemma pre_state_Sup_eq[simp]:
+  \<open>pre_state (\<Squnion>A) = \<Squnion>(pre_state ` A)\<close>
+  by (force simp add: pre_state_def Sup_fun_def fun_eq_iff)
+
+lemma post_state_Sup_eq[simp]:
+  \<open>post_state (\<Squnion>A) = \<Squnion>(post_state ` A)\<close>
+  by (force simp add: post_state_def Sup_fun_def fun_eq_iff)
 
 lemma pre_state_trancl_eq[simp]:
   \<open>pre_state (r\<^sup>+\<^sup>+) = pre_state r\<close>

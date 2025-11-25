@@ -174,6 +174,10 @@ lemma twoPredLift_sup_semidistrib:
   \<open>\<lblot>p\<rblot> \<squnion> \<lblot>q\<rblot> \<le> \<lblot>p \<squnion> q\<rblot>\<close>
   by (simp add: le_fun_def)
 
+lemma pred_list_disj_eq:
+  \<open>\<lblot> p \<squnion> q \<rblot> = \<lblot> p \<rblot> \<squnion> \<lblot> p \<bar> q \<rblot> \<squnion> \<lblot> q \<bar> p \<rblot> \<squnion> \<lblot> q \<rblot>\<close>
+  by (force simp add: fun_eq_iff)
+
 lemma twoPredLift_Sup_semidistrib:
   \<open>(\<Squnion>p\<in>P. \<lblot>p\<rblot>) \<le> \<lblot>\<Squnion>P\<rblot>\<close>
   by (force simp add: le_fun_def)
@@ -567,6 +571,71 @@ lemma quasirefl_blocking_doloops_head_atoms_simps[simp]:
   \<open>quasirefl_blocking_doloops_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c \<sqinter> quasirefl_blocking_doloops_head_atoms c\<close>
   \<open>quasirefl_blocking_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
   by (clarsimp simp add: quasirefl_blocking_doloops_head_atoms_def; blast)+
+
+
+subsection \<open> aaa \<close>
+
+definition
+  \<open>sec_core p \<equiv>
+    (\<lambda>(x,y). (p \<circ> exch4) (x,y) \<and> (p \<circ> exch4) (y, x) \<and> (p \<circ> exch4) (x, x) \<and> (p \<circ> exch4) (y, y)) \<circ> exch4\<close>
+
+definition
+  \<open>sec_ext p \<equiv>
+    (\<lambda>(x,y). (p \<circ> exch4) (x,y) \<or> (p \<circ> exch4) (y, x) \<or>
+      (x = y \<and> (\<exists>z. (p \<circ> exch4) (x, z) \<and> (p \<circ> exch4) (z, y)))
+    ) \<circ> exch4\<close>
+
+lemma
+  fixes p :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and r :: \<open>('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool\<close>
+  shows
+  \<open>sec_core p \<le> quasireflp_steprel r \<Longrightarrow>
+    sec_core p \<le> symp_steprel r \<Longrightarrow>
+    sp r (sec_core p) \<le> sec_core (sp r p)\<close>
+  apply (clarsimp simp add: sec_core_def exch4_def le_fun_def quasireflp_steprel_def
+      symp_steprel_def sp_def)
+  apply metis
+  done
+
+lemma
+  fixes p :: \<open>('l, 's) rgstate \<Rightarrow> bool\<close>
+    and r :: \<open>('l, 's) rgstate \<Rightarrow> ('l, 's) rgstate \<Rightarrow> bool\<close>
+  shows
+  \<open>sec_core p \<le> quasireflp_steprel r \<Longrightarrow>
+    sec_core p \<le> symp_steprel r \<Longrightarrow>
+    q = sp r (sec_core p) \<Longrightarrow>
+    q' = sec_core (sp r p) \<Longrightarrow>
+    q' \<le> q\<close>
+(*  nitpick[card 'l=2, card 's=1] *)
+  oops
+(*
+    p = (\<lambda>x. _)
+        (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True,
+           ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True)
+    q = (\<lambda>x. _)
+        (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False,
+           ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True)
+    q' = (\<lambda>x. _)
+         (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True,
+            ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True)
+    r = (\<lambda>x. _)
+        (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) :=
+           (\<lambda>x. _)
+           (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False,
+              ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True),
+           ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) :=
+             (\<lambda>x. _)
+             (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True,
+                ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True),
+           ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) :=
+             (\<lambda>x. _)
+             (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := True,
+                ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := False),
+           ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) :=
+             (\<lambda>x. _)
+             (((l\<^sub>1, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>1, l\<^sub>2), s\<^sub>1, s\<^sub>1) := False, ((l\<^sub>2, l\<^sub>1), s\<^sub>1, s\<^sub>1) := False,
+                ((l\<^sub>2, l\<^sub>2), s\<^sub>1, s\<^sub>1) := True))
+*)
 
 
 section \<open> GenRGSep Proof Security Lifting \<close>
@@ -2055,20 +2124,31 @@ lemma head_atomic_implies_all_steps_vis:
 
 subsection \<open> Security Determinism \<close>
 
+definition
+  \<open>head_guards \<equiv> image_mset pre_state \<circ> head_atoms\<close>
+
 fun sec_determ :: \<open>('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close> where
-  \<open>sec_determ (ca \<^bold>\<box> cb) = (\<lambda>(sx, sy).
-    head_atomic ca \<and> head_atomic cb \<and>
-    \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
-    \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy))\<close>
-| \<open>sec_determ (DO c OD) = (\<lambda>(sx, sy).
-    head_atomic c \<and>
-    pre_state (\<Squnion>(set_mset (head_atoms c))) sx =
-      pre_state (\<Squnion>(set_mset (head_atoms c))) sy)\<close>
+  \<open>sec_determ (ca \<^bold>\<box> cb) = (
+    (\<lambda>_. head_atomic ca) \<sqinter>
+    (\<lambda>_. head_atomic cb) \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot>)\<close>
+| \<open>sec_determ (DO c OD) = (
+    (\<lambda>_. head_atomic c) \<sqinter>
+    \<bbbA> (\<Squnion>(set_mset (head_guards c))))\<close>
 | \<open>sec_determ c = (\<lambda>_. True)\<close>
+
+lemma
+  \<open>pa \<sqinter> pb = \<bottom> \<Longrightarrow>
+    - \<lblot> pa \<bar> pb \<rblot> \<sqinter> - \<lblot> pb \<bar> pa \<rblot> \<le> \<bbbA> pa \<sqinter> \<bbbA> pb\<close>
+  apply (simp add: sec_agree_def le_fun_def fun_eq_iff)
+  nitpick
+  oops
+
 
 lemma sec_determ_symp:
   \<open>symp (curry (sec_determ c))\<close>
-  by (induct c) (force simp add: symp_def)+
+  by (induct c) (clarsimp simp add: symp_def sec_agree_exch4_def'; meson)+
 
 lemma head_atom_equivalence_helper:
   \<open>\<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<longleftrightarrow>
@@ -2088,16 +2168,13 @@ lemma head_sec_determ_eq[simp]:
   \<open>head_sec_determ (ca \<^bold>\<box> cb) =
     (\<lambda>_. head_atomic ca) \<sqinter>
     (\<lambda>_. head_atomic cb) \<sqinter>
-    (\<lambda>(sx, sy).
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy)) \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot> \<sqinter>
     head_sec_determ ca \<sqinter>
     head_sec_determ cb\<close>
   \<open>head_sec_determ (DO c OD) =
     (\<lambda>_. head_atomic c) \<sqinter>
-    (\<lambda>(sx, sy).
-      pre_state (\<Squnion> set_mset (head_atoms c)) sx =
-      pre_state (\<Squnion> set_mset (head_atoms c)) sy) \<sqinter>
+    \<bbbA> (\<Squnion>(set_mset (head_guards c))) \<sqinter>
     head_sec_determ c\<close>
   by (clarsimp simp add: head_sec_determ_def conj_disj_distribL
       ex_disj_distrib Collect_disj_eq; blast)+
@@ -2120,16 +2197,14 @@ lemma all_sec_determ_eq[simp]:
   \<open>all_sec_determ (ca \<^bold>\<box> cb) =
     (\<lambda>_. head_atomic ca) \<sqinter>
     (\<lambda>_. head_atomic cb) \<sqinter>
-    (\<lambda>(sx, sy).
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms ca))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms cb))) sy) \<and>
-      \<not> (pre_state (\<Squnion>(set_mset (head_atoms cb))) sx \<and> pre_state (\<Squnion>(set_mset (head_atoms ca))) sy)) \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
+    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot> \<sqinter>
     all_sec_determ ca \<sqinter>
     all_sec_determ cb\<close>
   \<open>all_sec_determ (DO c OD) =
     (\<lambda>_. head_atomic c) \<sqinter>
-    (\<lambda>(sx, sy).
-      pre_state (\<Squnion> set_mset (head_atoms c)) sx =
-      pre_state (\<Squnion> set_mset (head_atoms c)) sy) \<sqinter>
+    (\<lambda>_. head_atomic c) \<sqinter>
+    \<bbbA> (\<Squnion>(set_mset (head_guards c))) \<sqinter>
     all_sec_determ c\<close>
   by (clarsimp simp add: all_sec_determ_def conj_disj_distribL
       ex_disj_distrib Collect_disj_eq; blast)+
@@ -2150,6 +2225,7 @@ proof (induct c arbitrary: \<pi>\<alpha> c')
   case (Endet c1 c2)
   then show ?case
     apply clarsimp
+    sorry
     apply (elim disjE)
          apply force
         apply force

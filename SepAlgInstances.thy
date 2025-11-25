@@ -1768,13 +1768,6 @@ lemma munit_option_plus_simps[simp]:
   by (simp add: disjoint_option_iff)+
 
 
-definition points_to
-  :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close>
-  (infix \<open>\<^bold>\<mapsto>\<close> 90)
-  where
-  \<open>p \<^bold>\<mapsto> v \<equiv> \<lambda>h. h p = Some v\<close>
-
-
 section \<open> Results \<close>
 
 text \<open> sepdomeq of two maps (with discrete elements) holds exactly when their domains are equal. \<close>
