@@ -1,5 +1,5 @@
 theory SecurityEx
-  imports "../sec/Security"
+  imports "../Security"
 begin
 
 lemma parallel_inheritance:

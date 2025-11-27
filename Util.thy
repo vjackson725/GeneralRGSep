@@ -516,6 +516,13 @@ lemma option_eq_iff:
               | Some x' \<Rightarrow> (case y of None \<Rightarrow> False | Some y' \<Rightarrow> x' = y'))\<close>
   by (force split: option.splits)
 
+text \<open> An alternative to \<open>option.split\<close>, which gives the conjunctive enumeration. \<close>
+lemma case_option_disj_iff:
+  \<open>(case ma of None \<Rightarrow> p | Some a \<Rightarrow> q a) \<longleftrightarrow>
+    ma = None \<and> p \<or> (\<exists>a. ma = Some a \<and> q a)\<close>
+  by (metis case_optionE option.simps(4,5))
+
+
 section \<open> Partial Maps \<close>
 
 lemma map_le_restrict_eq: \<open>ma \<subseteq>\<^sub>m mb \<Longrightarrow> mb |` dom ma = ma\<close>

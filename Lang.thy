@@ -852,7 +852,6 @@ text \<open>
     a \<^emph>\<open>subset\<close> of the initial predicate, and this subset might not be compatible
     with the frame.
 \<close>
-
 lemma sepconj_local_eq:
   \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
   by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
@@ -860,6 +859,11 @@ lemma sepconj_local_eq:
 lemma sepconj_shared_eq:
   \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
   by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+lemma shared_sepconj_conj_eq:
+  \<open>(\<S> p \<^emph>\<and> q) = \<S> p \<sqinter> (\<top> \<^emph>\<and> q)\<close>
+  \<open>(q \<^emph>\<and> \<S> p) = \<S> p \<sqinter> (q \<^emph>\<and> \<top>)\<close>
+  by (force simp add: sepconj_conj_def fun_eq_iff)+
 
 
 end

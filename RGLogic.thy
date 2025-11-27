@@ -221,15 +221,6 @@ lemma rgsat_weaker_frame:
     rgsat c R G (p \<^emph>\<and> F') (q \<^emph>\<and> F') (I \<^emph>\<and> F') F T\<close>
   by (simp add: rgsat_frame rgsat_weaken sup_commute sup_left_commute)
 
-
-(* TODO: not true, because of weakening *)
-lemma rgsat_restrict_stateinv:
-  assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
-  shows \<open>R, G, wssa R I, F, T \<turnstile> { p } c { q }\<close>
-  using assms
-  oops
-
-
 lemma rgsat_par_alt:
   \<open>rgsat ca (R \<squnion> Gb) Ga pa qa Ia (Ib \<squnion> Ib \<^emph>\<and> F) T \<Longrightarrow>
     rgsat cb (R \<squnion> Ga) Gb pb qb Ib (Ia \<squnion> Ia \<^emph>\<and> F) T \<Longrightarrow>
@@ -258,133 +249,21 @@ text \<open>
 lemma rgsat_postcond_implies_stateinv:
   assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
   shows \<open>q \<le> I\<close>
+  nitpick[card 'a=1, card 'b=1]
   oops
 
-(*
 text \<open>
-  The strongest weakening rule we can prove by induction.
-  This is because the frame rule stabilises not just on \<open>r\<close> (antimono) but also \<open>g\<close> (mono).
-  It is nevertheless sound to use the stronger version.
+  Not true, because the invariant can be weakened to something unstable.
 \<close>
-lemma rgsat_weak_weaken:
-  \<open>rgsat c r g p q L \<top> \<Longrightarrow>
-      p' \<le> p \<Longrightarrow>
-      q \<le> q' \<Longrightarrow>
-      r' \<le> r \<Longrightarrow>
-      L \<le> S' \<Longrightarrow>
-      rgsat c r' g' p' q' S' \<top>\<close>
-proof(induct arbitrary: r' g' p' q' S' rule: rgsat.inducts)
-  case (rgsat_skip r p q L g F)
-  then show ?case
-    by (intro rgsat.rgsat_skip)
-      (meson order.trans relyrel_mono sp_mono; fail)+
-next
-  case (rgsat_iter c r g i L F T p q)
-  then show ?case
-    sorry
-    apply (intro rgsat.rgsat_iter[of _ _ _ i L])
-       apply (metis order.refl sswa_rel_mono)
-      apply (meson order.trans relyrel_mono wlp_rel_antimono; fail)
-     apply (meson order.trans relyrel_mono sp_rel_mono; fail)
-    apply (meson order.trans relyrel_mono sp_rel_mono; fail)
-    done
-next
-  case (rgsat_seq c1 r g p1 p2 S1 F c2 p3 S2 L)
-  then show ?case
-    apply (intro rgsat.rgsat_seq[where ?S1.0=S1 and ?S2.0=S2])
-      apply blast
-     apply force
-    apply order
-    done
-next
-  case (rgsat_indet c1 r g1 p q1 L1 F c2 g2 q2 L2 g q L)
-  
-  show ?case
-    using rgsat_indet.prems rgsat_indet.hyps(5-)
-      rgsat.rgsat_indet[OF rgsat_indet.hyps(2) rgsat_indet.hyps(4)]
-    by (meson order_refl order_trans)
-next
-  case (rgsat_endet c1 r g1 p q1 L1 F c2 g2 q2 L2 g q L)
+lemma rgsat_restrict_stateinv:
+  assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
+  shows \<open>R, G, wssa R I, F, T \<turnstile> { p } c { q }\<close>
+  using assms
+  oops
 
-  show ?case
-    using rgsat_endet.prems rgsat_endet.hyps(5-)
-      rgsat.rgsat_endet[OF rgsat_endet.hyps(2) rgsat_endet.hyps(4)]
-    by (meson order_refl order_trans)
-next
-  case (rgsat_par s1 r g2 g1 p1 q1 S1 S2 F s2 p2 q2 g p q S)
-  
-  show ?case
-    using rgsat_par.prems rgsat_par.hyps(5-)
-    apply (intro rgsat.rgsat_par[OF rgsat_par.hyps(2) rgsat_par.hyps(4)])
-    sorry
-next
-  case (rgsat_atom p' r p q q' ap F aq g L)
-  then show ?case
-    sorry
-next
-  case (rgsat_frame c r g p q L F T p' f q' F' L')
-  then show ?case
-    sorry
-next
-  case (rgsat_weaken c ra' ga' pa' qa' Sa' Fa' p q r g L F C)
-
-  from rgsat_weaken.hyps(3-) rgsat_weaken.prems
-  show ?case
-    using rgsat.rgsat_weaken[of c r' g' p' q' S' Fa'] rgsat_weaken.hyps(2)
-    by simp
-next
-  case (rgsat_Disj p' P c r g q L F C)
-  then show ?case
-    using rgsat.rgsat_Disj[of _ P c]
-    by simp
-next
-  case (rgsat_Conj Q c r g p L F T q')
-  then show ?case
-    using rgsat.rgsat_Conj[of Q c]
-    by simp
-qed
-    (* par *)
-       apply (rule_tac ?p1.0=p1 and ?p2.0=p2 and ?q1.0=q1 and ?q2.0=q2 and ?g1.0=g1 and ?g2.0=g2
-      and ?L1.0=L1 and ?L2.0=L2 and ?F1.0=F1 and ?F2.0=F2 in rgsat.rgsat_par)
-              apply (meson order.refl sup_mono; fail)
-             apply (meson order.refl sup_mono; fail)
-            apply order
-           apply order
-          apply order
-         apply (meson order.trans le_disj_eq_absorb relyrel_mono sepconj_conj_mono sp_mono
-      sup_mono; fail)
-        apply order
-       apply order
-    (* atom *)
-     apply (rule_tac p=p and q=q in rgsat_atom)
-             apply (meson order.trans rel_Times_mono_right rtranclp_mono wlp_rel_antimono; fail)
-            apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
-           apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono; fail)
-          apply (intro allI impI, drule spec, drule mp, assumption)
-          apply (meson order.trans rel_Times_mono_right rtranclp_mono sepconj_conj_monoL sp_pred_mono
-      sp_rel_mono; fail)
-         apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
-      inf_mono order_le_less sp_pred_mono; fail)
-        apply (intro allI impI, drule spec, drule mp, assumption)
-        apply (meson order.trans rel_Times_mono_right rtranclp_mono sp_rel_mono wlp_rel_antimono
-      sepconj_conj_monoL sp_pred_mono; fail)
-       apply (meson order.trans inf_mono le_disj_eq_absorb liftL_mono relyrel_mono sp_rel_mono; fail)
-      apply blast
-     apply (simp; fail)
-    (* frame *)
-     apply (rule_tac p=p and q=q and r=ra in rgsat.rgsat_frame)
-          apply blast
-         apply (rule order.trans; assumption)
-        apply (meson order.trans le_disj_eq_absorb sepconj_conj_monoR sswa_rel_mono sup.mono; fail)
-       apply (meson order.refl order.trans sp_rel_mono relyrel_mono sup_mono; fail)
-      apply (meson order.trans le_disj_eq_absorb sepimp_conj_mono sswa_rel_mono sup.mono)
-     apply (simp; fail)
-  done
-*)
 
 
 section \<open> Specialised Rules \<close>
-
 
 subsection \<open> Frame Locality \<close>
 

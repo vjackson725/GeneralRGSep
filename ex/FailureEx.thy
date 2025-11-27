@@ -2,33 +2,6 @@ theory FailureEx
   imports "../Soundness"
 begin
 
-(* TODO: move *)
-lemma case_option_disj_split:
-  \<open>(case ma of None \<Rightarrow> p | Some a \<Rightarrow> q a) \<longleftrightarrow>
-    ma = None \<and> p \<or> (\<exists>a. ma = Some a \<and> q a)\<close>
-  by (metis case_optionE option.simps(4,5))
-
-lemma shared_sepconj_conj_eq:
-  \<open>(\<S> p \<^emph>\<and> q) = \<S> p \<sqinter> (\<top> \<^emph>\<and> q)\<close>
-  \<open>(q \<^emph>\<and> \<S> p) = \<S> p \<sqinter> (q \<^emph>\<and> \<top>)\<close>
-  by (force simp add: sepconj_conj_def fun_eq_iff)+
-
-
-definition
-  \<open>downresp_rg p \<equiv> \<lambda>(ls,ss). \<exists>ls'. ls \<preceq> ls' \<and> p (ls', ss)\<close>
-
-lemma downresp_rg_apply[simp]:
-  \<open>downresp_rg p (ls,ss) = (\<exists>ls'. ls \<preceq> ls' \<and> p (ls', ss))\<close>
-  by (simp add: downresp_rg_def)
-
-definition
-  \<open>upresp_rg p \<equiv> \<lambda>(ls,ss). \<exists>ls'. ls' \<preceq> ls \<and> p (ls', ss)\<close>
-
-lemma upresp_rg_apply[simp]:
-  \<open>upresp_rg p (ls,ss) = (\<exists>ls'. ls' \<preceq> ls \<and> p (ls', ss))\<close>
-  by (simp add: upresp_rg_def)
-
-
 subsection \<open> Heap predicate \<close>
 
 definition points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
@@ -284,7 +257,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
   show \<open>\<forall>f\<le>nofailure_pred F. sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
     unfolding any_shared_def ra_ptr_read_def precond_def postcond_def
     apply (clarsimp simp add: sp_step_fail_lift_on_nofailure_pred_eq subset_nofailure_pred_iff
-        predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
+        predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_iff)
     apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff)
     apply (metis (mono_tags, lifting) Discr_inverse_iff comp_apply snd_conv sswa_trivial wssa_trivial)
     done
@@ -316,28 +289,6 @@ definition PointerWrite
           Some (_, perm) \<Rightarrow> l' = l(pt \<mapsto> (Discr (e s), perm)) \<and> s' = s \<and> fl' = Running
         | None \<Rightarrow> l' = l \<and> s' = s \<and> fl' = Failed
       ))\<close>
-
-(* TODO: move *)
-
-definition
-  \<open>sepdomeqp_rg p \<equiv> \<lambda>(ls, ss). \<exists>ls'. sepdomeq ls ls' \<and> p (ls', ss)\<close>
-
-lemma sepdomeqp_rg_apply[simp]:
-  \<open>sepdomeqp_rg p (ls, ss) = (\<exists>ls'. sepdomeq ls ls' \<and> p (ls', ss))\<close>
-  by (simp add: sepdomeqp_rg_def)
-
-
-definition ptr_write_perm_cond where
-  \<open>ptr_write_perm_cond F pt x \<equiv>
-    \<forall>ls ss. F (ls, ss) \<longrightarrow> (\<forall>x'. ls pt = Some x' \<longrightarrow> \<not> x ## x')\<close>
-
-lemma ptr_write_perm_cond_alt:
-  \<open>ptr_write_perm_cond F pt x \<longleftrightarrow> F \<sqinter> \<L> (\<Squnion>x'\<in>{x'. x ## x'}. pt \<^bold>\<mapsto>\<^sup>\<Up> x') = \<bottom>\<close>
-  by (force simp add: ptr_write_perm_cond_def fun_eq_iff points_to_upcl_def)
-
-lemma ptr_write_perm_cond_alt2:
-  \<open>ptr_write_perm_cond F pt x \<longleftrightarrow> F \<le> (\<Sqinter>x'\<in>{x'. x ## x'}. \<L> (- (pt \<^bold>\<mapsto>\<^sup>\<Up> x')))\<close>
-  by (force simp add: ptr_write_perm_cond_def fun_eq_iff points_to_upcl_def)
 
 lemma top_write_frame_cond_iff_all_disjoint_perm:
   \<open>\<top> \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x') \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
