@@ -8,23 +8,56 @@ lemma case_option_disj_split:
     ma = None \<and> p \<or> (\<exists>a. ma = Some a \<and> q a)\<close>
   by (metis case_optionE option.simps(4,5))
 
-
-subsection \<open> Heap predicate \<close>
-
-definition points_to_perm
-  :: \<open>'a \<Rightarrow> 'perm \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b discr \<times> 'perm) \<Rightarrow> bool\<close>
-  (\<open>_ \<^bold>\<mapsto>\<^bsub>_\<^esub> _\<close> [90,0,90] 90)
-  where
-  \<open>p \<^bold>\<mapsto>\<^bsub>perm\<^esub> v \<equiv> \<lambda>h. h p = Some (Discr v, perm)\<close>
-
-abbreviation points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b discr \<times> munit) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
-  \<open>p \<^bold>\<mapsto> v \<equiv> p \<^bold>\<mapsto>\<^bsub>\<one>\<^esub> v\<close>
-
-
 lemma shared_sepconj_conj_eq:
   \<open>(\<S> p \<^emph>\<and> q) = \<S> p \<sqinter> (\<top> \<^emph>\<and> q)\<close>
   \<open>(q \<^emph>\<and> \<S> p) = \<S> p \<sqinter> (q \<^emph>\<and> \<top>)\<close>
   by (force simp add: sepconj_conj_def fun_eq_iff)+
+
+
+definition
+  \<open>downresp_rg p \<equiv> \<lambda>(ls,ss). \<exists>ls'. ls \<preceq> ls' \<and> p (ls', ss)\<close>
+
+lemma downresp_rg_apply[simp]:
+  \<open>downresp_rg p (ls,ss) = (\<exists>ls'. ls \<preceq> ls' \<and> p (ls', ss))\<close>
+  by (simp add: downresp_rg_def)
+
+definition
+  \<open>upresp_rg p \<equiv> \<lambda>(ls,ss). \<exists>ls'. ls' \<preceq> ls \<and> p (ls', ss)\<close>
+
+lemma upresp_rg_apply[simp]:
+  \<open>upresp_rg p (ls,ss) = (\<exists>ls'. ls' \<preceq> ls \<and> p (ls', ss))\<close>
+  by (simp add: upresp_rg_def)
+
+
+subsection \<open> Heap predicate \<close>
+
+definition points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
+  \<open>p \<^bold>\<mapsto> x \<equiv> \<lambda>h. h p = Some x \<and> (\<forall>p'. p' \<noteq> p \<longrightarrow> h p' = None)\<close>
+
+definition points_to_upcl :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<^sup>\<Up>\<close> 90) where
+  \<open>p \<^bold>\<mapsto>\<^sup>\<Up> x \<equiv> \<lambda>h. h p = Some x\<close>
+
+abbreviation points_to_perm
+  :: \<open>'a \<Rightarrow> 'perm \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b discr \<times> 'perm) \<Rightarrow> bool\<close>
+  (\<open>_ \<^bold>\<mapsto>\<^bsub>_\<^esub> _\<close> [90,0,90] 90)
+  where
+  \<open>p \<^bold>\<mapsto>\<^bsub>perm\<^esub> v \<equiv> p \<^bold>\<mapsto> (Discr v, perm)\<close>
+
+lemma points_to_upcl_eq:
+  fixes x :: \<open>'a :: perm_alg\<close>
+  assumes maxsep_x: \<open>\<forall>x'. \<not> x ## x'\<close>
+  shows \<open>pt \<^bold>\<mapsto>\<^sup>\<Up> x = \<top> \<^emph> pt \<^bold>\<mapsto> x\<close>
+  unfolding sepconj_def points_to_def points_to_upcl_def
+  apply (clarsimp simp add: fun_eq_iff)
+  apply (rename_tac h)
+  apply (intro iffI)
+   apply (rule_tac x=\<open>h(pt := None)\<close> in exI)
+   apply (rule_tac x=\<open>[pt \<mapsto> x]\<close> in exI)
+   apply force
+  apply (clarsimp simp add: disjoint_option_def split: option.splits)
+  apply (clarsimp simp add: plus_option_iff)
+  apply (metis disjoint_fun_def disjoint_option_iff(1) disjoint_sym_iff maxsep_x)
+  done
 
 
 subsection \<open> Failure and Programs \<close>
@@ -147,7 +180,7 @@ lemma rgsat_assert:
     \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
     and step:
     \<open>sswa R p \<le> q\<close>
-    \<open>\<forall>f\<le>F. sswa R p \<^emph>\<and> f \<le> q \<^emph>\<^sub>\<triangleright> f\<close>
+    \<open>\<forall>f\<le>F. sswa R p \<^emph>\<and> f \<le> q \<^emph>\<and> any_shared f\<close>
     and guar:
     \<open>rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     and misc:
@@ -171,11 +204,11 @@ proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
 
   show
     \<open>\<forall>f\<le>nofailure_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<^sub>\<triangleright> f\<close>
+       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> any_shared f\<close>
     using precond
     by (simp add: all_impl_nofailure_pred_internalise
         predTimes3_sepconj_conj_distrib[symmetric] sp_step_fail_lift_on_nofailure_pred_eq,
-        fastforce simp add: le_fun_def sepconj_conj_apply sepconj_left_def)
+        fastforce simp add: le_fun_def sepconj_conj_apply any_shared_def)
 
   show
     \<open>rel_image snd
@@ -219,8 +252,7 @@ lemma rgsat_pointer_read:
   defines \<open>ra_ptr_read \<equiv> (=) \<times>\<^sub>R (\<lambda>s s'. s' = s(x := v))\<close>
   and \<open>precond \<equiv> \<L> (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> v) \<sqinter> wssa R (\<S> (\<lambda>s. p (s(x := v))))\<close>
   and \<open>postcond \<equiv> \<L> (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> v) \<sqinter> sswa R (\<S> p)\<close>
-  assumes
-    \<open>sp ra_ptr_read precond \<le> postcond\<close>
+assumes
     \<open>rel_image snd ra_ptr_read \<le> G\<close>
     \<open>precond \<le> I\<close>
     \<open>postcond \<le> I\<close>
@@ -247,13 +279,13 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
   show \<open>sp ?ra' (nofailure_pred precond) \<le> nofailure_pred postcond\<close>
     using assms(1) precond_def postcond_def
     by (force simp add: sp_step_fail_lift_on_nofailure_pred_eq sepconj_conj_def
-        points_to_perm_def plus_option_iff)
+        points_to_def plus_option_iff)
 
-  show \<open>\<forall>f\<le>nofailure_pred F. sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<^sub>\<triangleright> f\<close>
-    unfolding sepconj_left_def ra_ptr_read_def precond_def postcond_def
+  show \<open>\<forall>f\<le>nofailure_pred F. sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
+    unfolding any_shared_def ra_ptr_read_def precond_def postcond_def
     apply (clarsimp simp add: sp_step_fail_lift_on_nofailure_pred_eq subset_nofailure_pred_iff
         predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
-    apply (clarsimp simp add: sepconj_conj_def points_to_perm_def plus_option_iff)
+    apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff)
     apply (metis (mono_tags, lifting) Discr_inverse_iff comp_apply snd_conv sswa_trivial wssa_trivial)
     done
 
@@ -261,13 +293,13 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     \<open>rel_image snd
       (rel_liftL (nofailure_pred precond \<squnion> nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
     \<le> G \<times>\<^sub>R (=)\<close>
-    using assms(5)
+    using assms(4)
     apply (simp only: predTimes3_sepconj_conj_distrib[symmetric] predTimes3_sup_distrib[symmetric])
     apply (unfold ra_ptr_read_def precond_def postcond_def)
-    apply (clarsimp simp add: sepconj_conj_def points_to_perm_def plus_option_iff rel_image_def
+    apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff rel_image_def
         le_fun_def ex_disj_distrib all_conj_distrib split: option.splits)
     apply (elim disjE exE conjE)
-     apply force
+     apply (simp; fail)
     apply (force simp add: wlp_def plus_option_iff ex_disj_distrib all_conj_distrib)
     done
 qed simp+
@@ -276,7 +308,7 @@ qed simp+
 section \<open> PointerWrite \<close>
 
 definition PointerWrite
-  :: \<open>'pt \<Rightarrow> (('x \<Rightarrow> 'v) \<Rightarrow> 'v) \<Rightarrow> (('pt \<rightharpoonup> 'v discr \<times> 'perm) \<times> (('x \<Rightarrow> 'v) \<times> fail_st)) comm\<close>
+  :: \<open>'pt \<Rightarrow> ('s \<Rightarrow> 'v) \<Rightarrow> (('pt \<rightharpoonup> 'v discr \<times> 'perm) \<times> ('s \<times> fail_st)) comm\<close>
   where
     \<open>PointerWrite pt e \<equiv>
       Atomic (step_fail_lift (\<lambda>(l, s) (l', s', fl').
@@ -285,16 +317,40 @@ definition PointerWrite
         | None \<Rightarrow> l' = l \<and> s' = s \<and> fl' = Failed
       ))\<close>
 
-\<comment> \<open> Note: need full permissions, *logically*. Otherwise disjointness is not preserved.
-  You could also limit the frame specification such that \<open>pt\<close> is guaranteed not to occur.
-\<close>
+(* TODO: move *)
+
+definition
+  \<open>sepdomeqp_rg p \<equiv> \<lambda>(ls, ss). \<exists>ls'. sepdomeq ls ls' \<and> p (ls', ss)\<close>
+
+lemma sepdomeqp_rg_apply[simp]:
+  \<open>sepdomeqp_rg p (ls, ss) = (\<exists>ls'. sepdomeq ls ls' \<and> p (ls', ss))\<close>
+  by (simp add: sepdomeqp_rg_def)
+
+
+definition ptr_write_perm_cond where
+  \<open>ptr_write_perm_cond F pt x \<equiv>
+    \<forall>ls ss. F (ls, ss) \<longrightarrow> (\<forall>x'. ls pt = Some x' \<longrightarrow> \<not> x ## x')\<close>
+
+lemma ptr_write_perm_cond_alt:
+  \<open>ptr_write_perm_cond F pt x \<longleftrightarrow> F \<sqinter> \<L> (\<Squnion>x'\<in>{x'. x ## x'}. pt \<^bold>\<mapsto>\<^sup>\<Up> x') = \<bottom>\<close>
+  by (force simp add: ptr_write_perm_cond_def fun_eq_iff points_to_upcl_def)
+
+lemma ptr_write_perm_cond_alt2:
+  \<open>ptr_write_perm_cond F pt x \<longleftrightarrow> F \<le> (\<Sqinter>x'\<in>{x'. x ## x'}. \<L> (- (pt \<^bold>\<mapsto>\<^sup>\<Up> x')))\<close>
+  by (force simp add: ptr_write_perm_cond_def fun_eq_iff points_to_upcl_def)
+
+lemma top_write_frame_cond_iff_all_disjoint_perm:
+  \<open>\<top> \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x') \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
+  by (force simp add: points_to_upcl_def le_fun_def)
+
 lemma rgsat_pointer_write:
-  fixes e pt p R
+  fixes e pt p R \<pi> v
   defines \<open>ra_ptr_write \<equiv> (\<lambda>(l,s) (l',s'). l' = l(pt \<mapsto> e s) \<and> s' = s)\<close>
-  and \<open>precond \<equiv> \<L> (\<Squnion>v. pt \<^bold>\<mapsto> v) \<sqinter> wssa R (\<S> p)\<close>
-  and \<open>postcond \<equiv> sswa R ((\<lambda>(ls, ss). (pt \<^bold>\<mapsto> (e ss)) ls) \<sqinter> \<S> p)\<close>
+    and \<open>precond \<equiv> \<L> (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> v) \<sqinter> wssa R (\<S> p)\<close>
+    and \<open>postcond \<equiv> sswa R ((\<lambda>(ls, ss). (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> (e ss)) ls) \<sqinter> \<S> p)\<close>
   assumes
-    \<open>sp ra_ptr_read precond \<le> postcond\<close>
+    \<comment> \<open> this is the side condition that constrains permissions to be exclusive \<close>
+    \<open>F \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x')\<close>
     \<open>rel_image snd ra_ptr_write \<le> G\<close>
     \<open>precond \<le> I\<close>
     \<open>postcond \<le> I\<close>
@@ -311,39 +367,40 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
 
   show \<open>nofailure_pred precond \<le> wssa (R \<times>\<^sub>R (=)) (nofailure_pred precond)\<close>
     unfolding precond_def
-    apply (clarsimp simp add: fun_eq_iff le_fun_def points_to_perm_def wlp_def)
+    apply (clarsimp simp add: points_to_def wlp_def)
     apply (metis rtranclp_trans)
     done
 
   show \<open>sswa (R \<times>\<^sub>R (=)) (nofailure_pred postcond) \<le> nofailure_pred postcond\<close>
     unfolding postcond_def
-    apply (clarsimp simp add: fun_eq_iff le_fun_def points_to_perm_def sp_def)
+    apply (clarsimp simp add: fun_eq_iff le_fun_def points_to_def sp_def)
     apply (metis rtranclp_trans)
     done
 
   show \<open>sp ?ra' (nofailure_pred precond) \<le> nofailure_pred postcond\<close>
     using assms(1) precond_def postcond_def
     by (force simp add: sp_step_fail_lift_on_nofailure_pred_eq sepconj_conj_def
-        points_to_perm_def plus_option_iff)
+        points_to_def plus_option_iff)
 
-  show \<open>\<forall>f\<le>nofailure_pred F. sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<^sub>\<triangleright> f\<close>
-    unfolding sepconj_left_def ra_ptr_write_def precond_def postcond_def
+  show
+    \<open>\<forall>f\<le>nofailure_pred F.
+      sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
+    unfolding ra_ptr_write_def precond_def postcond_def points_to_def
     apply (clarsimp simp add: sp_step_fail_lift_on_nofailure_pred_eq subset_nofailure_pred_iff
         predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
-    apply (clarsimp simp add: sepconj_conj_def points_to_perm_def plus_option_iff)
-    apply (rename_tac ss f' ha hb v v' perm')
+    apply (clarsimp simp add: fun_eq_iff sepconj_conj_def plus_option_iff all_conj_distrib
+        any_shared_def split: if_splits)
+    apply (rename_tac h' F' h ss dv ha \<pi>x hb)
     apply (elim disjE conjE exE)
-     apply (rule_tac x=\<open>ha(pt \<mapsto> (Discr (e ss), perm'))\<close> in exI)
+      (* unframed *)
+     apply (rule_tac x=\<open>ha(pt \<mapsto> (Discr (e ss), \<pi>))\<close> in exI)
      apply (rule_tac x=hb in exI)
-     apply (force simp add: disjoint_fun_def; fail)
-    apply (rule_tac x=\<open>ha(pt \<mapsto> (Discr (e ss), perm'))\<close> in exI)
-    apply (rule_tac x=hb in exI)
-    apply (intro conjI)
-       apply (simp add: disjoint_fun_def)
-       apply (metis disjoint_munit_def disjoint_option_simps(1) disjoint_prod_def)
-      apply force
-     apply force
-    apply force
+     apply fastforce
+      (* framed *)
+    apply (cut_tac assms(4))
+    apply (clarsimp simp add: points_to_upcl_def le_fun_def disjoint_fun_def disjoint_option_def
+        split: option.splits)
+    apply fast (* slow *)
     done
 
   show
@@ -353,13 +410,12 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     using assms(5)
     apply (simp only: predTimes3_sepconj_conj_distrib[symmetric] predTimes3_sup_distrib[symmetric])
     apply (unfold ra_ptr_write_def precond_def postcond_def)
-    apply (clarsimp simp add: sepconj_conj_def points_to_perm_def plus_option_iff rel_image_def
+    apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff rel_image_def
         le_fun_def ex_disj_distrib all_conj_distrib split: option.splits)
     apply (elim disjE exE conjE)
      apply force
     apply (force simp add: wlp_def plus_option_iff ex_disj_distrib all_conj_distrib)
     done
 qed simp+
-
 
 end
