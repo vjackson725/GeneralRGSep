@@ -202,6 +202,11 @@ lemma sepadd_mono:
   \<open>a ## b \<Longrightarrow> c ## d \<Longrightarrow> a \<preceq> c \<Longrightarrow> b \<preceq> d  \<Longrightarrow> a + b \<preceq> c + d\<close> 
   by (meson disjoint_preservation resource_preorder.order_trans sepadd_left_mono sepadd_right_mono)
 
+lemma no_disjoint_then_maximal_resource:
+  \<open>(\<forall>y. \<not> x ## y) \<Longrightarrow> (\<forall>y. \<not> y \<succ> x)\<close>
+  using less_sepadd_def by presburger
+
+
 subsection \<open> sepadd_unit \<close>
 
 definition \<open>sepadd_unit a \<equiv> (\<exists>b. a ## b) \<and> (\<forall>b. a ## b \<longrightarrow> a + b = b)\<close>
@@ -277,17 +282,17 @@ lemma sepadd_punit_of_unit_res_mono':
   by (simp add: sepadd_punit_of_def)
 
 
-subsection \<open> zero_sepadd \<close>
+subsection \<open> Absorbing Resources \<close>
 
-definition \<open>sepadd_zero a \<equiv> a ## a \<and> (\<forall>b. a ## b \<longrightarrow> a + b = a)\<close>
+definition \<open>sepadd_absorb a \<equiv> a ## a \<and> (\<forall>b. a ## b \<longrightarrow> a + b = a)\<close>
 
-text \<open> sepadd_zero is antimono \<close>
 lemma above_zero_impl_zero:
-  \<open>a \<preceq> b \<Longrightarrow> sepadd_zero a \<Longrightarrow> sepadd_zero b\<close>
-  by (metis less_eq_sepadd_def sepadd_zero_def)
+  \<open>a \<preceq> b \<Longrightarrow> sepadd_absorb a \<Longrightarrow> sepadd_absorb b\<close>
+  by (metis less_eq_sepadd_def sepadd_absorb_def)
 
-lemma zeros_add_to_zero: \<open>x ## y \<Longrightarrow> sepadd_zero x \<Longrightarrow> sepadd_zero (x + y)\<close>
-  by (simp add: sepadd_zero_def)
+lemma zeros_add_to_zero:
+  \<open>x ## y \<Longrightarrow> sepadd_absorb x \<Longrightarrow> sepadd_absorb (x + y)\<close>
+  by (simp add: sepadd_absorb_def)
 
 
 subsection \<open> duplicable \<close>
@@ -303,13 +308,14 @@ definition \<open>sepadd_dup a \<equiv> a ## a \<and> a + a = a\<close>
 lemma units_are_dup: \<open>sepadd_unit a \<Longrightarrow> sepadd_dup a\<close>
   by (simp add: sepadd_unit_selfsep sepadd_dup_def)
 
-lemma zeros_are_dup: \<open>sepadd_zero a \<Longrightarrow> sepadd_dup a\<close>
-  by (simp add: sepadd_dup_def sepadd_zero_def)
+lemma zeros_are_dup: \<open>sepadd_absorb a \<Longrightarrow> sepadd_dup a\<close>
+  by (simp add: sepadd_dup_def sepadd_absorb_def)
 
 
 subsection \<open>sepdomeq\<close>
 
-definition \<open>sepdomeq a b \<equiv> \<forall>c. a ## c = b ## c\<close>
+definition sepdomeq (infix \<open>=\<^sub>#\<close> 55) where
+  \<open>sepdomeq a b \<equiv> \<forall>c. a ## c = b ## c\<close>
 
 lemma sepdomeq_reflI[intro!]:
   \<open>sepdomeq a a\<close>
@@ -343,23 +349,28 @@ lemma sepdomeq_disjoint_rightD:
   \<open>sepdomeq a b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
   by (simp add: sepdomeq_def)
 
-definition \<open>sepdomsubseteq a b \<equiv> \<forall>c. a ## c \<longrightarrow> b ## c\<close>
+definition sepdom_leq (infix \<open>\<preceq>\<^sub>#\<close> 55) where
+  \<open>a \<preceq>\<^sub># b \<equiv> \<forall>c. b ## c \<longrightarrow> a ## c\<close>
 
-lemma sepdomsubseteq_reflp:
-  \<open>reflp sepdomsubseteq\<close>
-  by (simp add: reflpI sepdomsubseteq_def)
+lemma sepdom_leq_reflp:
+  \<open>reflp (\<preceq>\<^sub>#)\<close>
+  by (simp add: reflpI sepdom_leq_def)
 
-lemma sepdomsubseteq_transp:
-  \<open>transp sepdomsubseteq\<close>
-  by (simp add: sepdomsubseteq_def transp_def)
+lemma sepdom_leq_transp:
+  \<open>transp (\<preceq>\<^sub>#)\<close>
+  by (simp add: sepdom_leq_def transp_def)
 
-lemma sepdomsubseteq_disjointD:
-  \<open>sepdomsubseteq a b \<Longrightarrow> a ## c \<Longrightarrow> b ## c\<close>
-  by (simp add: sepdomsubseteq_def)
+lemma sepdom_leq_disjointD:
+  \<open>a \<preceq>\<^sub># b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
+  by (simp add: sepdom_leq_def)
 
-lemma sepdomsubseteq_antisym:
-  \<open>sepdomsubseteq a b \<Longrightarrow> sepdomsubseteq b a \<Longrightarrow> sepdomeq a b\<close>
-  using sepdomeq_def sepdomsubseteq_def by blast
+lemma sepdom_leq_antisym:
+  \<open>a \<preceq>\<^sub># b \<Longrightarrow> b \<preceq>\<^sub># a \<Longrightarrow> a =\<^sub># b\<close>
+  using sepdomeq_def sepdom_leq_def by blast
+
+lemma resleq_implies_sepdom_leq:
+  \<open>lb \<preceq> la \<Longrightarrow> lb \<preceq>\<^sub># la\<close>
+  by (force simp add: sepdom_leq_def dest: disjoint_preservation)
 
 
 subsection \<open> Seplogic connectives \<close>
@@ -383,21 +394,43 @@ lemma sepconjE[elim!]:
   \<open>(P \<^emph> Q) r \<Longrightarrow> (\<And>h1 h2. h1 ## h2 \<Longrightarrow> r = h1 + h2 \<Longrightarrow> P h1 \<Longrightarrow> Q h2 \<Longrightarrow> Z) \<Longrightarrow> Z\<close>
   using sepconj_iff by auto
 
-definition sepimp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<midarrow>\<^emph>\<close> 65) where
+definition sepimp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<midarrow>\<^emph>\<close> 64) where
   \<open>P \<midarrow>\<^emph> Q \<equiv> \<lambda>h. \<forall>h1. h ## h1 \<longrightarrow> P h1 \<longrightarrow> Q (h + h1)\<close>
 
 text \<open> See Bannister et. al. [BHK2018] for more discussion of this connective. \<close>
-definition sepcoimp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<sim>\<^emph>\<close> 65) where
+definition sepcoimp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<sim>\<^emph>\<close> 64) where
   \<open>P \<sim>\<^emph> Q \<equiv> \<lambda>h. \<forall>h1 h2. h1 ## h2 \<longrightarrow> h = h1 + h2 \<longrightarrow> P h1 \<longrightarrow> Q h2\<close>
 
-definition septract :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<midarrow>\<odot>\<close> 67) where
+definition septract :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<midarrow>\<odot>\<close> 64) where
   \<open>P \<midarrow>\<odot> Q \<equiv> \<lambda>h. \<exists>h1. h ## h1 \<and> P h1 \<and> Q (h + h1)\<close>
 
-definition septract_rev :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<odot>\<midarrow>\<close> 67) where
+definition septract_rev :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (infixr \<open>\<odot>\<midarrow>\<close> 64) where
   \<open>P \<odot>\<midarrow> Q \<equiv> \<lambda>h. \<exists>h'. h ## h' \<and> P (h + h') \<and> Q h'\<close>
 
-definition subheapexist :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
-  \<open>subheapexist P \<equiv> \<lambda>h. \<exists>h1. h1 \<preceq> h \<and> P h1\<close>
+
+subsubsection \<open> Upwards and downwards heap closure \<close>
+
+definition res_upclp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
+  \<open>res_upclp p \<equiv> \<lambda>x. \<exists>x'. x' \<preceq> x \<and> p x'\<close>
+
+lemma res_upclp_apply[simp]:
+  \<open>res_upclp p x = (\<exists>x'. x' \<preceq> x \<and> p x')\<close>
+  by (simp add: res_upclp_def)
+
+lemma res_upclp_eq:
+  \<open>res_upclp p = p \<squnion> p \<^emph> \<top>\<close>
+  by (simp add: res_upclp_def sepconj_def less_eq_sepadd_def fun_eq_iff, metis)
+
+
+definition res_downclp :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
+  \<open>res_downclp p \<equiv> (\<lambda>x. \<exists>x'. x \<preceq> x' \<and> p x')\<close>
+
+lemma res_downclp_apply[simp]:
+  \<open>res_downclp p x = (\<exists>x'. x \<preceq> x' \<and> p x')\<close>
+  by (simp add: res_downclp_def)
+
+
+subsubsection \<open> empty \<close>
 
 definition emp :: \<open>'a \<Rightarrow> bool\<close> where
   \<open>emp \<equiv> \<lambda>x. sepadd_unit x\<close>
@@ -405,6 +438,7 @@ definition emp :: \<open>'a \<Rightarrow> bool\<close> where
 fun iter_sepconj :: \<open>('a \<Rightarrow> bool) list \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
   \<open>iter_sepconj (P # Ps) = P \<^emph> iter_sepconj Ps\<close>
 | \<open>iter_sepconj [] = emp\<close>
+
 
 subsection \<open> Seplogic connective properties \<close>
 
@@ -712,6 +746,8 @@ local_setup \<open>
 lemma le_res_less_le_not_le:
   \<open>a \<prec> b \<longleftrightarrow> a \<lesssim> b \<and> \<not> b \<lesssim> a\<close>
   by (metis part_of_def less_sepadd_def positivity)
+
+subsection \<open> Unit Laws \<close>
 
 text \<open> sepadd_unit is antimono \<close>
 lemma below_unit_impl_unit:
@@ -1225,6 +1261,11 @@ begin
 lemma selfsep_iff:
   \<open>a ## a \<longleftrightarrow> sepadd_unit a\<close>
   using selfsep_implies_unit sepadd_unit_def by blast
+
+lemma disjoint_implies_punit_iff_unit:
+  \<open>a ## b \<Longrightarrow> a + b = b \<longleftrightarrow> sepadd_unit a\<close>
+  using selfsep_implies_unit
+  by (simp add: sepadd_unit_def, metis disjoint_add_rightL)
 
 end
 

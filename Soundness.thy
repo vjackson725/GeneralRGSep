@@ -550,7 +550,7 @@ subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<^sub>\<triangleright> f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     sswa R p s \<Longrightarrow>
     safe R F
       (rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
@@ -591,14 +591,14 @@ proof (induct n arbitrary: s)
     apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
         simp add: safe_skip_stable_iff sp_sup)
     apply (frule spec[of _ \<open>(=) _\<close>], frule mp, blast)
-    apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def sepconj_left_def)
+    apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def any_shared_def)
     apply (metis sswa_trivial)
     done
 qed simp
 
 lemma safe_atom:
   \<open>sp ar (sswa R p) \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<^sub>\<triangleright> f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     wssa R p s \<Longrightarrow>
     sswa R p \<le> I \<Longrightarrow>

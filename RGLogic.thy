@@ -11,6 +11,8 @@ definition
       lsa ## fs \<longrightarrow> lsb ## fs \<longrightarrow>
       lsa + fs = lsb + fs \<longrightarrow> lsa = lsb\<close>
 
+definition \<open>any_shared p \<equiv> \<lambda>(ls, _). \<exists>ss. p (ls, ss)\<close>
+
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
@@ -27,12 +29,6 @@ datatype rgsep_rule =
   RGSepWeaken |
   RGSepDisj |
   RGSepConj
-
-
-definition sepconj_left
-  :: \<open>('a::pre_perm_alg \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
-  (infixr \<open>\<^emph>\<^sub>\<triangleright>\<close> 70) where
-  \<open>p \<^emph>\<^sub>\<triangleright> q \<equiv> \<lambda>h. \<exists>a b c. a ## b \<and> h = (a + b, c) \<and> p (a, c) \<and> (\<exists>c. q (b, c))\<close>
 
 inductive rgsat ::
   \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
@@ -92,7 +88,7 @@ inductive rgsat ::
     sswa R q \<le> q' \<Longrightarrow>
     \<comment> \<open> step \<close>
     sp ar p \<le> q \<Longrightarrow>
-    \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<^sub>\<triangleright> f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     \<comment> \<open> guarantee condition \<close>
     rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     \<comment> \<open> misc \<close>
@@ -413,7 +409,7 @@ subsection \<open> Await \<close>
 lemma rgsat_await:
   assumes step: \<open>sswa R (sswa R p \<sqinter> qa) \<le> q\<close>
     and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<squnion> (sswa R p \<^emph>\<and> F)) \<sqinter> qa) \<sqinter> (=)) \<le> G\<close>
-    and frame_locality: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> qa \<le> (sswa R p \<sqinter> qa) \<^emph>\<^sub>\<triangleright> f\<close>
+    and frame_locality: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> qa \<le> (sswa R p \<sqinter> qa) \<^emph>\<and> any_shared f\<close>
     and stinv:
     \<open>sswa R p \<le> I\<close>
     \<open>sswa R (sswa R p \<sqinter> qa) \<le> I\<close>
@@ -448,9 +444,9 @@ lemma rgsat_if_then_else:
   assumes
     \<open>rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
     and tt_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<^sub>\<triangleright> f\<close>
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> any_shared f\<close>
     and ff_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<^sub>\<triangleright> f\<close> 
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<and> any_shared f\<close> 
     and body_assms:
     \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
@@ -509,7 +505,7 @@ subsection \<open> WhileLoop \<close>
 lemma rgsat_while:
   assumes
     \<open>rel_image snd (rel_liftL ((sswa R ii \<squnion> sswa R ii \<^emph>\<and> F) \<sqinter> px) \<sqinter> (=)) \<le> G\<close>
-    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> (sswa R ii \<sqinter> px) \<^emph>\<^sub>\<triangleright> f\<close>
+    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
     \<open>sswa R (sswa R ii \<sqinter> px) \<le> sswa R ii\<close>
     \<open>sswa R ii \<le> I\<close>
     \<open>sswa R p \<le> ii\<close>
