@@ -111,9 +111,6 @@ lemma ex_middle_eq_iff:
 
 section \<open> Tuples \<close>
 
-(* TODO: replace uses with new HOL lemmas *)
-lemmas prod_eq_decompose = split_pairs split_pairs2
-
 lemma common_if_prod[simp]:
   \<open>(if P then a1 else a2, if P then b1 else b2) = (if P then (a1,b1) else (a2,b2))\<close>
   by simp
@@ -812,149 +809,6 @@ sublocale monoid seq skip
 
 end
 
-(*
-section \<open>Top Extension\<close>
-
-datatype 'a top_ext =
-    Top | TEVal 'a
-
-lemma not_TEVal_eq[simp]: \<open>(\<forall>x. a \<noteq> TEVal x) \<longleftrightarrow> a = Top\<close>
-  by (meson top_ext.distinct top_ext.exhaust)
-
-lemma not_Top_all_TEVal_iff: \<open>a \<noteq> Top \<Longrightarrow> (\<forall>x. a = TEVal x \<longrightarrow> Q x) \<longleftrightarrow> (\<exists>x. a = TEVal x \<and> Q x)\<close>
-  using not_TEVal_eq by blast
-
-instantiation top_ext :: (order) order_top
-begin
-
-definition \<open>top_top_ext \<equiv> Top\<close>
-definition \<open>less_eq_top_ext a b \<equiv> b = Top \<or> (\<exists>b'. b = TEVal b' \<and> (\<exists>a'. a = TEVal a' \<and> a' \<le> b'))\<close>
-definition \<open>less_top_ext a b \<equiv> b = Top \<and> a \<noteq> Top \<or> (\<exists>b'. b = TEVal b' \<and> (\<exists>a'. a = TEVal a' \<and> a' < b'))\<close>
-
-instance
-  by standard
-    (force simp add: less_eq_top_ext_def less_top_ext_def top_top_ext_def)+
-
-lemmas Top_greatest[simp] =
-  HOL.subst[OF meta_eq_to_obj_eq[OF top_top_ext_def], where P=\<open>(\<le>) a\<close> for a, OF top_greatest]
-
-end
-
-instantiation top_ext :: (plus) plus
-begin
-definition \<open>plus_top_ext a b \<equiv>
-              case a of
-                TEVal a' \<Rightarrow> 
-                  (case b of
-                    TEVal b' \<Rightarrow> TEVal (a' + b')
-                  | Top \<Rightarrow> Top)
-                | Top \<Rightarrow> Top\<close>
-instance by standard
-end
-
-instance top_ext :: (semigroup_add) semigroup_add
-  by standard
-    (simp add: plus_top_ext_def add.assoc split: top_ext.splits)+
-
-instantiation top_ext :: (zero) zero
-begin
-definition \<open>zero_top_ext \<equiv> TEVal 0\<close>
-instance by standard
-end
-
-instance top_ext :: (monoid_add) monoid_add
-  by standard
-    (simp add: plus_top_ext_def zero_top_ext_def split: top_ext.splits)+
-
-instance top_ext :: (ab_semigroup_add) ab_semigroup_add
-  by standard
-    (force simp add: plus_top_ext_def add_ac split: top_ext.splits)+
-
-instance top_ext :: (comm_monoid_add) comm_monoid_add
-  by standard
-    (force simp add: plus_top_ext_def zero_top_ext_def split: top_ext.splits)+
-
-instance top_ext :: (ordered_ab_semigroup_add) ordered_ab_semigroup_add
-  by standard
-    (force simp add: plus_top_ext_def zero_top_ext_def less_eq_top_ext_def add_ac
-      intro: add_left_mono split: top_ext.splits)+
-
-instance top_ext :: (linorder) linorder
-  by (standard, simp add: less_eq_top_ext_def, metis nle_le not_TEVal_eq)
-
-instance top_ext :: (ordered_comm_monoid_add) ordered_comm_monoid_add
-  by standard
-
-section \<open>Zero-Bot Extension\<close>
-
-datatype 'a bot_ext = Bot | BEVal 'a
-
-lemma not_BEVal_eq[simp]: \<open>(\<forall>x. a \<noteq> BEVal x) \<longleftrightarrow> a = Bot\<close>
-  by (meson bot_ext.distinct bot_ext.exhaust)
-
-instantiation bot_ext :: (ord) ord
-begin
-definition \<open>less_eq_bot_ext a b \<equiv> (a = Bot \<or> (\<exists>a'. a = BEVal a' \<and> (\<exists>b'. b = BEVal b' \<and> a' \<le> b')))\<close>
-definition \<open>less_bot_ext a b \<equiv> (a = Bot \<and> b \<noteq> Bot \<or> (\<exists>a'. a = BEVal a' \<and> (\<exists>b'. b = BEVal b' \<and> a' < b')))\<close>
-instance by standard
-end
-
-instance bot_ext :: (preorder) preorder
-  by standard
-    (force simp add: less_eq_bot_ext_def less_bot_ext_def less_le_not_le dest: order.trans)+
-
-instantiation bot_ext :: (order) order_bot
-begin
-definition \<open>bot_bot_ext \<equiv> Bot\<close>
-instance
-  by standard
-    (force simp add: less_eq_bot_ext_def bot_bot_ext_def)+
-end
-
-instance bot_ext :: (linorder) linorder
-  by standard
-    (simp add: less_eq_bot_ext_def, meson nle_le not_BEVal_eq)
-
-instantiation bot_ext :: (plus) plus
-begin
-definition
-  \<open>plus_bot_ext a b \<equiv>
-    (case a of Bot \<Rightarrow> b | BEVal a' \<Rightarrow> (case b of Bot \<Rightarrow> a | BEVal b' \<Rightarrow> BEVal (a' + b')))\<close>
-instance by standard
-end
-
-instantiation bot_ext :: (type) zero
-begin
-definition \<open>zero_bot_ext \<equiv> Bot\<close>
-instance by standard
-end
-
-instance bot_ext :: (semigroup_add) semigroup_add
-  by standard
-    (force simp add: plus_bot_ext_def add.assoc split: bot_ext.splits)
-
-instance bot_ext :: (ab_semigroup_add) ab_semigroup_add
-  by standard
-    (force simp add: plus_bot_ext_def add.commute split: bot_ext.splits)
-
-instance bot_ext :: (monoid_add) monoid_add
-  by standard
-    (force simp add: plus_bot_ext_def zero_bot_ext_def split: bot_ext.splits)+
-
-instance bot_ext :: (comm_monoid_add) comm_monoid_add
-  by standard
-    (force simp add: plus_bot_ext_def zero_bot_ext_def split: bot_ext.splits)
-
-instantiation bot_ext :: (canonically_ordered_monoid_add) canonically_ordered_monoid_add
-begin
-instance
-  apply standard
-  apply (simp add: plus_bot_ext_def zero_bot_ext_def less_eq_bot_ext_def le_iff_add split: bot_ext.splits)+
-  apply (case_tac a, force, case_tac b, force)
-  apply (simp, metis bot_ext.inject group_cancel.rule0 not_BEVal_eq)
-  done
-end
-*)
 
 section \<open> Lattices \<close>
 
@@ -1080,7 +934,12 @@ subclass distrib_lattice_top by standard
 subclass bounded_distrib_lattice by standard
 end
 
+
 section \<open> Times \<close>
+
+definition diag (\<open>\<Delta>\<close>) where \<open>diag x = (x,x)\<close>
+declare diag_def[simp]
+
 
 definition pred_times :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close>
   (infixr \<open>\<times>\<^sub>P\<close> 80) where
@@ -1199,6 +1058,17 @@ lemma rel_image_snd_of_rel_times_le_snd[simp]:
 lemma rel_times_trans: \<open>transp ra \<Longrightarrow> transp rb \<Longrightarrow> transp (ra \<times>\<^sub>R rb)\<close>
   by (simp add: rel_times_mono transp_relcompp)
 
+lemma rel_times_sup_semidistrib:
+  \<open>(ra \<times>\<^sub>R ra) \<squnion> (rb \<times>\<^sub>R rb) \<le> (ra \<squnion> rb) \<times>\<^sub>R (ra \<squnion> rb)\<close>
+  by (clarsimp simp add: rel_times_def le_fun_def)
+
+lemma rel_times_inf_distrib:
+  \<open>(ra \<times>\<^sub>R ra) \<sqinter> (rb \<times>\<^sub>R rb) \<le> (ra \<sqinter> rb) \<times>\<^sub>R (ra \<sqinter> rb)\<close>
+  by (clarsimp simp add: rel_times_def le_fun_def)
+
+lemma Inf_rel_times_distrib:
+  \<open>(\<Sqinter>r\<in>R. r \<times>\<^sub>R r) = (\<Sqinter>R) \<times>\<^sub>R (\<Sqinter>R)\<close>
+  by (force simp add: rel_times_def fun_eq_iff)
 
 section \<open> Relations + Relations as Programs \<close>
 

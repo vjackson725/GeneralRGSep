@@ -727,7 +727,7 @@ proof (induct n arbitrary: i s)
       apply (metis rtranclp_idemp rtranclp_power safe_then_state_inv wssa_stepD)
      apply (intro conjI)
        apply (metis eq_snd_iff safe_sucE)
-      apply (metis opstep_tau_preserves_heap prod_eq_decompose(2))
+      apply (metis opstep_tau_preserves_heap split_pairs2)
      apply clarsimp
      apply (frule(1) safe_suc_cD(2))
      apply (rule safe_seq[OF _ allI[OF impI[OF safe_ih]]]; blast)
@@ -838,9 +838,9 @@ proof (induct n arbitrary: ca cb s)
       apply (meson inf_sup_ord(4) lessI order_le_less safe_mono sup.cobounded1; fail)
      apply (elim disjE; clarify)
       apply (frule(3) safe_sucD(3))
-      apply (metis Suc.hyps opstep_tau_preserves_heap prod_eq_decompose(2) safe_step_SucD)
+      apply (metis Suc.hyps opstep_tau_preserves_heap split_pairs2 safe_step_SucD)
      apply (frule(3) safe_sucD(3))
-     apply (metis Suc.hyps opstep_tau_preserves_heap prod_eq_decompose(2) safe_step_SucD)
+     apply (metis Suc.hyps opstep_tau_preserves_heap split_pairs2 safe_step_SucD)
     apply (elim disjE; clarify)
      apply (frule(3) safe_sucD(3))
      apply clarsimp
@@ -1236,7 +1236,7 @@ next
     \<open>sla ## slb\<close>
     \<open>s = (sla + slb, ss)\<close>
     using rgsat_par.hyps(7) rgsat_par.prems(1)
-    by (simp add: prod_eq_decompose le_fun_def sepconj_conj_apply, metis surjective_pairing)
+    by (simp add: split_pairs le_fun_def sepconj_conj_apply, metis surjective_pairing)
   ultimately show ?case
     by (simp del: sup_apply top_apply,
         intro safe_parallel[where Ga=Ga and Gb=Gb and Ia=Ia and Ib=Ib and qa=qa and qb=qb];

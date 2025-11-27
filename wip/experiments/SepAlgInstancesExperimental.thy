@@ -1,5 +1,5 @@
 theory SepAlgInstancesExperimental
-  imports "../SepAlgInstances" "HOL-Library.Type_Length"
+  imports "../../SepAlgInstances" "HOL-Library.Type_Length"
 begin
 
 
@@ -170,6 +170,90 @@ instance
   done
 
 end
+
+
+subsection \<open> Strip Units \<close>
+
+text \<open> Resource algebra transformer that strips the units from the given algebra. \<close>
+
+(* TODO: This doesn't really work due to needing \<open>(+)\<close> to be total. *)
+
+typedef(overloaded) ('a::pre_perm_alg) strip_units =
+  \<open>if \<exists>a::'a. \<not> sepadd_unit a then {a::'a. \<not> sepadd_unit a} else UNIV\<close>
+  by force
+
+setup_lifting type_definition_strip_units
+
+subsection \<open> perm_alg \<close>
+
+instantiation strip_units :: (\<open>perm_alg\<close>) perm_alg
+begin
+
+lift_definition disjoint_strip_units :: \<open>'a strip_units \<Rightarrow> 'a strip_units \<Rightarrow> bool\<close>
+  is \<open>(##)\<close> .
+
+lift_definition plus_strip_units :: \<open>'a strip_units \<Rightarrow> 'a strip_units \<Rightarrow> 'a strip_units\<close>
+  is \<open>\<lambda>a b. if a ## b then a + b else undefined\<close>
+  apply (clarsimp simp add: split: if_splits)
+  sorry
+
+instance
+  apply standard
+(*
+       apply (transfer, metis partial_add_assoc)
+      apply (transfer, metis partial_add_commute)
+     apply (transfer, metis disjoint_sym_iff)
+    apply (transfer, metis disjoint_add_rightL)
+   apply (transfer, metis disjoint_add_right_commute)
+  apply (transfer, metis positivity)
+  done
+*)
+  sorry
+
+end
+
+
+lemma strip_units_one_greatest:
+  fixes a :: \<open>'a::linordered_semidom strip_units\<close>
+  shows \<open>a \<preceq> 1\<close>
+  unfolding less_eq_sepadd_def
+  apply (transfer, clarsimp)
+  apply (metis add_diff_cancel_left' le_add_diff_inverse2 le_numeral_extra(4)
+      linordered_semidom_ge0_le_iff_add)
+  done
+
+subsection \<open> Extended instances \<close>
+
+instance strip_units :: (\<open>{linordered_semiring,zero_less_one}\<close>) dupcl_perm_alg
+  by standard
+    (transfer, simp add: add_nonneg_eq_0_iff)
+
+instance strip_units :: (linordered_semidom) allcompatible_perm_alg
+  by standard 
+    (simp add: compatible_def,
+      metis compatible_def strip_units_one_greatest trans_le_ge_is_compatible)
+
+(* not a strong_sep_perm_alg *)
+
+(* not a disjoint_parts_perm_alg *)
+
+(* not a trivial_selfdisjoint_perm_alg *)
+
+(* not a crosssplit_perm_alg *)
+
+instance strip_units :: (\<open>{linordered_semiring,zero_less_one}\<close>) cancel_perm_alg
+  by standard (transfer, force)
+
+(* not a no_unit_perm_alg *)
+
+instantiation strip_units :: (linordered_field) halving_perm_alg
+begin
+lift_definition half_strip_units :: \<open>'a strip_units \<Rightarrow> 'a strip_units\<close> is \<open>\<lambda>x. x / 2\<close> by simp
+instance  by standard (transfer, simp)+
+end
+
+(* not an all_disjoint_perm_alg *)
+
 
 subsection \<open> perm_alg \<close>
 
