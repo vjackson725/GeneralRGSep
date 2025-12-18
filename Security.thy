@@ -443,7 +443,6 @@ definition
         Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sy) \<longrightarrow>
       Ex ((ar \<circ>\<^sub>2 exch4) (sx, sy)))) \<circ> exch4\<close>
 
-
 definition
   \<open>quasirefl_blocking_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_steprel ar|ar. ar \<in># head_atoms cc}\<close>
 

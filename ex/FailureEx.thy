@@ -149,19 +149,16 @@ definition \<open>Assert p \<equiv>
 
 lemma rgsat_assert:
   assumes precond:
-    \<open>sswa R p \<le> pa\<close>
-    \<open>sswa R p \<^emph>\<and> F \<le> pa\<close>
-    and step:
-    \<open>sswa R p \<le> q\<close>
-    \<open>\<forall>f\<le>F. sswa R p \<^emph>\<and> f \<le> q \<^emph>\<and> any_shared f\<close>
+    \<open>p \<le> pa\<close>
+    \<open>p \<^emph>\<and> F \<le> pa\<close>
     and guar:
-    \<open>rel_image snd (rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (rel_liftL (wssa R p \<squnion> wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     and misc:
+    \<open>wssa R p \<le> I\<close>
     \<open>sswa R p \<le> I\<close>
-    \<open>sswa R q \<le> I\<close>
     \<open>T RGSepAtom\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile>\<^sub>f { p } Assert pa { q }\<close>
+    \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R p } Assert pa { sswa R p }\<close>
   using assms
   unfolding Assert_def
 proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
@@ -171,13 +168,13 @@ proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
                 s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
 
   show
-    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p)) \<le> nofailure_pred (sswa R p)\<close>
+    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p))) \<le> nofailure_pred (sswa R p)\<close>
     using precond
-    by (clarsimp simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
+    by (force simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
 
   show
     \<open>\<forall>f\<le>nofailure_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> any_shared f\<close>
+       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> any_shared f\<close>
     using precond
     by (simp add: all_impl_nofailure_pred_internalise
         predTimes3_sepconj_conj_distrib[symmetric] sp_step_fail_lift_on_nofailure_pred_eq,
@@ -186,13 +183,69 @@ proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
   show
     \<open>rel_image snd
       (rel_liftL
-        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<squnion>
-          sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<^emph>\<and> nofailure_pred F) \<sqinter>
+        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<squnion>
+          sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<^emph>\<and> nofailure_pred F) \<sqinter>
         ?ra')
     \<le> G \<times>\<^sub>R (=)\<close>
     using guar precond
-    by (clarsimp simp add: rel_image_def le_fun_def predTimes3_sepconj_conj_distrib[symmetric]
-        split: prod.splits, blast)
+    apply (clarsimp simp add: rel_image_def le_fun_def predTimes3_sepconj_conj_distrib[symmetric]
+        split: prod.splits)
+    apply (meson le_boolD le_funE sepconj_conj_monoL wssa_stronger; fail)
+    done
+qed (simp add: sswa_weaker wssa_stronger)+
+
+lemma rgsat_assert2:
+  assumes pa_frame_expanding:
+    \<open>(p \<sqinter> pa) \<^emph>\<and> F \<le> (p \<^emph>\<and> F) \<sqinter> pa\<close>
+    and guar:
+    \<open>rel_image snd (rel_liftL (wssa R p \<squnion> wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    and misc:
+    \<open>wssa R (p \<sqinter> pa) \<le> I\<close>
+    \<open>sswa R (p \<sqinter> pa) \<le> I\<close>
+    \<open>T RGSepAtom\<close>
+  shows
+    \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R (p \<sqinter> pa) } Assert pa { sswa R (p \<sqinter> pa) }\<close>
+  using assms
+  unfolding Assert_def
+proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R (p \<sqinter> pa))\<close>])
+  let ?ra' = \<open>(step_fail_lift
+            (\<lambda>(l, s) (l', s', k').
+                l' = l \<and>
+                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
+
+  show
+    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa)))) \<le> nofailure_pred (sswa R (p \<sqinter> pa))\<close>
+    by (force simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
+
+  show
+    \<open>\<forall>f\<le>nofailure_pred F.
+       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<^emph>\<and> f) \<le> nofailure_pred (sswa R (p \<sqinter> pa)) \<^emph>\<and> any_shared f\<close>
+    using pa_frame_expanding
+    apply (simp add: all_impl_nofailure_pred_internalise sp_step_fail_lift_on_nofailure_pred_eq
+        predTimes3_sepconj_conj_distrib[symmetric])
+    apply (simp add: sepconj_conj_def)
+    apply fast
+    done
+
+  show
+    \<open>rel_image snd
+      (rel_liftL
+        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<squnion>
+          sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<^emph>\<and> nofailure_pred F) \<sqinter>
+        ?ra')
+    \<le> G \<times>\<^sub>R (=)\<close>
+    using guar
+    apply (clarsimp simp add: rel_image_def le_fun_def predTimes3_sepconj_conj_distrib[symmetric]
+        split: prod.splits)
+    apply (elim disjE conjE)
+         apply (metis inf1D1 wlp_inf)
+        apply fast
+       apply fast
+      apply (metis inf1D1 sepconj_conj_apply wlp_inf)
+     apply (metis (mono_tags, opaque_lifting) inf.boundedE pa_frame_expanding predicate1D
+        sepconj_conj_monoL wssa_stronger)
+    apply fast
+    done
 qed (simp add: sswa_weaker wssa_stronger)+
 
 lemma opstep_assert_iff[simp]:
@@ -294,6 +347,20 @@ lemma top_write_frame_cond_iff_all_disjoint_perm:
   \<open>\<top> \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x') \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
   by (force simp add: points_to_upcl_def le_fun_def)
 
+(* TODO: move *)
+lemma option_ex_split:
+  \<open>(case mx of Some x \<Rightarrow> p x | None \<Rightarrow> q) \<longleftrightarrow> (\<exists>x. mx = Some x \<and> p x) \<or> mx = None \<and> q\<close>
+  by (metis case_option_disj_iff)
+
+lemma nofailure_pred_any_shared_semidistrib:
+  \<open>nofailure_pred (any_shared p) \<le> any_shared (nofailure_pred p)\<close>
+  by (simp add: nofailure_pred_def any_shared_def le_fun_def)
+
+(* TODO: move *)
+lemma singleton_plus_heap_eq_iff:
+  \<open>[x \<mapsto> va] + h = [x \<mapsto> vb] + h \<longleftrightarrow> Some va + h x = Some vb + h x\<close>
+  by (simp add: plus_fun_def plus_option_def fun_eq_iff split: option.splits if_splits)
+
 lemma rgsat_pointer_write:
   fixes e pt p R \<pi> v
   defines \<open>ra_ptr_write \<equiv> (\<lambda>(l,s) (l',s'). l' = l(pt \<mapsto> e s) \<and> s' = s)\<close>
@@ -333,26 +400,133 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by (force simp add: sp_step_fail_lift_on_nofailure_pred_eq sepconj_conj_def
         points_to_def plus_option_iff)
 
-  show
+  let ?frame5 =
+    \<open>(\<forall>f\<le>F. \<forall>lf s'.
+      f (lf, s') \<longrightarrow>
+      [pt \<mapsto> (Discr v, \<pi>)] ## lf \<longrightarrow>
+      R\<^sup>*\<^sup>* s' \<le> p \<longrightarrow>
+      (\<exists>s. R\<^sup>*\<^sup>* s s' \<and> p s \<and>
+        [pt \<mapsto> (Discr (e s), \<pi>)] ## lf \<and>
+        Some (Discr (e s'), \<pi>) + lf pt = Some (Discr (e s), \<pi>) + lf pt))\<close>
+  let ?frame4 =
+    \<open>(\<forall>f\<le>F. \<forall>lf s'.
+      f (lf, s') \<longrightarrow>
+      [pt \<mapsto> (Discr v, \<pi>)] ## lf \<longrightarrow>
+      R\<^sup>*\<^sup>* s' \<le> p \<longrightarrow>
+      (\<exists>s. R\<^sup>*\<^sup>* s s' \<and> p s \<and>
+        [pt \<mapsto> (Discr (e s), \<pi>)] ## lf \<and>
+        [pt \<mapsto> (Discr (e s'), \<pi>)] + lf = [pt \<mapsto> (Discr (e s), \<pi>)] + lf))\<close>
+  let ?frame3 =
+    \<open>(\<forall>f\<le>F. \<forall>l' s'.
+       (\<exists>lx.
+          [pt \<mapsto> (Discr v, \<pi>)] ## lx \<and>
+          l' = [pt \<mapsto> (Discr (e s'), \<pi>)] + lx \<and>
+          (\<forall>b. R\<^sup>*\<^sup>* s' b \<longrightarrow> p b) \<and>
+          f (lx, s')) \<longrightarrow>
+       (\<exists>lx s.
+          [pt \<mapsto> (Discr (e s), \<pi>)] ## lx \<and>
+          l' = [pt \<mapsto> (Discr (e s), \<pi>)] + lx \<and>
+          R\<^sup>*\<^sup>* s s' \<and>
+          p s \<and>
+          (\<exists>ss. f (lx, ss))))\<close>
+  let ?frame2 =
+    \<open>(\<forall>f\<le>F. \<forall>l \<pi> s.
+      l pt = None \<longrightarrow>
+      (\<exists>v. (precond \<^emph>\<and> f) (l(pt \<mapsto> (Discr v, \<pi>)), s)) \<longrightarrow>
+      (postcond \<^emph>\<and> any_shared f) (l(pt \<mapsto> (Discr (e s), \<pi>)), s))\<close>
+  let ?frame1 =
     \<open>\<forall>f\<le>nofailure_pred F.
       sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
-    unfolding ra_ptr_write_def precond_def postcond_def points_to_def
-    apply (clarsimp simp add: sp_step_fail_lift_on_nofailure_pred_eq subset_nofailure_pred_iff
-        predTimes3_sepconj_conj_distrib[symmetric] case_option_disj_split)
-    apply (clarsimp simp add: fun_eq_iff sepconj_conj_def plus_option_iff all_conj_distrib
-        any_shared_def split: if_splits)
-    apply (rename_tac h' F' h ss dv ha \<pi>x hb)
-    apply (elim disjE conjE exE)
-      (* unframed *)
-     apply (rule_tac x=\<open>ha(pt \<mapsto> (Discr (e ss), \<pi>))\<close> in exI)
-     apply (rule_tac x=hb in exI)
-     apply fastforce
-      (* framed *)
-    apply (cut_tac assms(4))
-    apply (clarsimp simp add: points_to_upcl_def le_fun_def disjoint_fun_def disjoint_option_def
-        split: option.splits)
-    apply fast (* slow *)
+
+
+  have \<open>?frame5 = ?frame4\<close>
+    apply (clarsimp simp add: le_fun_def points_to_upcl_def)
+    sorry
+
+  have \<open>\<top> = ?frame4\<close>
+    using assms(4)
+    apply (clarsimp simp add: le_fun_def points_to_upcl_def)
+    sorry
+  also have \<open>... = ?frame3\<close>
+    apply (rule iffI)
+     apply (metis predicate1I)
+    apply clarsimp
+    apply (drule_tac x=\<open>(=) (lf, s')\<close> in spec)
+    apply blast
     done
+  also have \<open>... = ?frame2\<close>
+    unfolding precond_def postcond_def points_to_def
+    apply (clarsimp simp add: fun_eq_iff sepconj_conj_def plus_option_iff all_conj_distrib
+        any_shared_def sp_def wlp_def split: if_splits)
+    apply (intro iff_allI imp_cong[OF refl])
+    sorry
+(*
+    apply (rule imp_cong)
+      (* assm equiv *)
+     apply (simp add: disjoint_fun_def disjoint_option_def option_ex_split plus_option_iff2)
+     apply (rule iffI)
+      (** \<Rightarrow> *)
+      apply clarsimp
+      apply (elim exE disjE conjE; simp?) (* +1 *)
+      (*** \<open>pt\<close> in the frame *)
+       apply (rename_tac \<pi>')
+       apply (rule_tac x=\<open>lx(pt \<mapsto> (Discr v, \<pi> + \<pi>'))\<close> in exI)
+       apply simp
+       apply (rule_tac x=\<open>[pt \<mapsto> (Discr v, \<pi>)]\<close> in exI)
+       apply (rule_tac x=lx in exI)
+       apply force
+      (*** \<open>pt\<close> not in frame *)
+      apply (rule_tac x=\<open>lx(pt \<mapsto> (Discr v, \<pi>))\<close> in exI)
+      apply simp
+      apply (rule_tac x=\<open>[pt \<mapsto> (Discr v, \<pi>)]\<close> in exI)
+      apply (rule_tac x=lx in exI)
+      apply force
+      (** \<Leftarrow> *)
+     apply (clarsimp simp add: plus_option_iff)
+     apply (erule disjE)
+      apply (metis plus_option_simps(3))
+     apply clarsimp
+     apply (rename_tac hf dv \<pi>')
+     apply (rule_tac x=hf in exI)
+     apply clarsimp
+     apply (metis option.inject option.simps(3) prod.inject)
+      (* conseq equiv *)
+    apply (clarsimp simp add: disjoint_fun_def disjoint_option_def
+        plus_option_iff plus_option_iff2 disj.assoc[symmetric])
+    apply (subst option_ex_split)
+    apply (simp split: option.splits)
+    apply (rename_tac la lb)
+    apply (rule iffI)
+      (** \<Rightarrow> *)
+     apply clarsimp
+     apply (rename_tac lf s ss)
+     apply (rule_tac x=\<open>[pt \<mapsto> (Discr (e s), \<pi>)]\<close> in exI)
+     apply (rule_tac x=lf in exI)
+     apply (intro conjI)
+        apply (clarsimp; fail)
+       apply (clarsimp simp add: plus_option_iff2; fail)
+      apply (rule_tac x=\<open>[pt \<mapsto> (Discr (e s), \<pi>)]\<close> in exI)
+      apply (simp, blast)
+     apply blast
+      (** \<Leftarrow> *)
+    apply (clarsimp simp add: plus_option_iff)
+    apply (elim disjE; metis (no_types))
+    done
+*)
+  also have \<open>... = ?frame1\<close>
+    apply -
+    apply (simp add: all_impl_nofailure_pred_internalise sp_step_fail_lift_on_nofailure_pred_eq
+        predTimes3_sepconj_conj_distrib[symmetric])
+    apply (simp add: option_ex_split nofailure_pred_def le_fun_def ex_disj_distrib
+        conj_disj_distribR sepconj_conj_def)
+    apply (intro iffI)
+     apply clarsimp
+     apply (rule conjI)
+      apply (clarsimp simp add: precond_def points_to_def sepconj_conj_def plus_option_iff)
+
+    sorry
+  finally show ?frame1
+    by simp
 
   show
     \<open>rel_image snd

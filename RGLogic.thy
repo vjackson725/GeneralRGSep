@@ -13,6 +13,10 @@ definition
 
 definition \<open>any_shared p \<equiv> \<lambda>(ls, _). \<exists>ss. p (ls, ss)\<close>
 
+lemma any_shared_apply[simp]:
+  \<open>any_shared p (ls, ss) = (\<exists>ss. p (ls, ss))\<close>
+  by (simp add: any_shared_def)
+
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
@@ -265,24 +269,6 @@ lemma rgsat_restrict_stateinv:
 
 section \<open> Specialised Rules \<close>
 
-subsection \<open> Frame Locality \<close>
-
-definition \<open>frame_local F p p' \<equiv> \<forall>f\<le>F. (p \<^emph>\<and> f) \<sqinter> p' \<le> (p \<sqinter> p') \<^emph>\<and> f\<close>
-
-lemma frame_local_share_only:
-  \<open>\<forall>la lb ss. p' (la, ss) \<longrightarrow> p' (lb, ss) \<Longrightarrow>
-    frame_local F p p'\<close>
-  unfolding frame_local_def sepconj_conj_def
-  by blast
-
-lemma frame_local_base_restricted:
-  \<open>\<forall>la lb ss. p (la, ss) \<longrightarrow> la \<preceq> lb \<longrightarrow> p' (lb, ss) \<longrightarrow> p' (la, ss) \<Longrightarrow>
-    frame_local F p p'\<close>
-  unfolding frame_local_def sepconj_conj_def
-  using partial_le_plus
-  by blast
-
-
 subsection \<open> Await \<close>
 
 lemma rgsat_await:
@@ -445,8 +431,11 @@ lemma atom_variant_compressed_frame:
   done
 
 lemma atom_variant_compressed_frame2_nequiv:
-  \<open>(sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> F) \<longrightarrow> (\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> f)\<close>
-  nitpick[card 'a=1, card 'b=2]
+  fixes p q F :: \<open>'l::pre_perm_alg \<times> 's \<Rightarrow> bool\<close>
+  shows
+    \<open>sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> any_shared F \<longrightarrow>
+      (\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f)\<close>
+  nitpick[card 'l=2, card 's=1]
   oops
 
 lemma Sup_sepconjConj_framest_equiv_sepconjConj_frame:

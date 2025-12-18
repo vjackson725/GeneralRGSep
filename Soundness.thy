@@ -1261,7 +1261,7 @@ next
   case (rgsat_frame c R G p q I F F' C)
   then show ?case
     apply -
-    apply (clarsimp simp add: sepconj_conj_apply[where s=s] simp del: top_apply sup_apply)
+    apply (clarsimp simp add: sepconj_conj_apply2[where s=s] simp del: top_apply sup_apply)
     apply (rename_tac ls fs)
     apply (rule_tac s=\<open>(ls, snd s)\<close> in safe_frame)
         apply force

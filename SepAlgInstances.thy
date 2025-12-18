@@ -185,17 +185,22 @@ definition sepconj_conj
   (infixr \<open>\<^emph>\<and>\<close> 70) where
   \<open>p \<^emph>\<and> q \<equiv> \<lambda>h. \<exists>a b c. a ## b \<and> h = (a + b, c) \<and> p (a, c) \<and> q (b, c)\<close>
 
+\<comment> \<open> Not simp by default. \<close>
+lemma sepconj_conj_apply:
+  \<open>(p \<^emph>\<and> q) (ls, ss) = (\<exists>la lb. la ## lb \<and> ls = la + lb \<and> p (la, ss) \<and> q (lb, ss))\<close>
+  by (simp add: sepconj_conj_def)
+
+lemma sepconj_conj_apply2:
+  \<open>(p \<^emph>\<and> q) s = (\<exists>la lb. la ## lb \<and> fst s = la + lb \<and> p (la, snd s) \<and> q (lb, snd s))\<close>
+  by (simp add: sepconj_conj_def, metis fst_conv snd_conv surjective_pairing)
+
 lemma sepconj_conjI:
   \<open>p (a, y) \<Longrightarrow> q (b, y) \<Longrightarrow> a ## b \<Longrightarrow> x = a + b \<Longrightarrow> (p \<^emph>\<and> q) (x, y)\<close>
   by (force simp add: sepconj_conj_def)
 
 lemma sepconj_conj_revI:
   \<open>p (b, y) \<Longrightarrow> q (a, y) \<Longrightarrow> a ## b \<Longrightarrow> x = a + b \<Longrightarrow> (p \<^emph>\<and> q) (x, y)\<close>
-  by (simp add: disjoint_sym_iff partial_add_commute sepconj_conjI)
-
-lemma sepconj_conj_apply:
-  \<open>(p \<^emph>\<and> q) s = (\<exists>a b. a ## b \<and> fst s = a + b \<and> p (a, snd s) \<and> q (b, snd s))\<close>
-  by (cases s, simp add: sepconj_conj_def)
+  by (force simp add: sepconj_conj_def disjoint_sym_iff partial_add_commute)
 
 lemma sepconj_conj_assoc:
   \<open>(p \<^emph>\<and> q) \<^emph>\<and> r = p \<^emph>\<and> (q \<^emph>\<and> r)\<close>
@@ -645,10 +650,17 @@ lemma plus_option_simps[simp]:
   by (simp add: plus_option_def split: option.splits)+
 
 lemma plus_option_iff:
-  \<open>Some x + b = Some z \<longleftrightarrow> (b = None \<and> x = z \<or> (\<exists>y. b = Some y \<and> z = x + y))\<close>
-  \<open>a + Some y = Some z \<longleftrightarrow> (a = None \<and> y = z \<or> (\<exists>x. a = Some x \<and> z = x + y))\<close>
   \<open>a + b = None \<longleftrightarrow> a = None \<and> b = None\<close>
+  \<open>a + b = Some z \<longleftrightarrow>
+    (a = None \<and> b = Some z) \<or>
+    (\<exists>x. a = Some x \<and> b = None \<and> z = x) \<or>
+    (\<exists>x y. a = Some x \<and> b = Some y \<and> z = x + y)\<close>
   by (force simp add: disjoint_option_def plus_option_def split: option.splits)+
+
+lemmas plus_option_iff2 =
+  trans[OF eq_commute plus_option_iff(1)]
+  trans[OF eq_commute plus_option_iff(2)]
+
 
 instance
   apply standard

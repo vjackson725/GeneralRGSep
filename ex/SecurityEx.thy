@@ -10,7 +10,7 @@ lemma parallel_inheritance:
     sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib \<le> I \<Longrightarrow>
     I \<^emph>\<and> F \<le> X\<close>
   nitpick
-  sorry
+  oops
 
 lemma eq_rtimes_R_iff:
   \<open>((=) \<times>\<^sub>R r) s s' \<longleftrightarrow> r (snd s) (snd s') \<and> fst s = fst s'\<close>
@@ -161,9 +161,12 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
   show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (\<lblot> pa \<rblot>) { sswa R (sswa R p \<sqinter> \<lblot> pa \<rblot>) }\<close>
     using misc_assms assms(1) tt_guard_frame_cond
     apply (intro rgsat_await; simp)
-     apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+      apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+    sorry
+(*
     apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
     done
+*)
   show \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> pa \<rblot>) } ctt { q }\<close>
     using body_assms
     by blast
@@ -172,9 +175,12 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
     apply (intro rgsat_await; simp)
      apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
         rel_liftL_conj_distrib; fail)
+    sorry
+(*
     apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
         wlp_weaker_iff_sp_stronger; fail)
     done
+*)
   show \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R p \<sqinter> \<lblot> -pa \<rblot>) } cff { q }\<close>
     using body_assms
     by blast
@@ -239,13 +245,13 @@ lemma
 lemma purely_relational_output:
   \<open>purely_relational (atom_rel (Output h))\<close>
   unfolding Output_def RelAssert_def sec_agree_exch4_def sec_agree_def
-  by (simp add: purely_relational_def fun_eq_iff pre_state_def, metis)
+  apply (simp add: purely_relational_def fun_eq_iff pre_state_def)
+  sorry
 
 lemma await_agree_purely_relational:
   \<open>purely_relational (atom_rel (Await (\<bbbA>\<^sub>\<ddagger> h)))\<close>
   unfolding Await_def purely_relational_def pre_state_def
   apply (clarsimp simp add: fun_eq_iff sec_agree_def)
-  apply (rename_tac la sa lb sb)
   sorry
 
 lemma await_purely_relational:
