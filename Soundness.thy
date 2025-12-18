@@ -250,29 +250,31 @@ inductive safe
     I s \<Longrightarrow>
     \<comment> \<open> rely steps are safe \<close>
     (\<And>n' ss'. n = Suc n' \<Longrightarrow> R (snd s) ss' \<Longrightarrow> safe R F G I q n' c (fst s, ss')) \<Longrightarrow>
-    \<comment> \<open> closed under opsteps \<close>
+    \<comment> \<open> Safe is closed under opsteps: \<close>
     (\<And>n' \<alpha> s' c'.
       n = Suc n' \<Longrightarrow>
       (s, c) \<midarrow>\<alpha>\<rightarrow> (s', c') \<Longrightarrow>
       (\<alpha> \<noteq> Tau \<longrightarrow> G (snd s) (snd s')) \<and>
         (\<alpha> = Tau \<longrightarrow> fst s' = fst s) \<and>
         safe R F G I q n' c' s') \<Longrightarrow>
-    \<comment> \<open> closed under framed opsteps \<close>
+    \<comment> \<open> Safe is closed under framed opsteps: \<close>
     (\<And>n' fs \<alpha> lfs' ss' c'.
       n = Suc n' \<Longrightarrow>
       ((fst s + fs, snd s), c) \<midarrow>\<alpha>\<rightarrow> ((lfs', ss'), c') \<Longrightarrow>
       fst s ## fs \<Longrightarrow>
       F (fs, snd s) \<Longrightarrow>
-      \<comment> \<open> Non-tau steps establish the guarantee. \<close>
+      \<comment> \<open> Note that non-tau steps establish the guarantee, \<close>
       (\<alpha> \<noteq> Tau \<longrightarrow> G (snd s) ss') \<and>
-      \<comment> \<open> Note the existential! We only guarantee \<^emph>\<open>one\<close> such unframed state is safe.
-           This is only relevant for non-cancellative frame, in which case the states in question
-           are a verification fiction anyway, so this is reasonable. \<close>
-      (\<exists>ls'.
-        ls' ## fs \<and>  \<comment> \<open> note we require preservation of separation from the \<^emph>\<open>whole\<close> frame. \<close>
-        lfs' = ls' + fs \<and>
-        (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and> \<comment> \<open> Tau moves are not allowed to change the fictive state! \<close>
-        safe R F G I q n' c' (ls', ss'))) \<Longrightarrow>
+        \<comment> \<open> Note the existential! We only guarantee \<^emph>\<open>one\<close> such unframed state is safe.
+             There can be multiple such unframed states when the resource algebra is non-cancellative.
+             When there are multiple such unframed states, the state chosen depends on the predicates
+             in the subproof. As we will only prove soundness, this is enough; if we wanted to prove
+             completeness, we would likely need more structure here. \<close>
+        (\<exists>ls'.
+          ls' ## fs \<and>  \<comment> \<open> note we require preservation of separation from the \<^emph>\<open>whole\<close> frame. \<close>
+          lfs' = ls' + fs \<and>
+          (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and> \<comment> \<open> Tau moves are not allowed to change the fictive state! \<close>
+          safe R F G I q n' c' (ls', ss'))) \<Longrightarrow>
     \<comment> \<open> conclude a step can be made \<close>
     safe R F G I q n c s\<close>
 
@@ -314,11 +316,11 @@ lemma safe_suc_iff:
       fst s ## fs \<longrightarrow>
       F (fs, snd s) \<longrightarrow>
       (\<alpha> \<noteq> Tau \<longrightarrow> G (snd s) ss') \<and>
-      (\<exists>ls'.
-        ls' ## fs \<and>
-        lfs' = ls' + fs \<and>
-        (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and>
-        safe R F G I q n c' (ls', ss')))\<close>
+        (\<exists>ls'.
+          ls' ## fs \<and>
+          lfs' = ls' + fs \<and>
+          (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and>
+          safe R F G I q n c' (ls', ss')))\<close>
   apply (rule iffI)
    apply (elim safe_sucE; simp; fail)
   apply (rule safeI; force)
@@ -355,20 +357,71 @@ lemma safe_monoD:
     q \<le> q' \<Longrightarrow>
     m \<le> n \<Longrightarrow>
     safe R' F' G' I' q' m c s\<close>
-  apply (induct arbitrary: m rule: safe.induct)
-  apply (rule safeI)
-      apply (metis predicate1D)
-     apply (metis predicate1D)
-    apply (clarsimp simp add: Suc_leq_iff)
-    apply (metis predicate2D)
-   apply (clarsimp simp add: Suc_leq_iff)
-   apply (metis predicate2D)
-  apply (clarsimp simp add: Suc_leq_iff)
-  apply (drule meta_spec2, drule meta_spec2, drule meta_spec2, drule meta_spec,
-      drule meta_mp, rule refl, drule meta_mp, assumption)
-  apply (drule meta_mp, blast)
-  apply (metis le_boolD le_funE)
-  done
+proof (induct arbitrary: m rule: safe.induct)
+  case (safeI c s n)
+
+  show ?case
+  proof (rule safe.safeI)
+    show \<open>c = Skip \<longrightarrow> q' s\<close>
+      using safeI by auto
+  next
+    show \<open>I' s\<close>
+      using safeI by auto
+  next
+    fix m' ss'
+    assume assms2:
+      \<open>m = Suc m'\<close>
+      \<open>R' (snd s) ss'\<close>
+    then obtain n' where
+      \<open>n = Suc n'\<close>
+      \<open>m' \<le> n'\<close>
+      using safeI.prems Suc_leq_iff
+      by blast
+    then show
+      \<open>safe R' F' G' I' q' m' c (fst s, ss')\<close>
+      using safeI.prems assms2 safeI.hyps(4)
+      by blast
+  next
+    fix m' \<alpha> s' c'
+    assume assms2:
+      \<open>m = Suc m'\<close>
+      \<open>(s, c) \<midarrow>\<alpha>\<rightarrow> (s', c')\<close>
+    then obtain n' where n_eqns:
+      \<open>n = Suc n'\<close>
+      \<open>m' \<le> n'\<close>
+      using safeI.prems Suc_leq_iff
+      by blast
+    show
+      \<open>(\<alpha> \<noteq> Tau \<longrightarrow> G' (snd s) (snd s')) \<and>
+        (\<alpha> = Tau \<longrightarrow> fst s' = fst s) \<and>
+        safe R' F' G' I' q' m' c' s'\<close>
+      using safeI.hyps(5)[OF n_eqns(1) assms2(2)] safeI.prems n_eqns(2)
+      by blast
+  next
+    fix m' fs \<alpha> lfs' ss' c'
+    assume assms2:
+      \<open>m = Suc m'\<close>
+      \<open>((fst s + fs, snd s), c) \<midarrow>\<alpha>\<rightarrow> ((lfs', ss'), c')\<close>
+      \<open>fst s ## fs\<close>
+      \<open>F' (fs, snd s)\<close>
+    then obtain n' where n_eqns:
+      \<open>n = Suc n'\<close>
+      \<open>m' \<le> n'\<close>
+      using safeI.prems Suc_leq_iff
+      by blast
+    have fs_in_F: \<open>F (fs, snd s)\<close>
+      by (meson assms2(4) predicate1D safeI.prems(2))
+    then show
+      \<open>(\<alpha> \<noteq> Tau \<longrightarrow> G' (snd s) ss') \<and>
+        (\<exists>ls'.
+          ls' ## fs \<and>
+          lfs' = ls' + fs \<and>
+          (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and>
+          safe R' F' G' I' q' m' c' (ls', ss'))\<close>
+      using safeI.hyps(6)[OF n_eqns(1) assms2(2-3) fs_in_F] safeI.prems n_eqns(2)
+      by blast
+  qed
+qed
 
 lemmas safe_mono = safe_monoD[rotated]
 
@@ -444,33 +497,8 @@ lemma safe_skip:
 
 subsection \<open> Safety of frame \<close>
 
-lemma safe_from_frame_spec_downcl:
-  \<open>safe R (res_conj_downcl F) G I q n c s \<Longrightarrow>
-    safe R F G I q n c s\<close>
-proof (induct rule: safe.inducts)
-  case (safeI c s n)
-  show ?case
-    apply -
-    apply (rule safe.safeI)
-      (* subgoal: post-condition *)
-        apply (rule safeI.hyps(1))
-      (* subgoal: state invariant *)
-       apply (rule safeI.hyps(2))
-      (* subgoal: rely step *)
-      apply (rule safeI.hyps(4); fast)
-      (* subgoal: opstep *)
-     apply (frule(1) safeI.hyps(5), blast)
-      (* subgoal: framed opstep *)
-    apply (rename_tac fF)
-    apply (frule(2) safeI.hyps(6))
-     apply (clarsimp simp add: res_conj_downcl_def)
-     apply blast
-    apply blast
-    done
-qed
-
 text \<open>
-  The frame specification is 'chunky', in that is represents the frames that could possibly
+  The frame specification is 'lumpy', in that is represents the frames that could possibly
   come from other processes. These do \<^emph>\<open>not\<close> have to be downwards closed. The frame rule is,
   essentially, constructing a 'virtual' process.
     We must assume that the frame specification of the assumption includes not only the sepconj of
