@@ -446,6 +446,35 @@ lemma safe_step_SucD:
   by (metis safe_mono_stepsD le_add2 plus_1_eq_Suc)
 
 
+subsection \<open> Semantic Proof Judgement \<close>
+
+definition semsat (\<open>_, _, _, _ \<Turnstile> { _ } _ { _ }\<close> [50,0,0,0,0,50,0] 50) where
+  \<open>R, G, F, I \<Turnstile> { p } c { q } \<equiv> \<forall>n. p \<le> safe R F G I q n c\<close>
+
+lemma semsat_weaken:
+  \<open>R, G, F, I \<Turnstile> { p } c { q } \<Longrightarrow>
+    R' \<le> R \<Longrightarrow>
+    G \<le> G' \<Longrightarrow>
+    F' \<le> F \<Longrightarrow>
+    I \<le> I' \<Longrightarrow>
+    p' \<le> p \<Longrightarrow>
+    q \<le> q' \<Longrightarrow>
+    R', G', F', I' \<Turnstile> { p' } c { q' }\<close>
+  unfolding semsat_def
+  apply clarsimp
+  apply (rule safe_mono[OF _ _ _ _ _ order.refl]; assumption?)
+  apply blast
+  done
+
+lemmas semsat_weaken_guar_inv =
+  semsat_weaken[OF _ order.refl _ order.refl _ order.refl order.refl]
+
+lemmas semsat_weaken_guar_inv_post =
+  semsat_weaken[OF _ order.refl _ order.refl _ order.refl _]
+
+
+section \<open> Soundness Helper Lemmas \<close>
+
 subsection \<open> Safety of Skip \<close>
 
 lemma safe_skip_iff:
@@ -492,6 +521,19 @@ lemma safe_skip:
   apply (rule safe_skip'[where q=\<open>q\<close>])
    apply blast
   apply blast
+  done
+
+lemma semsat_skip:
+  \<open>p \<le> wssa R px \<Longrightarrow>
+    sswa R px \<le> q \<Longrightarrow>
+    sswa R p \<le> I \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } Skip { q }\<close>
+  unfolding semsat_def
+  apply clarsimp
+  apply (rule safe_skip[of p])
+    apply blast
+   apply (meson order.trans wlp_weaker_iff_sp_stronger wssa_stronger; fail)
+  apply (meson order.trans wlp_weaker_iff_sp_stronger wssa_stronger; fail)
   done
 
 
@@ -565,13 +607,21 @@ proof (induct arbitrary: fs rule: safe.induct)
 qed
 
 lemma safe_frame:
-  \<open>safe R (F \<^emph>\<and> F'\<squnion> F') G I q n c s \<Longrightarrow>
+  \<open>safe R (F \<^emph>\<and> F' \<squnion> F') G I q n c s \<Longrightarrow>
     fst s ## fs \<Longrightarrow>
     s' = (fst s + fs, snd s) \<Longrightarrow>
     sswa (R \<squnion> G) F' \<le> F' \<Longrightarrow>
     F' (fs, snd s) \<Longrightarrow>
     safe R F G (I \<^emph>\<and> F') (q \<^emph>\<and> F') n c s'\<close>
   by (simp add: safe_frame')
+
+lemma semsat_frame:
+  \<open>R, G, F \<^emph>\<and> F' \<squnion> F', I \<Turnstile> { p } c { q } \<Longrightarrow>
+    sswa (R \<squnion> G) F' \<le> F' \<Longrightarrow>
+    R, G, F, I \<^emph>\<and> F' \<Turnstile> { p \<^emph>\<and> F' } c { q \<^emph>\<and> F' }\<close>
+  unfolding semsat_def
+  using safe_frame
+  by (fastforce simp add: sepconj_conj_apply)
 
 
 subsection \<open> Safety of Atomic \<close>
@@ -635,6 +685,26 @@ lemma safe_atom:
     safe R F G I q' n \<langle>ar\<rangle> s\<close>
   by (rule safe_monoD[OF safe_atom' order.refl order.refl _ _ _ order.refl])
     blast+
+
+lemma semsat_atom:
+  \<open>sp ar p \<le> q \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
+    rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
+    sswa R p \<le> I \<Longrightarrow>
+    sswa R q \<le> I \<Longrightarrow>
+    R, G, F, I \<Turnstile> { wssa R p } \<langle>ar\<rangle> { sswa R q }\<close>
+  unfolding semsat_def
+  apply clarsimp
+  apply (rule safe_atom[where p=\<open>wssa R p\<close> and q=q])
+        apply (simp, meson order.trans sp_pred_mono wssa_stronger; fail)
+       apply (simp, meson order.trans sepconj_conj_monoL sp_pred_mono wssa_stronger; fail)
+      apply (clarsimp simp add: le_fun_def imp_ex_conjL all_conj_distrib)
+      apply (metis sepconj_conj_def wssa_trivial)
+     apply fastforce
+    apply fastforce
+   apply blast
+  apply blast
+  done
 
 
 subsection \<open> Safety of Sequencing \<close>
@@ -719,6 +789,14 @@ lemma safe_seq:
   by (rule safe_monoD[OF safe_seq' order.refl order.refl _ _ order.refl order.refl])
     blast+
 
+lemma semsat_seq:
+  \<open>R, G, F, I \<Turnstile> { p } ca { px } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { px } cb { q } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } (ca ;; cb) { q }\<close>
+  apply (clarsimp simp add: semsat_def le_fun_def)
+  apply (rule safe_seq, fast+)
+  done
+
 
 subsection \<open> Safety of Iter \<close>
 
@@ -784,6 +862,17 @@ lemma safe_iter:
   using safe_iter'
   by (metis (no_types, opaque_lifting) safe_mono_postD)
 
+lemma semsat_iter:
+  \<open>R, G, F, I \<Turnstile> { sswa R i } c { i } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { i } Iter c { sswa R i }\<close>
+  unfolding semsat_def
+  apply (clarsimp simp add: le_fun_def)
+  apply (rule safe_iter[where i=\<open>sswa R i\<close>])
+    apply (simp, meson safe_mono_postD sswa_weaker; fail)
+   apply force
+  apply force
+  done
+
 
 subsubsection \<open> Safety of internal nondeterminism \<close>
 
@@ -824,6 +913,14 @@ lemma safe_indet:
       safe R F G I q n (ca \<^bold>\<sqinter> cb) s\<close>
   by (rule safe_monoD[OF safe_indet' order.refl order.refl _ _ _ order.refl])
     blast+
+
+lemma semsat_indet:
+  \<open>R, G, F, I \<Turnstile> { p } ca { qa } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } cb { qb } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } ca \<^bold>\<sqinter> cb { qa \<squnion> qb }\<close>
+  unfolding semsat_def
+  by (clarsimp simp add: le_fun_def)
+    (rule safe_indet[where Ga=G and Gb=G and Ia=I and Ib=I and qa=qa and qb=qb]; blast)
 
 
 subsubsection \<open> Safety of external nondeterminism \<close>
@@ -894,6 +991,13 @@ lemma safe_endet:
   by (rule safe_monoD[OF safe_endet' order.refl order.refl _ _ _ order.refl])
     blast+
 
+lemma semsat_endet:
+  \<open>R, G, F, I \<Turnstile> { p } ca { qa } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } cb { qb } \<Longrightarrow>
+    R, G, F, I \<Turnstile> { p } ca \<^bold>\<box> cb { qa \<squnion> qb }\<close>
+  unfolding semsat_def
+  by (clarsimp simp add: le_fun_def)
+    (rule safe_endet[where Ga=G and Gb=G and Ia=I and Ib=I and qa=qa and qb=qb]; blast)
 
 
 subsection \<open> Safety of parallel \<close>
@@ -1086,50 +1190,66 @@ lemma safe_parallel:
   using safe_parallel' safe_mono[OF order.refl order.refl _ _ _ order.refl]
   by meson
 
+lemma semsat_par:
+  \<open>R \<squnion> Gb, Ga, Ib \<squnion> Ib \<^emph>\<and> F, Ia \<Turnstile> { pa } ca { qa } \<Longrightarrow>
+    R \<squnion> Ga, Gb, Ia \<squnion> Ia \<^emph>\<and> F, Ib \<Turnstile> { pb } cb { qb } \<Longrightarrow>
+    R, Ga \<squnion> Gb, F, (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib) \<Turnstile>
+      { pa \<^emph>\<and> pb }
+      ca \<parallel> cb
+      { sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb }\<close>
+  unfolding semsat_def
+  apply (clarsimp simp add: le_fun_def sepconj_conj_apply)
+  apply (rule safe_parallel[of R Gb Ib F Ga Ia qa _ ca _ _ qb cb, OF _ _ _ order.refl order.refl order.refl])
+    apply blast+
+  done
+
 
 subsection \<open> Safety of conj \<close>
 
 lemma safe_conj:
-  assumes
-    \<open>\<forall>lsa lsb fs ss.
-      Ia (lsa, ss) \<longrightarrow> Ib (lsb, ss) \<longrightarrow> sswa (Ga \<sqinter> Gb) F (fs, ss) \<longrightarrow>
-      lsa + fs = lsb + fs \<longrightarrow> lsa = lsb\<close>
-  shows
-    \<open>safe R F Ga Ia qa n c s \<Longrightarrow>
+  \<open>safe R F Ga Ia qa n c s \<Longrightarrow>
+    cancellative' Ia Ib (sswa (Ga \<sqinter> Gb) F) \<Longrightarrow>
     safe R F Gb Ib qb n c s \<Longrightarrow>
     safe R F (Ga \<sqinter> Gb) (Ia \<sqinter> Ib) (qa \<sqinter> qb) n c s\<close>
-proof (induct n arbitrary: c s)
-  case (Suc n)
+proof (induct rule: safe.induct)
+  case (safeI c s n)
   show ?case
-    using Suc.prems assms
+    using safeI.prems
     apply -
-    apply (rule safeI)
-        apply blast
-       apply blast
+    apply (rule safe.safeI)
+        apply (cut_tac safeI.hyps(1))
+        apply (blast dest: safe_then_postcond)
+       apply (cut_tac safeI.hyps(2))
+       apply (blast dest: safe_then_state_inv)
       (* subgoal: rely *)
-      apply (metis Suc.hyps Suc_inject safe_sucD(1))
+      apply (metis safeI.hyps(4) safe_sucD(1))
       (* subgoal: opstep *)
-     apply (clarsimp simp del: inf_apply)
-     apply (frule safe_sucD(2)[where I=Ia and q=qa], blast)
+     apply (clarsimp simp del: inf_apply sup_apply)
      apply (frule safe_sucD(2)[where I=Ib and q=qb], blast)
-     apply (clarsimp simp del: inf_apply)
-     apply (rule conjI, blast)
-     apply (metis Suc.hyps)
+     apply (frule(1) safeI.hyps(5))
+     apply fastforce
       (* subgoal: framed opstep *)
-    apply (clarsimp simp del: inf_apply)
-    apply (frule(3) safe_sucD(3)[where q=qa])
+    apply (clarsimp simp del: inf_apply sup_apply)
     apply (frule(3) safe_sucD(3)[where q=qb])
+    apply (frule(3) safeI.hyps(6))
     apply (rule conjI, blast)
-    apply (clarsimp simp del: inf_apply)
+    apply (clarsimp simp del: inf_apply sup_apply)
     apply (subgoal_tac \<open>(\<alpha> = Vis \<longrightarrow> Ga (snd s) ss' \<and> Gb (snd s) ss') \<and> (\<alpha> = Tau \<longrightarrow> ss' = snd s)\<close>)
      prefer 2
      apply (metis (no_types) opstep_tau_preserves_heap fst_conv snd_conv)
+    apply (rename_tac la' lb')
     apply (subgoal_tac \<open>sswa (Ga \<sqinter> Gb) F (fs, ss')\<close>)
      prefer 2
-     apply (metis (full_types) act.exhaust inf2I sswa_step sswa_trivial)
-    apply (metis Suc.hyps safe_then_state_inv)
+     apply (metis (full_types) act.exhaust inf2I sswa_stepD sswa_trivial)
+    apply (subgoal_tac \<open>la' = lb'\<close>)
+     prefer 2
+     apply (frule_tac s=\<open>(la', ss')\<close> in safe_then_state_inv)
+     apply (frule_tac s=\<open>(lb', ss')\<close> in safe_then_state_inv)
+     apply (simp add: cancellative'_def del: inf_apply sup_apply)
+     apply metis
+    apply metis
     done
-qed blast
+qed
 
 lemma cancel_attempt1:
   fixes I F :: \<open>'r::perm_alg \<Rightarrow> bool\<close>
@@ -1224,10 +1344,36 @@ next
     done
 qed
 
+lemma semsat_Conj:
+  assumes niassms:
+    \<open>cancellative' (\<Squnion>\<I>) (\<Squnion>\<I>) (sswa (\<Squnion>\<G>) F)\<close>
+    \<open>\<G> \<noteq> {}\<close>
+    \<open>\<I> \<noteq> {}\<close>
+    \<open>Q \<noteq> {}\<close>
+    and iassms:
+    \<open>\<forall>G\<in>\<G>. \<forall>I\<in>\<I>. \<forall>q\<in>Q. R, G, F, I \<Turnstile> { p } c { q }\<close>
+  shows
+    \<open>R, \<Sqinter>\<G>, F, \<Sqinter>\<I> \<Turnstile> { p } c { \<Sqinter>Q }\<close>
+  using assms
+  unfolding semsat_def
+  apply clarsimp
+  apply (rule safe_Conj', blast+)
+  done
+
+
+subsection \<open> Disjunction Rule \<close>
+
+lemma semsat_Disj:
+  assumes \<open>\<forall>p\<in>P. R, G, F, I \<Turnstile> { p } c { q }\<close>
+  shows \<open>R, G, F, I \<Turnstile> { \<Squnion>P } c { q }\<close>
+  using assms
+  unfolding semsat_def
+  by force
+
 
 section \<open> Soundness \<close>
 
-lemma soundness:
+lemma soundness_safe:
   assumes \<open>rgsat c R G p q I F T\<close>
     and \<open>p s\<close>
   shows \<open>safe R F G I q n c s\<close>
@@ -1321,5 +1467,65 @@ next
       rgsat_Conj.hyps(1-3)
     by (meson safe_mono_guarD safe_mono_invD safe_mono_postD)
 qed
+
+lemma soundness:        
+  assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
+  shows \<open>R, G, F, I \<Turnstile> { p } c { q }\<close>
+  using assms
+proof (induct rule: rgsat.inducts)
+  case (rgsat_skip R p q I T G F)
+  then show ?case
+    by (intro semsat_skip[where px=\<open>sswa R p\<close>])
+      force+
+next
+  case (rgsat_iter c R G i I F T p q)
+  then show ?case
+    by (meson semsat_iter semsat_weaken sswa_weaker order.refl)
+next
+  case (rgsat_seq ca R G p pp Ia F T cb q Ib I)
+  then show ?case
+    by (meson semsat_seq semsat_weaken order.refl)
+next
+  case (rgsat_indet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    using semsat_indet[
+        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
+          semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
+        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
+    by fastforce
+next
+  case (rgsat_endet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    using semsat_endet[
+        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
+        semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
+        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
+    by fastforce
+next
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
+  then show ?case
+    by (meson semsat_par semsat_weaken sup.bounded_iff order.refl)
+next
+  case (rgsat_atom p' R p q q' ar F G I T)
+  then show ?case
+    by (intro semsat_weaken[OF semsat_atom], blast+)
+next
+  case (rgsat_frame c R G p q I F F' T)
+  then show ?case
+    by (meson semsat_frame)
+next
+  case (rgsat_weaken c r' g' p' q' I' F' T p q r g I F)
+  then show ?case
+    by (meson semsat_weaken)
+next
+  case (rgsat_Disj p' P c R G q I F T)
+  then show ?case
+    by (meson order_trans semsat_Disj semsat_def)
+next
+  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F T)
+  then show ?case
+    by (meson semsat_Conj semsat_weaken_guar_inv_post)
+qed
+
 
 end
