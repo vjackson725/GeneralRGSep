@@ -442,6 +442,13 @@ lemma rtranclp_absorb_id_left[simp]:
   \<open>(\<lambda>x y. x = y \<or> r x y)\<^sup>*\<^sup>* = r\<^sup>*\<^sup>*\<close>
   by (subst disj_commute, simp)
 
+lemma top_rtrancl_eq[simp]:
+  \<open>\<top>\<^sup>*\<^sup>* = \<top>\<close>
+  by blast
+
+lemma bot_rtrancl_eq[simp]:
+  \<open>\<bottom>\<^sup>*\<^sup>* = (=)\<close>
+  by (metis bot2E le_iff_sup predicate2I reflclp_tranclp tranclpD)
 
 lemma refl_le_trans_eq[simp]:
   \<open>reflp r1 \<Longrightarrow> transp r2 \<Longrightarrow> r1 \<le> r2 \<Longrightarrow> r1 OO r2 = r2\<close>
