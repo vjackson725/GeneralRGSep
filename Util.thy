@@ -654,6 +654,34 @@ definition (in order) \<open>Downset X \<equiv> {y. \<exists>x\<in>X. y \<le> x}
 definition (in conditionally_complete_lattice) \<open>supcl (A::'a set) \<equiv> {\<Squnion>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
 definition (in conditionally_complete_lattice) \<open>infcl (A::'a set) \<equiv> {\<Sqinter>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
 
+lemma (in semilattice_inf) inf_antisym:
+  \<open>a \<sqinter> cx = b \<Longrightarrow> b \<sqinter> cy = a \<Longrightarrow> a = b\<close>
+  by (metis inf.left_idem inf.commute)
+
+lemma (in semilattice_sup) sup_antisym:
+  \<open>a \<squnion> cx = b \<Longrightarrow> b \<squnion> cy = a \<Longrightarrow> a = b\<close>
+  by (metis sup.right_idem sup.commute)
+
+lemma (in distrib_lattice) inf_crosssplit:
+  \<open>a \<sqinter> b = c \<sqinter> d \<Longrightarrow>
+    \<exists>ac ad bc bd. ac \<sqinter> ad = a \<and> bc \<sqinter> bd = b \<and> ac \<sqinter> bc = c \<and> ad \<sqinter> bd = d\<close>
+  apply (rule_tac x=\<open>a \<squnion> c\<close> in exI)
+  apply (rule_tac x=\<open>a \<squnion> d\<close> in exI)
+  apply (rule_tac x=\<open>b \<squnion> c\<close> in exI)
+  apply (rule_tac x=\<open>b \<squnion> d\<close> in exI)
+  apply (metis inf.commute sup.commute sup_inf_absorb sup_inf_distrib1)
+  done
+
+lemma (in distrib_lattice) sup_crosssplit:
+  \<open>a \<squnion> b = c \<squnion> d \<Longrightarrow>
+    \<exists>ac ad bc bd. ac \<squnion> ad = a \<and> bc \<squnion> bd = b \<and> ac \<squnion> bc = c \<and> ad \<squnion> bd = d\<close>
+  apply (rule_tac x=\<open>a \<sqinter> c\<close> in exI)
+  apply (rule_tac x=\<open>a \<sqinter> d\<close> in exI)
+  apply (rule_tac x=\<open>b \<sqinter> c\<close> in exI)
+  apply (rule_tac x=\<open>b \<sqinter> d\<close> in exI)
+  apply (metis inf.commute sup.commute inf_sup_absorb inf_sup_distrib1)
+  done
+
 
 section \<open> Groups \<close>
 
@@ -664,7 +692,7 @@ thm eq_diff_eq
 section \<open> Arithmetic \<close>
 
 (* It feels like Isabelle/HOL is missing a theory of non-abelian ordered monoids.
-   An example of an instance of such a thing is traces.
+   An example of an instance of such an algebra is traces.
 *)
 lemma prefixcl_weak_canonical_plusD:
   fixes a1 a2 :: \<open>'a :: {order,monoid_add}\<close>
@@ -786,6 +814,12 @@ lemma ge0_plus_le_then_right_le:
   fixes a :: \<open>'a :: ordered_ab_semigroup_monoid_add_imp_le\<close>
   shows \<open>0 \<le> a \<Longrightarrow> 0 \<le> b \<Longrightarrow> a + b \<le> c \<Longrightarrow> b \<le> c\<close>
   by (meson le_add_same_cancel2 order_trans)
+
+lemma suc_eq_plus_iff:
+  \<open>Suc a = b + c \<longleftrightarrow> (\<exists>b'. b = Suc b' \<and> a = b' + c) \<or> (\<exists>c'. c = Suc c' \<and> a = b + c')\<close>
+  by presburger
+
+lemmas suc_eq_plus_iff2 = trans[OF eq_commute suc_eq_plus_iff]
 
 
 section \<open> Sequencing Algebra \<close>

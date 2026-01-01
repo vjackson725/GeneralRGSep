@@ -104,16 +104,16 @@ instance prod :: (dupcl_perm_alg, dupcl_perm_alg) dupcl_perm_alg
 
 (* not an allcompatible_perm_alg *)
 
-instance prod :: (strong_sep_perm_alg, strong_sep_perm_alg) strong_sep_perm_alg
+instance prod :: (strong_sep_pre_perm_alg, strong_sep_pre_perm_alg) strong_sep_pre_perm_alg
   by standard (clarsimp simp add: selfsep_iff)
 
-instance prod :: (disjoint_parts_perm_alg, disjoint_parts_perm_alg) disjoint_parts_perm_alg
+instance prod :: (disjoint_parts_pre_perm_alg, disjoint_parts_pre_perm_alg) disjoint_parts_pre_perm_alg
   by standard simp
 
-instance prod :: (trivial_selfdisjoint_perm_alg, trivial_selfdisjoint_perm_alg) trivial_selfdisjoint_perm_alg
+instance prod :: (trivial_selfdisjoint_pre_perm_alg, trivial_selfdisjoint_pre_perm_alg) trivial_selfdisjoint_pre_perm_alg
   by standard (clarsimp, meson selfdisjoint_same)
 
-instance prod :: (crosssplit_perm_alg, crosssplit_perm_alg) crosssplit_perm_alg
+instance prod :: (crosssplit_pre_perm_alg, crosssplit_pre_perm_alg) crosssplit_pre_perm_alg
   apply standard
   apply clarsimp
   apply (rename_tac a x b y c z d w)
@@ -123,7 +123,7 @@ instance prod :: (crosssplit_perm_alg, crosssplit_perm_alg) crosssplit_perm_alg
   apply metis
   done
 
-instance prod :: (cancel_perm_alg, cancel_perm_alg) cancel_perm_alg
+instance prod :: (cancel_pre_perm_alg, cancel_pre_perm_alg) cancel_pre_perm_alg
   by standard force
 
 text \<open>
@@ -136,25 +136,24 @@ text \<open>
   This means that permissions must be placed on the *right* of a tuple if we want to derive
   instances like the cancellativity of munit heaps automatically.
 \<close>
-instance prod :: (perm_alg, no_unit_perm_alg) no_unit_perm_alg
+instance prod :: (perm_alg, no_unit_pre_perm_alg) no_unit_pre_perm_alg
   by (standard) (metis no_units split_pairs2 prod_sepadd_unit_iff)
 
-(*
-instance prod :: (perm_alg, no_unit_perm_alg) no_unit_perm_alg
-  by (standard) (metis no_units prod_eq_decompose(1) prod_sepadd_unit_iff)
-*)
-
-instantiation prod :: (halving_perm_alg, halving_perm_alg) halving_perm_alg
+instantiation prod :: (halfof, halfof) halfof
 begin
-definition \<open>half_prod \<equiv> \<lambda>(a,b). (half a, half b)\<close>
-declare half_prod_def[simp]
-instance
-  by standard
-    (clarsimp simp add: half_additive_split half_self_disjoint half_sepadd_distrib
-      split: prod.splits)+
+definition \<open>halfof_prod \<equiv> \<lambda>(a,b). (halfof a, halfof b)\<close>
+declare halfof_prod_def[simp]
+instance ..
 end
 
-instance prod :: (all_disjoint_perm_alg, all_disjoint_perm_alg) all_disjoint_perm_alg
+instance prod :: (halving_pre_perm_alg, halving_pre_perm_alg) halving_pre_perm_alg
+  apply standard
+    apply (simp add: halfof_additive_split split_beta; fail)
+   apply (simp add: halfof_self_disjoint split_beta; fail)
+  apply (simp add: halfof_sepadd_distrib split_beta; fail)
+  done
+
+instance prod :: (all_disjoint_pre_perm_alg, all_disjoint_pre_perm_alg) all_disjoint_pre_perm_alg
   by standard simp
 
 
@@ -351,31 +350,31 @@ instance unit :: dupcl_perm_alg
 instance unit :: allcompatible_perm_alg
   by standard simp
 
-instance unit :: strong_sep_perm_alg
+instance unit :: strong_sep_pre_perm_alg
   by standard simp
 
-instance unit :: disjoint_parts_perm_alg
+instance unit :: disjoint_parts_pre_perm_alg
   by standard simp
 
-instance unit :: trivial_selfdisjoint_perm_alg
+instance unit :: trivial_selfdisjoint_pre_perm_alg
   by standard simp
 
-instance unit :: crosssplit_perm_alg
+instance unit :: crosssplit_pre_perm_alg
   by standard simp
 
-instance unit :: cancel_perm_alg
+instance unit :: cancel_pre_perm_alg
   by standard simp
 
-(* not a no_unit_perm_alg *)
+(* not a no_unit_pre_perm_alg *)
 
-instantiation unit :: halving_perm_alg
+instantiation unit :: halving_pre_perm_alg
 begin
-definition \<open>half_unit \<equiv> \<lambda>_::unit. ()\<close>
-declare half_unit_def[simp]
+definition \<open>halfof_unit \<equiv> \<lambda>_::unit. ()\<close>
+declare halfof_unit_def[simp]
 instance by standard simp+
 end
 
-instance unit :: all_disjoint_perm_alg
+instance unit :: all_disjoint_pre_perm_alg
   by standard simp
 
 
@@ -590,38 +589,39 @@ instance munit :: dupcl_perm_alg
 
 (* not a allcompatible_perm_alg *)
 
-instance munit :: strong_sep_perm_alg
+instance munit :: strong_sep_pre_perm_alg
   by standard simp
 
-instance munit :: disjoint_parts_perm_alg
+instance munit :: disjoint_parts_pre_perm_alg
   by standard simp
 
-instance munit :: trivial_selfdisjoint_perm_alg
+instance munit :: trivial_selfdisjoint_pre_perm_alg
   by standard simp
 
-instance munit :: crosssplit_perm_alg
+instance munit :: crosssplit_pre_perm_alg
   by standard simp
 
-instance munit :: cancel_perm_alg
+instance munit :: cancel_pre_perm_alg
   by standard simp
 
-instance munit :: no_unit_perm_alg
+instance munit :: no_unit_pre_perm_alg
   by standard (simp add: sepadd_unit_def)
 
 (* not a halving_perm_alg *)
 
-(* not an all_disjoint_perm_alg *)
+(* not an all_disjoint_pre_perm_alg *)
 
 
 section \<open> option \<close>
 
-instantiation option :: (pre_perm_alg) pre_perm_alg
+instantiation option :: (disjoint) disjoint
 begin
-
 definition disjoint_option :: \<open>'a option \<Rightarrow> 'a option \<Rightarrow> bool\<close> where
   \<open>disjoint_option a b \<equiv>
     case a of None \<Rightarrow> True | Some x \<Rightarrow>
       (case b of None \<Rightarrow> True | Some y \<Rightarrow> x ## y)\<close>
+instance by standard
+end
 
 lemma disjoint_option_simps[simp]:
   \<open>Some x ## Some y \<longleftrightarrow> x ## y\<close>
@@ -638,10 +638,15 @@ lemma disjoint_option_def2:
   \<open>a ## b \<longleftrightarrow> a = None \<or> b = None \<or> the a ## the b\<close>
   by (cases a; cases b; simp)
 
+
+instantiation option :: (plus) plus
+begin
 definition plus_option :: \<open>'a option \<Rightarrow> 'a option \<Rightarrow> 'a option\<close> where
   \<open>plus_option a b \<equiv>
     case a of None \<Rightarrow> b | Some x \<Rightarrow>
       (case b of None \<Rightarrow> a | Some y \<Rightarrow> Some (x + y))\<close>
+instance by standard
+end
 
 lemma plus_option_simps[simp]:
   \<open>Some x + Some y = Some (x + y)\<close>
@@ -662,7 +667,7 @@ lemmas plus_option_iff2 =
   trans[OF eq_commute plus_option_iff(2)]
 
 
-instance
+instance option :: (pre_perm_alg) pre_perm_alg
   apply standard
       apply (simp add: disjoint_option_def plus_option_def partial_add_assoc
       split: option.splits; fail)
@@ -675,11 +680,12 @@ instance
       disjoint_add_right_commute split: option.splits; fail)
   done
 
-end
+instance option :: (positivity_law) positivity_law
+  by standard
+    (simp add: disjoint_option_def positivity split: option.splits; fail)
 
 instance option :: (perm_alg) perm_alg
   by standard
-    (simp add: disjoint_option_def positivity split: option.splits; fail)
 
 lemma less_eq_sepadd_option_simps[simp]:
   \<open>None \<preceq> a\<close>
@@ -736,18 +742,18 @@ instance option :: (dupcl_perm_alg) dupcl_perm_alg
 
 (* is an allcompatible_perm_alg as it's a sep_alg  *)
 
-(* not a strong_sep_perm_alg *)
+(* not a strong_sep_pre_perm_alg *)
 
-instance option :: (disjoint_parts_perm_alg) disjoint_parts_perm_alg
+instance option :: (disjoint_parts_pre_perm_alg) disjoint_parts_pre_perm_alg
   by standard
     (simp add: disjoint_option_def split: option.splits)
 
-instance option :: (trivial_selfdisjoint_perm_alg) trivial_selfdisjoint_perm_alg
+instance option :: (trivial_selfdisjoint_pre_perm_alg) trivial_selfdisjoint_pre_perm_alg
   by standard
     (force dest: selfdisjoint_same simp add: disjoint_option_def plus_option_def
       split: option.splits)
 
-instance option :: (crosssplit_perm_alg) crosssplit_perm_alg
+instance option :: (crosssplit_pre_perm_alg) crosssplit_pre_perm_alg
   apply standard
   apply (clarsimp simp add: disjoint_option_def plus_option_def
       split: option.splits)
@@ -774,46 +780,54 @@ text \<open>
   The option-instance is only cancellable when the sub-instance is cancellative *and*
   that instance has no units.
 \<close>
-instance option :: (\<open>{cancel_perm_alg,no_unit_perm_alg}\<close>) cancel_perm_alg
+instance option :: (\<open>{cancel_pre_perm_alg,no_unit_pre_perm_alg}\<close>) cancel_pre_perm_alg
   by standard
     (simp add: disjoint_option_def plus_option_def split: option.splits;
       metis cancel_right_to_unit no_units)
 
-(* not no_unit_perm_alg *)
+(* not no_unit_pre_perm_alg *)
 
-instantiation option :: (halving_perm_alg) halving_perm_alg
+instantiation option :: (halfof) halfof
 begin
-definition \<open>half_option \<equiv> map_option half\<close>
-instance
-  by standard
-    (simp add: half_option_def disjoint_option_def plus_option_def half_additive_split
-      half_self_disjoint half_sepadd_distrib split: option.splits)+
+definition \<open>halfof_option \<equiv> map_option halfof\<close>
+instance ..
 end
 
-instance option :: (all_disjoint_perm_alg) all_disjoint_perm_alg
+instance option :: (halving_pre_perm_alg) halving_pre_perm_alg
+  by standard
+    (simp add: halfof_option_def disjoint_option_def plus_option_def halfof_additive_split
+      halfof_self_disjoint halfof_sepadd_distrib split: option.splits)+
+
+instance option :: (all_disjoint_pre_perm_alg) all_disjoint_pre_perm_alg
   by standard (simp add: disjoint_option_def split: option.splits)+
 
 
 section \<open> functions \<close>
 
-instantiation "fun" :: (type, pre_perm_alg) pre_perm_alg
+instantiation "fun" :: (type, disjoint) disjoint
 begin
-
 definition disjoint_fun :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> bool\<close> where
   \<open>disjoint_fun f g \<equiv> \<forall>x. f x ## g x\<close>
+instance by standard
+end
 
 lemma disjoint_funI[intro!]:
   \<open>\<forall>x. f x ## g x \<Longrightarrow> f ## g\<close>
   by (simp add: disjoint_fun_def)
 
+instantiation "fun" :: (type, plus) plus
+begin
 definition plus_fun :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b)\<close> where
   \<open>plus_fun f g \<equiv> \<lambda>x. f x + g x\<close>
+instance by standard
+end
 
 lemma plus_fun_apply[simp]:
   \<open>(f + g) x = (f x + g x)\<close>
   by (simp add: plus_fun_def)
 
-instance
+
+instance "fun" :: (type, pre_perm_alg) pre_perm_alg
   apply standard
       apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_assoc)
      apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis partial_add_commute)
@@ -822,40 +836,28 @@ instance
   apply (simp add: disjoint_fun_def plus_fun_def, metis disjoint_add_right_commute)
   done
 
-end
+instance "fun" :: (type, positivity_law) positivity_law
+  apply standard
+  apply (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis positivity)
+  done
 
-instantiation "fun" :: (type, perm_alg) perm_alg
-begin
-
-instance
+instance "fun" :: (type, perm_alg) perm_alg
   by standard
-    (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis positivity)
 
 lemma fun_positivity_alt:
-  fixes a c1 c2 :: \<open>'a \<Rightarrow> 'b\<close>
+  fixes a c1 c2 :: \<open>'a \<Rightarrow> 'b::positivity_law\<close>
   shows \<open>a ## c1 \<Longrightarrow> a + c1 ## c2 \<Longrightarrow> a + c1 + c2 = a \<Longrightarrow> a + c1 = a\<close>
   by (simp add: plus_fun_def disjoint_fun_def fun_eq_iff, metis positivity)
 
-lemma fun_positivity:
-  fixes a b c1 c2 :: \<open>'a \<Rightarrow> 'b\<close>
-  shows \<open>a ## c1 \<Longrightarrow> a + c1 = b \<Longrightarrow> b ## c2 \<Longrightarrow> b + c2 = a \<Longrightarrow> a = b\<close>
-  by (simp add: plus_fun_def disjoint_fun_def fun_eq_iff, metis positivity)
-
 lemma less_sepadd_fun_eq:
-  fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
+  fixes f g :: \<open>'a \<Rightarrow> 'b::perm_alg\<close>
   shows \<open>f \<prec> g \<longleftrightarrow> (\<exists>x. f x \<noteq> g x) \<and> (\<forall>x. f x \<lesssim> g x)\<close>
-  by (simp add: part_of_def less_sepadd_def' fun_eq_iff disjoint_fun_def,
-      metis)
+  by (simp add: part_of_def less_sepadd_def' fun_eq_iff disjoint_fun_def, metis)
 
 lemma less_eq_sepadd_fun_eq:
-  fixes f g :: \<open>'a \<Rightarrow> 'b\<close>
+  fixes f g :: \<open>'a \<Rightarrow> 'b::perm_alg\<close>
   shows \<open>f \<preceq> g \<longleftrightarrow> (\<forall>x. f x = g x) \<or> (\<forall>x. f x \<lesssim> g x)\<close>
-  by (simp add: part_of_def less_eq_sepadd_def disjoint_fun_def fun_eq_iff,
-      metis)
-
-end
-
-
+  by (simp add: part_of_def less_eq_sepadd_def disjoint_fun_def fun_eq_iff, metis)
 
 lemma fun_all_unit_elems_then_unit:
   \<open>\<forall>x. sepadd_unit (f x) \<Longrightarrow> sepadd_unit f\<close>
@@ -863,7 +865,6 @@ lemma fun_all_unit_elems_then_unit:
 
 instantiation "fun" :: (type, pre_multiunit_sep_alg) pre_multiunit_sep_alg
 begin
- 
 definition unitof_fun :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b)\<close> where
   \<open>unitof_fun f \<equiv> \<lambda>x. unitof (f x)\<close>
 declare unitof_fun_def[simp]
@@ -871,7 +872,6 @@ declare unitof_fun_def[simp]
 instance
   by standard
     (simp add: disjoint_fun_def plus_fun_def le_fun_def fun_eq_iff le_iff_sepadd; metis)+
-
 end
 
 instantiation "fun" :: (type, multiunit_sep_alg) multiunit_sep_alg
@@ -921,19 +921,19 @@ instance "fun" :: (type, dupcl_perm_alg) dupcl_perm_alg
 
 (* not allcompatible_perm_alg *)
 
-instance "fun" :: (type, strong_sep_perm_alg) strong_sep_perm_alg
+instance "fun" :: (type, strong_sep_pre_perm_alg) strong_sep_pre_perm_alg
   by standard
     (clarsimp simp add: disjoint_fun_def plus_fun_def fun_eq_iff selfsep_iff
       fun_all_unit_elems_then_unit)
 
-instance "fun" :: (type, disjoint_parts_perm_alg) disjoint_parts_perm_alg
+instance "fun" :: (type, disjoint_parts_pre_perm_alg) disjoint_parts_pre_perm_alg
   by standard (simp add: disjoint_fun_def)
 
-instance "fun" :: (type, trivial_selfdisjoint_perm_alg) trivial_selfdisjoint_perm_alg
+instance "fun" :: (type, trivial_selfdisjoint_pre_perm_alg) trivial_selfdisjoint_pre_perm_alg
   by standard
     (force dest: selfdisjoint_same simp add: disjoint_fun_def plus_fun_def fun_eq_iff)
 
-instance "fun" :: (type, crosssplit_perm_alg) crosssplit_perm_alg
+instance "fun" :: (type, crosssplit_pre_perm_alg) crosssplit_pre_perm_alg
 proof standard
   fix a b c d :: \<open>'a \<Rightarrow> 'b\<close>
   assume
@@ -958,22 +958,24 @@ proof standard
     by (simp add: disjoint_fun_def plus_fun_def fun_eq_iff, metis)
 qed
 
-instance "fun" :: (type, cancel_perm_alg) cancel_perm_alg
+instance "fun" :: (type, cancel_pre_perm_alg) cancel_pre_perm_alg
   by standard
     (simp add: disjoint_fun_def plus_fun_def fun_eq_iff)
 
-(* not no_unit_perm_alg *)
+(* not no_unit_pre_perm_alg *)
 
-instantiation "fun" :: (type, halving_perm_alg) halving_perm_alg
+instantiation "fun" :: (type, halfof) halfof
 begin
-definition \<open>half_fun (f :: 'a \<Rightarrow> 'b) \<equiv> \<lambda>x. half (f x)\<close>
-instance
-  by standard
-    (simp add: half_fun_def disjoint_fun_def plus_fun_def fun_eq_iff
-      half_additive_split half_self_disjoint half_sepadd_distrib)+
+definition \<open>halfof_fun (f :: 'a \<Rightarrow> 'b) \<equiv> \<lambda>x. halfof (f x)\<close>
+instance ..
 end
 
-instance "fun" :: (type, all_disjoint_perm_alg) all_disjoint_perm_alg
+instance "fun" :: (type, halving_pre_perm_alg) halving_pre_perm_alg
+  by standard
+    (simp add: halfof_fun_def disjoint_fun_def plus_fun_def fun_eq_iff
+      halfof_additive_split halfof_self_disjoint halfof_sepadd_distrib)+
+
+instance "fun" :: (type, all_disjoint_pre_perm_alg) all_disjoint_pre_perm_alg
   by standard (simp add: disjoint_fun_def)+
 
 
@@ -1028,31 +1030,34 @@ instance discr :: (type) dupcl_perm_alg
 
 (* not allcompatible_perm_alg *)
 
-instance discr :: (type) strong_sep_perm_alg
+instance discr :: (type) strong_sep_pre_perm_alg
   by standard (simp add: sepadd_unit_def)
 
-instance discr :: (type) disjoint_parts_perm_alg
+instance discr :: (type) disjoint_parts_pre_perm_alg
   by standard force
 
-instance discr :: (type) trivial_selfdisjoint_perm_alg
+instance discr :: (type) trivial_selfdisjoint_pre_perm_alg
   by standard force
 
-instance discr :: (type) crosssplit_perm_alg
+instance discr :: (type) crosssplit_pre_perm_alg
   by standard force
 
-instance discr :: (type) cancel_perm_alg
+instance discr :: (type) cancel_pre_perm_alg
   by standard force
 
-(* not no_unit_perm_alg *)
+(* not no_unit_pre_perm_alg *)
 
-instantiation discr :: (type) halving_perm_alg
+instantiation discr :: (type) halfof
 begin
-definition \<open>half_discr (a :: 'a discr) \<equiv> a\<close>
-declare half_discr_def[simp]
-instance by standard simp+
+definition \<open>halfof_discr (a :: 'a discr) \<equiv> a\<close>
+declare halfof_discr_def[simp]
+instance ..
 end
 
-(* not all_disjoint_perm_alg *)
+instance discr :: (type) halving_pre_perm_alg
+  by standard simp+
+
+(* not all_disjoint_pre_perm_alg *)
 
 subsection \<open> lifting instances for discr \<close>
 
@@ -1196,15 +1201,20 @@ lift_definition one_fperm :: \<open>'a fperm\<close> is \<open>1\<close> by simp
 instance by standard
 end
 
-instantiation fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) perm_alg
+instantiation fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) disjoint
 begin
-
 lift_definition disjoint_fperm :: \<open>'a fperm \<Rightarrow> 'a fperm \<Rightarrow> bool\<close> is
   \<open>\<lambda>a b. a + b \<le> 1\<close> .
 lemmas disjoint_fperm_iff = disjoint_fperm.rep_eq
+instance ..
+end
 
+instantiation fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) plus
+begin
 lift_definition plus_fperm :: \<open>'a fperm \<Rightarrow> 'a fperm \<Rightarrow> 'a fperm\<close> is \<open>\<lambda>x y. min 1 (x + y)\<close>
   by (force simp add: add_pos_pos min_def)
+instance ..
+end
 
 lemma plus_fperm_iff[simp]:
   \<open>0 < x \<Longrightarrow> x \<le> 1 \<Longrightarrow> 0 < y \<Longrightarrow> y \<le> 1 \<Longrightarrow> FPerm x + FPerm y = FPerm (min 1 (x + y))\<close>
@@ -1214,20 +1224,19 @@ lemma plus_fperm_eq:
   \<open>x + y = FPerm (min 1 (fperm_val x + fperm_val y))\<close>
   by (metis fperm_val_inverse plus_fperm.rep_eq)
 
-instance
-  apply standard
-       apply (force simp add: fperm_val_inject_rev add.assoc disjoint_fperm_def plus_fperm.rep_eq)
-      apply (force simp add: fperm_val_inject_rev add.commute disjoint_fperm_def plus_fperm.rep_eq)
-     apply (simp add: disjoint_fperm_def add.commute; fail)
-    apply (simp add: disjoint_fperm_def plus_fperm.rep_eq add.assoc[symmetric])
-    apply (metis fperm_val_conditions(1) ge0_plus_le_then_left_le add_pos_pos order_less_imp_le)
-   apply (simp add: disjoint_fperm_def plus_fperm.rep_eq add.left_commute min.coboundedI2
-      min_add_distrib_right; fail)
-  apply (metis disjoint_fperm_iff plus_fperm.rep_eq fperm_val_conditions(1) less_add_same_cancel1
-      min.absorb2 not_less_iff_gr_or_eq)
-  done
+instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) positivity_law
+  by standard (transfer, metis add_le_same_cancel1 min_eq_k_iff nless_le)
 
-end
+instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) perm_alg
+  apply standard
+      apply (force simp add: fperm_val_inject_rev add.assoc disjoint_fperm_def plus_fperm.rep_eq)
+     apply (force simp add: fperm_val_inject_rev add.commute disjoint_fperm_def plus_fperm.rep_eq)
+    apply (simp add: disjoint_fperm_def add.commute; fail)
+   apply (simp add: disjoint_fperm_def plus_fperm.rep_eq add.assoc[symmetric])
+   apply (metis fperm_val_conditions(1) ge0_plus_le_then_left_le add_pos_pos order_less_imp_le)
+  apply (simp add: disjoint_fperm_def plus_fperm.rep_eq add.left_commute min.coboundedI2
+      min_add_distrib_right; fail)
+  done
 
 lemma fperm_one_greatest:
   fixes a :: \<open>'a::linordered_semidom fperm\<close>
@@ -1247,27 +1256,30 @@ instance fperm :: (linordered_semidom) allcompatible_perm_alg
     (simp add: compatible_def,
       metis compatible_def fperm_one_greatest trans_le_ge_is_compatible)
 
-(* not a strong_sep_perm_alg *)
+(* not a strong_sep_pre_perm_alg *)
 
-(* not a disjoint_parts_perm_alg *)
+(* not a disjoint_parts_pre_perm_alg *)
 
-(* not a trivial_selfdisjoint_perm_alg *)
+(* not a trivial_selfdisjoint_pre_perm_alg *)
 
-(* not a crosssplit_perm_alg *)
+(* not a crosssplit_pre_perm_alg *)
 
-instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) cancel_perm_alg
+instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) cancel_pre_perm_alg
   by standard (transfer, force)
 
-instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) no_unit_perm_alg
+instance fperm :: (\<open>{linordered_semiring,zero_less_one}\<close>) no_unit_pre_perm_alg
   by standard (clarsimp simp add: sepadd_unit_def, transfer, force)
 
-instantiation fperm :: (linordered_field) halving_perm_alg
+instantiation fperm :: (linordered_field) halfof
 begin
-lift_definition half_fperm :: \<open>'a fperm \<Rightarrow> 'a fperm\<close> is \<open>\<lambda>x. x / 2\<close> by simp
-instance  by standard (transfer, simp)+
+lift_definition halfof_fperm :: \<open>'a fperm \<Rightarrow> 'a fperm\<close> is \<open>\<lambda>x. x / 2\<close> by simp
+instance ..
 end
 
-(* not an all_disjoint_perm_alg *)
+instance fperm :: (linordered_field) halving_pre_perm_alg
+ by standard (transfer, simp)+
+
+(* not an all_disjoint_pre_perm_alg *)
 
 
 section \<open> Zero-one interval \<close>
@@ -1344,15 +1356,12 @@ declare one_zoint.rep_eq[simp]
 instance by standard
 end
 
-instantiation zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) sep_alg
+instantiation zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) plus
 begin
-
-lift_definition disjoint_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint \<Rightarrow> bool\<close> is
-  \<open>\<lambda>a b. a + b \<le> 1\<close> .
-lemmas disjoint_zoint_iff = disjoint_zoint.rep_eq
-
 lift_definition plus_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint \<Rightarrow> 'a zoint\<close> is \<open>\<lambda>x y. min 1 (x + y)\<close>
   by (force simp add: add_pos_pos min_def)
+instance ..
+end
 
 lemma plus_zoint_iff[simp]:
   \<open>0 < x \<Longrightarrow> x \<le> 1 \<Longrightarrow> 0 < y \<Longrightarrow> y \<le> 1 \<Longrightarrow> ZOInt x + ZOInt y = ZOInt (min 1 (x + y))\<close>
@@ -1362,39 +1371,45 @@ lemma plus_zoint_eq:
   \<open>x + y = ZOInt (min 1 (zoint_val x + zoint_val y))\<close>
   by (metis zoint_val_inverse plus_zoint.rep_eq)
 
+instantiation zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) disjoint
+begin
+lift_definition disjoint_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint \<Rightarrow> bool\<close> is
+  \<open>\<lambda>a b. a + b \<le> 1\<close> .
+lemmas disjoint_zoint_iff = disjoint_zoint.rep_eq
+instance ..
+end
+
+instance zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) pre_perm_alg
+  apply standard
+      apply (transfer, simp add: add.commute add.left_commute; fail)
+     apply (transfer, simp add: add.commute; fail)
+    apply (transfer, simp add: add.commute; fail)
+   apply (transfer, simp, metis add.assoc ge0_plus_le_then_left_le nle_le)
+  apply (transfer, simp, metis add_increasing add_le_imp_le_left group_cancel.add2 min.absorb_iff2)
+  done
+
+instance zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) positivity_law
+  by standard
+    (transfer, clarsimp, metis add_le_same_cancel1 le_add_same_cancel1 nle_le)
+
+instantiation zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) multiunit_sep_alg
+begin
 lift_definition unitof_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint\<close> is \<open>\<lambda>x. 0\<close>
   by force
 declare unitof_zoint.rep_eq[simp]
+instance
+  by standard (transfer, simp)+
 
 lemma unitof_zoint_eq[simp]:
   \<open>unitof (x :: 'a zoint) = 0\<close>
   by (transfer, force)
+end
 
-lift_definition bot_zoint :: \<open>'a zoint\<close> is \<open>0\<close>
-  by force
-declare bot_zoint.rep_eq[simp]
-
-instance
+instance zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) sep_alg
   apply standard
-           apply (force simp add: zoint_val_inject_rev add.assoc disjoint_zoint_def plus_zoint.rep_eq)
-          apply (force simp add: zoint_val_inject_rev add.commute disjoint_zoint_def plus_zoint.rep_eq)
-         apply (simp add: disjoint_zoint_def add.commute; fail)
-        apply (simp add: disjoint_zoint_def plus_zoint.rep_eq add.assoc[symmetric])
-        apply (meson order.trans le_add_same_cancel1 zoint_val_conditions(1))
-       apply (simp add: disjoint_zoint_def plus_zoint.rep_eq add.left_commute
-      min.coboundedI2 min_add_distrib_right; fail)
-      apply (simp add: disjoint_zoint_def zoint_val_inject_rev
-      plus_zoint.rep_eq)
-      apply (metis add.comm_neutral add_left_mono verit_la_disequality zoint_val_conditions(1))
-     apply (simp add: disjoint_zoint_def zoint_val_conditions; fail)
-    apply (simp add: disjoint_zoint_def zoint_val_conditions
-      zoint_val_inject_rev plus_zoint.rep_eq; fail)
    apply (simp add: disjoint_zoint_iff zoint_val_conditions(2); fail)
   apply (simp add: plus_zoint_eq zoint_val_conditions(2) zoint_val_inverse; fail)
   done
-
-end
-
 
 lemma zoint_one_greatest:
   fixes a :: \<open>'a::linordered_semidom zoint\<close>
@@ -1416,169 +1431,26 @@ instance zoint :: (linordered_semidom) allcompatible_perm_alg
     (simp add: compatible_def,
       metis compatible_def zoint_one_greatest trans_le_ge_is_compatible)
 
-(* not a strong_sep_perm_alg *)
+(* not a strong_sep_pre_perm_alg *)
 
-(* not a disjoint_parts_perm_alg *)
+(* not a disjoint_parts_pre_perm_alg *)
 
-(* not a trivial_selfdisjoint_perm_alg *)
+(* not a trivial_selfdisjoint_pre_perm_alg *)
 
-(* not a crosssplit_perm_alg *)
+(* not a crosssplit_pre_perm_alg *)
 
-instance zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) cancel_perm_alg
+instance zoint :: (\<open>{linordered_semiring,zero_less_one}\<close>) cancel_pre_perm_alg
   by standard (transfer, force)
 
-(* not a no_unit_perm_alg *)
+(* not a no_unit_pre_perm_alg *)
 
-instantiation zoint :: (linordered_field) halving_perm_alg
+instantiation zoint :: (linordered_field) halving_pre_perm_alg
 begin
-lift_definition half_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint\<close> is \<open>\<lambda>x. x / 2\<close> by simp
+lift_definition halfof_zoint :: \<open>'a zoint \<Rightarrow> 'a zoint\<close> is \<open>\<lambda>x. x / 2\<close> by simp
 instance  by standard (transfer, simp)+
 end
 
-(* not an all_disjoint_perm_alg *)
-
-
-section \<open> Error monad \<close>
-
-text \<open>
-  Unfortunately, Error does not, in most cases, form a separation algebra.
-  The global non-cancellative nature of the Error value breaks the disjoint-subpart law.
-
-  However, it does form a good instance when there are only trivial subparts.
-  (I.e. when every element is disjoint.)
-\<close>
-
-datatype 'a error =
-  Val (the_val: 'a)
-  | Error
-
-instantiation error :: (ord) ord
-begin
-
-fun less_eq_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
-  \<open>less_eq_error _ Error = True\<close>
-| \<open>less_eq_error Error (Val b) = False\<close>
-| \<open>less_eq_error (Val a) (Val b) = (a \<le> b)\<close>
-
-lemma less_eq_error_def:
-  \<open>a \<le> b =
-    (case b of
-      Error \<Rightarrow> True
-    | Val b \<Rightarrow>
-      (case a of
-        Error \<Rightarrow> False
-      | Val a \<Rightarrow> a \<le> b))\<close>
-  by (cases a; cases b; force)
-
-fun less_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
-  \<open>less_error Error _ = False\<close>
-| \<open>less_error (Val a) Error = True\<close>
-| \<open>less_error (Val a) (Val b) = (a < b)\<close>
-
-lemma less_error_def:
-  \<open>a < b =
-    (case a of
-      Error \<Rightarrow> False
-    | Val a \<Rightarrow>
-      (case b of
-        Error \<Rightarrow> True
-      | Val b \<Rightarrow> a < b))\<close>
-  by (cases a; cases b; force)
-
-instance proof qed
-
-end
-
-instantiation error :: (preorder) preorder
-begin
-
-instance proof
-  fix x y z :: \<open>'a :: preorder error\<close>
-  show \<open>(x < y) = (x \<le> y \<and> \<not> y \<le> x)\<close>
-    by (simp add: less_eq_error_def less_error_def error.case_eq_if less_le_not_le)
-  show \<open>x \<le> x\<close>
-    by (simp add: less_eq_error_def error.case_eq_if)
-  show \<open>x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z\<close>
-    by (force dest: order_trans simp add: less_eq_error_def split: error.splits)
-qed
-
-end
-
-
-instantiation error :: (order) order_top
-begin
-
-definition \<open>top_error \<equiv> Error\<close>
-
-instance proof
-  fix x y z :: \<open>'a :: order error\<close>
-  show \<open>x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y\<close>
-    by (simp add: less_eq_error_def split: error.splits)
-  show \<open>x \<le> top\<close>
-    by (simp add: top_error_def)
-qed
-
-end
-
-instantiation error :: (order_bot) order_bot
-begin
-
-definition \<open>bot_error = Val bot\<close>
-
-instance proof
-  fix a :: \<open>'a :: order_bot error\<close>
-  show \<open>\<bottom> \<le> a\<close>
-    by (simp add: bot_error_def less_eq_error_def error.case_eq_if)
-qed
-
-end
-
-instantiation error :: (all_disjoint_perm_alg) perm_alg
-begin
-
-definition disjoint_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
-  \<open>disjoint_error a b \<equiv>
-    a = Error \<or> b = Error \<or> (\<exists>x y. a = Val x \<and> b = Val y \<and> x ## y)\<close>
-
-lemma disjoint_error_def2:
-  \<open>a ## b \<longleftrightarrow> a = Error \<or> b = Error \<or> the_val a ## the_val b\<close>
-  by (simp add: disjoint_error_def, metis error.exhaust)
-
-lemma disjoint_error_simps[simp]:
-  \<open>Error ## b\<close>
-  \<open>a ## Error\<close>
-  \<open>Val x ## Val y \<longleftrightarrow> x ## y\<close>
-  by (simp add: disjoint_error_def)+
-
-
-definition plus_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> 'a error\<close> where
-  \<open>a + b \<equiv> case a of Val x \<Rightarrow> (case b of Val y \<Rightarrow> Val (x + y) | Error \<Rightarrow> Error) | Error \<Rightarrow> Error\<close>
-
-lemma plus_error_def2:
-  \<open>a + b = (if a = Error \<or> b = Error then Error else Val (the_val a + the_val b))\<close>
-  by (simp add: error.case_eq_if plus_error_def)
-
-lemma plus_error_simps[simp]:
-  \<open>Error + b = Error\<close>
-  \<open>a + Error = Error\<close>
-  \<open>Val x + Val y = Val (x + y)\<close>
-  by (force simp add: plus_error_def split: error.splits)+
-
-
-instance
-  apply standard
-       apply (force simp add: disjoint_error_def plus_error_def partial_add_assoc
-      split: error.splits)
-      apply (force simp add: disjoint_error_def plus_error_def partial_add_commute
-      split: error.splits)
-     apply (force simp add: disjoint_error_def plus_error_def disjoint_sym_iff)
-    apply (simp add: disjoint_error_def plus_error_def disjoint_add_rightL split: error.splits;
-      metis error.exhaust)
-   apply (force simp add: disjoint_add_right_commute disjoint_error_def)
-  apply (force simp add: disjoint_error_def positivity)
-  done
-
-end
+(* not an all_disjoint_pre_perm_alg *)
 
 
 section \<open> Distributive Lattice Separation Algebra \<close>
@@ -1661,34 +1533,39 @@ instance by standard (transfer, force simp add: diff_eq)+
 end
 
 
-subsection \<open> Permisson/Separation algebra instances \<close>
+subsection \<open> Permission/Separation algebra instances \<close>
 
-instantiation dlat_sep :: (distrib_lattice_bot) perm_alg
+instantiation dlat_sep :: (distrib_lattice_bot) disjoint
 begin
-
 lift_definition disjoint_dlat_sep :: \<open>'a dlat_sep \<Rightarrow> 'a dlat_sep \<Rightarrow> bool\<close> is
   \<open>\<lambda>a b. a \<sqinter> b = \<bottom>\<close> .
-
 lemma disjoint_dlat_sep_simps[simp]:
   fixes a b :: \<open>'a dlat_sep\<close>
   shows \<open>a ## b \<longleftrightarrow> a \<sqinter> b = \<bottom>\<close>
   by (transfer, force)+
+instance ..
+end
 
+instantiation dlat_sep :: (distrib_lattice_bot) plus
+begin
 lift_definition plus_dlat_sep :: \<open>'a dlat_sep \<Rightarrow> 'a dlat_sep \<Rightarrow> 'a dlat_sep\<close> is \<open>(\<squnion>)\<close> .
-
 lemma plus_dlat_sep_eq_iff[simp]:
   \<open>a + b = (\<bottom>::'a dlat_sep) \<longleftrightarrow> a = \<bottom> \<and> b = \<bottom>\<close>
   by (transfer, force)+
+instance ..
+end
 
-instance
+instance dlat_sep :: (distrib_lattice_bot) pre_perm_alg
   apply standard
        apply (transfer, metis sup.assoc)
       apply (transfer, metis sup.commute)
      apply (transfer, metis inf.commute)
     apply (transfer, simp add: inf_sup_distrib1; fail)
    apply (transfer, simp add: inf_sup_aci inf_sup_distrib1; fail)
-  apply (transfer, metis inf_commute inf_sup_absorb)
   done
+
+instance dlat_sep :: (distrib_lattice_bot) positivity_law
+  by standard (transfer, metis inf_commute inf_sup_absorb)
 
 lemma part_of_dlat_sep_eq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
@@ -1699,21 +1576,21 @@ lemma less_eq_dlat_sep_eq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<preceq> b \<longleftrightarrow> Rep_dlat_sep a = Rep_dlat_sep b \<or>
                     (\<exists>c. Rep_dlat_sep a \<sqinter> c = \<bottom> \<and> Rep_dlat_sep b = Rep_dlat_sep a \<squnion> c)\<close>
-  oops
-    (* by (simp add: less_eq_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2) *)
+  unfolding less_eq_sepadd_def
+  by (transfer, blast)
 
 lemma less_dlat_sep_eq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<prec> b \<longleftrightarrow> Rep_dlat_sep a \<noteq> Rep_dlat_sep b \<and>
                     (\<exists>c. Rep_dlat_sep a \<sqinter> c = \<bottom> \<and> Rep_dlat_sep b = Rep_dlat_sep a \<squnion> c)\<close>
-  oops
-    (* by (simp add: less_eq_sepadd_def part_of_dlat_sep_eq Rep_dlat_sep_inject2) *)
+  unfolding less_sepadd_def
+  by (transfer, force dest: sup_antisym)
 
 lemma sepadd_bot_least[intro]:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>\<bottom> \<preceq> a\<close>
-  by (metis disjoint_dlat_sep_simps inf_sup_absorb inf_sup_aci(5) less_eq_sepadd_def
-      plus_dlat_sep_def sup_bot.right_neutral sup_dlat_sep_def)
+  unfolding less_eq_sepadd_def
+  by (transfer, force)
 
 lemma leq_sepadd_then_leq:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
@@ -1724,9 +1601,8 @@ lemma leq_sepadd_then_leq:
 lemma less_sepadd_then_less:
   fixes a b :: \<open>('a::distrib_lattice_bot) dlat_sep\<close>
   shows \<open>a \<prec> b \<Longrightarrow> a < b\<close>
-  by (simp add: leq_sepadd_then_leq order_le_neq_trans)
-
-end
+  by (simp add: leq_sepadd_then_leq less_sepadd_def order_neq_le_trans
+      resource_preorder.less_imp_le)
 
 instantiation dlat_sep :: (distrib_lattice_bot) multiunit_sep_alg
 begin
@@ -1749,24 +1625,31 @@ instance dlat_sep :: (distrib_lattice_bot) dupcl_perm_alg
   by standard
     (transfer, metis sup_idem)
 
-instance dlat_sep :: (distrib_lattice_bot) cancel_perm_alg
+instance dlat_sep :: (distrib_lattice_bot) cancel_pre_perm_alg
   by standard
     (transfer, metis inf_commute inf_sup_absorb inf_sup_distrib1)
 
-instance dlat_sep :: (distrib_lattice_bot) trivial_selfdisjoint_perm_alg
+instance dlat_sep :: (distrib_lattice_bot) trivial_selfdisjoint_pre_perm_alg
   by standard
     (transfer, metis inf_commute inf_sup_absorb inf_sup_distrib1)
 
-instance dlat_sep :: (distrib_lattice_bot) disjoint_parts_perm_alg
+instance dlat_sep :: (distrib_lattice_bot) disjoint_parts_pre_perm_alg
   by standard
     (transfer, simp add: inf_sup_distrib2)
 
-instance dlat_sep :: (distrib_lattice_bot) strong_sep_perm_alg
+instance dlat_sep :: (distrib_lattice_bot) strong_sep_pre_perm_alg
   by standard
     (transfer, metis cancel_left_to_unit selfdisjoint_same)
 
 
 section \<open> Heaps and Permission-heaps \<close>
+
+lemma dom_plus_eq[simp]:
+  \<open>dom (ma + mb) = dom ma \<union> dom mb\<close>
+  apply (simp add: plus_fun_def plus_option_def dom_def split: option.splits)
+  apply (clarsimp simp add: imp_conv_disj simp del: disj_not1)
+  apply blast
+  done
 
 type_synonym ('i,'v) heap = \<open>'i \<rightharpoonup> ('v discr \<times> munit)\<close>
 
@@ -1794,6 +1677,205 @@ lemma sepdomeq_fun:
       simp del: not_Some_prod_eq split: if_splits, metis)
   apply blast
   done
+
+
+section \<open> Failure State \<close>
+
+datatype fail_st = Running | Failed
+
+lemma all_fail_st_eq:
+  \<open>All P \<longleftrightarrow> P Running \<and> P Failed\<close>
+  by (metis (full_types) fail_st.exhaust)
+
+lemma ex_fail_st_eq:
+  \<open>Ex P \<longleftrightarrow> P Running \<or> P Failed\<close>
+  by (metis (full_types) fail_st.exhaust)
+
+
+subsection \<open> Algebra Instances \<close>
+
+\<comment> \<open>
+  This is similar to the distributive lattice separation algebra,
+  except that addition is always allowed. This fact makes the algebra non-cancellative.
+\<close>
+
+subsubsection \<open> Order \<close>
+
+instantiation fail_st :: ord
+begin
+definition \<open>less_eq_fail_st a b \<equiv> a = b \<or> b = Failed\<close>
+definition \<open>less_fail_st a b \<equiv> a = Running \<and> b = Failed\<close>
+instance by standard
+end
+
+lemma less_eq_fail_st_iff[simp]:
+  \<open>Running \<le> b\<close>
+  \<open>a \<le> Failed\<close>
+  \<open>Failed \<le> b \<longleftrightarrow> b = Failed\<close>
+  \<open>a \<le> Running \<longleftrightarrow> a = Running\<close>
+  unfolding less_eq_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis (full_types))+
+
+lemma less_fail_st_iff[simp]:
+  \<open>Running < b \<longleftrightarrow> b = Failed\<close>
+  \<open>a < Failed \<longleftrightarrow> a = Running\<close>
+  \<open>Failed < b \<longleftrightarrow> False\<close>
+  \<open>a < Running \<longleftrightarrow> False\<close>
+  unfolding less_fail_st_def
+  by (cut_tac fail_st.nchotomy fail_st.simps; metis (full_types))+
+
+instance fail_st :: order
+  apply standard
+     apply (case_tac x; case_tac y; simp; fail)
+    apply (case_tac x; simp; fail)
+   apply (case_tac z; simp; fail)
+  apply (case_tac x; case_tac y; simp; fail)
+  done
+
+
+subsubsection \<open> Sup \<close>
+
+instantiation fail_st :: sup
+begin
+definition \<open>sup_fail_st a b \<equiv> if a = Failed \<or> b = Failed then Failed else Running\<close>
+instance by standard
+end
+
+lemma sup_fail_st_eq[simp]:
+  \<open>a \<squnion> Running = a\<close>
+  \<open>Running \<squnion> b = b\<close>
+  \<open>a \<squnion> Failed = Failed\<close>
+  \<open>Failed \<squnion> b = Failed\<close>
+  unfolding sup_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis (full_types))+
+
+instance fail_st :: semilattice_sup
+  by standard (case_tac x; simp; fail)+
+
+
+subsubsection \<open> Inf \<close>
+
+instantiation fail_st :: inf
+begin
+definition \<open>inf_fail_st a b \<equiv> if a = Running \<or> b = Running then Running else Failed\<close>
+instance by standard
+end
+
+lemma inf_fail_st_eq[simp]:
+  \<open>a \<sqinter> Running = Running\<close>
+  \<open>Running \<sqinter> b = Running\<close>
+  \<open>a \<sqinter> Failed = a\<close>
+  \<open>Failed \<sqinter> b = b\<close>
+  unfolding inf_fail_st_def
+  by (cut_tac fail_st.nchotomy; metis)+
+
+instance fail_st :: semilattice_inf
+  by standard (case_tac x; simp; fail)+
+
+subsubsection \<open> Bounds \<close>
+
+instantiation fail_st :: top
+begin
+definition \<open>top_fail_st \<equiv> Failed\<close>
+instance by standard
+end
+
+instantiation fail_st :: bot
+begin
+definition \<open>bot_fail_st \<equiv> Running\<close>
+instance by standard
+end
+
+instance fail_st :: order_top
+  by standard (case_tac a; simp add: top_fail_st_def)
+
+instance fail_st :: order_bot
+  by standard (case_tac a; simp add: bot_fail_st_def)
+
+
+subsubsection \<open> Lattice \<close>
+
+\<comment> \<open> automatically a \<open>lattice\<close> \<close>
+\<comment> \<open> automatically a \<open>bounded_lattice\<close> \<close>
+instance fail_st :: distrib_lattice
+  by standard (case_tac x; simp)
+
+subsubsection \<open> Boolean Algebra \<close>
+
+instantiation fail_st :: uminus
+begin
+definition \<open>uminus_fail_st a \<equiv> if a = Running then Failed else Running\<close>
+instance by standard
+end
+
+lemma uminus_fail_st_eq[simp]:
+  \<open>- Running = Failed\<close>
+  \<open>- Failed = Running\<close>
+  unfolding uminus_fail_st_def
+  by metis+
+
+instantiation fail_st :: minus
+begin
+definition \<open>minus_fail_st (a::fail_st) b \<equiv> a \<sqinter> - b\<close>
+instance by standard
+end
+
+lemma minus_fail_st_eq[simp]:
+  \<open>Running - a = Running\<close>
+  \<open>Failed - a = - a\<close>
+  \<open>a - Running = a\<close>
+  \<open>a - Failed = Running\<close>
+  unfolding minus_fail_st_def
+  by (case_tac a; simp)+
+
+instance fail_st :: boolean_algebra
+  by standard
+    (case_tac x; simp add: bot_fail_st_def top_fail_st_def)+
+
+
+paragraph \<open> Separation Logic \<close>
+
+instantiation fail_st :: plus
+begin
+definition \<open>plus_fail_st \<equiv> (\<squnion>) :: fail_st \<Rightarrow> _ \<Rightarrow> _\<close>
+instance by standard
+end
+
+instantiation fail_st :: disjoint
+begin
+definition \<open>disjoint_fail_st (a::fail_st) (b::fail_st) \<equiv> True\<close>
+instance by standard
+end
+
+lemma fail_st_disjoint_eq[simp]:
+  \<open>(a::fail_st) ## (b::fail_st)\<close>
+  unfolding disjoint_fail_st_def ..
+
+instance fail_st :: pre_perm_alg
+  apply standard
+      apply (simp add: plus_fail_st_def, metis sup.assoc)
+     apply (simp add: plus_fail_st_def, metis sup.commute)
+    apply (simp add: plus_fail_st_def)+
+  done
+
+instance fail_st :: perm_alg
+  by standard (force simp add: plus_fail_st_def dest: sup_antisym)
+
+instantiation fail_st :: multiunit_sep_alg
+begin
+definition \<open>unitof_fail_st (_::fail_st) \<equiv> Running\<close>
+instance
+  by standard (simp add: unitof_fail_st_def plus_fail_st_def)+
+end
+
+instantiation fail_st :: zero
+begin
+definition \<open>zero_fail_st \<equiv> Running\<close>
+instance by standard
+end
+
+instance fail_st :: sep_alg
+  by standard (simp add: zero_fail_st_def plus_fail_st_def)+
 
 
 section \<open> Bibliography \<close>

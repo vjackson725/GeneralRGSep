@@ -512,6 +512,12 @@ lemma sepconj_eq_eq2[simp]:
   \<open>h1 ## h2 \<Longrightarrow> ((=) h1 \<^emph> (=) h2) = ((=) (h1 + h2))\<close>
   by (force simp add: sepconj_eq_eq)
 
+\<comment> \<open> An important law from quantale theory. \<close>
+lemma sepconj_Sup_distrib:
+  \<open>p \<^emph> \<Squnion>P = \<Squnion>{p \<^emph> p'|p'. p' \<in> P}\<close>
+  by blast
+
+
 subsubsection \<open> emp \<close>
 
 lemma weak_emp_sepconj: \<open>\<top> \<le> emp \<midarrow>\<odot> p \<Longrightarrow> emp \<^emph> p = p\<close>
@@ -706,9 +712,12 @@ end
 
 section \<open> Permission Algebras \<close>
 
-class perm_alg = pre_perm_alg +
+
+class positivity_law = disjoint + plus +
   assumes positivity:
     \<open>a ## c1 \<Longrightarrow> a + c1 = b \<Longrightarrow> b ## c2 \<Longrightarrow> b + c2 = a \<Longrightarrow> a = b\<close>
+
+class perm_alg = pre_perm_alg + positivity_law
 begin
 
 text \<open> This lemma is just positivity stated another way. \<close>
@@ -1254,7 +1263,7 @@ end
 
 section \<open> Strongly Separated Separation Algebra \<close>
 
-class strong_sep_perm_alg = perm_alg +
+class strong_sep_pre_perm_alg = pre_perm_alg +
   assumes selfsep_implies_unit: \<open>a ## a \<Longrightarrow> sepadd_unit a\<close>
 begin
 
@@ -1269,18 +1278,19 @@ lemma disjoint_implies_punit_iff_unit:
 
 end
 
-class strong_sep_multiunit_sep_alg = multiunit_sep_alg + strong_sep_perm_alg
+class strong_sep_pre_multiunit_sep_alg = pre_multiunit_sep_alg + strong_sep_pre_perm_alg
 begin
 
 lemma mu_selfsep_iff: \<open>a ## a \<longleftrightarrow> unitof a = a\<close>
-  by (metis selfsep_iff unitof_disjoint unitof_sepadd_unit)
+  by (metis disjoint_units_identical selfsep_implies_unit unitof_disjoint2
+      unitof_is_sepadd_unit)
 
 lemma mu_selfsep_implies_unit: \<open>a ## a \<Longrightarrow> unitof a = a\<close>
   by (metis mu_selfsep_iff)
 
 end
 
-class strong_separated_sep_alg = sep_alg + strong_sep_multiunit_sep_alg
+class strong_separated_pre_sep_alg = pre_sep_alg + strong_sep_pre_multiunit_sep_alg
 begin
 
 lemma sepalg_selfsep_iff: \<open>a ## a \<longleftrightarrow> a = 0\<close>
@@ -1294,7 +1304,7 @@ end
 
 section \<open> Disjoint Parts Algebra \<close>
 
-class disjoint_parts_perm_alg = perm_alg +
+class disjoint_parts_pre_perm_alg = pre_perm_alg +
   assumes disjointness_left_plusI: \<open>a ## b \<Longrightarrow> a ## c \<Longrightarrow> b ## c \<Longrightarrow> a + b ## c\<close>
 begin
 
@@ -1336,14 +1346,10 @@ lemma partial_add_double_assoc2:
 
 end
 
-class disjoint_parts_multiunit_sep_alg = multiunit_sep_alg + disjoint_parts_perm_alg
-
-class disjoint_parts_sep_alg = sep_alg + disjoint_parts_multiunit_sep_alg
-
 
 section \<open> Trivial Self-disjointness Separation Algebra \<close>
 
-class trivial_selfdisjoint_perm_alg = perm_alg +
+class trivial_selfdisjoint_pre_perm_alg = pre_perm_alg +
   assumes selfdisjoint_same: \<open>a ## a \<Longrightarrow> a + a = b \<Longrightarrow> a = b\<close>
 begin
 
@@ -1355,31 +1361,23 @@ lemma all_selfdisjoint_dup:
 
 end
 
-context strong_sep_perm_alg
+context strong_sep_pre_perm_alg
 begin
 (* trivial selfdisjointness is a subclass of strong separation *)
-subclass trivial_selfdisjoint_perm_alg
+subclass trivial_selfdisjoint_pre_perm_alg
   by standard (simp add: selfsep_iff)
 
 end
 
-class trivial_selfdisjoint_multiunit_sep_alg = multiunit_sep_alg + trivial_selfdisjoint_perm_alg
-
-class trivial_selfdisjoint_sep_alg = sep_alg + trivial_selfdisjoint_multiunit_sep_alg
-
 
 section \<open> Cross-Split Separation Algebra \<close>
 
-class crosssplit_perm_alg = perm_alg +
+class crosssplit_pre_perm_alg = pre_perm_alg +
   assumes cross_split:
   \<open>a ## b \<Longrightarrow> c ## d \<Longrightarrow> a + b = c + d \<Longrightarrow>
     \<exists>ac ad bc bd.
       ac ## ad \<and> bc ## bd \<and> ac ## bc \<and> ad ## bd \<and>
       ac + ad = a \<and> bc + bd = b \<and> ac + bc = c \<and> ad + bd = d\<close>
-
-class crosssplit_multiunit_sep_alg = multiunit_sep_alg + crosssplit_perm_alg
-
-class crosssplit_sep_alg = sep_alg + crosssplit_multiunit_sep_alg
 
 
 section \<open> Cancellative Separation Algebras\<close>
@@ -1392,7 +1390,7 @@ lemma cancellativeD:
   \<open>cancellative f \<Longrightarrow> x ## f \<Longrightarrow> y ## f \<Longrightarrow> x + f = y + f \<Longrightarrow> x = y\<close>
   using cancellative_def by blast
 
-class cancel_perm_alg = perm_alg +
+class cancel_pre_perm_alg = pre_perm_alg +
   assumes partial_right_cancel[simp]: \<open>\<And>a b c. a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b)\<close>
 begin
 
@@ -1504,18 +1502,12 @@ lemma precise_iff_conj_distrib:
 
 end
 
-class cancel_multiunit_sep_alg = cancel_perm_alg + multiunit_sep_alg
+class cancel_pre_multiunit_sep_alg = cancel_pre_perm_alg + pre_multiunit_sep_alg
 begin
-
 lemma selfsep_selfadd_iff_unit:
   \<open>a ## a \<and> a + a = a \<longleftrightarrow> sepadd_unit a\<close>
-  by (metis partial_right_cancelD unitof_disjoint2 unitof_inherits_disjointness unitof_is_unit2
-      unitof_is_sepadd_unit unitof_sepadd_unit)
+  using cancel_left_to_unit by blast
 
-lemma strong_positivity:
-  \<open>a ## b \<Longrightarrow> c ## c \<Longrightarrow> a + b = c \<Longrightarrow> c + c = c \<Longrightarrow> a = b \<and> b = c\<close>
-  by (metis add_sepadd_unit_add_iff_parts_sepadd_unit cancel_right_to_unit disjoint_units_identical
-      sepadd_unit_right)
 
 lemma \<open>(a \<^emph> \<top>) \<sqinter> (b \<^emph> \<top>) \<le> ((a \<^emph> b) \<squnion> (a \<sqinter> b)) \<^emph> \<top>\<close>
   nitpick[card=4]
@@ -1539,7 +1531,17 @@ lemma precise_implies_unitlikes_are_units:
 
 end
 
-class cancel_sep_alg = cancel_multiunit_sep_alg + sep_alg
+class cancel_multiunit_sep_alg = cancel_pre_perm_alg + multiunit_sep_alg
+begin
+
+lemma strong_positivity:
+  \<open>a ## b \<Longrightarrow> c ## c \<Longrightarrow> a + b = c \<Longrightarrow> c + c = c \<Longrightarrow> a = b \<and> b = c\<close>
+  by (metis add_sepadd_unit_add_iff_parts_sepadd_unit cancel_right_to_unit disjoint_units_identical
+      sepadd_unit_right)
+
+end
+
+class cancel_pre_sep_alg = cancel_pre_multiunit_sep_alg + pre_sep_alg
 
 
 section \<open> No-unit perm alg \<close>
@@ -1548,10 +1550,10 @@ text \<open>
   Here we create a perm_alg without any unit.
   Such an algebra is necessary to prove permission heaps are cancellative.
 \<close>
-class no_unit_perm_alg = perm_alg +
-  assumes no_units: \<open>\<not> sepadd_unit a\<close>
+class no_unit_pre_perm_alg = pre_perm_alg +
+  assumes no_units: \<open>\<And>a. \<not> sepadd_unit a\<close>
 
-class cancel_no_unit_perm_alg = no_unit_perm_alg + cancel_perm_alg
+class cancel_no_unit_pre_perm_alg = no_unit_pre_perm_alg + cancel_pre_perm_alg
 begin
 
 lemma no_unit_cancel_rightD[dest]:
@@ -1567,54 +1569,52 @@ end
 
 section \<open> Halving separation algebra \<close>
 
-class halving_perm_alg = perm_alg +
-  fixes half :: \<open>'a \<Rightarrow> 'a\<close>
-  assumes half_additive_split: \<open>\<And>a. half a + half a = a\<close>
-  assumes half_self_disjoint: \<open>\<And>a. half a ## half a\<close>
-  assumes half_sepadd_distrib: \<open>\<And>a b. a ## b \<Longrightarrow> half (a + b) = half a + half b\<close>
+class halfof =
+  fixes halfof :: \<open>'a \<Rightarrow> 'a\<close>
+
+class halving_pre_perm_alg = pre_perm_alg + halfof +
+  assumes halfof_additive_split: \<open>\<And>a. halfof a + halfof a = a\<close>
+  assumes halfof_self_disjoint: \<open>\<And>a. halfof a ## halfof a\<close>
+  assumes halfof_sepadd_distrib: \<open>\<And>a b. a ## b \<Longrightarrow> halfof (a + b) = halfof a + halfof b\<close>
 begin
 
-lemma half_disjoint_preservation_left: \<open>a ## b \<Longrightarrow> half a ## b\<close>
-  by (metis disjoint_add_leftR half_additive_split half_self_disjoint)
+lemma halfof_disjoint_preservation_left: \<open>a ## b \<Longrightarrow> halfof a ## b\<close>
+  by (metis disjoint_add_leftR halfof_additive_split halfof_self_disjoint)
 
-lemma half_disjoint_preservation_right: \<open>a ## b \<Longrightarrow> a ## half b\<close>
-  using half_disjoint_preservation_left disjoint_sym by blast
+lemma halfof_disjoint_preservation_right: \<open>a ## b \<Longrightarrow> a ## halfof b\<close>
+  using halfof_disjoint_preservation_left disjoint_sym by blast
 
-lemma half_disjoint_preservation: \<open>a ## b \<Longrightarrow> half a ## half b\<close>
-  by (simp add: half_disjoint_preservation_left half_disjoint_preservation_right)
+lemma halfof_disjoint_preservation: \<open>a ## b \<Longrightarrow> halfof a ## halfof b\<close>
+  by (simp add: halfof_disjoint_preservation_left halfof_disjoint_preservation_right)
 
 
-lemma half_disjoint_distribL:
-  \<open>a ## c \<Longrightarrow> a + c ## b \<Longrightarrow> a + half c ## b + half c\<close>
-  by (metis disjoint_add_leftL disjoint_add_right_commute disjoint_sym half_additive_split
-      half_self_disjoint partial_add_assoc)
+lemma halfof_disjoint_distribL:
+  \<open>a ## c \<Longrightarrow> a + c ## b \<Longrightarrow> a + halfof c ## b + halfof c\<close>
+  by (metis disjoint_add_leftL disjoint_add_right_commute disjoint_sym halfof_additive_split
+      halfof_self_disjoint partial_add_assoc)
 
-lemma half_disjoint_distribR:
-  \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a + half c ## b + half c\<close>
-  using half_disjoint_distribL disjoint_sym by blast
+lemma halfof_disjoint_distribR:
+  \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a + halfof c ## b + halfof c\<close>
+  using halfof_disjoint_distribL disjoint_sym by blast
 
-lemma half_eq_full_imp_self_additive:
-  \<open>half a = a \<Longrightarrow> a + a = a\<close>
-  by (metis half_additive_split)
+lemma halfof_eq_full_imp_self_additive:
+  \<open>halfof a = a \<Longrightarrow> a + a = a\<close>
+  by (metis halfof_additive_split)
 
 end
-
-class halving_multiunit_sep_alg = multiunit_sep_alg + halving_perm_alg
-
-class halving_sep_alg = sep_alg + halving_multiunit_sep_alg
 
 
 subsection \<open> Trivial self-disjoint + halving (very boring) \<close>
 
-class trivial_halving_perm_alg = trivial_selfdisjoint_perm_alg + halving_perm_alg
+class trivial_halving_perm_alg = trivial_selfdisjoint_pre_perm_alg + halving_pre_perm_alg
 begin
 
-lemma trivial_half[simp]: \<open>half a = a\<close>
-  by (simp add: selfdisjoint_same half_additive_split half_self_disjoint)
+lemma trivial_halfof[simp]: \<open>halfof a = a\<close>
+  by (simp add: selfdisjoint_same halfof_additive_split halfof_self_disjoint)
 
 lemma all_duplicable:
   \<open>sepadd_dup x\<close>
-  using all_selfdisjoint_dup half_self_disjoint
+  using all_selfdisjoint_dup halfof_self_disjoint
   by auto
 
 end
@@ -1623,18 +1623,18 @@ end
 section \<open> All-disjoint algebra \<close>
 
 text \<open>
-  This seems very strong, but the discrete algebra is this sort
-  of algebra, and it's the necessary precondition to build up Error.
+  This is a ver strong condition. The discrete algebra is this sort of algebra.
+  This law is sufficient to make a destructive error state work.
 \<close>
 
-class all_disjoint_perm_alg = perm_alg +
+class all_disjoint_pre_perm_alg = pre_perm_alg +
   assumes all_disjoint[simp]: \<open>a ## b\<close>
 
-class all_disjoint_multiunit_sep_alg =
-  multiunit_sep_alg + all_disjoint_perm_alg
+class all_disjoint_pre_multiunit_sep_alg =
+  pre_multiunit_sep_alg + all_disjoint_pre_perm_alg
 
-class all_disjoint_sep_alg =
-  sep_alg + all_disjoint_perm_alg
+class all_disjoint_pre_sep_alg =
+  pre_sep_alg + all_disjoint_pre_perm_alg
 
 
 section \<open> Bibliography \<close>

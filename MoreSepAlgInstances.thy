@@ -10,71 +10,145 @@ subclass bounded_distrib_lattice
   by standard
 end
 
-section \<open> lock permissions \<close>
+
+section \<open> Error monad \<close>
 
 text \<open>
-  Krebber's (TODO cite) `lockable' permission structure.
+  Unfortunately, Error does not, in most cases, form a separation algebra.
+  The global non-cancellative nature of the Error value breaks the disjoint-subpart law.
+
+  However, it does form a good instance when there are only trivial subparts.
+  (I.e. when every element is disjoint.)
 \<close>
 
-typedef ('a::bounded_distrib_lattice) lock_perm = \<open>UNIV :: 'a set\<close>
-  by blast
+datatype 'a error =
+  Val (the_val: 'a)
+  | Error
 
-definition \<open>Locked \<equiv> Abs_lock_perm \<bottom>\<close>
-definition \<open>Unlocked \<equiv> Abs_lock_perm \<top>\<close>
-
-declare Abs_lock_perm_inject[simplified, simp]
-declare Abs_lock_perm_inverse[simplified, simp]
-declare Rep_lock_perm_inverse[simplified, simp]
-
-lemmas Rep_lock_perm_inject2 = Rep_lock_perm_inject[simplified]
-
-lemma Abs_lock_perm_helpers:
-  \<open>(a = Abs_lock_perm x) \<longleftrightarrow> x = Rep_lock_perm a\<close>
-  \<open>(Abs_lock_perm x = a) \<longleftrightarrow> x = Rep_lock_perm a\<close>
-  using Abs_lock_perm_inverse Rep_lock_perm_inject2
-  by force+
-
-setup_lifting type_definition_lock_perm
-
-instantiation lock_perm :: (bounded_distrib_lattice) perm_alg
+instantiation error :: (ord) ord
 begin
 
-lift_definition less_eq_lock_perm :: \<open>'a lock_perm \<Rightarrow> 'a lock_perm \<Rightarrow> bool\<close> is
-  \<open>\<lambda>a b. a = b \<or> (\<exists>c. a \<squnion> c = \<top> \<and> b = a \<sqinter> c)\<close> .
+fun less_eq_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
+  \<open>less_eq_error _ Error = True\<close>
+| \<open>less_eq_error Error (Val b) = False\<close>
+| \<open>less_eq_error (Val a) (Val b) = (a \<le> b)\<close>
 
-lift_definition less_lock_perm :: \<open>'a lock_perm \<Rightarrow> 'a lock_perm \<Rightarrow> bool\<close> is
-  \<open>\<lambda>a b. a \<noteq> b \<and> (\<exists>c. a \<squnion> c = \<top> \<and> b = a \<sqinter> c)\<close> .
+lemma less_eq_error_def:
+  \<open>a \<le> b =
+    (case b of
+      Error \<Rightarrow> True
+    | Val b \<Rightarrow>
+      (case a of
+        Error \<Rightarrow> False
+      | Val a \<Rightarrow> a \<le> b))\<close>
+  by (cases a; cases b; force)
 
-lift_definition disjoint_lock_perm :: \<open>'a lock_perm \<Rightarrow> 'a lock_perm \<Rightarrow> bool\<close> is
-  \<open>\<lambda>a b. a \<squnion> b = \<top>\<close> .
+fun less_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
+  \<open>less_error Error _ = False\<close>
+| \<open>less_error (Val a) Error = True\<close>
+| \<open>less_error (Val a) (Val b) = (a < b)\<close>
+
+lemma less_error_def:
+  \<open>a < b =
+    (case a of
+      Error \<Rightarrow> False
+    | Val a \<Rightarrow>
+      (case b of
+        Error \<Rightarrow> True
+      | Val b \<Rightarrow> a < b))\<close>
+  by (cases a; cases b; force)
+
+instance proof qed
+
+end
+
+instantiation error :: (preorder) preorder
+begin
+
+instance proof
+  fix x y z :: \<open>'a :: preorder error\<close>
+  show \<open>(x < y) = (x \<le> y \<and> \<not> y \<le> x)\<close>
+    by (simp add: less_eq_error_def less_error_def error.case_eq_if less_le_not_le)
+  show \<open>x \<le> x\<close>
+    by (simp add: less_eq_error_def error.case_eq_if)
+  show \<open>x \<le> y \<Longrightarrow> y \<le> z \<Longrightarrow> x \<le> z\<close>
+    by (force dest: order_trans simp add: less_eq_error_def split: error.splits)
+qed
+
+end
 
 
-lemma disjoint_lock_perm_simps[simp]:
-  \<open>Locked ## b \<longleftrightarrow> b = Unlocked\<close>
-  \<open>a ## Locked \<longleftrightarrow> a = Unlocked\<close>
-  \<open>Locked ## Locked \<longleftrightarrow> (\<bottom>::'a) = \<top>\<close>
-  by (force simp add: disjoint_lock_perm.rep_eq Locked_def Unlocked_def Abs_lock_perm_helpers)+
+instantiation error :: (order) order_top
+begin
 
-lift_definition plus_lock_perm :: \<open>'a lock_perm \<Rightarrow> 'a lock_perm \<Rightarrow> 'a lock_perm\<close> is \<open>(\<sqinter>)\<close> .
+definition \<open>top_error \<equiv> Error\<close>
 
-lemma plus_lock_perm_simps[simp]:
-  \<open>Locked + Unlocked = Locked\<close>
-  \<open>Unlocked + Locked = Locked\<close>
-  \<open>Unlocked + Unlocked = Unlocked\<close>
-  unfolding Unlocked_def Locked_def
-  by (transfer, force)+
+instance proof
+  fix x y z :: \<open>'a :: order error\<close>
+  show \<open>x \<le> y \<Longrightarrow> y \<le> x \<Longrightarrow> x = y\<close>
+    by (simp add: less_eq_error_def split: error.splits)
+  show \<open>x \<le> top\<close>
+    by (simp add: top_error_def)
+qed
+
+end
+
+instantiation error :: (order_bot) order_bot
+begin
+
+definition \<open>bot_error = Val bot\<close>
+
+instance proof
+  fix a :: \<open>'a :: order_bot error\<close>
+  show \<open>\<bottom> \<le> a\<close>
+    by (simp add: bot_error_def less_eq_error_def error.case_eq_if)
+qed
+
+end
+
+instantiation error :: (all_disjoint_perm_alg) perm_alg
+begin
+
+definition disjoint_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
+  \<open>disjoint_error a b \<equiv>
+    a = Error \<or> b = Error \<or> (\<exists>x y. a = Val x \<and> b = Val y \<and> x ## y)\<close>
+
+lemma disjoint_error_def2:
+  \<open>a ## b \<longleftrightarrow> a = Error \<or> b = Error \<or> the_val a ## the_val b\<close>
+  by (simp add: disjoint_error_def, metis error.exhaust)
+
+lemma disjoint_error_simps[simp]:
+  \<open>Error ## b\<close>
+  \<open>a ## Error\<close>
+  \<open>Val x ## Val y \<longleftrightarrow> x ## y\<close>
+  by (simp add: disjoint_error_def)+
+
+
+definition plus_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> 'a error\<close> where
+  \<open>a + b \<equiv> case a of Val x \<Rightarrow> (case b of Val y \<Rightarrow> Val (x + y) | Error \<Rightarrow> Error) | Error \<Rightarrow> Error\<close>
+
+lemma plus_error_def2:
+  \<open>a + b = (if a = Error \<or> b = Error then Error else Val (the_val a + the_val b))\<close>
+  by (simp add: error.case_eq_if plus_error_def)
+
+lemma plus_error_simps[simp]:
+  \<open>Error + b = Error\<close>
+  \<open>a + Error = Error\<close>
+  \<open>Val x + Val y = Val (x + y)\<close>
+  by (force simp add: plus_error_def split: error.splits)+
+
 
 instance
   apply standard
-          apply (transfer, metis inf.assoc)
-         apply (transfer, metis inf.commute)
-        apply (transfer, metis sup.commute)
-       apply (transfer, simp add: sup_inf_distrib1; fail)
-      apply (transfer, simp add: inf_sup_aci(5) sup_inf_distrib1; fail)
-     apply (transfer, simp; fail)
-    apply (transfer, metis sup_commute sup_inf_absorb)
-   apply (transfer, blast)
-  apply (transfer, blast)
+       apply (force simp add: disjoint_error_def plus_error_def partial_add_assoc
+      split: error.splits)
+      apply (force simp add: disjoint_error_def plus_error_def partial_add_commute
+      split: error.splits)
+     apply (force simp add: disjoint_error_def plus_error_def disjoint_sym_iff)
+    apply (simp add: disjoint_error_def plus_error_def disjoint_add_rightL split: error.splits;
+      metis error.exhaust)
+   apply (force simp add: disjoint_add_right_commute disjoint_error_def)
+  apply (force simp add: disjoint_error_def positivity)
   done
 
 end

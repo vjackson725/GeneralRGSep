@@ -1,7 +1,65 @@
 theory SepLogicExperimental
-  imports "../SepLogic"
+  imports "../../SepLogic"
 begin
 
+
+section \<open> Ordered Separation Algebras \<close>
+
+text \<open> Experiments based on Bringing Order to the Separation Logic Jungle (Cao Et. Al.) \<close>
+
+lemma downcl_order_implies_resorder:
+  assumes downcl:
+    \<open>\<forall>x ya yb::'a::{multiunit_sep_alg,order}.
+      ya ## yb \<longrightarrow> x \<le> ya + yb \<longrightarrow> (\<exists>xa xb. xa ## xb \<and> xa \<le> ya \<and> xb \<le> yb \<and> x = xa + xb)\<close>
+  shows \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+          Le = {(a,b::'a). a \<le> b} \<Longrightarrow>
+          \<forall>a b::'a. a \<preceq> b \<longrightarrow> a \<le> b\<close>
+  nitpick[card 'a=2]
+  oops
+
+lemma upcl_order_implies_resorder:
+  assumes upcl:
+    \<open>\<forall>xa xb y::'a::{multiunit_sep_alg,order}.
+      xa ## xb \<longrightarrow> xa + xb \<le> y \<longrightarrow> (\<exists>ya yb. ya ## yb \<and> xa \<le> ya \<and> xb \<le> yb \<and> y = ya + yb)\<close>
+  shows \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+          Le = {(a,b::'a). a \<le> b} \<Longrightarrow>
+          \<forall>a b::'a. a \<preceq> b \<longrightarrow> a \<le> b\<close>
+  nitpick[card 'a=2]
+  oops
+
+definition \<open>incr_res a \<equiv> \<forall>x. x ## a \<longrightarrow> x \<le> x + a\<close>
+
+text \<open> we can't do the upwards or downwards closure with a functional addition relation. \<close>
+
+lemma resorder_implies_increasing_order:
+  assumes \<open>\<forall>a::'a::{preorder,multiunit_sep_alg}. incr_res a\<close>
+  shows \<open>\<forall>a b::'a. a \<preceq> b \<longrightarrow> a \<le> b\<close>
+  using assms
+  unfolding incr_res_def
+  by (metis le_iff_sepadd)
+
+lemma unital_implies_increasing_order:
+  assumes increasing
+  shows \<open>\<forall>a b::'a. a \<preceq> b \<longrightarrow> a \<le> b\<close>
+  using assms
+  unfolding is_unital_def
+  by (metis order.refl less_sepadd_def resource_order.le_imp_less_or_eq)
+
+lemma
+  assumes incr: \<open>(\<forall>a b::'a::{order,perm_alg}. a \<le> a + b)\<close>
+  shows \<open>((\<preceq>) :: 'a \<Rightarrow> 'a \<Rightarrow> bool) \<le> (\<le>)\<close>
+  sledgehammer
+  sorry
+  by (simp add: incr incr_res_def predicate2I resorder_implies_increasing_order)
+
+definition
+  \<open>is_unital (\<alpha>::('a::pre_perm_alg) itself) \<equiv> \<forall>ab a::'a. \<exists>b. a ## b \<and> ab = a + b\<close>
+
+lemma
+  assumes \<open>\<close>
+  shows \<open>is_unital TYPE('a::{preorder,perm_alg})\<close>
+
+section \<open> Core \<close>
 
 context perm_alg
 begin

@@ -2,6 +2,101 @@ theory RGLogic
   imports Lang
 begin
 
+section \<open> Rely-Guarantee Separation Algebra \<close>
+
+text \<open>
+  Separation algebra instance for rely guarantee relations,
+  first proposed in Deny-Guarantee (TODO: proper cite).
+\<close>
+datatype 'l rgsep = RGSep (rgrely: 'l) (rgguar: 'l)
+
+lemma ex_rgsep_of_rely_guar_pred_iff:
+  \<open>(\<exists>a::'a rgsep. P (rgrely a) (rgguar a)) \<longleftrightarrow> (\<exists>ra ga. P ra ga)\<close>
+  by (metis rgsep.sel(1,2))
+
+subsection \<open> sepalg instance \<close>
+
+instantiation rgsep :: (order) disjoint
+begin
+definition \<open>disjoint_rgsep (a::'a rgsep) b \<equiv> rgguar a \<le> rgrely b \<and> rgguar b \<le> rgrely a\<close>
+instance by standard
+end
+
+instantiation rgsep :: (lattice) plus
+begin
+definition \<open>plus_rgsep (a::'a rgsep) b \<equiv> RGSep (rgrely a \<sqinter> rgrely b) (rgguar a \<squnion> rgguar b)\<close>
+instance by standard
+end
+
+instance rgsep :: (lattice) pre_perm_alg
+  apply standard
+      apply (simp add: disjoint_rgsep_def plus_rgsep_def inf.assoc sup.assoc; fail)
+     apply (simp add: disjoint_rgsep_def plus_rgsep_def inf.commute sup.commute)+
+  done
+
+instance rgsep :: (lattice) positivity_law
+  apply standard
+  apply (clarsimp simp add: disjoint_rgsep_def plus_rgsep_def)
+  apply (metis rgsep.sel inf_antisym sup_antisym)
+  done
+
+instantiation rgsep :: (bounded_lattice) pre_multiunit_sep_alg
+begin
+definition \<open>unitof_rgsep (_::'a rgsep) \<equiv> RGSep \<top> \<bottom>::'a rgsep\<close>
+instance
+  by standard
+    (simp add: unitof_rgsep_def disjoint_rgsep_def plus_rgsep_def)+
+end
+
+instantiation rgsep :: (bounded_lattice) zero
+begin
+definition \<open>zero_rgsep \<equiv> RGSep \<top> \<bottom>::'a rgsep\<close>
+instance by standard
+end
+
+instance rgsep :: (bounded_lattice) pre_sep_alg
+  by standard
+    (simp add: zero_rgsep_def disjoint_rgsep_def plus_rgsep_def)+
+
+
+subsubsection \<open> Extended instances \<close>
+
+instance rgsep :: (lattice) dupcl_perm_alg
+  by standard
+    (simp add: plus_rgsep_def disjoint_rgsep_def)
+
+(* not strong_sep_pre_perm_alg *)
+
+instance rgsep :: (lattice) disjoint_parts_pre_perm_alg
+  by standard (simp add: disjoint_rgsep_def plus_rgsep_def)
+
+instance rgsep :: (lattice) trivial_selfdisjoint_pre_perm_alg
+  by standard (simp add: disjoint_rgsep_def plus_rgsep_def)
+
+instance rgsep :: (distrib_lattice) crosssplit_pre_perm_alg
+  apply standard
+  apply (case_tac a, case_tac b, case_tac c, case_tac d)
+  apply (clarsimp simp add: disjoint_rgsep_def plus_rgsep_def)
+  apply (subst ex_rgsep_of_rely_guar_pred_iff)+
+  apply clarsimp
+  apply (drule inf_crosssplit)
+  apply (drule sup_crosssplit)
+  apply clarsimp
+  apply blast (* slow-ish *)
+  done
+
+(* not a cancel_pre_perm_alg *)
+(* not a halving_pre_perm_alg *)
+
+instance rgsep :: (bounded_lattice) allcompatible_perm_alg
+  by standard
+    (metis zero_least trans_ge_le_is_compatible)
+
+(* not an all_disjoint_pre_perm_alg *)
+(* not a no_unit_pre_perm_alg *)
+
+
+section \<open> Definitions for the Program Logic \<close>
 
 definition
   \<open>cancellative' Ia Ib F \<equiv>
@@ -272,26 +367,51 @@ section \<open> Specialised Rules \<close>
 subsection \<open> Await \<close>
 
 lemma rgsat_await:
-  assumes step: \<open>sswa R (sswa R p \<sqinter> qa) \<le> q\<close>
-    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<squnion> (sswa R p \<^emph>\<and> F)) \<sqinter> qa) \<sqinter> (=)) \<le> G\<close>
-    and frame_locality: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> qa \<le> (sswa R p \<sqinter> qa) \<^emph>\<and> any_shared f\<close>
+  assumes step: \<open>sswa R p \<sqinter> p' \<le> wssa R q\<close>
+    and framed_step: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> wssa R q \<^emph>\<and> any_shared f\<close>
+    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<squnion> (sswa R p \<^emph>\<and> F)) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
     and stinv:
     \<open>sswa R p \<le> I\<close>
-    \<open>sswa R (sswa R p \<sqinter> qa) \<le> I\<close>
+    \<open>wssa R q \<le> I\<close>
     and cpred: \<open>T RGSepAtom\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile> { p } Await qa { q }\<close>
+    \<open>R, G, I, F, T \<turnstile> { p } Await p' { q }\<close>
   using assms
   unfolding Await_def
-  apply (intro rgsat_atom[where p=\<open>sswa R p\<close> and q=\<open>sswa R p \<sqinter> qa\<close>])
+  apply (intro rgsat_atom[where p=\<open>sswa R p\<close> and q=\<open>wssa R q\<close>])
          apply force
-        apply (simp add: inf_assoc rel_liftL_conj_distrib inf.assoc; fail)+
+        apply force
+       apply (fastforce simp add: rel_liftL_conj_distrib)
+      apply (simp add: rel_liftL_conj_distrib inf.assoc; fail)+
   done
+
+text \<open> Specialise the rule to the strongest \<open>q\<close> \<close>
+lemma rgsat_await':
+  assumes framed_step:
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> sswa R (sswa R p \<sqinter> p') \<^emph>\<and> any_shared f\<close>
+    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<squnion> (sswa R p \<^emph>\<and> F)) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
+    and stinv:
+    \<open>sswa R p \<le> I\<close>
+    \<open>sswa R (sswa R p \<sqinter> p') \<le> I\<close>
+    and cpred: \<open>T RGSepAtom\<close>
+  shows
+    \<open>R, G, I, F, T \<turnstile> { p } Await p' { sswa R (sswa R p \<sqinter> p') }\<close>
+  using assms
+  apply (intro rgsat_await)
+       apply force
+      apply (simp; fail)+
+  done
+
+lemma
+  \<open>(\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> (sswa R p \<sqinter> p') \<^emph>\<and> any_shared f) \<Longrightarrow>
+    (\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> sswa R (sswa R p \<sqinter> p') \<^emph>\<and> any_shared f)\<close>
+  by (meson order.trans sepconj_conj_monoL sswa_weaker)
+
 
 text \<open>
   Note: the rule does not attempt to prevent the Await from deadlocking for no reason.
   One should also show that the Await-predicate is achievable from the current state
-  with \<open>R\<close> steps. I.e. \<open>\<exists>s. sp R\<^sup>*\<^sup>* ((sswa R p \<^emph>\<and> F) \<sqinter> qa) s\<close>
+  with \<open>R\<close> steps. I.e. \<open>\<exists>s. sp R\<^sup>*\<^sup>* ((sswa R p \<^emph>\<and> F) \<sqinter> p') s\<close>
     This doesn't prevent all deadlocks, but does ensure that, if one does occur,
   some of the blame for it falls on the environment specification.
 \<close>
@@ -309,9 +429,9 @@ lemma rgsat_if_then_else:
   assumes
     \<open>rel_liftL (sswa R p \<squnion> sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
     and tt_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> any_shared f\<close>
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> sswa R (sswa R p \<sqinter> pp) \<^emph>\<and> any_shared f\<close>
     and ff_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<and> any_shared f\<close> 
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> sswa R (sswa R p \<sqinter> -pp) \<^emph>\<and> any_shared f\<close> 
     and body_assms:
     \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
@@ -332,16 +452,19 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
       where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>])
   show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
     using misc_assms assms(1) tt_guard_frame_cond
-    apply (intro rgsat_await; simp)
-     apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
-    apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
+    apply (intro rgsat_await')
+        apply blast
+       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+      apply blast
+     apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
+    apply blast
     done
   show \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     using body_assms
     by blast
   show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
     using ff_guard_frame_cond misc_assms assms
-    apply (intro rgsat_await; simp)
+    apply (intro rgsat_await'; simp)
      apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
         rel_liftL_conj_distrib; fail)
     apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
@@ -370,7 +493,7 @@ subsection \<open> WhileLoop \<close>
 lemma rgsat_while:
   assumes
     \<open>rel_image snd (rel_liftL ((sswa R ii \<squnion> sswa R ii \<^emph>\<and> F) \<sqinter> px) \<sqinter> (=)) \<le> G\<close>
-    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
+    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> sswa R (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
     \<open>sswa R (sswa R ii \<sqinter> px) \<le> sswa R ii\<close>
     \<open>sswa R ii \<le> I\<close>
     \<open>sswa R p \<le> ii\<close>
@@ -385,7 +508,7 @@ lemma rgsat_while:
     \<open>R, G, I, F, T \<turnstile> { p } WhileLoop px c { q }\<close>
   unfolding WhileLoop_def
   using assms
-  by (intro rgsat_iter[OF rgsat_seq[OF rgsat_await, rotated 6, where T=T]])
+  by (intro rgsat_iter[OF rgsat_seq[OF rgsat_await', rotated 6, where T=T]])
     (rule order.refl|simp)+
 
 

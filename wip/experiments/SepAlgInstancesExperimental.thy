@@ -2,7 +2,6 @@ theory SepAlgInstancesExperimental
   imports "../../SepAlgInstances" "HOL-Library.Type_Length"
 begin
 
-
 section \<open> Locked resources \<close>
 
 (* This doesn't work. *)

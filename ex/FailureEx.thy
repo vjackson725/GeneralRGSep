@@ -2,6 +2,17 @@ theory FailureEx
   imports "../Soundness"
 begin
 
+(* TODO: move *)
+lemma option_ex_split:
+  \<open>(case mx of Some x \<Rightarrow> p x | None \<Rightarrow> q) \<longleftrightarrow> (\<exists>x. mx = Some x \<and> p x) \<or> mx = None \<and> q\<close>
+  by (metis case_option_disj_iff)
+
+lemma singleton_plus_heap_eq_iff:
+  \<open>[x \<mapsto> va] + h = [x \<mapsto> vb] + h \<longleftrightarrow> Some va + h x = Some vb + h x\<close>
+  by (simp add: plus_fun_def plus_option_def fun_eq_iff split: option.splits if_splits)
+
+
+
 subsection \<open> Heap predicate \<close>
 
 definition points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
@@ -152,29 +163,29 @@ lemma rgsat_assert:
     \<open>p \<le> pa\<close>
     \<open>p \<^emph>\<and> F \<le> pa\<close>
     and guar:
-    \<open>rel_image snd (rel_liftL (wssa R p \<squnion> wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
-    and misc:
-    \<open>wssa R p \<le> I\<close>
+    \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    and inv:
     \<open>sswa R p \<le> I\<close>
+    and tree:
     \<open>T RGSepAtom\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R p } Assert pa { sswa R p }\<close>
   using assms
   unfolding Assert_def
-proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
+proof (intro rgsat_atom[where p=\<open>nofailure_pred p\<close> and q=\<open>nofailure_pred p\<close>])
   let ?ra' = \<open>(step_fail_lift
             (\<lambda>(l, s) (l', s', k').
                 l' = l \<and>
                 s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
 
   show
-    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p))) \<le> nofailure_pred (sswa R p)\<close>
+    \<open>sp ?ra' (nofailure_pred p) \<le> nofailure_pred p\<close>
     using precond
     by (force simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
 
   show
     \<open>\<forall>f\<le>nofailure_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<^emph>\<and> f) \<le> nofailure_pred (sswa R p) \<^emph>\<and> any_shared f\<close>
+       sp ?ra' (nofailure_pred p \<^emph>\<and> f) \<le> nofailure_pred p \<^emph>\<and> any_shared f\<close>
     using precond
     by (simp add: all_impl_nofailure_pred_internalise
         predTimes3_sepconj_conj_distrib[symmetric] sp_step_fail_lift_on_nofailure_pred_eq,
@@ -182,71 +193,31 @@ proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R p)\<close>])
 
   show
     \<open>rel_image snd
-      (rel_liftL
-        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<squnion>
-          sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R p)) \<^emph>\<and> nofailure_pred F) \<sqinter>
-        ?ra')
-    \<le> G \<times>\<^sub>R (=)\<close>
+      (rel_liftL (nofailure_pred p \<squnion> nofailure_pred p \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
+      \<le> G \<times>\<^sub>R (=)\<close>
     using guar precond
-    apply (clarsimp simp add: rel_image_def le_fun_def predTimes3_sepconj_conj_distrib[symmetric]
-        split: prod.splits)
-    apply (meson le_boolD le_funE sepconj_conj_monoL wssa_stronger; fail)
-    done
+    by (force simp add: predTimes3_sepconj_conj_distrib[symmetric])
+
+  show \<open>sswa (R \<times>\<^sub>R (=)) (nofailure_pred p) \<le> nofailure_pred I\<close>
+    using assms
+    by force
 qed (simp add: sswa_weaker wssa_stronger)+
 
+lemma frame_expanding_simplification:
+  \<open>(\<forall>f\<le>F. (p \<sqinter> pa) \<^emph>\<and> f \<le> (p \<^emph>\<and> any_shared f) \<sqinter> pa) \<longleftrightarrow>
+    ((p \<sqinter> pa) \<^emph>\<and> F \<le> (p \<^emph>\<and> F) \<sqinter> pa)\<close>
+  by (simp add: le_fun_def any_shared_def sepconj_conj_def, fast)
+
 lemma rgsat_assert2:
-  assumes pa_frame_expanding:
-    \<open>(p \<sqinter> pa) \<^emph>\<and> F \<le> (p \<^emph>\<and> F) \<sqinter> pa\<close>
-    and guar:
-    \<open>rel_image snd (rel_liftL (wssa R p \<squnion> wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
-    and misc:
-    \<open>wssa R (p \<sqinter> pa) \<le> I\<close>
+  assumes
+    \<open>(p \<sqinter> pa) \<^emph>\<and> F \<le> pa\<close>
+    \<open>rel_image snd (rel_liftL (p \<sqinter> pa \<squnion> (p \<sqinter> pa) \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     \<open>sswa R (p \<sqinter> pa) \<le> I\<close>
     \<open>T RGSepAtom\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R (p \<sqinter> pa) } Assert pa { sswa R (p \<sqinter> pa) }\<close>
   using assms
-  unfolding Assert_def
-proof (intro rgsat_atom[where q=\<open>nofailure_pred (sswa R (p \<sqinter> pa))\<close>])
-  let ?ra' = \<open>(step_fail_lift
-            (\<lambda>(l, s) (l', s', k').
-                l' = l \<and>
-                s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
-
-  show
-    \<open>sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa)))) \<le> nofailure_pred (sswa R (p \<sqinter> pa))\<close>
-    by (force simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
-
-  show
-    \<open>\<forall>f\<le>nofailure_pred F.
-       sp ?ra' (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<^emph>\<and> f) \<le> nofailure_pred (sswa R (p \<sqinter> pa)) \<^emph>\<and> any_shared f\<close>
-    using pa_frame_expanding
-    apply (simp add: all_impl_nofailure_pred_internalise sp_step_fail_lift_on_nofailure_pred_eq
-        predTimes3_sepconj_conj_distrib[symmetric])
-    apply (simp add: sepconj_conj_def)
-    apply fast
-    done
-
-  show
-    \<open>rel_image snd
-      (rel_liftL
-        (sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<squnion>
-          sswa (R \<times>\<^sub>R (=)) (nofailure_pred (wssa R (p \<sqinter> pa))) \<^emph>\<and> nofailure_pred F) \<sqinter>
-        ?ra')
-    \<le> G \<times>\<^sub>R (=)\<close>
-    using guar
-    apply (clarsimp simp add: rel_image_def le_fun_def predTimes3_sepconj_conj_distrib[symmetric]
-        split: prod.splits)
-    apply (elim disjE conjE)
-         apply (metis inf1D1 wlp_inf)
-        apply fast
-       apply fast
-      apply (metis inf1D1 sepconj_conj_apply wlp_inf)
-     apply (metis (mono_tags, opaque_lifting) inf.boundedE pa_frame_expanding predicate1D
-        sepconj_conj_monoL wssa_stronger)
-    apply fast
-    done
-qed (simp add: sswa_weaker wssa_stronger)+
+  by (blast intro: rgsat_assert)
 
 lemma opstep_assert_iff[simp]:
   \<open>opstep \<alpha> (s, Assert p) sc' \<longleftrightarrow>
@@ -347,19 +318,9 @@ lemma top_write_frame_cond_iff_all_disjoint_perm:
   \<open>\<top> \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x') \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
   by (force simp add: points_to_upcl_def le_fun_def)
 
-(* TODO: move *)
-lemma option_ex_split:
-  \<open>(case mx of Some x \<Rightarrow> p x | None \<Rightarrow> q) \<longleftrightarrow> (\<exists>x. mx = Some x \<and> p x) \<or> mx = None \<and> q\<close>
-  by (metis case_option_disj_iff)
-
 lemma nofailure_pred_any_shared_semidistrib:
   \<open>nofailure_pred (any_shared p) \<le> any_shared (nofailure_pred p)\<close>
   by (simp add: nofailure_pred_def any_shared_def le_fun_def)
-
-(* TODO: move *)
-lemma singleton_plus_heap_eq_iff:
-  \<open>[x \<mapsto> va] + h = [x \<mapsto> vb] + h \<longleftrightarrow> Some va + h x = Some vb + h x\<close>
-  by (simp add: plus_fun_def plus_option_def fun_eq_iff split: option.splits if_splits)
 
 lemma rgsat_pointer_write:
   fixes e pt p R \<pi> v
