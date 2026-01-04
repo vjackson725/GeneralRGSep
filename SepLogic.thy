@@ -806,8 +806,10 @@ end
 
 section \<open> Multi-unit Separation Algebra \<close>
 
-class pre_multiunit_sep_alg = pre_perm_alg +
+class unitof =
   fixes unitof :: \<open>'a \<Rightarrow> 'a\<close>
+
+class pre_multiunit_sep_alg = pre_perm_alg + unitof +
   assumes unitof_disjoint[simp]: \<open>unitof a ## a\<close>
   assumes unitof_is_unit[simp]: \<open>\<And>a b. unitof a ## b \<Longrightarrow> unitof a + b = b\<close>
 begin
@@ -834,11 +836,16 @@ lemma unitof_is_unitR[simp]: \<open>unitof a ## b \<Longrightarrow> b + unitof a
 lemma unitof_is_unitR2[simp]: \<open>b ## unitof a \<Longrightarrow> b + unitof a = b\<close>
   by (simp add: disjoint_sym_iff)
 
+lemma unitof_is_sepadd_unit: \<open>sepadd_unit (unitof a)\<close>
+  by fastforce
+
 lemma unitof_idem[simp]: \<open>unitof (unitof a) = unitof a\<close>
   by (metis unitof_disjoint unitof_is_unit unitof_is_unitR2)
 
-lemma unitof_is_sepadd_unit: \<open>sepadd_unit (unitof a)\<close>
-  by fastforce
+lemma unitof_res_order_mono:
+  \<open>a \<preceq> b \<Longrightarrow> unitof a \<preceq> unitof b\<close>
+  by (metis disjoint_preservation related_units_identical
+      resource_preorder.le_disj_eq_absorb unitof_disjoint2 unitof_is_sepadd_unit)
 
 
 subsection \<open>partial canonically_ordered_monoid_add lemmas\<close>

@@ -38,26 +38,9 @@ lemma resorder_implies_increasing_order:
   unfolding incr_res_def
   by (metis le_iff_sepadd)
 
-lemma unital_implies_increasing_order:
-  assumes increasing
-  shows \<open>\<forall>a b::'a. a \<preceq> b \<longrightarrow> a \<le> b\<close>
-  using assms
-  unfolding is_unital_def
-  by (metis order.refl less_sepadd_def resource_order.le_imp_less_or_eq)
-
-lemma
-  assumes incr: \<open>(\<forall>a b::'a::{order,perm_alg}. a \<le> a + b)\<close>
-  shows \<open>((\<preceq>) :: 'a \<Rightarrow> 'a \<Rightarrow> bool) \<le> (\<le>)\<close>
-  sledgehammer
-  sorry
-  by (simp add: incr incr_res_def predicate2I resorder_implies_increasing_order)
-
 definition
   \<open>is_unital (\<alpha>::('a::pre_perm_alg) itself) \<equiv> \<forall>ab a::'a. \<exists>b. a ## b \<and> ab = a + b\<close>
 
-lemma
-  assumes \<open>\<close>
-  shows \<open>is_unital TYPE('a::{preorder,perm_alg})\<close>
 
 section \<open> Core \<close>
 
@@ -170,18 +153,40 @@ lemma has_core_mono_iff:
   apply (blast intro: resource_preordering.trans)
   done
 
-lemma core_rel_additive:
+lemma core_rel_self_additive:
   \<open>x ## y \<Longrightarrow> core_rel x x \<Longrightarrow> core_rel y y \<Longrightarrow> core_rel (x + y) (x + y)\<close>
   unfolding core_rel_def
   by (metis disjoint_middle_swap2 disjoint_sym partial_add_commute partial_add_double_assoc
       sepadd_dup_def sepadd_left_mono)
 
 lemma core_rel_additive:
-  \<open>x ## y \<Longrightarrow> core_rel x cx \<Longrightarrow> core_rel y cy \<Longrightarrow> core_rel (x + y) cxy \<Longrightarrow> cx + cy \<le> cxy\<close>
+  \<open>x ## y \<Longrightarrow> core_rel x cx \<Longrightarrow> core_rel y cy \<Longrightarrow> core_rel (x + y) cxy \<Longrightarrow> cx + cy \<preceq> cxy\<close>
   unfolding core_rel_def
+  by (meson core_rel_self_additive core_rel_def disjoint_preservation2 resleq_implies_sepdom_leq
+      sepadd_mono sepdom_leq_disjointD)
+
+\<comment> \<open> An element with a core does not necessarily have a unit. \<close>
+lemma has_core_then_has_punit:
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow> has_core (x::'a) \<Longrightarrow> \<exists>ux. sepadd_punit_of x ux\<close>
+  nitpick
   oops
 
 end
+
+context multiunit_sep_alg
+begin
+
+lemma \<open>has_core a\<close>
+  unfolding has_core_def sepadd_dup_def
+  apply (intro exI[where x=\<open>unitof a\<close>] conjI)
+     apply (simp; fail)
+    apply (simp add: sepadd_unit_selfsep unitof_is_sepadd_unit; fail)
+   apply (simp add: unitof_is_sepadd_unit; fail)
+  oops
+    \<comment> \<open> unitof is not the core, as there might be duplicable elements above the unit. \<close>
+
+end
+
 
 context perm_alg
 begin
