@@ -1878,6 +1878,158 @@ instance fail_st :: sep_alg
   by standard (simp add: zero_fail_st_def plus_fail_st_def)+
 
 
+section \<open> Never-sep Algebra \<close>
+
+typedef 'a neversep = \<open>UNIV :: 'a set\<close>
+  morphisms the_neversep NeverSep
+  by blast
+
+setup_lifting type_definition_neversep
+
+lemmas NeverSep_inverse_iff[simp] = NeverSep_inverse[simplified]
+lemmas NeverSep_inject_iff[simp] = NeverSep_inject[simplified]
+
+instantiation neversep :: (type) plus
+begin
+definition \<open>plus_neversep (a::'a neversep) (b :: 'a neversep) \<equiv> undefined::'a neversep\<close>
+instance by standard
+end
+
+instantiation neversep :: (type) disjoint
+begin
+definition \<open>disjoint_neversep (a::'a neversep) (b :: 'a neversep) \<equiv> False\<close>
+instance by standard
+end
+declare disjoint_neversep_def[simp]
+
+instance neversep :: (type) pre_perm_alg
+  by standard simp+
+
+instance neversep :: (type) positivity_law
+  by standard simp+
+
+
+subsection \<open> Extended instances \<close>
+
+(* not pre_multiunit_sep_alg *)
+(* not pre_sep_alg *)
+
+instance neversep :: (type) dupcl_perm_alg
+  by standard simp
+
+instance neversep :: (type) strong_sep_pre_perm_alg
+  by standard simp
+
+instance neversep :: (type) disjoint_parts_pre_perm_alg
+  by standard simp
+
+instance neversep :: (type) trivial_selfdisjoint_pre_perm_alg
+  by standard simp
+
+instance neversep :: (type) crosssplit_pre_perm_alg
+  by standard simp
+
+instance neversep :: (type) cancel_pre_perm_alg
+  by standard simp
+
+(* not halving_pre_perm_alg *)
+
+(* not all_disjoint_pre_perm_alg *)
+
+(* not allcompatible_perm_alg *)
+
+instance neversep :: (type) no_unit_pre_perm_alg
+  by standard (simp add: sepadd_unit_def)
+
+
+subsection \<open> lifting instances for neversep \<close>
+
+instantiation neversep :: (minus) minus
+begin
+lift_definition minus_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep \<Rightarrow> 'a neversep\<close> is \<open>minus\<close> .
+instance by standard
+end
+
+instantiation neversep :: (uminus) uminus
+begin
+lift_definition uminus_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep\<close> is \<open>uminus\<close> .
+instance by standard
+end
+
+instantiation neversep :: (ord) ord
+begin
+lift_definition less_eq_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep \<Rightarrow> bool\<close> is \<open>(\<le>)\<close> .
+lift_definition less_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep \<Rightarrow> bool\<close> is \<open>(<)\<close> .
+instance by standard
+end
+
+instantiation neversep :: (sup) sup
+begin
+lift_definition sup_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep \<Rightarrow> 'a neversep\<close> is \<open>sup\<close> .
+instance by standard
+end
+
+instantiation neversep :: (inf) inf
+begin
+lift_definition inf_neversep :: \<open>'a neversep \<Rightarrow> 'a neversep \<Rightarrow> 'a neversep\<close> is \<open>inf\<close> .
+instance by standard
+end
+
+instantiation neversep :: (top) top
+begin
+lift_definition top_neversep :: \<open>'a neversep\<close> is \<open>top\<close> .
+instance by standard
+end
+
+instantiation neversep :: (bot) bot
+begin
+lift_definition bot_neversep :: \<open>'a neversep\<close> is \<open>bot\<close> .
+instance by standard
+end
+
+instance neversep :: (order) order
+  by standard (transfer, force)+
+
+instance neversep :: (order_top) order_top
+  by standard (transfer, simp)+
+
+instance neversep :: (order_bot) order_bot
+  by standard (transfer, simp)+
+
+instance neversep :: (semilattice_sup) semilattice_sup
+  by standard (transfer, simp)+
+
+instance neversep :: (semilattice_inf) semilattice_inf
+  by standard (transfer, simp)+
+
+instance neversep :: (lattice) lattice
+  by standard (transfer, simp)+
+
+instance neversep :: (bounded_lattice) bounded_lattice
+  by standard (transfer, simp)+
+
+instance neversep :: (distrib_lattice) distrib_lattice
+  by standard (transfer, simp add: sup_inf_distrib1)
+
+instance neversep :: (boolean_algebra) boolean_algebra
+  by standard (transfer, simp add: diff_eq)+
+
+
+section \<open> Exclusive \<close>
+
+text \<open> Exclusive ownership of the resource. \<close>
+type_synonym 'a excl = \<open>'a neversep option\<close>
+
+lemma excl_disjoint_iff[simp]:
+  fixes a b :: \<open>'a excl\<close>
+  shows
+  \<open>a ## b \<longleftrightarrow>
+    a = None \<and> b = None \<or>
+    (\<exists>v. a = Some (NeverSep v)) \<and> b = None \<or>
+    a = None \<and> (\<exists>v. b = Some (NeverSep v))\<close>
+  by (metis disjoint_neversep_def disjoint_option_def2 option.exhaust the_neversep_inverse)
+
+
 section \<open> Bibliography \<close>
 
 text \<open>

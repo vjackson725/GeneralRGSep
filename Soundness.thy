@@ -174,6 +174,26 @@ lemma opstep_parallel_rightD:
   by simp
 
 
+subsubsection \<open> Interaction with map_comm \<close>
+
+lemma map_atom_step_preserved:
+  \<open>(s, map_atom f c) \<midarrow>\<alpha>\<rightarrow> (s', cx') \<Longrightarrow> \<exists>c'. cx' = map_atom f c'\<close>
+  apply (induct c arbitrary: cx')
+        apply force
+       apply clarsimp
+       apply (metis map_atom.simps(2))
+      apply clarsimp
+      apply (elim disjE, metis; metis map_atom.simps(3))
+     apply force
+    apply clarsimp
+    apply (elim disjE; blast?; metis map_atom.simps(5))
+   apply clarsimp
+   apply (metis map_atom.simps(1))
+  apply clarsimp
+  apply (metis map_atom.simps(1,2,7))
+  done
+
+
 subsubsection \<open> iteraction with all_atom_comm \<close>
 
 lemma opstep_preserves_all_atom_comm:
@@ -1326,65 +1346,6 @@ next
     by (meson safe_mono_guarD safe_mono_invD safe_mono_postD)
 qed
 
-lemma soundness:        
-  assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
-  shows \<open>R, G, F, I \<Turnstile> { p } c { q }\<close>
-  using assms
-proof (induct rule: rgsat.inducts)
-  case (rgsat_skip R p q I T G F)
-  then show ?case
-    by (intro semsat_skip[where px=\<open>sswa R p\<close>])
-      force+
-next
-  case (rgsat_iter c R G i I F T p q)
-  then show ?case
-    by (meson semsat_iter semsat_weaken sswa_weaker order.refl)
-next
-  case (rgsat_seq ca R G p pp Ia F T cb q Ib I)
-  then show ?case
-    by (meson semsat_seq semsat_weaken order.refl)
-next
-  case (rgsat_indet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
-  then show ?case
-    using semsat_indet[
-        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
-          semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
-        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
-    by fastforce
-next
-  case (rgsat_endet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
-  then show ?case
-    using semsat_endet[
-        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
-        semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
-        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
-    by fastforce
-next
-  case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
-  then show ?case
-    by (meson semsat_par semsat_weaken sup.bounded_iff order.refl)
-next
-  case (rgsat_atom p' R p q q' ar F G I T)
-  then show ?case
-    by (intro semsat_weaken[OF semsat_atom], blast+)
-next
-  case (rgsat_frame c R G p q I F F' T)
-  then show ?case
-    by (meson semsat_frame)
-next
-  case (rgsat_weaken c r' g' p' q' I' F' T p q r g I F)
-  then show ?case
-    by (meson semsat_weaken)
-next
-  case (rgsat_Disj p' P c R G q I F T)
-  then show ?case
-    by (meson order_trans semsat_Disj semsat_def)
-next
-  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F T)
-  then show ?case
-    by (meson semsat_Conj semsat_weaken_guar_inv_post)
-qed
-
 
 section \<open> Semantic Proof \<close>
 
@@ -1523,6 +1484,65 @@ lemma semsat_Disj:
   using assms
   unfolding semsat_def
   by force
+
+lemma soundness:        
+  assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
+  shows \<open>R, G, F, I \<Turnstile> { p } c { q }\<close>
+  using assms
+proof (induct rule: rgsat.inducts)
+  case (rgsat_skip R p q I T G F)
+  then show ?case
+    by (intro semsat_skip[where px=\<open>sswa R p\<close>])
+      force+
+next
+  case (rgsat_iter c R G i I F T p q)
+  then show ?case
+    by (meson semsat_iter semsat_weaken sswa_weaker order.refl)
+next
+  case (rgsat_seq ca R G p pp Ia F T cb q Ib I)
+  then show ?case
+    by (meson semsat_seq semsat_weaken order.refl)
+next
+  case (rgsat_indet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    using semsat_indet[
+        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
+          semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
+        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
+    by fastforce
+next
+  case (rgsat_endet ca R Ga p qa Ia F T cb Gb qb Ib G q I)
+  then show ?case
+    using semsat_endet[
+        OF semsat_weaken_guar_inv[OF _ sup.cobounded1 sup.cobounded1]
+        semsat_weaken_guar_inv[OF _ sup.cobounded2 sup.cobounded2],
+        THEN semsat_weaken_guar_inv_post[OF _ sup_least sup_least sup_least]]
+    by fastforce
+next
+  case (rgsat_par ca R Gb Ga pa qa Ia Ib F T cb pb qb G p q I)
+  then show ?case
+    by (meson semsat_par semsat_weaken sup.bounded_iff order.refl)
+next
+  case (rgsat_atom p' R p q q' ar F G I T)
+  then show ?case
+    by (intro semsat_weaken[OF semsat_atom], blast+)
+next
+  case (rgsat_frame c R G p q I F F' T)
+  then show ?case
+    by (meson semsat_frame)
+next
+  case (rgsat_weaken c r' g' p' q' I' F' T p q r g I F)
+  then show ?case
+    by (meson semsat_weaken)
+next
+  case (rgsat_Disj p' P c R G q I F T)
+  then show ?case
+    by (meson order_trans semsat_Disj semsat_def)
+next
+  case (rgsat_Conj \<I> I' \<G> G' Q q' c R p F T)
+  then show ?case
+    by (meson semsat_Conj semsat_weaken_guar_inv_post)
+qed
 
 
 end
