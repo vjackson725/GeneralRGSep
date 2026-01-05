@@ -692,19 +692,22 @@ next
     apply force
     done
 next
-  case (rgsat_atom p' R p q q' ar F G I C)
+  case (rgsat_atom p' R p q q' F ar G I C)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff inj_rel_image_inf_distrib[symmetric]
         simp del: sup_apply top_apply)
     apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger>\<close> and  q=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger>\<close>])
-           apply (meson order.trans pred_lift_exch4_mono wssa_pred_lift_exch4_semidistrib; fail)
-          apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-         apply (simp add: atom_unlift_helper; fail)
+          apply (meson order.trans pred_lift_exch4_mono wssa_pred_lift_exch4_semidistrib; fail)
+         apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
         apply (simp add: framed_atom_unlift_helper; fail)
-       apply (rule atom_lift_guar_helper; simp; fail)
-      apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-     apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-    apply blast
+      (* guar *)
+       apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric])
+       apply (clarsimp simp add: le_fun_def pred_lift_exch4_def quasireflp_steprel_def)
+       apply metis
+      (* inv *)
+      apply (meson order_trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+     apply (meson order_trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
+    apply force
     done
 next
   case (rgsat_frame c R G p q I F F' C)
@@ -714,7 +717,7 @@ next
     apply (rule rgsat_weaken[where p'=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close> and q'=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _ _ _ order.refl order.refl order.refl order.refl])
        apply (rule rgsat.rgsat_frame)
-         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<squnion> F' \<rblot>\<^sub>\<ddagger>\<close>,
+         apply (rule rgsat_weaken[where F'=\<open> \<lblot> F \<^emph>\<and> F' \<rblot>\<^sub>\<ddagger>\<close>,
           OF _order.refl order.refl order.refl order.refl order.refl _])
            apply (cut_tac rgsat_frame.prems(2))
            apply (rule rgsat_frame.hyps(2); blast)
@@ -1947,13 +1950,6 @@ inductive secure
       n = Suc n' \<Longrightarrow>
       R ss ss' \<Longrightarrow>
       secure R F G I q n' c (ls, ss')) \<Longrightarrow>
-    \<comment> \<open> Opsteps \<close>
-    (\<And>n' \<alpha> ls' ss' c'.
-      n = Suc n' \<Longrightarrow>
-      (s, c) \<midarrow>\<alpha>\<rightarrow> ((ls', ss'), c') \<Longrightarrow>
-      (\<alpha> \<noteq> Tau \<longrightarrow> G ss ss') \<and>
-      (\<alpha> = Tau \<longrightarrow> ls' = ls) \<and>
-      secure R F G I q n' c' (ls', ss')) \<Longrightarrow>
     \<comment> \<open> Framed opsteps \<close>
     (\<And>n' f \<alpha> lsf' ss' c'.
       n = Suc n' \<Longrightarrow>
@@ -1966,10 +1962,12 @@ inductive secure
         (\<alpha> = Tau \<longrightarrow> ls' = ls) \<and>
         secure R F G I q n' c' (ls', ss'))) \<Longrightarrow>
     \<comment> \<open> the security conditions: \<close>
-    (\<And>n' \<pi>\<alpha> sa sax say.
+    (\<And>n' \<pi>\<alpha> sa sax say f.
       n = Suc n' \<Longrightarrow>
-      \<comment> \<open> the state may be framed \<close>
-      sa = s \<or> (\<exists>f. F (f, ss) \<and> ls ## f \<and> sa = (ls + f, ss)) \<Longrightarrow>
+      \<comment> \<open> the state is framed \<close>
+      F (f, ss) \<Longrightarrow>
+      ls ## f \<Longrightarrow>
+      sa = (ls + f, ss) \<Longrightarrow>
       exch4 sa = (sax, say) \<Longrightarrow>
       \<comment> \<open> a paired-state step has two corresponding single-steps with the commands related
             by unlifting. \<close>
@@ -1995,9 +1993,9 @@ theorem safety_implies_security:
     and R G :: \<open>'s \<times> 's \<Rightarrow> 's \<times> 's \<Rightarrow> bool\<close>
   assumes
     \<open>safe R F G I q n cc s\<close>
-    \<open>I \<squnion> I \<^emph>\<and> F \<le> quasireflp_atoms cc\<close>
-    \<open>I \<squnion> I \<^emph>\<and> F \<le> quasirefl_blocking_doloops_head_atoms cc\<close>
-    \<open>I \<squnion> I \<^emph>\<and> F \<le> all_sec_determ (unliftC cc) \<circ> exch4\<close>
+    \<open>I \<^emph>\<and> F \<le> quasireflp_atoms cc\<close>
+    \<open>I \<^emph>\<and> F \<le> quasirefl_blocking_doloops_head_atoms cc\<close>
+    \<open>I \<^emph>\<and> F \<le> all_sec_determ (unliftC cc) \<circ> exch4\<close>
   shows
     \<open>secure R F G I q n cc s\<close>
   using assms
@@ -2012,7 +2010,7 @@ proof (induct rule: safe.induct)
   note s_eq' = s_eq(1)[simplified s_eq(2-3)]
 
   show ?case
-  proof (rule secureI[OF s_eq(1) _ _ _ _ _ conjI])
+  proof (rule secureI[OF s_eq(1) _ _ _ _ conjI])
     show \<open>cc = Skip \<longrightarrow> q s\<close>
       using safeI.hyps(1)
       by simp
@@ -2028,58 +2026,6 @@ proof (induct rule: safe.induct)
     then show \<open>secure R F G I q n' cc (ls, ss')\<close>
       using safeI.hyps(4) s_eq safeI.prems
       by auto
-  next
-    fix n' \<alpha> ls' ss' cc'
-    assume assms2:
-      \<open>n = Suc n'\<close>
-      \<open>(s, cc) \<midarrow>\<alpha>\<rightarrow> ((ls', ss'), cc')\<close>
-
-    have quasireflp_atoms_s: \<open>quasireflp_atoms cc s\<close>
-      using safeI.prems safeI.hyps(2)
-      by fastforce
-    moreover then have quasireflp_atoms_s: \<open>quasireflp_head_atoms cc s\<close>
-      apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
-      apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
-      done
-    moreover have \<open>quasirefl_blocking_doloops_head_atoms cc s\<close>
-      using safeI.prems safeI.hyps(2)
-      by fastforce
-    moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc s\<close>
-      by (force simp add: quasirefl_blocking_doloops_head_atoms_def
-          quasirefl_blocking_head_doloops_head_atoms_def imp_ex_conjL heads_subcomm_original)
-    moreover have \<open>all_sec_determ (unliftC cc) ((lsx, ssx), (lsy, ssy))\<close>
-      using exch4_two_apply s_eq' safeI.hyps(2) safeI.prems(3)
-      by auto
-    moreover then have \<open>head_sec_determ (unliftC cc) ((lsx, ssx), (lsy, ssy))\<close>
-      by (simp add: all_sec_determ_implies_head_sec_determ)
-    moreover obtain \<pi>\<alpha> where equiv_aopstep:
-      \<open>strip_aact (snd \<pi>\<alpha>) = \<alpha>\<close>
-      \<open>(s, cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a ((ls', ss'), cc')\<close>
-      using assms2 opstep_then_aopstep
-      by blast
-    ultimately show
-      \<open>(\<alpha> \<noteq> Tau \<longrightarrow> G ss ss') \<and>
-        (\<alpha> = Tau \<longrightarrow> ls' =  ls) \<and>
-        secure R F G I q n' cc' (ls', ss')\<close>
-      using s_eq assms2 safeI.prems
-      apply -
-        (** forward reasoning *)
-      apply (frule doublest_step_then_singlest_unliftC_step)
-          apply force
-         apply (simp add: exch4_def; fail)
-        apply blast
-       apply blast
-      apply (frule safeI.hyps(5), force)
-      (** solve the goal *)
-      apply (clarsimp simp add: leq_exch4_shunt simp del: sup_apply comp_apply sup.bounded_iff)
-      apply (drule mp[of \<open>_ \<le> _\<close>])
-       apply (blast dest: aopstep_preserves_quasireflp_atoms)
-      apply (drule mp[of \<open>_ \<le> _\<close>])
-       apply (blast dest: aopstep_preserves_quasirefl_blocking_doloops_head_atoms)
-      apply (drule mp[of \<open>_ \<le> _\<close>])
-       apply (blast dest: aopstep_preserves_all_sec_determ)
-      apply blast
-      done
   next
     fix n' f \<alpha> lsf' ss' cc'
     assume assms2:
@@ -2125,7 +2071,7 @@ proof (induct rule: safe.induct)
          apply (simp add: exch4_def; fail)
         apply blast
        apply blast
-      apply (frule safeI.hyps(6)[where fs=f])
+      apply (frule safeI.hyps(5)[where fs=f])
          apply (clarsimp simp del: sup_apply comp_apply sup.bounded_iff)
          apply (simp; fail)
         apply force
@@ -2140,21 +2086,23 @@ proof (induct rule: safe.induct)
       apply blast
       done
   next
-    fix n' \<pi>\<alpha> sa sax say sa' cc'
+    fix n' \<pi>\<alpha> sa sax say sa' cc' f
     assume assms2:
       \<open>n = Suc n'\<close>
-      \<open>sa = s \<or> (\<exists>f. F (f, ss) \<and> ls ## f \<and> sa = (ls + f, ss))\<close>
+      \<open>F (f, ss)\<close>
+      \<open>ls ## f\<close>
+      \<open>sa = (ls + f, ss)\<close>
       \<open>exch4 sa = (sax, say)\<close>
 
     have \<open>quasireflp_atoms cc sa\<close>
-      using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
-      by (metis le_sup_iff sepconj_conjI sup.order_iff sup1I2)
+      using safeI.prems safeI.hyps(2) assms2(2-4) s_eq(1)
+      by (metis sepconj_conjI sup.order_iff sup1I2)
     moreover then have \<open>quasireflp_head_atoms cc sa\<close>
       apply (clarsimp simp add: quasireflp_atoms_def quasireflp_head_atoms_def imp_ex_conjL)
       apply (meson head_atoms_subseteq_all_atoms mset_subset_eqD)
       done
     moreover have \<open>quasirefl_blocking_doloops_head_atoms cc sa\<close>
-      using safeI.prems safeI.hyps(2) assms2(2,3) s_eq(1)
+      using safeI.prems safeI.hyps(2) assms2(2-4) s_eq(1)
       by (meson predicate1D sepconj_conjI sup.boundedE) 
     moreover then have \<open>quasirefl_blocking_head_doloops_head_atoms cc sa\<close>
       by (force simp add: quasirefl_blocking_doloops_head_atoms_def
@@ -2165,12 +2113,13 @@ proof (induct rule: safe.induct)
         exch4 sa' = (sax', say') \<longrightarrow>
         (sax, unliftC cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', unliftC cc') \<and>
         (say, unliftC cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', unliftC cc')\<close>
-      using assms2(3)
-      by (force dest: doublest_step_then_singlest_unliftC_step)
+      using assms2(5)
+      using doublest_step_then_singlest_unliftC_step
+      by blast
 
     have \<open>all_sec_determ (unliftC cc) (sax, say)\<close>
-      using s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
-      by (metis (no_types, lifting) comp_def predicate1D sepconj_conjI sup.boundedE)
+      using s_eq safeI.hyps(2) safeI.prems(3) assms2(2-5)
+      by (metis (no_types, lifting) comp_def predicate1D sepconj_conjI)
     then have \<open>head_sec_determ (unliftC cc) (sax, say)\<close>
       by (simp add: all_sec_determ_implies_head_sec_determ)
     then show
