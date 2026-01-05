@@ -1,6 +1,27 @@
 theory SoundnessExperimental
-  imports "../Soundness"
+  imports "../../Soundness"
 begin
+
+section \<open> Cancellativity \<close>
+
+lemma cancel_attempt1:
+  fixes I F :: \<open>'r::perm_alg \<Rightarrow> bool\<close>
+  defines \<open>lhs \<equiv> (\<forall>a b f. I a \<longrightarrow> I b \<longrightarrow> F f \<longrightarrow> a ## f \<longrightarrow> b ## f \<longrightarrow> a+f = b+f \<longrightarrow> a = b)\<close>
+    and \<open>rhs \<equiv> (\<forall>ia\<le>I. \<forall>ib\<le>I. \<forall>f\<le>F. ia \<^emph> f \<noteq> \<bottom> \<longrightarrow> (ia \<^emph> f) = (ib \<^emph> f) \<longrightarrow> ia = ib)\<close>
+  shows \<open>rhs \<Longrightarrow> lhs\<close>
+    and \<open>R = {(a,b,a+b)|a b::'r. a ## b} \<Longrightarrow> lhs \<Longrightarrow> rhs\<close>
+  unfolding lhs_def rhs_def
+  apply -
+    (* subgoal 1: rhs \<Rightarrow> lhs *)
+   apply clarsimp
+   apply (drule_tac x=\<open>(=) a\<close> in spec, drule mp, fast)
+   apply (drule_tac x=\<open>(=) b\<close> in spec, drule mp, fast)
+   apply (drule_tac x=\<open>(=) f\<close> in spec, drule mp, fast)
+   apply (simp add: fun_eq_iff; fail)
+    (* subgoal 2: lhs \<Rightarrow> rhs *)
+  nitpick[card 'r=2]
+  oops
+
 
 section \<open> Fictional Separation Logic \<close>
 

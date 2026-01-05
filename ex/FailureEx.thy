@@ -160,10 +160,9 @@ definition \<open>Assert p \<equiv>
 
 lemma rgsat_assert:
   assumes precond:
-    \<open>p \<le> pa\<close>
     \<open>p \<^emph>\<and> F \<le> pa\<close>
     and guar:
-    \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (rel_liftL (p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     and inv:
     \<open>sswa R p \<le> I\<close>
     and tree:
@@ -179,11 +178,6 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred p\<close> and q=\<open>nof
                 s' = s \<and> (pa (l, s) \<and> k' = Running \<or> \<not> pa (l, s) \<and> k' = Failed)))\<close>
 
   show
-    \<open>sp ?ra' (nofailure_pred p) \<le> nofailure_pred p\<close>
-    using precond
-    by (force simp add: fun_eq_iff le_fun_def sp_step_fail_lift_on_nofailure_pred_eq)
-
-  show
     \<open>\<forall>f\<le>nofailure_pred F.
        sp ?ra' (nofailure_pred p \<^emph>\<and> f) \<le> nofailure_pred p \<^emph>\<and> any_shared f\<close>
     using precond
@@ -193,7 +187,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred p\<close> and q=\<open>nof
 
   show
     \<open>rel_image snd
-      (rel_liftL (nofailure_pred p \<squnion> nofailure_pred p \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
+      (rel_liftL (nofailure_pred p \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
       \<le> G \<times>\<^sub>R (=)\<close>
     using guar precond
     by (force simp add: predTimes3_sepconj_conj_distrib[symmetric])
@@ -203,7 +197,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred p\<close> and q=\<open>nof
     by force
 qed (simp add: sswa_weaker wssa_stronger)+
 
-lemma frame_expanding_simplification:
+lemma frame_expanding_iff:
   \<open>(\<forall>f\<le>F. (p \<sqinter> pa) \<^emph>\<and> f \<le> (p \<^emph>\<and> any_shared f) \<sqinter> pa) \<longleftrightarrow>
     ((p \<sqinter> pa) \<^emph>\<and> F \<le> (p \<^emph>\<and> F) \<sqinter> pa)\<close>
   by (simp add: le_fun_def any_shared_def sepconj_conj_def, fast)
@@ -211,7 +205,7 @@ lemma frame_expanding_simplification:
 lemma rgsat_assert2:
   assumes
     \<open>(p \<sqinter> pa) \<^emph>\<and> F \<le> pa\<close>
-    \<open>rel_image snd (rel_liftL (p \<sqinter> pa \<squnion> (p \<sqinter> pa) \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (rel_liftL ((p \<sqinter> pa) \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     \<open>sswa R (p \<sqinter> pa) \<le> I\<close>
     \<open>T RGSepAtom\<close>
   shows
@@ -273,11 +267,6 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     unfolding postcond_def
     by simp
 
-  show \<open>sp ?ra' (nofailure_pred precond) \<le> nofailure_pred postcond\<close>
-    using assms(1) precond_def postcond_def
-    by (force simp add: sp_step_fail_lift_on_nofailure_pred_eq sepconj_conj_def
-        points_to_def plus_option_iff)
-
   show \<open>\<forall>f\<le>nofailure_pred F. sp ?ra' (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
     unfolding any_shared_def ra_ptr_read_def precond_def postcond_def
     apply (clarsimp simp add: sp_step_fail_lift_on_nofailure_pred_eq subset_nofailure_pred_iff
@@ -288,15 +277,13 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
 
   show
     \<open>rel_image snd
-      (rel_liftL (nofailure_pred precond \<squnion> nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
+      (rel_liftL (nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
     \<le> G \<times>\<^sub>R (=)\<close>
     using assms(4)
     apply (simp only: predTimes3_sepconj_conj_distrib[symmetric] predTimes3_sup_distrib[symmetric])
     apply (unfold ra_ptr_read_def precond_def postcond_def)
     apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff rel_image_def
         le_fun_def ex_disj_distrib all_conj_distrib split: option.splits)
-    apply (elim disjE exE conjE)
-     apply (simp; fail)
     apply (force simp add: wlp_def plus_option_iff ex_disj_distrib all_conj_distrib)
     done
 qed simp+
@@ -355,11 +342,6 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     apply (clarsimp simp add: fun_eq_iff le_fun_def points_to_def sp_def)
     apply (metis rtranclp_trans)
     done
-
-  show \<open>sp ?ra' (nofailure_pred precond) \<le> nofailure_pred postcond\<close>
-    using assms(1) precond_def postcond_def
-    by (force simp add: sp_step_fail_lift_on_nofailure_pred_eq sepconj_conj_def
-        points_to_def plus_option_iff)
 
   let ?frame5 =
     \<open>(\<forall>f\<le>F. \<forall>lf s'.
@@ -491,16 +473,14 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
 
   show
     \<open>rel_image snd
-      (rel_liftL (nofailure_pred precond \<squnion> nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
+      (rel_liftL (nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> ?ra')
     \<le> G \<times>\<^sub>R (=)\<close>
     using assms(5)
     apply (simp only: predTimes3_sepconj_conj_distrib[symmetric] predTimes3_sup_distrib[symmetric])
     apply (unfold ra_ptr_write_def precond_def postcond_def)
     apply (clarsimp simp add: sepconj_conj_def points_to_def plus_option_iff rel_image_def
         le_fun_def ex_disj_distrib all_conj_distrib split: option.splits)
-    apply (elim disjE exE conjE)
-     apply force
-    apply (force simp add: wlp_def plus_option_iff ex_disj_distrib all_conj_distrib)
+    apply force
     done
 qed simp+
 
