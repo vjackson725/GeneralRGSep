@@ -106,7 +106,7 @@ definition
       lsa ## fs \<longrightarrow> lsb ## fs \<longrightarrow>
       lsa + fs = lsb + fs \<longrightarrow> lsa = lsb\<close>
 
-definition \<open>any_shared p \<equiv> \<lambda>(ls, _). \<exists>ss. p (ls, ss)\<close>
+definition \<open>any_shared p \<equiv> pred_image fst p \<times>\<^sub>P \<top>\<close>
 
 lemma any_shared_apply[simp]:
   \<open>any_shared p (ls, ss) = (\<exists>ss. p (ls, ss))\<close>
@@ -129,6 +129,7 @@ datatype rgsep_rule =
   RGSepDisj |
   RGSepConj
 
+(* TODO: reverse F I *)
 inductive rgsat ::
   \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>

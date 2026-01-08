@@ -1092,17 +1092,26 @@ lemma rel_image_snd_of_rel_times_le_snd[simp]:
 lemma rel_times_trans: \<open>transp ra \<Longrightarrow> transp rb \<Longrightarrow> transp (ra \<times>\<^sub>R rb)\<close>
   by (simp add: rel_times_mono transp_relcompp)
 
-lemma rel_times_sup_semidistrib:
-  \<open>(ra \<times>\<^sub>R ra) \<squnion> (rb \<times>\<^sub>R rb) \<le> (ra \<squnion> rb) \<times>\<^sub>R (ra \<squnion> rb)\<close>
-  by (clarsimp simp add: rel_times_def le_fun_def)
+lemma rel_times_sup_distribL:
+  \<open>(ra \<squnion> rb) \<times>\<^sub>R rc = (ra \<times>\<^sub>R rc) \<squnion> (rb \<times>\<^sub>R rc)\<close>
+  by (force simp add: rel_times_def le_fun_def)
 
-lemma rel_times_inf_distrib:
-  \<open>(ra \<times>\<^sub>R ra) \<sqinter> (rb \<times>\<^sub>R rb) \<le> (ra \<sqinter> rb) \<times>\<^sub>R (ra \<sqinter> rb)\<close>
-  by (clarsimp simp add: rel_times_def le_fun_def)
+lemma rel_times_sup_distribR:
+  \<open>ra \<times>\<^sub>R (rb \<squnion> rc) = (ra \<times>\<^sub>R rb) \<squnion> (ra \<times>\<^sub>R rc)\<close>
+  by (force simp add: rel_times_def le_fun_def)
+
+lemma rel_times_inf_distribL:
+  \<open>(ra \<sqinter> rb) \<times>\<^sub>R rc = (ra \<times>\<^sub>R rc) \<sqinter> (rb \<times>\<^sub>R rc)\<close>
+  by (force simp add: rel_times_def le_fun_def)
+
+lemma rel_times_inf_distribR:
+  \<open>ra \<times>\<^sub>R (rb \<sqinter> rc) = (ra \<times>\<^sub>R rb) \<sqinter> (ra \<times>\<^sub>R rc)\<close>
+  by (force simp add: rel_times_def le_fun_def)
 
 lemma Inf_rel_times_distrib:
   \<open>(\<Sqinter>r\<in>R. r \<times>\<^sub>R r) = (\<Sqinter>R) \<times>\<^sub>R (\<Sqinter>R)\<close>
   by (force simp add: rel_times_def fun_eq_iff)
+
 
 section \<open> Relations + Relations as Programs \<close>
 

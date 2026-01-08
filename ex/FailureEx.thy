@@ -15,6 +15,15 @@ lemma option_ex_split:
   \<open>(case mx of Some x \<Rightarrow> p x | None \<Rightarrow> q) \<longleftrightarrow> (\<exists>x. mx = Some x \<and> p x) \<or> mx = None \<and> q\<close>
   by (metis case_option_disj_iff)
 
+(* TODO: move *)
+\<comment> \<open> A 'local' predicate that may depend on the shared state. \<close>
+abbreviation(input) local_pred_with_shared
+  :: \<open>('b \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<^sub>S\<close>)
+  where
+    \<open>\<L>\<^sub>S p \<equiv> \<lambda>(ls, ss). p ss ls\<close>
+
+definition (in pre_perm_alg)
+  \<open>all_disjoint_perms \<equiv> {\<pi>::'a. \<forall>\<pi>'. \<not> \<pi> ## \<pi>'}\<close>
 
 section \<open> Helper Lemmas \<close>
 
@@ -108,16 +117,6 @@ lemma pred_image_fst_pred_times_eq_res_ppABC_to_ppACB_distrib:
 lemma comp_ppABC_to_ppACB_mono[intro]:
   \<open>pa \<le> pb \<Longrightarrow> pa \<circ> ppABC_to_ppACB \<le> pb \<circ> ppABC_to_ppACB\<close>
   by (clarsimp simp add: le_fun_def)
-
-
-subsection \<open> X \<close>
-
-\<comment> \<open> A 'local' predicate that may depend on the shared state. \<close>
-abbreviation(input) local_pred_with_shared
-  :: \<open>('b \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<^sub>S\<close>)
-  where
-    \<open>\<L>\<^sub>S p \<equiv> \<lambda>(ls, ss). p ss ls\<close>
-
 
 
 subsection \<open> Failure \<close>
@@ -259,7 +258,16 @@ lemma points_to_upcl_eq:
   apply (metis disjoint_fun_def disjoint_option_iff(1) disjoint_sym_iff maxsep_x)
   done
 
-definition \<open>maximal_heap h \<equiv> \<forall>pt. h pt \<noteq> None\<close>
+definition \<open>maximal_heap \<equiv> \<lambda>h. \<forall>pt. h pt \<noteq> None\<close>
+
+definition
+  \<open>heap_avoiding \<rho> v \<pi> \<equiv> - (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). \<rho> \<^bold>\<mapsto>\<^sup>\<Up> x')\<close>
+
+lemma top_write_heap_avoiding_iff_all_disjoint_perm:
+  fixes \<pi> :: \<open>'p::pre_perm_alg\<close>
+  shows \<open>\<top> \<le> \<L> (heap_avoiding \<rho> v \<pi>) \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
+  by (force simp add: heap_avoiding_def points_to_upcl_def le_fun_def)
+
 
 abbreviation \<open>heap_pred p \<equiv> (p \<times>\<^sub>P \<top>) \<circ> ppABC_to_ppACB\<close>
 
@@ -359,13 +367,13 @@ lemma heap_write_rel_nofailure_rel_eq:
   apply (metis (no_types, lifting) ext)
   done
 
-lemma rgsat_pointer_write:
+lemma rgsat_heap_write:
   fixes e pt p R \<pi> v
   defines \<open>precond \<equiv> (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> (\<lambda>_. v)) \<sqinter> wssa R (\<S> p)\<close>
     and \<open>postcond \<equiv> sswa R (pt \<^bold>\<mapsto>\<^bsub>\<pi>\<^esub> e \<sqinter> \<S> p)\<close>
   assumes
     \<comment> \<open> this is the side condition that constrains permissions to be exclusive \<close>
-    \<open>F \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x')\<close>
+    \<open>F \<le> \<L> (heap_avoiding pt v \<pi>)\<close>
     \<open>(=) \<le> G\<close>
     \<open>precond \<le> I\<close>
     \<open>postcond \<le> I\<close>
@@ -401,8 +409,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
   have \<open>\<top> = ?frame2\<close>
     using assms(3)
     unfolding precond_def postcond_def
-    apply (clarsimp simp add: sp_def le_fun_def points_to_perm_def points_to_upcl_def
-        sepconj_conj_def plus_option_iff)
+    apply (clarsimp simp add: sp_def le_fun_def points_to_perm_def sepconj_conj_def plus_option_iff)
     apply (elim disjE)
       (* None case *)
      apply clarsimp
@@ -416,7 +423,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply fastforce
       (* Some case, prevented by frame exclusivity *)
     apply clarsimp
-    apply (rename_tac ss ls fs v' \<pi>')
+    apply (rename_tac ss fs v' \<pi>')
     apply (subgoal_tac \<open>v' = Discr v\<close>)
      prefer 2
      apply (simp add: disjoint_fun_def disjoint_option_def split: option.splits)
@@ -425,6 +432,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      prefer 2
      apply clarsimp
      apply (metis disjoint_fun_def disjoint_option_simps(1) disjoint_prod_def fun_upd_same snd_conv)
+    apply (simp add: heap_avoiding_def points_to_upcl_def)
     apply blast
     done
   also have \<open>... = ?frame1\<close>
@@ -442,72 +450,73 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
         le_fun_def)
 qed simp+
 
-lemma top_write_frame_cond_iff_all_disjoint_perm:
-  \<open>\<top> \<le> - \<L> (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x') \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
-  by (force simp add: points_to_upcl_def le_fun_def)
-
 
 subsection \<open> Heap Alloc \<close>
 
 definition heap_alloc_rel
-  :: \<open>('s \<Rightarrow> 'v) \<Rightarrow> ((('pt \<rightharpoonup> 'v discr \<times> 'perm::pre_perm_alg) \<times> fail_st) \<times> 's) \<Rightarrow> _ \<Rightarrow> bool\<close>
+  :: \<open>('pt \<Rightarrow> 'v) \<Rightarrow>
+        'x \<Rightarrow>
+        (('x \<Rightarrow> 'v) \<Rightarrow> 'v) \<Rightarrow>
+        ((('pt \<rightharpoonup> 'v discr \<times> 'perm::pre_perm_alg) \<times> fail_st) \<times> ('x \<Rightarrow> 'v)) \<Rightarrow> _ \<Rightarrow> bool\<close>
   where
-    \<open>heap_alloc_rel e \<equiv>
+    \<open>heap_alloc_rel Ptr x e \<equiv>
       \<lambda>((l,fl),s) ((l',fl'),s').
-        s' = s \<and> (
-          (\<exists>pt \<pi>. l pt = None \<and> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>') \<and> l' = l(pt \<mapsto> (Discr (e s), \<pi>))) \<and>
-            fl = Running \<and> fl' = fl \<or>
-          (fl = Failed \<or> (\<forall>pt. l pt \<noteq> None) \<or> (\<forall>\<pi>::'perm. \<exists>\<pi>'. \<pi> ## \<pi>')) \<and> l' = l \<and> fl' = Failed
-      )\<close>
+        (\<exists>pt \<pi>. l pt = None \<and> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>') \<and>
+          l' = l(pt \<mapsto> (Discr (e s), \<pi>)) \<and> s' = s(x := Ptr pt) \<and>
+          fl = Running \<and> fl' = fl) \<or>
+        (fl = Failed \<or> (\<forall>pt. l pt \<noteq> None) \<or> (\<forall>\<pi>::'perm. \<exists>\<pi>'. \<pi> ## \<pi>')) \<and>
+          l' = l \<and> s' = s \<and> fl' = Failed\<close>
 
-abbreviation \<open>HeapAlloc e \<equiv> \<langle> heap_alloc_rel e \<rangle>\<close>
+abbreviation \<open>HeapAlloc Ptr x e \<equiv> \<langle> heap_alloc_rel Ptr x e \<rangle>\<close>
 
-
-lemma rgsat_pointer_alloc:
+lemma rgsat_heap_alloc:
   fixes p pt e R
   defines \<open>precond \<equiv> \<L> emp \<sqinter> wssa R (\<S> p)\<close>
-  \<comment> \<open> we obtain a is \<^emph>\<open>some\<close> totally disjoint permission \<close>
-  and \<open>postcond \<equiv> (\<Squnion>pt. \<Squnion>\<pi>1\<in>{\<pi>1::'perm::pre_perm_alg. \<forall>\<pi>. \<not> \<pi>1 ## \<pi>}. sswa R (pt \<^bold>\<mapsto>\<^bsub>\<pi>1\<^esub> e \<sqinter> \<S> p))\<close>
+    \<comment> \<open> we only obtain \<^emph>\<open>some\<close> totally disjoint permission \<close>
+    and \<open>postcond \<equiv>
+      (\<Squnion>pt. \<Squnion>\<pi>1\<in>all_disjoint_perms. sswa R (pt \<^bold>\<mapsto>\<^bsub>\<pi>1::'perm::pre_perm_alg\<^esub> e \<sqinter> \<S> p))\<close>
   assumes
-    \<open>(=) \<le> G\<close>
+    \<open>(\<lambda>s s'. \<exists>pt. s' = s(x := Ptr pt)) \<le> G\<close>
     \<open>precond \<le> I\<close>
     \<open>postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
     and frame_not_maximal_heap: \<open>F \<le> - (\<L> maximal_heap)\<close>
     and maximal_perm_ex: \<open>\<exists>\<pi>::'perm. \<forall>\<pi>'. \<not> \<pi> ## \<pi>'\<close>
+    and p_alloc_var_irrel: \<open>\<And>ss pt. p (ss(x := Ptr pt)) = p ss\<close>
+    and e_alloc_var_irrel: \<open>\<And>ss ss' pt. e (ss(x := Ptr pt)) = e ss'\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile>\<^sub>f { precond } HeapAlloc e { postcond }\<close>
+    \<open>R, G, I, F, T \<turnstile>\<^sub>f { precond } HeapAlloc Ptr x e { postcond }\<close>
   using assms
 proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<open>nofailure_pred postcond\<close>])
   show \<open>nofailure_pred precond \<le> wssa R (nofailure_pred precond)\<close>
     unfolding precond_def
     by (clarsimp simp add: wlp_def emp_def, meson rtranclp_trans)
   then show \<open>sswa R (nofailure_pred precond) \<le> nofailure_pred I\<close>
-    using assms(4)
+    using assms(5)
     by (meson nofailure_pred_strong_mono order.trans wlp_weaker_iff_sp_stronger)
 
   show \<open>sswa R (nofailure_pred postcond) \<le> nofailure_pred postcond\<close>
     unfolding postcond_def
     by (clarsimp simp add: points_to_perm_def sp_def heap_upd_eq_iff, metis rtranclp_trans)
   then show \<open>sswa R (nofailure_pred postcond) \<le> nofailure_pred I\<close>
-    using assms(5) nofailure_pred_strong_mono by blast
+    using assms(6) nofailure_pred_strong_mono by blast
 
-  show \<open>\<forall>f\<le>nofailure_pred F. sp (heap_alloc_rel e) (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
+  show \<open>\<forall>f\<le>nofailure_pred F. sp (heap_alloc_rel Ptr x e) (nofailure_pred precond \<^emph>\<and> f) \<le> nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
     unfolding precond_def postcond_def
     apply (simp add: all_subpred_pred_times_eq_res_ppABC_to_ppACB_internalise
         nofailure_pred_sepconj_conj_distrib[symmetric]
         any_shared_pred_times_eq_res_ppABC_to_ppACB_distrib)
     apply (clarsimp simp add: heap_alloc_rel_def sp_def wlp_def emp_def le_fun_def sepconj_conj_def)
-    apply (rename_tac ls fl ss fs)
+    apply (rename_tac l fl ls fs ss)
     apply (elim disjE conjE)
       apply (clarsimp simp add: points_to_perm_def)
       apply (simp add: ex_simps[symmetric] del: ex_simps)
+      apply (rule_tac x=\<open>[pt \<mapsto> (Discr (e ss), \<pi>)]\<close> in exI)
       apply (rule_tac x=fs in exI)
       apply (rule_tac x=ss in exI)
       apply (rule_tac x=pt in exI)
-      apply (rule_tac x=\<pi> in exI)
-      apply (rule_tac x=ss in exI)
-      apply force
+      apply (clarsimp simp add: all_disjoint_perms_def disjoint_fun_def heap_upd_eq_iff)
+      apply (metis e_alloc_var_irrel p_alloc_var_irrel rtranclp.rtrancl_refl)
       (* contradiction between maximal frame and no maximal frame assumption. *)
      apply (cut_tac frame_not_maximal_heap)
      apply (clarsimp simp add: Sup_fun_def sepconj_conj_def ex_simps(1-4)[symmetric]
@@ -515,12 +524,18 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (metis not_Some_prod_eq)
       (* contradiction between no maximal perm and maximal_perm_ex assumption. *)
     apply (cut_tac maximal_perm_ex)
-    apply force
+    apply fast
     done
 
-  show \<open>rel_image snd (rel_liftL (nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter> heap_alloc_rel e) \<le> G\<close>
-    using assms(3)
-    by (fastforce simp add: heap_alloc_rel_def)
+  show
+    \<open>rel_image snd (rel_liftL (nofailure_pred precond \<^emph>\<and> nofailure_pred F) \<sqinter>
+      heap_alloc_rel Ptr x e) \<le> G\<close>
+    using assms(3-4) frame_not_maximal_heap
+    unfolding heap_alloc_rel_def precond_def maximal_heap_def
+    apply (clarsimp simp add: nofailure_pred_sepconj_conj_distrib[symmetric])
+    apply (clarsimp simp add: emp_def sepconj_conj_def wlp_def le_fun_def)
+    apply (metis maximal_perm_ex not_Some_prod_eq)
+    done
 qed simp+
 
 
@@ -549,7 +564,7 @@ lemma rgsat_heap_free:
     \<open>postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
     and frames_disjoint_at_pt:
-    \<open>F \<le> - \<L>\<^sub>S (\<lambda>ss. (\<Squnion>x'\<in>Collect ((##) (Discr (e ss), \<pi>)). pt \<^bold>\<mapsto>\<^sup>\<Up> x'))\<close>
+    \<open>F \<le> \<L>\<^sub>S (\<lambda>ss. heap_avoiding pt (e ss) \<pi>)\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { precond } HeapFree pt { postcond }\<close>
   using assms
@@ -589,8 +604,8 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (metis fun_upd_triv)
       (* find a contradiction with the disjoint frame assm *)
     apply (cut_tac frames_disjoint_at_pt)
-    apply (clarsimp simp add: disjoint_fun_def disjoint_option_def points_to_upcl_def le_fun_def
-        split: if_splits)
+    apply (clarsimp simp add: disjoint_fun_def disjoint_option_def le_fun_def
+        heap_avoiding_def points_to_upcl_def split: if_splits)
     apply (metis (mono_tags, lifting) fst_conv heap_upd_eq_iff rtranclp.rtrancl_refl)
     done
 
