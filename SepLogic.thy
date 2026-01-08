@@ -297,6 +297,17 @@ lemma zeros_add_to_zero:
   \<open>x ## y \<Longrightarrow> sepadd_absorb x \<Longrightarrow> sepadd_absorb (x + y)\<close>
   by (simp add: sepadd_absorb_def)
 
+lemma disjoint_absorb_res_then_res_leq:
+  assumes \<open>sepadd_absorb w\<close>
+  shows \<open>a ## w \<Longrightarrow> a \<preceq> w\<close>
+  by (metis assms disjoint_sym_iff partial_le_plus2 sepadd_absorb_def)
+
+lemma disjoint_absorb_res_then_disjoint_subres:
+  assumes \<open>sepadd_absorb w\<close>
+  shows \<open>a ## w \<Longrightarrow> b ## w \<Longrightarrow> a ## b\<close>
+  using assms disjoint_absorb_res_then_res_leq disjoint_preservation2
+  by blast
+
 
 subsubsection \<open> duplicable \<close>
 

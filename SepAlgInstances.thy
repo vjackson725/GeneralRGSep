@@ -992,7 +992,6 @@ lemmas Discr_inject_iff[simp] = Discr_inject[simplified]
 
 instantiation discr :: (type) perm_alg
 begin
-
 definition plus_discr :: \<open>'a discr \<Rightarrow> 'a discr \<Rightarrow> 'a discr\<close> where
   \<open>plus_discr a b \<equiv> a\<close>
 declare plus_discr_def[simp]
@@ -1840,6 +1839,13 @@ begin
 definition \<open>plus_fail_st \<equiv> (\<squnion>) :: fail_st \<Rightarrow> _ \<Rightarrow> _\<close>
 instance by standard
 end
+
+lemma plus_fail_st_eq[simp]:
+  \<open>Running + b = b\<close>
+  \<open>a + Running = a\<close>
+  \<open>Failed + b = Failed\<close>
+  \<open>a + Failed = Failed\<close>
+  by (simp add: plus_fail_st_def)+
 
 instantiation fail_st :: disjoint
 begin

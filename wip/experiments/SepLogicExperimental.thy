@@ -2,6 +2,22 @@ theory SepLogicExperimental
   imports "../../SepLogic"
 begin
 
+text \<open> Experiments about absorbing elements & cancellativity. \<close>
+
+definition
+  \<open>sepadd_down_absorb w \<equiv> (\<forall>a. a \<preceq> w \<longrightarrow> a ## w \<longrightarrow> a + w = w)\<close>
+
+lemma
+  fixes w::\<open>('a::perm_alg)\<close>
+  shows \<open>
+    R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    C = {(a::'a,b,c). a ## c \<and> b ## c \<and> a + c = b + c \<and> a \<noteq> b} \<Longrightarrow>
+    \<not> cancellative w \<Longrightarrow>
+    (\<exists>a. w ## a) \<Longrightarrow>
+    sepadd_down_absorb w\<close>
+  nitpick[card 'a=2]
+  oops
+
 
 section \<open> Ordered Separation Algebras \<close>
 

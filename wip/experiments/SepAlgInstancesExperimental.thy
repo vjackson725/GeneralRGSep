@@ -2,6 +2,85 @@ theory SepAlgInstancesExperimental
   imports "../../SepAlgInstances" "HOL-Library.Type_Length"
 begin
 
+
+section \<open> Error Resources #2 \<close>
+
+text \<open>
+  An error state for every maximal resource.
+\<close>
+typedef(overloaded) ('a::pre_perm_alg) error_res =
+  \<open>Inl ` (UNIV :: 'a set) \<union> Inr ` {a::'a. \<nexists>b. (b \<succ> a)}\<close>
+  by blast
+
+setup_lifting type_definition_error_res
+
+
+instantiation error_res :: (pre_perm_alg) disjoint
+begin
+lift_definition disjoint_error_res :: \<open>'a error_res \<Rightarrow> 'a error_res \<Rightarrow> bool\<close> is
+  \<open>\<lambda>(a::'a + 'a) (b::'a + 'a).
+    (\<exists>xa xb. a = Inr xa \<and> b = Inr xb \<and> xa ## xb) \<or>
+    (\<exists>ea xb. a = Inr ea \<and> b = Inl xb \<and> xb \<preceq> ea) \<or>
+    (\<exists>xa eb. a = Inl xa \<and> b = Inr eb \<and> xa \<preceq> eb) \<or>
+    (\<exists>e. a = Inr e \<and> b = Inr e)\<close> .
+instance ..
+end
+
+instantiation error_res :: (pre_perm_alg) plus
+begin
+lift_definition plus_error_res :: \<open>'a error_res \<Rightarrow> 'a error_res \<Rightarrow> 'a error_res\<close> is
+  \<open>\<lambda>(a::'a + 'a) (b::'a + 'a).
+    case a of
+      Inl x \<Rightarrow>
+        (case b of
+          Inl y \<Rightarrow> Inl (x + y)
+        | Inr e \<Rightarrow> Inr e)
+    | Inr e \<Rightarrow> Inr e\<close>
+  by (force split: sum.splits)
+instance ..
+end
+
+
+lemma
+  fixes a b c :: \<open>('a::{perm_alg}) error_res\<close>
+  shows \<open>
+    R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    Re = {(a,b,a+b)|a b::'a error_res. a ## b} \<Longrightarrow>
+    BC = {(b,c)|b c::'a error_res. b ## c} \<Longrightarrow>
+    ApBC = {(a,b+c)|a b c::'a error_res. b ## c \<and> a ## b + c} \<Longrightarrow>
+    AB = {(a,b)|a b::'a error_res. a ## b} \<Longrightarrow>
+    b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a ## b\<close>
+  nitpick[card 'a=1]
+  sorry
+
+\<comment> \<open> requires positivity_law \<close>
+instance error_res :: (\<open>{pre_perm_alg, positivity_law}\<close>) pre_perm_alg
+  apply standard
+      apply (transfer, clarsimp split: sum.splits; fail)
+     apply (transfer, clarsimp split: sum.splits)
+     apply (elim disjE; blast?)
+     apply (clarsimp simp add: less_sepadd_def)
+     apply (metis disjoint_sym partial_add_commute positivity)
+    apply (transfer, force dest: disjoint_sym)
+  subgoal sorry
+  apply (transfer, clarsimp split: sum.splits)
+   apply (elim disjE; blast?)
+   apply clarsimp
+   apply (meson partial_le_part_left partial_le_plus2
+      resource_preordering.strict_iff_not resource_preordering.trans)
+  oops
+
+
+instance error_res :: (\<open>{pre_perm_alg, positivity_law}\<close>) positivity_law
+  apply standard
+      apply (transfer, clarsimp split: sum.splits; fail)
+     apply (transfer, clarsimp split: sum.splits)
+  sledgehammer
+  done
+
+end
+
+
 section \<open> Locked resources \<close>
 
 (* This doesn't work. *)

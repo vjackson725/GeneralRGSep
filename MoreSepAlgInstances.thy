@@ -2,14 +2,6 @@ theory MoreSepAlgInstances
   imports SepAlgInstances
 begin
 
-class bounded_distrib_lattice = distrib_lattice + bounded_lattice
-
-context boolean_algebra
-begin
-subclass bounded_distrib_lattice
-  by standard
-end
-
 
 section \<open> Error monad \<close>
 
@@ -106,16 +98,17 @@ qed
 
 end
 
-instantiation error :: (all_disjoint_perm_alg) perm_alg
+instantiation error :: (disjoint) disjoint
 begin
-
 definition disjoint_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> bool\<close> where
   \<open>disjoint_error a b \<equiv>
     a = Error \<or> b = Error \<or> (\<exists>x y. a = Val x \<and> b = Val y \<and> x ## y)\<close>
+instance ..
+end
 
 lemma disjoint_error_def2:
   \<open>a ## b \<longleftrightarrow> a = Error \<or> b = Error \<or> the_val a ## the_val b\<close>
-  by (simp add: disjoint_error_def, metis error.exhaust)
+  by (simp add: disjoint_error_def, metis error.exhaust error.sel)
 
 lemma disjoint_error_simps[simp]:
   \<open>Error ## b\<close>
@@ -124,8 +117,12 @@ lemma disjoint_error_simps[simp]:
   by (simp add: disjoint_error_def)+
 
 
+instantiation error :: (\<open>{plus,disjoint}\<close>) plus
+begin
 definition plus_error :: \<open>'a error \<Rightarrow> 'a error \<Rightarrow> 'a error\<close> where
   \<open>a + b \<equiv> case a of Val x \<Rightarrow> (case b of Val y \<Rightarrow> Val (x + y) | Error \<Rightarrow> Error) | Error \<Rightarrow> Error\<close>
+instance ..
+end
 
 lemma plus_error_def2:
   \<open>a + b = (if a = Error \<or> b = Error then Error else Val (the_val a + the_val b))\<close>
@@ -137,20 +134,20 @@ lemma plus_error_simps[simp]:
   \<open>Val x + Val y = Val (x + y)\<close>
   by (force simp add: plus_error_def split: error.splits)+
 
-
-instance
+instance error :: (all_disjoint_pre_perm_alg) pre_perm_alg
   apply standard
-       apply (force simp add: disjoint_error_def plus_error_def partial_add_assoc
-      split: error.splits)
-      apply (force simp add: disjoint_error_def plus_error_def partial_add_commute
-      split: error.splits)
-     apply (force simp add: disjoint_error_def plus_error_def disjoint_sym_iff)
-    apply (simp add: disjoint_error_def plus_error_def disjoint_add_rightL split: error.splits;
-      metis error.exhaust)
-   apply (force simp add: disjoint_add_right_commute disjoint_error_def)
-  apply (force simp add: disjoint_error_def positivity)
+      apply (simp add: disjoint_error_def2 plus_error_def2 partial_add_assoc; fail)
+     apply (simp add: disjoint_error_def2 plus_error_def2 partial_add_commute; fail)
+    apply (simp add: disjoint_error_def2 plus_error_def2 disjoint_sym; fail)
+    \<comment> \<open> without all_disjoint, the \<open>b ## c \<Longrightarrow> a ## b + c \<Longrightarrow> a ## b\<close> rule breaks \<close>
+   apply (simp add: disjoint_error_def2 plus_error_def2 split: if_splits)
+  apply (force dest: disjoint_add_right_commute simp add: disjoint_error_def2 plus_error_def2)
   done
 
-end
+instance error :: (\<open>{all_disjoint_pre_perm_alg, positivity_law}\<close>) positivity_law
+  by standard
+    (clarsimp simp add: plus_error_def2 split: if_splits,
+      metis disjoint_error_def2 error.discI error.sel positivity)
+
 
 end
