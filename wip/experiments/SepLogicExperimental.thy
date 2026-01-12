@@ -63,14 +63,12 @@ section \<open> Core \<close>
 context perm_alg
 begin
 
-subsection \<open> core \<close>
-
 text \<open>
-  Here we introduce the notion of a (duplicable) core, the greatest duplicable element
-  below an element.
+  Here we introduce the notion of the weak duplicable core, the greatest smaller duplicable element,
+  and the duplicable core, the greatest smaller monotone duplicable element.
 
   The concept was originally introduced by Pottier (2012) (TODO: cite properly),
-  and is used to great effect in Iris (TODO: cite properly).
+  and was incorporated into Iris' definition of a resource algebra [Iris3.4].
 
   We do not have Pottier's second rule:
     \<open>a ## b \<Longrightarrow> a + b = c \<Longrightarrow> core_rel c c' \<Longrightarrow> core_rel a a' \<Longrightarrow> c' = a'\<close>
@@ -84,110 +82,165 @@ text \<open>
   claimed by Pottier to be equivalent to the rule \<open>dup_sub_closure\<close>, but as we can see,
   it is in fact stronger.
 
-  Neither do we have Iris' law that \<open>has_core\<close> is monotone. This is because there can be
+  The existence of a weak core is not monotone. This is because there can be
   several non-comparible duplicable elements sitting below a or b. When all non-empty subsets
   of duplicable elements have a lub which is itself duplicable, \<open>has_core\<close> is monotone.
 \<close>
 
-definition \<open>core_rel a ca \<equiv>
-  ca \<preceq> a \<and> sepadd_dup ca \<and> (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_dup y \<longrightarrow> y \<preceq> ca)\<close>
 
-abbreviation \<open>has_core a \<equiv> Ex (core_rel a)\<close>
-abbreviation \<open>the_core a \<equiv> The (core_rel a)\<close>
+subsection \<open> Weak Core \<close>
 
-(* simp doesn't like rewriting core_rel under an Ex in goal position. *)
-lemma has_core_def:
-  \<open>has_core a \<longleftrightarrow>
-    (\<exists>ca. ca \<preceq> a \<and> sepadd_dup ca \<and> (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_dup y \<longrightarrow> y \<preceq> ca))\<close>
-  using core_rel_def by presburger
+definition \<open>wcore_rel a ca \<equiv>
+  ca \<preceq> a \<and>
+    sepadd_dup ca \<and>
+    (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_dup y \<longrightarrow> y \<preceq> ca)\<close>
 
-lemma the_core_core_rel_eq[simp]:
-  \<open>core_rel a ca \<Longrightarrow> the_core a = ca\<close>
-  using core_rel_def resource_ordering.antisym by auto
+abbreviation \<open>has_wcore a \<equiv> Ex (wcore_rel a)\<close>
+definition \<open>the_wcore a \<equiv> The (wcore_rel a)\<close>
 
-lemma has_core_the_core_eq:
-  \<open>has_core a \<Longrightarrow> P (the_core a) \<longleftrightarrow> (\<forall>ca. core_rel a ca \<longrightarrow> P ca)\<close>
-  using the_core_core_rel_eq by blast
 
-lemma dup_has_core[dest]:
-  \<open>sepadd_dup a \<Longrightarrow> has_core a\<close>
-  using core_rel_def resource_preordering.refl by auto
+paragraph \<open> lemmas \<close>
 
-lemma core_dup_is_self[simp]:
-  \<open>sepadd_dup a \<Longrightarrow> the_core a = a\<close>
-  by (simp add: core_rel_def resource_preordering.refl)
+lemma the_wcore_wcore_rel_eq[simp]:
+  \<open>wcore_rel a ca \<Longrightarrow> the_wcore a = ca\<close>
+  unfolding the_wcore_def wcore_rel_def
+  using resource_ordering.antisym
+  by force
 
-lemma core_is_dup:
-  \<open>has_core a \<Longrightarrow> sepadd_dup (the_core a)\<close>
-  using core_rel_def the_core_core_rel_eq by blast
-
-lemma core_is_selfsep:
-  \<open>has_core a \<Longrightarrow> the_core a ## the_core a\<close>
-  using core_is_dup sepadd_dup_def
-  by blast
-
-lemma core_is_selfadd:
-  \<open>has_core a \<Longrightarrow> the_core a + the_core a = the_core a\<close>
-  using core_is_dup sepadd_dup_def
-  by blast
-
-lemma core_idem:
-  \<open>has_core a \<Longrightarrow> the_core (the_core a) = the_core a\<close>
-  by (clarsimp simp add: core_rel_def)
-
-lemma core_disjoint:
-  \<open>has_core a \<Longrightarrow> the_core a ## a\<close>
-  by (metis core_rel_def less_eq_sepadd_def disjoint_add_left_commute2 disjoint_sym part_of_def
-      sepadd_dup_def the_core_core_rel_eq)
-
-lemma core_plus_same[simp]:
-  \<open>has_core a \<Longrightarrow> the_core a + a = a\<close>
-  by (metis core_rel_def less_eq_sepadd_def part_of_def partial_add_assoc sepadd_dup_def
-      the_core_core_rel_eq)
-
-lemma core_plus_sameR[simp]:
-  \<open>has_core a \<Longrightarrow> a + the_core a = a\<close>
-  using core_disjoint core_plus_same partial_add_commute
+lemma has_wcore_the_wcore_eq:
+  \<open>has_wcore a \<Longrightarrow> P (the_wcore a) \<longleftrightarrow> (\<forall>ca. wcore_rel a ca \<longrightarrow> P ca)\<close>
+  using the_wcore_def the_wcore_wcore_rel_eq
   by auto
 
-lemma the_core_le_impl:
-  \<open>has_core a \<Longrightarrow> has_core b \<Longrightarrow> a \<preceq> b \<Longrightarrow> the_core a \<preceq> the_core b\<close>
-  by (metis core_rel_def resource_preordering.trans the_core_core_rel_eq)
+lemma dup_is_self_wcore:
+  \<open>sepadd_dup a \<Longrightarrow> wcore_rel a a\<close>
+  using wcore_rel_def resource_preordering.refl
+  by auto
 
-  
+lemma wcore_dup_is_self[simp]:
+  \<open>sepadd_dup a \<Longrightarrow> the_wcore a = a\<close>
+  by (simp add: wcore_rel_def resource_preordering.refl)
+
+lemma wcore_is_dup:
+  \<open>has_wcore a \<Longrightarrow> sepadd_dup (the_wcore a)\<close>
+  using wcore_rel_def the_wcore_wcore_rel_eq
+  by blast
+
+lemma wcore_is_selfsep:
+  \<open>has_wcore a \<Longrightarrow> the_wcore a ## the_wcore a\<close>
+  using wcore_is_dup sepadd_dup_def
+  by blast
+
+lemma wcore_is_selfadd:
+  \<open>has_wcore a \<Longrightarrow> the_wcore a + the_wcore a = the_wcore a\<close>
+  using wcore_is_dup sepadd_dup_def
+  by blast
+
+lemma wcore_idem:
+  \<open>has_wcore a \<Longrightarrow> the_wcore (the_wcore a) = the_wcore a\<close>
+  by (clarsimp simp add: wcore_rel_def)
+
+lemma wcore_disjoint:
+  \<open>has_wcore a \<Longrightarrow> the_wcore a ## a\<close>
+  by (metis wcore_rel_def less_eq_sepadd_def disjoint_add_left_commute2 disjoint_sym part_of_def
+      sepadd_dup_def the_wcore_wcore_rel_eq)
+
+lemma wcore_plus_same[simp]:
+  \<open>has_wcore a \<Longrightarrow> the_wcore a + a = a\<close>
+  using sepadd_dup_def sepadd_punit_of_unit_res_mono' wcore_rel_def
+  by fastforce
+
+lemma wcore_plus_sameR[simp]:
+  \<open>has_wcore a \<Longrightarrow> a + the_wcore a = a\<close>
+  using wcore_disjoint wcore_plus_same partial_add_commute
+  by auto
+
+lemma the_wcore_le_impl:
+  \<open>has_wcore a \<Longrightarrow> has_wcore b \<Longrightarrow> a \<preceq> b \<Longrightarrow> the_wcore a \<preceq> the_wcore b\<close>
+  by (metis wcore_rel_def resource_preordering.trans the_wcore_wcore_rel_eq)
+
+lemma wcore_rel_self_additive:
+  \<open>x ## y \<Longrightarrow> wcore_rel x x \<Longrightarrow> wcore_rel y y \<Longrightarrow> wcore_rel (x + y) (x + y)\<close>
+  unfolding wcore_rel_def
+  by (metis disjoint_middle_swap2 disjoint_sym partial_add_commute partial_add_double_assoc
+      sepadd_dup_def sepadd_left_mono)
+
+lemma wcore_rel_additive:
+  \<open>x ## y \<Longrightarrow> wcore_rel x cx \<Longrightarrow> wcore_rel y cy \<Longrightarrow> wcore_rel (x + y) cxy \<Longrightarrow> cx + cy \<preceq> cxy\<close>
+  unfolding wcore_rel_def
+  by (meson wcore_rel_self_additive wcore_rel_def disjoint_preservation2 resleq_implies_sepdom_leq
+      sepadd_mono sepdom_leq_disjointD)
+
+lemma has_wcore_then_has_punit:
+  \<open>has_wcore (x::'a) \<Longrightarrow> sepadd_punit_of (the_wcore x) x\<close>
+  by (simp add: wcore_disjoint sepadd_punit_of_def)
+
 text \<open>
   As every duplicable element is its own core, the monotonicity criterion is equivalent to
   the property that every element above a duplicable element (e.g. 0) has a unique greatest
   duplicable element below it.
 \<close>
 lemma has_core_mono_iff:
-  \<open>(\<forall>a b. a \<preceq> b \<longrightarrow> has_core a \<longrightarrow> has_core b) \<longleftrightarrow>
-    (\<forall>x. sepadd_dup x \<longrightarrow> (\<forall>a. x \<preceq> a \<longrightarrow> has_core a))\<close>
-  unfolding sepadd_dup_def has_core_def
-  apply (rule iffI)
-   apply (blast intro: resource_preordering.refl)
-  apply (blast intro: resource_preordering.trans)
-  done
+  \<open>(\<forall>a b. a \<preceq> b \<longrightarrow> has_wcore a \<longrightarrow> has_wcore b) \<longleftrightarrow>
+    (\<forall>x. sepadd_dup x \<longrightarrow> (\<forall>a. x \<preceq> a \<longrightarrow> has_wcore a))\<close>
+  unfolding sepadd_dup_def wcore_rel_def
+  by auto
 
-lemma core_rel_self_additive:
-  \<open>x ## y \<Longrightarrow> core_rel x x \<Longrightarrow> core_rel y y \<Longrightarrow> core_rel (x + y) (x + y)\<close>
-  unfolding core_rel_def
-  by (metis disjoint_middle_swap2 disjoint_sym partial_add_commute partial_add_double_assoc
-      sepadd_dup_def sepadd_left_mono)
 
-lemma core_rel_additive:
-  \<open>x ## y \<Longrightarrow> core_rel x cx \<Longrightarrow> core_rel y cy \<Longrightarrow> core_rel (x + y) cxy \<Longrightarrow> cx + cy \<preceq> cxy\<close>
-  unfolding core_rel_def
-  by (meson core_rel_self_additive core_rel_def disjoint_preservation2 resleq_implies_sepdom_leq
-      sepadd_mono sepdom_leq_disjointD)
+subsection \<open> Core \<close>
 
-\<comment> \<open> An element with a core does not necessarily have a unit. \<close>
-lemma has_core_then_has_punit:
-  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow> has_core (x::'a) \<Longrightarrow> \<exists>ux. sepadd_punit_of x ux\<close>
-  nitpick
+definition
+  \<open>core_rel a ca \<equiv> wcore_rel a ca \<and> (\<forall>b. a \<preceq> b \<longrightarrow> has_wcore b)\<close>
+
+abbreviation \<open>has_core a \<equiv> Ex (core_rel a)\<close>
+abbreviation \<open>the_core a \<equiv> The (core_rel a)\<close>
+
+lemma has_core_iff_mono_wcore:
+  \<open>has_core a \<longleftrightarrow>
+    (\<exists>ca. ca \<preceq> a \<and> sepadd_dup ca \<and> (\<forall>y. y \<preceq> a \<longrightarrow> sepadd_dup y \<longrightarrow> y \<preceq> ca)) \<and>
+    (\<forall>b. a \<preceq> b \<longrightarrow> (\<exists>ca. ca \<preceq> b \<and> sepadd_dup ca \<and> (\<forall>y. y \<preceq> b \<longrightarrow> sepadd_dup y \<longrightarrow> y \<preceq> ca)))\<close>
+  unfolding wcore_rel_def core_rel_def
+  by blast
+
+lemma has_core_mono:
+  \<open>a \<preceq> b \<Longrightarrow>  has_core a \<Longrightarrow> has_core b\<close>
+  by (meson core_rel_def resource_preordering.trans)
+
+\<comment> \<open> All elements having cores does not imply the existence of a unit. \<close>
+lemma counterex_core_implies_unit:
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow> C = {(a,ca). ca = the_core a} \<Longrightarrow>
+    \<forall>x. has_core (x::'a) \<Longrightarrow> \<exists>u::'a. sepadd_unit u\<close>
+  nitpick[card 'a=3]
+  oops
+
+\<comment> \<open> All elements being above a duplicable resource does not imply the existence of a core. \<close>
+lemma counterex_core_implies_unit:
+  fixes a :: 'a
+  shows \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow> C = {(a,ca). ca = the_core a} \<Longrightarrow>
+          d \<preceq> a \<Longrightarrow> sepadd_dup d \<Longrightarrow> has_core a\<close>
+  sledgehammer
   oops
 
 end
+
+lemma (in perm_alg) iris_core_vs_induced_core:
+  fixes a b c :: \<open>'a\<close>
+  assumes
+    \<open>(\<forall>a::'a. hc a \<longrightarrow> cf a ## a) \<and>
+      (\<forall>a::'a. hc a \<longrightarrow> cf a + a = a) \<and>
+      (\<forall>a::'a. hc a \<longrightarrow> cf (cf a) = a) \<and>
+      (\<forall>a b::'a. hc a \<longrightarrow> a \<preceq> b \<longrightarrow> hc b \<and> cf a \<preceq> cf b) \<and>
+      (\<forall>u b::'a. sepadd_unit u \<longrightarrow> u \<preceq> b \<longrightarrow> hc b) \<and>
+      (\<forall>u::'a. sepadd_unit u \<longrightarrow> cf u = u)\<close>
+  assumes \<comment> \<open> not in the Iris rules, but necessary to bridge the two. \<close>
+    \<open>(\<forall>a b::'a. sepadd_dup a \<longrightarrow> a \<preceq> b \<longrightarrow> hc b)\<close>
+  shows
+    \<open>\<And>a::'a. has_core a \<Longrightarrow> hc a\<close>
+    \<open>\<And>a::'a. \<cc> = the_core \<Longrightarrow> R = {(a,b,a+b)|a b. a ## b} \<Longrightarrow> has_core a \<Longrightarrow> cf a = the_core a\<close>
+   apply -
+   apply (cut_tac assms(2), force simp add: core_rel_def wcore_rel_def)
+  nitpick
+  oops
 
 context multiunit_sep_alg
 begin
@@ -1234,6 +1287,16 @@ lemma (in crosssplit_sep_alg)
   sledgehammer
   sorry
 
+
+section \<open> Bibliography \<close>
+
+text \<open>
+  [Iris3.1] Ralf Jung, Robbert Krebbers, Jacques-Henri Jourdan, Aleš Bizjak, Lars Birkedal,
+    Derek Dreyer.
+    Iris from the ground up.
+    Journal of Functional Programming, Vol. 28
+    \<^url>\<open>https://doi.org/10.1017/S0956796818000151\<close>
+\<close>
 
 
 end

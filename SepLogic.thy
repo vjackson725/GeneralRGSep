@@ -12,7 +12,12 @@ section \<open> Common Notions \<close>
 
 class disjoint =
   fixes disjoint :: \<open>'a \<Rightarrow> 'a \<Rightarrow> bool\<close> (infix \<open>##\<close> 60)
+begin
 
+abbreviation ndisjoint (infix \<open>#'/#\<close> 60) where
+  \<open>a #/# b \<equiv> \<not> a ## b\<close>
+
+end
 
 section \<open> Algebras \<close>
 
@@ -1719,17 +1724,17 @@ end
 section \<open> Bibliography \<close>
 
 text \<open>
-  [KKB2012] Klein, Gerwin, Rafal Kolanski, and Andrew Boyton. 2012.
+  [KKB2012] Gerwin Klein, Rafal Kolanski, and Andrew Boyton. 2012.
       "Mechanised Separation Algebra." ITP 2012.
       \<^url>\<open>https://doi.org/10.1007/978-3-642-32347-8_22\<close>.
 
-  [VSTBook2014] Appel, Andrew W., Robert Dockins, Aquinas Hobor, Lennart Beringer, Josiah Dodds,
+  [VSTBook2014] Andrew W. Appel, Robert Dockins, Aquinas Hobor, Lennart Beringer, Josiah Dodds,
       Gordon Stewart, Sandrine Blazy, and Xavier Leroy.
       2014. "Chapter 6 - Separation Algebras."
       In Program Logics for Certified Compilers, 1st ed. Cambridge University Press.
       \<^url>\<open>https://doi.org/10.1017/CBO9781107256552\<close>.
 
-  [BHK2018] Bannister, Callum, Peter Höfner, and Gerwin Klein.
+  [BHK2018] Callum Bannister, Peter Höfner, and Gerwin Klein.
       2018. "Backwards and Forwards with Separation Logic." ITP 2018.
       \<^url>\<open>https://doi.org/10.1007/978-3-319-94821-8_5\<close>.
 \<close>

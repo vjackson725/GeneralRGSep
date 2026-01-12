@@ -129,6 +129,18 @@ datatype rgsep_rule =
   RGSepDisj |
   RGSepConj
 
+lemma
+  \<open>(\<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> sp ((=) \<times>\<^sub>R G) f) \<Longrightarrow>
+    rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G\<close>
+  apply (clarsimp simp add: le_fun_def sp_def sepconj_conj_def wlp_def)
+  apply (drule spec, drule mp, force)
+  apply (rename_tac ss ss' ls lfs' fs)
+  apply (clarsimp simp add: imp_ex_conjL)
+  apply (drule spec2, drule spec2, drule mp, force)
+  apply (drule spec2, drule mp, fast, drule mp, fast)
+  apply clarsimp
+  oops
+
 (* TODO: reverse F I *)
 inductive rgsat ::
   \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
@@ -187,11 +199,11 @@ inductive rgsat ::
   \<open>p' \<le> wssa R p \<Longrightarrow>
     sswa R q \<le> q' \<Longrightarrow>
     \<comment> \<open> step \<close>
-    \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
+    \<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     \<comment> \<open> guarantee condition \<close>
-    rel_image snd (rel_liftL (p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
+    rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     \<comment> \<open> misc \<close>
-    sswa R p \<le> I \<Longrightarrow>
+    wssa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
     T RGSepAtom \<Longrightarrow>
     rgsat \<langle>ar\<rangle> R G p' q' I F T\<close>
@@ -240,6 +252,14 @@ inductive_cases rgsat_atomE[elim]: \<open>rgsat \<langle>ar\<rangle> R G p q I F
 inductive_cases rgsat_indetE[elim]: \<open>rgsat (c1 \<^bold>\<sqinter> c2) R G p q I F T\<close>
 inductive_cases rgsat_endetE[elim]: \<open>rgsat (c1 \<^bold>\<box> c2) R G p q I F T\<close>
 
+
+lemmas rgsat_weaken_prepost = rgsat_weaken[OF _ _ _ order.refl order.refl order.refl order.refl]
+
+lemma rgsat_stabilise_prepost:
+  \<open>R, G, I, F, T \<turnstile> { sswa R p } c { wssa R q } \<Longrightarrow>
+    T RGSepWeaken \<Longrightarrow>
+    R, G, I, F, T \<turnstile> { p } c { q }\<close>
+  using rgsat_weaken_prepost by blast
 
 lemma rgsat_skip_forwards:
   \<open>T RGSepSkip \<Longrightarrow> rgsat Skip r g p (sswa r p) (sswa r p) F T\<close>
@@ -309,7 +329,7 @@ next
 next
   case (rgsat_atom p' R p q q' ar G F I C)
   then show ?case
-    by (meson order.trans sswa_weaker wlp_weaker_iff_sp_stronger)
+    by (meson order.trans wlp_weaker_iff_sp_stronger wssa_stronger_strengthen)
 qed fast+
 
 lemma rgsat_par_alt:
@@ -359,32 +379,32 @@ section \<open> Specialised Rules \<close>
 subsection \<open> Await \<close>
 
 lemma rgsat_await:
-  assumes framed_step: \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> wssa R q \<^emph>\<and> any_shared f\<close>
-    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
+  assumes framed_step: \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> p' \<le> q \<^emph>\<and> any_shared f\<close>
+    and guar: \<open>rel_image snd (rel_liftL ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
     and stinv:
-    \<open>sswa R p \<le> I\<close>
-    \<open>wssa R q \<le> I\<close>
+    \<open>wssa R p \<le> I\<close>
+    \<open>sswa R q \<le> I\<close>
     and cpred: \<open>T RGSepAtom\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile> { p } Await p' { q }\<close>
+    \<open>R, G, I, F, T \<turnstile> { wssa R p } Await p' { sswa R q }\<close>
   using assms
-  unfolding Await_def
-  by (intro rgsat_atom[where p=\<open>sswa R p\<close> and q=\<open>wssa R q\<close>])
-    (simp add: rel_liftL_conj_distrib inf.assoc; force; fail)+
+  unfolding await_rel_def
+  by (intro rgsat_atom[where p=p and q=q])
+      (simp add: rel_liftL_conj_distrib inf.assoc)+
 
 text \<open> Specialise the rule to the strongest \<open>q\<close> \<close>
 lemma rgsat_await':
   assumes framed_step:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> p' \<le> sswa R (sswa R p \<sqinter> p') \<^emph>\<and> any_shared f\<close>
-    and guar: \<open>rel_image snd (rel_liftL ((sswa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
+    \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> p' \<le> (wssa R p \<sqinter> p') \<^emph>\<and> any_shared f\<close>
+    and guar: \<open>rel_image snd (rel_liftL ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
     and stinv:
-    \<open>sswa R p \<le> I\<close>
-    \<open>sswa R (sswa R p \<sqinter> p') \<le> I\<close>
+    \<open>wssa R p \<le> I\<close>
+    \<open>sswa R (wssa R p \<sqinter> p') \<le> I\<close>
     and cpred: \<open>T RGSepAtom\<close>
   shows
-    \<open>R, G, I, F, T \<turnstile> { p } Await p' { sswa R (sswa R p \<sqinter> p') }\<close>
+    \<open>R, G, I, F, T \<turnstile> { wssa R p } Await p' { sswa R (wssa R p \<sqinter> p') }\<close>
   using assms
-  by (intro rgsat_await) auto
+  by (intro rgsat_await) blast+
 
 
 text \<open>
@@ -406,31 +426,34 @@ subsection \<open> If-then-else \<close>
 
 lemma rgsat_if_then_else:
   assumes tt_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> sswa R (sswa R p \<sqinter> pp) \<^emph>\<and> any_shared f\<close>
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> pp \<le> (sswa R p \<sqinter> pp) \<^emph>\<and> any_shared f\<close>
     and ff_guard_frame_cond:
-    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> sswa R (sswa R p \<sqinter> -pp) \<^emph>\<and> any_shared f\<close> 
+    \<open>\<forall>f\<le>F. (sswa R p \<^emph>\<and> f) \<sqinter> -pp \<le> (sswa R p \<sqinter> -pp) \<^emph>\<and> any_shared f\<close> 
     and body_assms:
     \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
     and misc_assms:
     \<open>rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
-    \<open>T RGSepAtom\<close>
-    \<open>T RGSepEndet\<close>
-    \<open>T RGSepSeq\<close>
     \<open>sswa R p \<le> I\<close>
     \<open>Ia \<le> I\<close>
     \<open>Ib \<le> I\<close>
-    \<open>qa \<le> q\<close>
-    \<open>qb \<le> q\<close>
+    \<open>qa \<le> wssa R q\<close>
+    \<open>qb \<le> wssa R q\<close>
+    \<open>T RGSepAtom\<close>
+    \<open>T RGSepEndet\<close>
+    \<open>T RGSepSeq\<close>
+    \<open>T RGSepWeaken\<close>
   shows
     \<open>R, G, I, F, T \<turnstile> { p } IfThenElse pp ctt cff { q }\<close>
   using misc_assms
   unfolding IfThenElse_def
-proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
-      where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>])
-  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
+proof (intro
+    rgsat_stabilise_prepost[OF
+      rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
+        where I=I and Ia=\<open>sswa R p \<squnion> Ia\<close> and Ib=\<open>sswa R p \<squnion> Ib\<close>]])
+  show \<open>R, G, sswa R p, F, T \<turnstile> { sswa R p } Await pp { sswa R (sswa R p \<sqinter> pp) }\<close>
     using misc_assms assms(1) tt_guard_frame_cond
-    apply (intro rgsat_await')
+    apply (intro rgsat_await'[where R=R and p=\<open>sswa R p\<close>, simplified])
         apply blast
        apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
       apply blast
@@ -440,13 +463,14 @@ proof (intro rgsat_endet[OF rgsat_seq rgsat_seq order.refl order.refl,
   show \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     using body_assms
     by blast
-  show \<open>R, G, sswa R p, F, T \<turnstile> { p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
+  show \<open>R, G, sswa R p, F, T \<turnstile> { sswa R p } Await (- pp) { sswa R (sswa R p \<sqinter> -pp) }\<close>
     using ff_guard_frame_cond misc_assms assms
-    apply (intro rgsat_await'; simp)
-     apply (simp add: inf.assoc inf.left_commute le_infI2 rel_image_snd_galois
-        rel_liftL_conj_distrib; fail)
-    apply (meson le_infI1 relyrel_trans transp_relcompp wlp_sp_weak_absorb
-        wlp_weaker_iff_sp_stronger; fail)
+    apply (intro rgsat_await'[where R=R and p=\<open>sswa R p\<close>, simplified])
+        apply blast
+       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+      apply blast
+     apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
+    apply blast
     done
   show \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
     using body_assms
@@ -471,14 +495,14 @@ subsection \<open> WhileLoop \<close>
 lemma rgsat_while:
   assumes
     \<open>rel_image snd (rel_liftL ((sswa R ii \<^emph>\<and> F) \<sqinter> px) \<sqinter> (=)) \<le> G\<close>
-    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> sswa R (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
+    \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
     \<open>sswa R (sswa R ii \<sqinter> px) \<le> sswa R ii\<close>
     \<open>sswa R ii \<le> I\<close>
     \<open>sswa R p \<le> ii\<close>
     \<open>sswa R ii \<le> q\<close>
     and rgsat_body:
     \<open>R, G, I, F, T \<turnstile> { sswa R (sswa R ii \<sqinter> px) } c { ii }\<close>
-    and misc:
+    and misc_assms:
     \<open>T RGSepAtom\<close>
     \<open>T RGSepSeq\<close>
     \<open>T RGSepIter\<close>
@@ -486,8 +510,10 @@ lemma rgsat_while:
     \<open>R, G, I, F, T \<turnstile> { p } WhileLoop px c { q }\<close>
   unfolding WhileLoop_def
   using assms
-  by (intro rgsat_iter[OF rgsat_seq[OF rgsat_await', rotated 6, where T=T]])
-    (rule order.refl|simp)+
+  by (intro rgsat_iter[where i=ii and I=I,
+        OF rgsat_seq[where I=I and Ia=I and Ib=I and pp=\<open>sswa R (sswa R ii \<sqinter> px)\<close>,
+          OF rgsat_atom[where p=\<open>sswa R ii\<close> and q=\<open>sswa R ii \<sqinter> px\<close>]]])
+    (simp add: await_rel_def inf_assoc rel_liftL_conj_distrib; fail)+
 
 
 section \<open> Atom Variants \<close>

@@ -2,6 +2,76 @@ theory SoundnessExperimental
   imports "../../Soundness"
 begin
 
+\<comment> \<open> Guar in the frame condition \<close>
+
+lemma
+  \<open>(\<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> sp ((=) \<times>\<^sub>R G) f) \<longleftrightarrow>
+    (\<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f) \<and>
+    (rel_liftL (p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G)\<close>
+  apply (intro iffI)
+   apply (intro conjI allI impI)
+    apply (drule spec, drule mp, assumption)
+    apply (rule order.trans, assumption)
+    apply (rule sepconj_conj_monoR)
+    apply (force simp add: sp_def)
+   apply (clarsimp simp add: sepconj_conj_def)
+   apply (rename_tac ss lfs' ss' ls fs)
+   apply (drule_tac x=\<open>(=) (fs, ss)\<close> in spec, drule mp, force)
+   apply (clarsimp simp add: sepconj_conj_def le_fun_def sp_def imp_ex_conjL imp_conjL)
+   apply (drule spec2, drule spec2, drule mp, assumption)
+   apply (drule spec, drule mp, assumption)
+   apply (drule mp, fast)
+   apply (drule mp, fast)
+   apply (drule mp, fast)
+   apply force
+  apply clarsimp
+  apply (clarsimp simp add: sepconj_conj_apply sp_def imp_ex_conjL imp_conjL le_fun_def)
+  oops
+
+
+lemma
+  \<open>a =\<^sub># b \<Longrightarrow> a ## b \<Longrightarrow> a ## a\<close>
+  by (meson disjoint_sym sepdomeq_def)
+
+
+\<comment> \<open> Trying out view shift. You need something more to make it go, though. \<close>
+
+definition (in pre_perm_alg) frame_update
+  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> (\<open>\<bar>\<Rrightarrow>\<^bsub>_\<^esub> _\<close>)
+  where
+  \<open>\<bar>\<Rrightarrow>\<^bsub>F\<^esub> p \<equiv> \<lambda>a. \<forall>c. F c \<longrightarrow> a ## c \<longrightarrow> (\<exists>b. b ## c \<and> p b)\<close>
+
+definition (in pre_perm_alg) frame_update_conj
+  :: \<open>('a \<times> 's \<Rightarrow> bool) \<Rightarrow> ('a \<times> 's \<Rightarrow> bool) \<Rightarrow> ('a \<times> 's \<Rightarrow> bool)\<close> (\<open>\<bar>\<Rrightarrow>\<^sub>\<and>\<^bsub>_\<^esub> _\<close>)
+  where
+  \<open>\<bar>\<Rrightarrow>\<^sub>\<and>\<^bsub>F\<^esub> p \<equiv> \<lambda>(a,ss). \<forall>c. F (c,ss) \<longrightarrow> a ## c \<longrightarrow> (\<exists>b. b ## c \<and> p (b,ss))\<close>
+
+lemma
+  fixes s :: \<open>'l::pre_perm_alg \<times> 's\<close>
+  assumes \<open>\<forall>a b::'l. a \<preceq> b \<longrightarrow> {c. a \<preceq> c} \<subseteq> {c. b \<preceq> c}\<close>
+  shows \<open>safe R F G I q' n c s \<Longrightarrow> \<top> \<le> (=) s \<midarrow>\<^emph>\<^sub>\<and> \<bar>\<Rrightarrow>\<^sub>\<and>\<^bsub>\<top>\<^esub> q \<Longrightarrow> safe R F G I q n c s\<close>
+  apply (induct arbitrary: q rule: safe.induct)
+  apply (rule safe.safeI)
+     apply (clarsimp simp add: le_fun_def sepimp_conj_def)
+  oops
+
+lemma
+  fixes p q :: \<open>'a::pre_perm_alg \<Rightarrow> bool\<close>
+  assumes \<open>\<forall>a a' b::'a. a ## a' \<longrightarrow> a + a' = b \<longrightarrow> (\<exists>af. F af \<and> a ## af \<and> b = a + af)\<close>
+  shows \<open>p \<le> \<bar>\<Rrightarrow>\<^bsub>F\<^esub> q \<Longrightarrow> p \<^emph> F \<le> q \<^emph> F\<close>
+  using assms
+  unfolding frame_update_def
+  apply (clarsimp simp add: le_fun_def sepconj_def)
+  apply (drule spec, drule mp, blast, drule spec, drule mp, blast, drule mp,blast)
+  apply clarsimp
+  apply (drule spec2, drule mp, blast)
+  apply clarsimp
+  apply (rule_tac x=h1 in exI)
+  apply (rule_tac x=af in exI)
+  apply simp
+  oops
+
+
 section \<open> Cancellativity \<close>
 
 lemma cancel_attempt1:

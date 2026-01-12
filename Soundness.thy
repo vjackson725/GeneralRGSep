@@ -222,7 +222,7 @@ paragraph \<open> Await \<close>
 lemma opstep_await_iff[simp]:
   \<open>opstep \<alpha> (s, Await p) sc' \<longleftrightarrow>
     \<alpha> = Vis \<and> p s \<and> sc' = (s, Skip)\<close>
-  by (cases sc', force simp add: Await_def)
+  by (cases sc', force simp add: await_rel_def)
 
 
 paragraph \<open> IfThenElse \<close>
@@ -232,13 +232,13 @@ lemma opstep_IfThenElse_iff[simp]:
     \<alpha> = Vis \<and>
     (p s \<and> sc' = (s, Skip ;; ct) \<or>
       \<not> p s \<and> sc' = (s, Skip ;; cf))\<close>
-  by (cases sc', force simp add: IfThenElse_def Await_def)
+  by (cases sc', force simp add: IfThenElse_def await_rel_def)
 
 lemma opstep_WhileLoop_iff[simp]:
   \<open>opstep \<alpha> (h, WhileLoop p c) s' \<longleftrightarrow>
     \<alpha> \<noteq> Tau \<and> p h \<and> s' = (h, (Skip ;; c) ;; DO Await p ;; c OD) \<or>
     \<alpha> = Tau \<and> \<not> p h \<and> s' = (h, Skip)\<close>
-  by (force simp add: WhileLoop_def Await_def pre_state_def)
+  by (force simp add: WhileLoop_def await_rel_def pre_state_def)
 
 
 section \<open> Safe \<close>
@@ -1115,18 +1115,8 @@ next
 next
   case (rgsat_atom p' R p q q' ar G F I C)
   then show ?case
-    apply (intro safe_atom[where p=\<open>wssa R p\<close> and q=q])
-         apply (simp del: top_apply, meson order_trans sepconj_conj_monoL sp_pred_mono
-        wssa_stronger; fail)
-        apply (simp del: top_apply)
-        apply (rule order.trans[OF rel_image_mono, rotated], assumption)
-        apply (simp add: rel_image_mono inf_commute le_infI2 sepconj_conj_monoL sup.coboundedI1
-        sup.coboundedI2 wssa_stronger; fail)
-       apply fastforce
-      apply fastforce
-     apply fastforce
-    apply fastforce
-    done
+    by (intro safe_atom[where p=\<open>wssa R p\<close> and q=q])
+      (simp add: le_fun_def del: split_paired_All; fail)+
 next
   case (rgsat_frame c R G p q I F F' C)
   then show ?case
@@ -1185,6 +1175,9 @@ lemmas semsat_weaken_guar_inv =
 
 lemmas semsat_weaken_guar_inv_post =
   semsat_weaken[OF _ order.refl _ order.refl _ order.refl _]
+
+lemmas semsat_weaken_prepost =
+  semsat_weaken[OF _ order.refl order.refl order.refl order.refl]
 
 lemma semsat_skip:
   \<open>p \<le> wssa R px \<Longrightarrow>
@@ -1296,7 +1289,7 @@ lemma semsat_Disj:
   unfolding semsat_def
   by force
 
-lemma soundness:        
+lemma soundness:
   assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
   shows \<open>R, G, F, I \<Turnstile> { p } c { q }\<close>
   using assms
@@ -1336,8 +1329,7 @@ next
 next
   case (rgsat_atom p' R p q q' ar F G I T)
   then show ?case
-    by (intro semsat_weaken[OF semsat_atom])
-      (simp; fail)+
+    by (intro semsat_weaken_prepost[OF semsat_atom]) (simp; fail)+
 next
   case (rgsat_frame c R G p q I F F' T)
   then show ?case

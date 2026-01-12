@@ -411,11 +411,14 @@ section \<open> Specific Commands \<close>
 
 subsection \<open> Await \<close>
 
-definition \<open>Await p \<equiv> Atomic (rel_liftL p \<sqinter> (=))\<close>
 
-lemma Await_inject[simp]:
-  \<open>Await p1 = Await p2 \<longleftrightarrow> p1 = p2\<close>
-  by (force simp add: Await_def fun_eq_iff rel_lift_def)
+definition \<open>await_rel p \<equiv> rel_liftL p \<sqinter> (=)\<close>
+abbreviation \<open>Await p \<equiv> Atomic (await_rel p)\<close>
+
+lemma await_rel_inject[simp]:
+  \<open>await_rel p1 = await_rel p2 \<longleftrightarrow> p1 = p2\<close>
+  by (force simp add: await_rel_def fun_eq_iff rel_lift_def)
+
 
 subsection \<open> If-then-else \<close>
 
@@ -423,7 +426,7 @@ definition \<open>IfThenElse p ct cf \<equiv> Await p ;; ct \<^bold>\<box> Await
 
 lemma IfThenElse_inject[simp]:
   \<open>IfThenElse p1 ct1 cf1 = IfThenElse p2 ct2 cf2 \<longleftrightarrow> p1 = p2 \<and> ct1 = ct2 \<and> cf1 = cf2\<close>
-  by (force simp add: IfThenElse_def fun_eq_iff)
+  by (force simp add: IfThenElse_def)
 
 lemma IfThenElse_distinct[simp]:
   \<open>IfThenElse p ct cf \<noteq> Skip\<close>
@@ -443,7 +446,7 @@ definition \<open>WhileLoop p c \<equiv> DO (Await p ;; c) OD\<close>
 
 lemma WhileLoop_inject[simp]:
   \<open>WhileLoop p1 c1 = WhileLoop p2 c2 \<longleftrightarrow> p1 = p2 \<and> c1 = c2\<close>
-  by (simp add: WhileLoop_def Await_def fun_eq_iff, blast)
+  by (simp add: WhileLoop_def await_rel_def fun_eq_iff, blast)
 
 lemma WhileLoop_distinct[simp]:
   \<open>WhileLoop p c \<noteq> Skip\<close>
@@ -623,6 +626,11 @@ lemma wssa_semiignore_local:
   \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
   \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
   by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+
+lemma wssa_ignore_local_when_shared:
+  \<open>wssa r (\<L> p \<^emph>\<and> \<S> q) = \<L> p \<^emph>\<and> wssa r (\<S> q)\<close>
+  \<open>wssa r (\<S> q \<^emph>\<and> \<L> p) = wssa r (\<S> q) \<^emph>\<and> \<L> p\<close>
+  by (clarsimp simp add: wlp_def fun_eq_iff sepconj_conj_def, metis rtranclp.rtrancl_refl)+
 
 text \<open>
   The full law local ignore law is _not_ true for \<open>wssa\<close>, unlike the one for \<open>sswa\<close>.
