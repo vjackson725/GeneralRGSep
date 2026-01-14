@@ -218,20 +218,6 @@ abbreviation
 abbreviation
   \<open>failure_pred p \<equiv> (p \<times>\<^sub>P (=) Failed) \<circ> ppABC_to_ppACB\<close>
 
-(*
-lemma nofailure_pred_strong_mono[simp]:
-  \<open>nofailure_pred p \<le> nofailure_pred q \<longleftrightarrow> p \<le> q\<close>
-  by (simp add: le_fun_def)
-
-lemma nofailure_impl_failure_iff[simp]:
-  \<open>nofailure_pred p \<le> failure_pred q \<longleftrightarrow> p \<le> \<bottom>\<close>
-  by (simp add: le_fun_def)
-
-lemma failure_impl_nofailure_iff[simp]:
-  \<open>failure_pred p \<le> nofailure_pred q \<longleftrightarrow> p \<le> \<bottom>\<close>
-  by (simp add: le_fun_def)
-*)
-
 \<comment> \<open> These two only work because the fail_st resources are duplicable, i.e. \<open>a + a = a\<close>. \<close>
 lemma nofailure_pred_sepconj_conj_distrib:
   \<open>nofailure_pred (pa \<^emph>\<and> pb) = nofailure_pred pa \<^emph>\<and> nofailure_pred pb\<close>
@@ -364,57 +350,6 @@ section \<open> Heap Predicates \<close>
 definition points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
   \<open>p \<^bold>\<mapsto> x \<equiv> (=) [p \<mapsto> x]\<close>
 
-definition points_to_dom_upcl :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<^sup>\<Up>\<close> 90) where
-  \<open>p \<^bold>\<mapsto>\<^sup>\<Up> x \<equiv> \<lambda>h. h p = Some x\<close>
-
-
-lemma points_to_dom_upcl_eq:
-  fixes x :: \<open>'a :: perm_alg\<close>
-  assumes maximal_res: \<open>\<forall>x'. \<not> x \<prec> x'\<close>
-  shows \<open>pt \<^bold>\<mapsto>\<^sup>\<Up> x = \<top> \<^emph> pt \<^bold>\<mapsto> x\<close>
-  unfolding sepconj_def points_to_def points_to_dom_upcl_def
-  apply (clarsimp simp add: fun_eq_iff)
-  apply (rename_tac h)
-  apply (intro iffI)
-   apply (rule_tac x=\<open>h(pt := None)\<close> in exI)
-   apply (rule_tac x=\<open>[pt \<mapsto> x]\<close> in exI)
-   apply force
-  apply (clarsimp simp add: disjoint_option_def plus_option_def all_conj_distrib
-      split: option.splits)
-  apply (cut_tac maximal_res)
-  apply (metis disjoint_fun_def disjoint_option_simps(1) partial_le_plus2
-      resource_order.le_neq_trans)
-  done
-
-
-(*
-definition points_to_perm
-  :: \<open>'pt \<Rightarrow> 'perm \<Rightarrow> ('s \<Rightarrow> 'v) \<Rightarrow> ('pt \<rightharpoonup> 'v discr \<times> 'perm) \<times> 's \<Rightarrow> bool\<close>
-  (\<open>_ \<^bold>\<mapsto>\<^bsub>_\<^esub> _\<close> [90,0,90] 90)
-  where
-  \<open>pt \<^bold>\<mapsto>\<^bsub>perm\<^esub> e \<equiv> \<lambda>(ls,ss). (=) [pt \<mapsto> (Discr (e ss), perm)] ls\<close>
-*)
-
-
-definition \<open>maximal_heap \<equiv> \<lambda>h. \<forall>pt. h pt \<noteq> None\<close>
-
-definition
-  \<open>heap_avoiding \<rho> v \<pi> \<equiv> - (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). \<rho> \<^bold>\<mapsto>\<^sup>\<Up> x')\<close>
-
-lemma res_disjoint_to_memcell_le_heap_avoiding:
-  \<open>(#/#) [\<rho> \<mapsto> (Discr v, \<pi>)] \<le> heap_avoiding \<rho> v \<pi>\<close>
-  by (clarsimp simp add: heap_avoiding_def le_fun_def points_to_dom_upcl_def
-      disjoint_fun_def disjoint_option_def split: option.splits)
-
-
-lemma top_write_heap_avoiding_iff_all_disjoint_perm:
-  fixes \<pi> :: \<open>'p::pre_perm_alg\<close>
-  shows \<open>\<top> \<le> \<L> (heap_avoiding \<rho> v \<pi>) \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
-  by (force simp add: heap_avoiding_def points_to_dom_upcl_def le_fun_def)
-
-
-abbreviation \<open>heap_pred p \<equiv> (p \<times>\<^sub>P \<top>) \<circ> ppABC_to_ppACB\<close>
-
 
 section \<open> Heap Commands \<close>
 
@@ -440,13 +375,15 @@ lemma rgsat_heap_read:
     and p :: \<open>('x \<Rightarrow> 'u) \<Rightarrow> bool\<close>
     and x :: 'x
     and e :: \<open>('x \<Rightarrow> 'u) \<Rightarrow> 'v::pre_perm_alg\<close>
-    and R \<pi> pt u2v
-  defines \<open>heap_read_G \<equiv> (\<lambda>s s'. s' = s(x := u2v (e s)))\<close>
+    and R \<pi> pt u2v F
+  defines \<open>heap_read_G \<equiv> (\<lambda>ss ss'. \<exists>fs vf.
+      F (fs, ss) \<and>
+      (fs pt = None \<and> ss' = ss(x := u2v (e ss)) \<or>
+        fs pt = Some vf \<and> ss' = ss(x := u2v (e ss + vf))) )\<close>
   defines\<open>precond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e ss) \<rceil>\<^sub>\<S> \<sqinter> \<S> ((\<lambda>ss. p (ss(x := u2v (e ss)))) \<sqinter> \<^bold>@ x ((=) X))\<close>
   defines \<open>postcond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e (ss(x := X))) \<rceil>\<^sub>\<S> \<sqinter> \<S> p\<close>
   defines \<open>frame_post :: (('a \<rightharpoonup> 'v) \<times> ('x \<Rightarrow> 'u) \<Rightarrow> bool) \<equiv>
-    \<lceil>\<lambda>ss. \<L> (\<^bold>@ pt (\<lambda>mvf. \<forall>vf. mvf = Some vf \<longrightarrow>
-                          (p (ss(x := u2v (e ss))) \<longrightarrow> p (ss(x := u2v (e ss + vf)))) )) \<rceil>\<^sub>\<S>\<close>
+    \<lceil>\<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt (\<lambda>vf. p (ss(x := u2v (e ss))) \<longrightarrow> p (ss(x := u2v (e ss + vf))) )) \<rceil>\<^sub>\<S>\<close>
   assumes
     \<open>heap_read_G \<le> G\<close>
     \<open>wssa R precond \<le> I\<close>
@@ -502,7 +439,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (rule conjI, force)
      apply (rule conjI, force)
      apply (rule conjI[rotated], force)
-     apply force
+     apply (force simp add: val_at_heap_def)
       (* \<Leftarrow> *)
     apply (rename_tac fs ss ls)
     apply (drule_tac x=\<open>(=) (fs, ss)\<close> in spec, drule mp, fast)
@@ -511,16 +448,16 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (fastforce simp add: precond_def wlp_def points_to_def)
     apply (case_tac \<open>fs pt\<close>)
       (** \<open>fs pt = None\<close> *)
-     apply (simp add: frame_post_def val_at_def; fail)
+     apply (simp add: frame_post_def val_at_heap_def; fail)
       (** \<open>fs pt = Some ...\<close> *)
     apply (rename_tac vf)
     apply (drule_tac x=\<open>ls + fs\<close> and y=\<open>e ss + vf\<close> in spec2, drule mp, force)
     apply clarsimp
     apply (drule_tac x=\<open>[pt \<mapsto> e ss]\<close> in spec)
     apply (simp add: postcond_def frame_post_def)
-    apply (clarsimp simp add: disjoint_sym_iff val_at_def points_to_def fun_eq_iff plus_option_iff
-        if_distrib[of \<open>\<lambda>x. x = _\<close>] if_distrib[of \<open>\<lambda>x. x + _ = _\<close>] if_bool_eq_conj all_conj_distrib
-        eq_commute[of _ \<open>_ pt\<close>])
+    apply (clarsimp simp add: disjoint_sym_iff val_at_heap_def points_to_def fun_eq_iff
+        plus_option_iff if_distrib[of \<open>\<lambda>x. x = _\<close>] if_distrib[of \<open>\<lambda>x. x + _ = _\<close>] if_bool_eq_conj
+        all_conj_distrib eq_commute[of _ \<open>_ pt\<close>])
     done
   also have \<open>... = ?frame1\<close>
     apply (simp add: wssa_comp_ppABC_to_ppACB_distrib)
@@ -540,10 +477,9 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
           nofailure_pred F) \<sqinter> heap_read_rel u2v x pt) \<le> G\<close>
     using assms(5)
     unfolding heap_read_G_def precond_def
-    apply (clarsimp simp add: wssa_comp_ppABC_to_ppACB_distrib heap_read_rel_def sepconj_conj_def
+    apply (fastforce simp add: wssa_comp_ppABC_to_ppACB_distrib heap_read_rel_def sepconj_conj_def
         plus_option_iff ex_disj_distrib conj_disj_distribR wlp_def points_to_def val_at_def)
-    sledgehammer
-    sorry
+    done
 qed (simp add: sswa_comp_ppABC_to_ppACB_distrib wssa_comp_ppABC_to_ppACB_distrib pred_times_le_iff)+
 
 
@@ -703,7 +639,7 @@ lemma rgsat_heap_alloc:
     \<open>wssa R precond \<le> I\<close>
     \<open>sswa R postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
-    and frame_cond: \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> - \<L> maximal_heap\<close>
+    and frame_cond: \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>\<H> pt \<bottom>)\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R precond } HeapAlloc Ptr x e { sswa R postcond }\<close>
   using assms
@@ -720,7 +656,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by (clarsimp simp add: fun_eq_iff heap_alloc_rel_def all_conj_distrib)
 
   have
-    \<open>(F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> - \<L> maximal_heap) =
+    \<open>(F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>\<H> pt \<bottom>)) =
       (\<forall>f\<le>F. sp (heap_alloc_rel Ptr x e) (nofailure_pred (wssa R precond \<^emph>\<and> f)) \<le> nofailure_pred \<top>)\<close>
     apply (clarsimp simp add: sp_def sepconj_conj_apply septract_conj_def le_fun_def
         imp_conjL imp_ex_conjL)
@@ -731,18 +667,14 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (drule spec, drule mp, rule disjoint_sym, assumption, drule mp, assumption)
      apply (clarsimp simp add: heap_alloc_rel_def)
      apply (elim disjE, fast)
-     apply (clarsimp simp add: plus_option_iff ex_disj_distrib wlp_def emp_def
-        precond_def maximal_heap_def)
-     apply (drule_tac x=pt in spec)
-     apply force
+     apply (clarsimp simp add: precond_def  plus_option_iff ex_disj_distrib wlp_def emp_def
+        val_at_heap_def)
+     apply (metis option.discI rtranclp.rtrancl_refl)
         (* \<Leftarrow> *)
-    apply clarsimp
     apply (drule spec, drule mp, fast)
     apply (clarsimp simp add: heap_alloc_rel_def all_conj_distrib precond_def wlp_def emp_def
-        imp_ex_conjL imp_conjL maximal_heap_def)
-    apply (rename_tac fs ss ls)
-    apply (drule_tac x=fs in spec, drule mp[of \<open>All _\<close>], fast)
-    apply (metis map_empty_disjoint(1) map_empty_plus(1))
+        imp_ex_conjL imp_conjL val_at_heap_def)
+    apply (metis disjoint_sym map_empty_plus(1) not_eq_None rtranclp.rtrancl_refl)
     done
   then have nofailure_helper:
     \<open>\<forall>f\<le>F. sp (heap_alloc_rel Ptr x e) (nofailure_pred (wssa R precond \<^emph>\<and> f)) \<le> nofailure_pred \<top>\<close>
@@ -788,10 +720,10 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
       heap_alloc_rel Ptr x e) \<le> G\<close>
     using assms(3) frame_cond
-    unfolding heap_alloc_rel_def precond_def maximal_heap_def
+    unfolding heap_alloc_rel_def precond_def
     apply (clarsimp simp add: nofailure_pred_sepconj_conj_distrib[symmetric] emp_def wlp_def
          sepconj_conj_def le_fun_def val_at_def plus_option_iff septract_conj_def imp_ex_conjL
-         imp_conjL)
+         imp_conjL val_at_heap_def)
     apply (rename_tac ss ss' fl ls fs fls' fl')
     apply (subgoal_tac \<open>ls = Map.empty\<close>)
      prefer 2
@@ -799,7 +731,8 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     apply (elim disjE, blast)
     apply clarsimp
     apply (drule spec2, drule mp, assumption)
-    apply (metis fail_st.distinct(1) map_empty_disjoint(2) option.distinct(1) rtranclp.rtrancl_refl)
+    apply (elim disjE, force)
+    apply (metis map_empty_disjoint(2) option.distinct(1))
     done
 qed (simp add: sswa_comp_ppABC_to_ppACB_distrib wssa_comp_ppABC_to_ppACB_distrib pred_times_le_iff)+
 
@@ -820,7 +753,7 @@ abbreviation \<open>HeapFree pt \<equiv> \<langle> heap_free_rel pt \<rangle>\<c
 lemma rgsat_heap_free:
   fixes pt e R p
     and \<pi> :: \<open>'perm :: pre_perm_alg\<close>
-  defines \<open>precond \<equiv> (\<Squnion>v. \<L> (pt \<^bold>\<mapsto> v)) \<sqinter> \<S> p\<close>
+  defines \<open>precond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e ss) \<rceil>\<^sub>\<S> \<sqinter> \<S> p\<close>
     and \<open>postcond \<equiv> \<L> emp \<sqinter> \<S> p\<close>
   assumes
     \<open>(=) \<le> G\<close>
@@ -828,7 +761,7 @@ lemma rgsat_heap_free:
     \<open>sswa R postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
     and frame_cond:
-    \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> - \<L> (\<Squnion>v. pt \<^bold>\<mapsto>\<^sup>\<Up> v)\<close>
+    \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R precond } HeapFree pt { sswa R postcond }\<close>
   using assms
@@ -854,7 +787,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
           sp (heap_free_rel pt) (wssa R (nofailure_pred precond) \<^emph>\<and> f) \<le>
             nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
 
-  have \<open>\<top> = (F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> - \<L> (\<Squnion>v. pt \<^bold>\<mapsto>\<^sup>\<Up> v))\<close>
+  have \<open>\<top> = (F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>)\<close>
     using frame_cond
     by simp
   also have \<open>... = ?frame2\<close>
@@ -865,22 +798,22 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
      apply (rename_tac ss ls fs vv)
      apply (drule_tac spec2, drule mp, fast, drule spec, drule mp, rule disjoint_sym, assumption)
      apply (drule mp, fast)
-     apply (subgoal_tac \<open>\<exists>v. ls = [pt \<mapsto> v]\<close>)
+     apply (subgoal_tac \<open>ls = [pt \<mapsto> e ss]\<close>)
       prefer 2
-      apply (simp add: precond_def wlp_def points_to_def, blast)
-     apply (simp add: precond_def postcond_def)
-     apply (clarsimp simp add: emp_def wlp_def points_to_def points_to_dom_upcl_def)
-     apply blast
+      apply (clarsimp simp add: precond_def wlp_def points_to_def; fail)
+     apply (clarsimp simp add: precond_def postcond_def wlp_def emp_def disjoint_option_iff
+        plus_option_iff val_at_heap_def)
+     apply (metis fun_upd_triv fun_upd_upd not_dom_then_singleton_plus_heap_eq)
       (* \<Leftarrow> *)
-    apply (rename_tac fs ss ls vf)
-    apply (clarsimp simp add: points_to_dom_upcl_def)
+    apply (rename_tac fs ss ls)
+    apply (clarsimp simp add: val_at_heap_def)
     apply (drule_tac x=\<open>(=) (fs, ss)\<close> in spec, drule mp, fast)
-    apply (subgoal_tac \<open>\<exists>v. ls = [pt \<mapsto> v]\<close>)
+    apply (subgoal_tac \<open>ls = [pt \<mapsto> e ss]\<close>)
      prefer 2
-     apply (simp add: precond_def wlp_def points_to_def, blast)
+     apply (simp add: precond_def wlp_def points_to_def; fail)
     apply clarsimp
-    apply (drule_tac x=\<open>[pt \<mapsto> v] + fs\<close> in spec, drule mp, force)
-    apply (drule_tac x=\<open>[pt \<mapsto> v]\<close> in spec, drule mp)
+    apply (drule_tac x=\<open>[pt \<mapsto> e ss] + fs\<close> in spec, drule mp, force)
+    apply (drule_tac x=\<open>[pt \<mapsto> e ss]\<close> in spec, drule mp)
      apply (simp add: disjoint_sym_iff; fail)
     apply (clarsimp simp add: postcond_def emp_def fun_eq_iff split: if_splits)
     done
@@ -899,6 +832,51 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     using assms(3)
     by (fastforce simp add: heap_free_rel_def)
 qed (simp add: sswa_comp_ppABC_to_ppACB_distrib wssa_comp_ppABC_to_ppACB_distrib pred_times_le_iff)+
+
+
+section \<open> Misc \<close>
+
+definition points_to_dom_upcl :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<^sup>\<Up>\<close> 90) where
+  \<open>p \<^bold>\<mapsto>\<^sup>\<Up> x \<equiv> \<lambda>h. h p = Some x\<close>
+
+lemma points_to_dom_upcl_eq:
+  fixes x :: \<open>'a :: perm_alg\<close>
+  assumes maximal_res: \<open>\<forall>x'. \<not> x \<prec> x'\<close>
+  shows \<open>pt \<^bold>\<mapsto>\<^sup>\<Up> x = \<top> \<^emph> pt \<^bold>\<mapsto> x\<close>
+  unfolding sepconj_def points_to_def points_to_dom_upcl_def
+  apply (clarsimp simp add: fun_eq_iff)
+  apply (rename_tac h)
+  apply (intro iffI)
+   apply (rule_tac x=\<open>h(pt := None)\<close> in exI)
+   apply (rule_tac x=\<open>[pt \<mapsto> x]\<close> in exI)
+   apply force
+  apply (clarsimp simp add: disjoint_option_def plus_option_def all_conj_distrib
+      split: option.splits)
+  apply (cut_tac maximal_res)
+  apply (metis disjoint_fun_def disjoint_option_simps(1) partial_le_plus2
+      resource_order.le_neq_trans)
+  done
+
+lemma maximal_heap_iff:
+  \<open>(\<Sqinter>pt. \<Squnion>x. pt \<^bold>\<mapsto>\<^sup>\<Up> x) = (\<lambda>h. \<forall>pt. h pt \<noteq> None)\<close>
+  by (simp add: fun_eq_iff points_to_dom_upcl_def)
+
+definition
+  \<open>heap_avoiding \<rho> v \<pi> \<equiv> - (\<Squnion>x'\<in>Collect ((##) (Discr v, \<pi>)). \<rho> \<^bold>\<mapsto>\<^sup>\<Up> x')\<close>
+
+lemma res_disjoint_to_memcell_le_heap_avoiding:
+  \<open>(#/#) [\<rho> \<mapsto> (Discr v, \<pi>)] \<le> heap_avoiding \<rho> v \<pi>\<close>
+  by (clarsimp simp add: heap_avoiding_def le_fun_def points_to_dom_upcl_def
+      disjoint_fun_def disjoint_option_def split: option.splits)
+
+lemma top_write_heap_avoiding_iff_all_disjoint_perm:
+  fixes \<pi> :: \<open>'p::pre_perm_alg\<close>
+  shows \<open>\<top> \<le> \<L> (heap_avoiding \<rho> v \<pi>) \<longleftrightarrow> (\<forall>\<pi>'. \<not> \<pi> ## \<pi>')\<close>
+  by (force simp add: heap_avoiding_def points_to_dom_upcl_def le_fun_def)
+
+lemma free_old_frame_cond_equiv:
+  \<open>- \<L> (\<Squnion>v. pt \<^bold>\<mapsto>\<^sup>\<Up> v) = \<L> (\<^bold>@\<^sub>\<H> pt \<bottom>)\<close>
+  by (clarsimp simp add: fun_eq_iff points_to_dom_upcl_def val_at_heap_def)
 
 
 end

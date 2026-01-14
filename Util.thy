@@ -163,7 +163,7 @@ next
 qed
 
 
-section \<open> Prediacates \<close>
+section \<open> Predicates \<close>
 
 definition
   \<open>pred_image f p \<equiv> \<lambda>y. \<exists>x. f x = y \<and> p x\<close>
@@ -395,6 +395,9 @@ lemma change_state_mono[dest]:
   \<open>r1 \<le> r2 \<Longrightarrow> change_state r1 x \<Longrightarrow> change_state r2 x\<close>
   by (force simp add: change_state_def)
 
+
+subsection \<open> Relational Trasitive and Reflexive-transitive Closure \<close>
+
 lemma implies_rel_then_rtranscl_implies_rel:
   assumes assms_induct:
     \<open>r\<^sup>*\<^sup>* x y\<close>
@@ -442,7 +445,6 @@ lemma rtranclp_absorb_id_left[simp]:
   \<open>(\<lambda>x y. x = y \<or> r x y)\<^sup>*\<^sup>* = r\<^sup>*\<^sup>*\<close>
   by (subst disj_commute, simp)
 
-
 lemma refl_le_trans_eq[simp]:
   \<open>reflp r1 \<Longrightarrow> transp r2 \<Longrightarrow> r1 \<le> r2 \<Longrightarrow> r1 OO r2 = r2\<close>
   by (metis (no_types, lifting) OO_eq eq_comp_r reflclp_ident_if_reflp relcompp_distrib2
@@ -483,6 +485,38 @@ lemma rtranclp_tuple_lift_eq_right:
 lemma rtranclp_eq_eq[simp]:
   \<open>(=)\<^sup>*\<^sup>* = (=)\<close>
   by (simp add: rtransp_rel_is_rtransclp)
+
+lemma tranclp_mono:
+  \<open>r \<le> s \<Longrightarrow> r\<^sup>+\<^sup>+ \<le> s\<^sup>+\<^sup>+\<close>
+  by (simp add: relcompp_mono rtranclp_mono tranclp_unfold_left)
+
+lemma univ_rel_refltranclp[simp]:
+  \<open>\<top>\<^sup>*\<^sup>* = \<top>\<close>
+  by auto
+
+lemma empty_rel_tranclp[simp]:
+  \<open>\<bottom>\<^sup>+\<^sup>+ = \<bottom>\<close>
+  by (simp add: tranclp_unfold_left)
+
+lemma inf_tranclp_subrel:
+  \<open>(A \<sqinter> B)\<^sup>+\<^sup>+ \<le> A\<^sup>+\<^sup>+\<close>
+  \<open>(A \<sqinter> B)\<^sup>+\<^sup>+ \<le> B\<^sup>+\<^sup>+\<close>
+   by (simp add: tranclp_mono)+
+
+lemma inf_rtranclp_subrel:
+  \<open>(A \<sqinter> B)\<^sup>*\<^sup>* \<le> A\<^sup>*\<^sup>*\<close>
+  \<open>(A \<sqinter> B)\<^sup>*\<^sup>* \<le> B\<^sup>*\<^sup>*\<close>
+  by (simp add: rtranclp_mono)+
+
+lemma subrel_sup_tranclp:
+  \<open>A\<^sup>+\<^sup>+ \<le> (A \<squnion> B)\<^sup>+\<^sup>+\<close>
+  \<open>B\<^sup>+\<^sup>+ \<le> (A \<squnion> B)\<^sup>+\<^sup>+\<close>
+   by (simp add: tranclp_mono)+
+
+lemma subrel_sup_rtranclp:
+  \<open>A\<^sup>*\<^sup>* \<le> (A \<squnion> B)\<^sup>*\<^sup>*\<close>
+  \<open>B\<^sup>*\<^sup>* \<le> (A \<squnion> B)\<^sup>*\<^sup>*\<close>
+  by (simp add: rtranclp_mono)+
 
 
 section \<open> Function Properties \<close>
@@ -651,8 +685,23 @@ lemmas preordering_trans =
 definition (in order) \<open>downset x \<equiv> {y. y\<le>x}\<close>
 definition (in order) \<open>Downset X \<equiv> {y. \<exists>x\<in>X. y \<le> x}\<close>
 
-definition (in conditionally_complete_lattice) \<open>supcl (A::'a set) \<equiv> {\<Squnion>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
-definition (in conditionally_complete_lattice) \<open>infcl (A::'a set) \<equiv> {\<Sqinter>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
+
+section \<open> Lattices \<close>
+
+subsection \<open> Bounded distributive lattices \<close>
+
+class distrib_lattice_bot = distrib_lattice + bounded_lattice_bot
+class distrib_lattice_top = distrib_lattice + bounded_lattice_top
+class bounded_distrib_lattice = distrib_lattice_bot + distrib_lattice_top
+
+context boolean_algebra
+begin
+subclass distrib_lattice_bot by standard
+subclass distrib_lattice_top by standard
+subclass bounded_distrib_lattice by standard
+end
+
+subsection \<open> Misc \<close>
 
 lemma (in semilattice_inf) inf_antisym:
   \<open>a \<sqinter> cx = b \<Longrightarrow> b \<sqinter> cy = a \<Longrightarrow> a = b\<close>
@@ -662,7 +711,33 @@ lemma (in semilattice_sup) sup_antisym:
   \<open>a \<squnion> cx = b \<Longrightarrow> b \<squnion> cy = a \<Longrightarrow> a = b\<close>
   by (metis sup.right_idem sup.commute)
 
-lemma (in distrib_lattice) inf_crosssplit:
+context lattice
+begin
+
+lemma inf_twist_sup_idem: \<open>a \<sqinter> b \<squnion> b \<sqinter> a = a \<sqinter> b\<close>
+  by (simp add: inf.commute)
+
+lemma inf_twist_sup_idem_assoc: \<open>a \<sqinter> b \<squnion> b \<sqinter> a \<squnion> c = a \<sqinter> b \<squnion> c\<close>
+  by (simp add: inf_twist_sup_idem)
+
+lemma inf_abac_eq_abc:
+  shows \<open>(a \<sqinter> b) \<sqinter> a \<sqinter> c = a \<sqinter> b \<sqinter> c\<close>
+  by (simp add: inf.absorb1)
+
+end
+
+context distrib_lattice
+begin
+
+lemma inf_sup_absorb2[simp]:
+  \<open>b \<sqinter> (a \<squnion> b) = b\<close>
+  by (simp add: inf.absorb1)
+
+lemma sup_inf_absorb2[simp]:
+  \<open>b \<squnion> (a \<sqinter> b) = b\<close>
+  by (simp add: sup.absorb1)
+
+lemma inf_crosssplit:
   \<open>a \<sqinter> b = c \<sqinter> d \<Longrightarrow>
     \<exists>ac ad bc bd. ac \<sqinter> ad = a \<and> bc \<sqinter> bd = b \<and> ac \<sqinter> bc = c \<and> ad \<sqinter> bd = d\<close>
   apply (rule_tac x=\<open>a \<squnion> c\<close> in exI)
@@ -672,7 +747,7 @@ lemma (in distrib_lattice) inf_crosssplit:
   apply (metis inf.commute sup.commute sup_inf_absorb sup_inf_distrib1)
   done
 
-lemma (in distrib_lattice) sup_crosssplit:
+lemma sup_crosssplit:
   \<open>a \<squnion> b = c \<squnion> d \<Longrightarrow>
     \<exists>ac ad bc bd. ac \<squnion> ad = a \<and> bc \<squnion> bd = b \<and> ac \<squnion> bc = c \<and> ad \<squnion> bd = d\<close>
   apply (rule_tac x=\<open>a \<sqinter> c\<close> in exI)
@@ -681,6 +756,11 @@ lemma (in distrib_lattice) sup_crosssplit:
   apply (rule_tac x=\<open>b \<sqinter> d\<close> in exI)
   apply (metis inf.commute sup.commute inf_sup_absorb inf_sup_distrib1)
   done
+
+end
+
+definition (in conditionally_complete_lattice) \<open>supcl (A::'a set) \<equiv> {\<Squnion>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
+definition (in conditionally_complete_lattice) \<open>infcl (A::'a set) \<equiv> {\<Sqinter>A'|A'. A' \<noteq> {} \<and> A'\<subseteq>A}\<close>
 
 
 section \<open> Groups \<close>
@@ -841,131 +921,6 @@ begin
 sublocale monoid seq skip
   by standard (simp add: seq_assoc)+
 
-end
-
-
-section \<open> Lattices \<close>
-
-context lattice
-begin
-
-lemma inf_twist_sup_idem: \<open>a \<sqinter> b \<squnion> b \<sqinter> a = a \<sqinter> b\<close>
-  by (simp add: inf.commute)
-
-lemma inf_twist_sup_idem_assoc: \<open>a \<sqinter> b \<squnion> b \<sqinter> a \<squnion> c = a \<sqinter> b \<squnion> c\<close>
-  by (simp add: inf_twist_sup_idem)
-
-lemma inf_abac_eq_abc:
-  shows \<open>(a \<sqinter> b) \<sqinter> a \<sqinter> c = a \<sqinter> b \<sqinter> c\<close>
-  by (simp add: inf.absorb1)
-
-end
-
-context distrib_lattice
-begin
-
-lemma inf_sup_absorb2[simp]:
-  \<open>b \<sqinter> (a \<squnion> b) = b\<close>
-  by (simp add: inf.absorb1)
-
-lemma sup_inf_absorb2[simp]:
-  \<open>b \<squnion> (a \<sqinter> b) = b\<close>
-  by (simp add: sup.absorb1)
-
-end
-
-context boolean_algebra
-begin
-
-definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<leadsto>" 60) where
-  "a \<leadsto> b \<equiv> -a \<squnion> b"
-
-lemma impl_shunt:
-  \<open>c \<sqinter> a \<le> b \<longleftrightarrow> c \<le> a \<leadsto> b\<close>
-  by (simp add: impl_def shunt1)
-
-lemma impl_shunt2:
-  \<open>-(a \<leadsto> b) \<le> c \<longleftrightarrow> a \<le> b \<squnion> c\<close>
-  by (simp add: impl_def shunt2)
-
-lemma impl_simps[simp]:
-  \<open>\<top> \<leadsto> b = b\<close>
-  \<open>\<bottom> \<leadsto> b = \<top>\<close>
-  \<open>a \<leadsto> \<bottom> = - a\<close>
-  \<open>a \<leadsto> \<top> = \<top>\<close>
-  \<open>a \<leadsto> a = \<top>\<close>
-  by (force simp add: impl_def)+
-
-definition bequiv :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<sim>" 60) where
-  "a \<sim> b \<equiv> (a \<leadsto> b) \<sqinter> (b \<leadsto> a)"
-
-lemma bequiv_simps[simp]:
-  \<open>a \<sim> a = \<top>\<close>
-  \<open>a \<sim> -a = \<bottom>\<close>
-  \<open>-a \<sim> a = \<bottom>\<close>
-  \<open>a \<sim> \<top> = a\<close>
-  \<open>\<top> \<sim> a = a\<close>
-  \<open>a \<sim> \<bottom> = -a\<close>
-  \<open>\<bottom> \<sim> a = -a\<close>
-  by (clarsimp simp add: bequiv_def impl_def)+
-
-lemma bequiv_iff: \<open>a \<sim> b = (-a \<squnion> b) \<sqinter> (-b \<squnion> a)\<close>
-  by (simp add: bequiv_def impl_def)
-
-lemma bequiv_iff2: \<open>a \<sim> b = (a \<sqinter> b) \<squnion> (-a \<sqinter> -b)\<close>
-  using bequiv_iff sup.commute sup_inf_distrib2 by force
-
-definition bxor :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<oplus>" 60) where
-  "a \<oplus> b \<equiv> a \<sqinter> -b \<squnion> -a \<sqinter> b"
-
-lemma bxor_simps[simp]:
-  \<open>a \<oplus> a = \<bottom>\<close>
-  \<open>a \<oplus> -a = \<top>\<close>
-  \<open>-a \<oplus> a = \<top>\<close>
-  \<open>a \<oplus> \<bottom> = a\<close>
-  \<open>\<bottom> \<oplus> a = a\<close>
-  \<open>a \<oplus> \<top> = -a\<close>
-  \<open>\<top> \<oplus> a = -a\<close>
-  by (clarsimp simp add: bxor_def impl_def)+
-
-end
-
-lemma mem_impl_iff[simp]:
-  \<open>x \<in> A \<leadsto> B \<longleftrightarrow> (x \<in> A \<longrightarrow> x \<in> B)\<close>
-  by (simp add: impl_def)
-
-lemma pred_impl_apply[simp]:
-  \<open>(a \<leadsto> b) x = (a x \<longrightarrow> b x)\<close>
-  by (simp add: impl_def)
-
-lemma rel_impl_apply[simp]:
-  \<open>(a \<leadsto> b) x y = (a x y \<longrightarrow> b x y)\<close>
-  by (simp add: impl_def)
-
-lemma mem_bequiv_iff[simp]:
-  \<open>x \<in> A \<sim> B \<longleftrightarrow> (x \<in> A \<longleftrightarrow> x \<in> B)\<close>
-  by (force simp add: bequiv_def)
-
-lemma pred_bequiv_apply[simp]:
-  \<open>(a \<sim> b) x \<longleftrightarrow> (a x = b x)\<close>
-  by (force simp add: bequiv_def)
-
-lemma rel_bequiv_apply[simp]:
-  \<open>(a \<sim> b) x y = (a x y = b x y)\<close>
-  by (force simp add: bequiv_def)
-
-
-subsection \<open> Bounded distributive lattices \<close>
-
-class distrib_lattice_bot = distrib_lattice + bounded_lattice_bot
-class distrib_lattice_top = distrib_lattice + bounded_lattice_top
-class bounded_distrib_lattice = distrib_lattice_bot + distrib_lattice_top
-
-context boolean_algebra
-begin
-subclass distrib_lattice_bot by standard
-subclass distrib_lattice_top by standard
-subclass bounded_distrib_lattice by standard
 end
 
 
