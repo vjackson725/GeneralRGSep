@@ -9,6 +9,7 @@ lemma
     (\<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f) \<and>
     (rel_liftL (p \<^emph>\<and> F) \<sqinter> ar \<le> \<top> \<times>\<^sub>R G)\<close>
   apply (intro iffI)
+    (* \<Rightarrow> *)
    apply (intro conjI allI impI)
     apply (drule spec, drule mp, assumption)
     apply (rule order.trans, assumption)
@@ -24,9 +25,49 @@ lemma
    apply (drule mp, fast)
    apply (drule mp, fast)
    apply force
+    (* \<Leftarrow> *)
   apply clarsimp
   apply (clarsimp simp add: sepconj_conj_apply sp_def imp_ex_conjL imp_conjL le_fun_def)
   oops
+
+lemma safe_atom':
+  \<open>\<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> sp ((=) \<times>\<^sub>R G) f \<Longrightarrow>
+    sswa R p s \<Longrightarrow>
+    safe R F
+      (rel_image snd (rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
+      (sswa R p \<squnion> sswa R q) \<comment> \<open> I \<close>
+      (sswa R q) \<comment> \<open> q \<close>
+      n \<langle>ar\<rangle> s\<close>
+proof (induct n arbitrary: s)
+  case (Suc n)
+  note ih = Suc.hyps[simplified fst_conv snd_conv]
+  show ?case
+    using Suc.prems
+    apply -
+    apply (cases s)
+    apply (rename_tac sl ss)
+    apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply rel_image_apply)
+    apply (rule safeI)
+      (* subgoal: termination *)
+       apply force
+      (* subgoal: state inv *)
+      apply force
+      (* subgoal: rely *)
+     apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply rel_image_apply)
+     apply (simp add: ih sswa_step; fail)
+      (* subgoal: local framed opstep *)
+    apply (rule conjI)
+      (* subsubgoal: guarantee *)
+     apply (simp, metis disjoint_sym_iff partial_add_commute sepconj_conj_revI)
+      (* subsubgoal: safety after opstep *)
+    apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
+        simp add: safe_skip_stable_iff sp_sup)
+    apply (frule spec[of _ \<open>(=) _\<close>], frule mp, blast)
+    apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def any_shared_def)
+    apply (metis sswa_trivial)
+    done
+qed simp
+
 
 
 lemma

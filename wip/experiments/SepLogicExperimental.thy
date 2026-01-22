@@ -2,6 +2,35 @@ theory SepLogicExperimental
   imports "../../SepLogic"
 begin
 
+
+text \<open> Cancellativity. \<close>
+
+context perm_alg
+begin
+
+lemma counterex_noncancellative_then_disjoint:
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    AB = Collect (noncancellative_pairs c) \<Longrightarrow>
+    noncancellative_pairs c (a,b) \<Longrightarrow> a ## b\<close>
+  nitpick[card 'a=3]
+  oops
+
+lemma counterex_noncancellative_then_not_disjoint:
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    CAB = (\<lambda>c. Collect (noncancellative_pairs c)) \<Longrightarrow>
+    noncancellative_pairs c (a,b) \<Longrightarrow> \<not> a ## b\<close>
+  nitpick[card 'a=2]
+  oops
+
+lemma counterex_noncancellative_res_then_subres_disjoint:
+  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
+    CAB = (\<lambda>c. Collect (noncancellative_pairs c)) \<Longrightarrow>
+    noncancellative_pairs c (a,b) \<Longrightarrow> cx \<preceq> c \<Longrightarrow> cy \<preceq> c \<Longrightarrow> cx ## cy\<close>
+  nitpick[card 'a=3]
+  oops
+
+end
+
 text \<open> Experiments about absorbing elements & cancellativity. \<close>
 
 definition
