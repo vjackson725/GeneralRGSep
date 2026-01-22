@@ -1,4 +1,4 @@
-theory SecurityEx
+theory Security
   imports "../Security"
 begin
 
