@@ -556,11 +556,11 @@ lemma safe_frame:
 subsection \<open> Safety of Atomic \<close>
 
 lemma safe_atom':
-  \<open>\<forall>f\<le>F. sp ar (sswa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
-    sswa R p s \<Longrightarrow>
+  \<open>\<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> sswa R q \<^emph>\<and> any_shared f \<Longrightarrow>
+    wssa R p s \<Longrightarrow>
     safe R F
       (rel_image snd (rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> ar)) \<comment> \<open> G \<close>
-      (sswa R p \<squnion> sswa R q) \<comment> \<open> I \<close>
+      (wssa R p \<squnion> sswa R q) \<comment> \<open> I \<close>
       (sswa R q) \<comment> \<open> q \<close>
       n \<langle>ar\<rangle> s\<close>
 proof (induct n arbitrary: s)
@@ -579,17 +579,17 @@ proof (induct n arbitrary: s)
       apply force
       (* subgoal: rely *)
      apply (clarsimp simp del: sup_apply inf_apply rel_lift_apply top_apply rel_image_apply)
-     apply (simp add: ih sswa_step; fail)
+     apply (simp add: ih wssa_step; fail)
       (* subgoal: local framed opstep *)
     apply (rule conjI)
       (* subsubgoal: guarantee *)
-     apply (simp, metis disjoint_sym_iff partial_add_commute sepconj_conj_revI)
+     apply clarsimp
+     apply (meson rely_rel_wlp_impl_sp sepconj_conjI; fail)
       (* subsubgoal: safety after opstep *)
     apply (clarsimp simp del: sup_apply inf_apply top_apply rel_lift_apply
         simp add: safe_skip_stable_iff sp_sup)
     apply (frule spec[of _ \<open>(=) _\<close>], frule mp, blast)
     apply (clarsimp simp add: sp_def[of ar] le_fun_def imp_ex_conjL sepconj_conj_def any_shared_def)
-    apply (metis sswa_trivial)
     done
 qed simp
 

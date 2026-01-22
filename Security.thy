@@ -527,18 +527,34 @@ section \<open> Proof Lifting to Paired-State Setting \<close>
 
 subsection \<open> Helpers\<close>
 
+lemma wssa_reltimes_pred_lift_exch4_wssa_eq_pred_lift_exch4_wssa[simp]:
+  \<open>wssa (R \<times>\<^sub>R R) \<lblot> wssa R p \<rblot>\<^sub>\<ddagger> = \<lblot> wssa R p \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: wlp_def pred_lift_exch4_def fun_eq_iff)
+  apply (metis rel_times_def rtranclp.rtrancl_refl rtranclp_trans rtranclp_tuple_rel_semidistrib
+      fst_conv snd_conv)
+  done
+
+lemma sswa_reltimes_pred_lift_exch4_sswa_eq_pred_lift_exch4_sswa[simp]:
+  \<open>sswa (R \<times>\<^sub>R R) \<lblot> sswa R p \<rblot>\<^sub>\<ddagger> = \<lblot> sswa R p \<rblot>\<^sub>\<ddagger>\<close>
+  apply (clarsimp simp add: sp_def pred_lift_exch4_def fun_eq_iff)
+  apply (metis rel_times_def rtranclp.rtrancl_refl rtranclp_trans rtranclp_tuple_rel_semidistrib
+      fst_conv snd_conv)
+  done
+
+(*
 lemma atom_unlift_helper:
   \<open>sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) p \<le> q \<Longrightarrow>
     All (quasireflp_steprel ara) \<Longrightarrow>
     sp ara \<lblot> p \<rblot>\<^sub>\<ddagger> \<le> \<lblot> q \<rblot>\<^sub>\<ddagger>\<close>
   by (fastforce simp add: le_fun_def fun_eq_iff rel_image_def sp_def imp_ex_conjL
       pred_lift_exch4_def quasireflp_steprel_def)
+*)
 
 text \<open> TODO: Note in the writeup that we here again use the 'instantiation to exactly the frame' trick. \<close>
 lemma framed_atom_unlift_helper:
-  \<open>\<forall>f\<le>F. sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
+  \<open>\<forall>f\<le>F. sp (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     All (quasireflp_steprel ara) \<Longrightarrow>
-    \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> any_shared f\<close>
+    \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> wssa R p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> any_shared f\<close>
   unfolding quasireflp_steprel_def any_shared_def
   apply (clarsimp simp add: sepconj_conj_apply sp_apply le_fun_def)
   apply (rename_tac lfx' lfy' ssx' ssy' ssx ssy lsx lsy fx fy)
@@ -552,9 +568,9 @@ lemma framed_atom_unlift_helper:
   done
 
 lemma atom_lift_guar_helper:
-  \<open>rel_image snd (rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>))) \<le> G \<Longrightarrow>
+  \<open>rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> (ara \<circ>\<^sub>2 (exch4 \<circ> \<Delta>))) \<le> G \<Longrightarrow>
     All (quasireflp_steprel ara) \<Longrightarrow>
-    rel_image snd (rel_liftL (\<lblot> p \<rblot>\<^sub>\<ddagger> \<squnion> \<lblot> p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F \<rblot>\<^sub>\<ddagger>) \<sqinter> ara) \<le> G \<times>\<^sub>R G\<close>
+    rel_image snd (rel_liftL (\<lblot> wssa R p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F \<rblot>\<^sub>\<ddagger>) \<sqinter> ara) \<le> G \<times>\<^sub>R G\<close>
   by (clarsimp simp add: le_fun_def sepconj_conj_apply imp_ex_conjL imp_conjL
       all_conj_distrib pred_lift_exch4_def quasireflp_steprel_def, blast)
 
@@ -695,19 +711,25 @@ next
   case (rgsat_atom p' R p q q' F ar G I C)
   then show ?case
     apply (clarsimp simp add: unliftC_rev_iff inj_rel_image_inf_distrib[symmetric]
-        simp del: sup_apply top_apply)
-    apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> p \<rblot>\<^sub>\<ddagger>\<close> and  q=\<open>\<lblot> q \<rblot>\<^sub>\<ddagger>\<close>])
-          apply (meson order.trans pred_lift_exch4_mono wssa_pred_lift_exch4_semidistrib; fail)
-         apply (meson order.trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-        apply (simp add: framed_atom_unlift_helper; fail)
+        simp del: sup_apply top_apply split_paired_All)
+    apply (rule rgsat.rgsat_atom[where p=\<open>\<lblot> wssa R p \<rblot>\<^sub>\<ddagger>\<close> and q=\<open>\<lblot> sswa R q \<rblot>\<^sub>\<ddagger>\<close>])
+      (* pre + post *)
+          apply (simp, metis pred_lift_exch4_mono)
+         apply (simp, metis pred_lift_exch4_mono)
+      (* step condition *)
+        apply (frule(1) framed_atom_unlift_helper)
+        apply clarsimp
+        apply (frule spec, drule mp, assumption)
+        apply (meson pred_lift_exch4_mono predicate1D sepconj_conj_monoL sswa_weaker; fail)
       (* guar *)
        apply (simp add: pred_lift_exch4_sepconj_conj_distrib[symmetric])
        apply (clarsimp simp add: le_fun_def pred_lift_exch4_def quasireflp_steprel_def)
        apply metis
-      (* inv *)
-      apply (meson order_trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-     apply (meson order_trans pred_lift_exch4_mono sswa_pred_lift_exch4_semidistrib; fail)
-    apply force
+      (* inv pre + post *)
+      apply (simp add: pred_lift_exch4_mono; fail)
+     apply (simp add: pred_lift_exch4_mono; fail)
+      (* rules *)
+    apply (simp; fail)
     done
 next
   case (rgsat_frame c R G p q I F F' C)

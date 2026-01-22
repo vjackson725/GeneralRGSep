@@ -368,13 +368,13 @@ lemma sepdomeq_disjoint_rightD:
 definition sepdom_leq (infix \<open>\<preceq>\<^sub>#\<close> 55) where
   \<open>a \<preceq>\<^sub># b \<equiv> \<forall>c. b ## c \<longrightarrow> a ## c\<close>
 
-lemma sepdom_leq_reflp:
-  \<open>reflp (\<preceq>\<^sub>#)\<close>
-  by (simp add: reflpI sepdom_leq_def)
+lemma sepdom_leq_refl[simp,intro!]:
+  \<open>x \<preceq>\<^sub># x\<close>
+  by (simp add: sepdom_leq_def)
 
-lemma sepdom_leq_transp:
-  \<open>transp (\<preceq>\<^sub>#)\<close>
-  by (simp add: sepdom_leq_def transp_def)
+lemma sepdom_leq_trans:
+  \<open>a \<preceq>\<^sub># b \<Longrightarrow> b \<preceq>\<^sub># c \<Longrightarrow> a \<preceq>\<^sub># c\<close>
+  by (simp add: sepdom_leq_def)
 
 lemma sepdom_leq_disjointD:
   \<open>a \<preceq>\<^sub># b \<Longrightarrow> b ## c \<Longrightarrow> a ## c\<close>
@@ -392,12 +392,23 @@ lemma resleq_implies_sepdom_leq:
 subsubsection \<open> Cancellative resources \<close>
 
 definition
+  \<open>cancellative_pairs c \<equiv> \<lambda>(a,b). a ## c \<and> b ## c \<and> a + c = b + c \<and> a = b\<close>
+
+definition
+  \<open>noncancellative_pairs c \<equiv> \<lambda>(a,b). a ## c \<and> b ## c \<and> a + c = b + c \<and> a \<noteq> b\<close>
+
+definition
   \<open>cancellative c \<equiv>
     \<forall>a b. a ## c \<longrightarrow> b ## c \<longrightarrow> a + c = b + c \<longrightarrow> a = b\<close>
 
 lemma cancellativeD:
   \<open>cancellative c \<Longrightarrow> a ## c \<Longrightarrow> b ## c \<Longrightarrow> a + c = b + c \<Longrightarrow> a = b\<close>
   using cancellative_def by simp
+
+
+lemma cancellative_res_iff_no_noncancellative_pairs:
+  \<open>cancellative c \<longleftrightarrow> noncancellative_pairs c \<le> \<bottom>\<close>
+  by (force simp add: cancellative_def noncancellative_pairs_def)
 
 end
 
@@ -947,7 +958,7 @@ lemma mu_selfsep_implies_unit: \<open>a ## a \<Longrightarrow> unitof a = a\<clo
 
 end
 
-class strong_separated_pre_sep_alg = pre_sep_alg + strong_sep_pre_multiunit_sep_alg
+class strong_sep_pre_sep_alg = pre_sep_alg + strong_sep_pre_multiunit_sep_alg
 begin
 
 lemma sepalg_selfsep_iff: \<open>a ## a \<longleftrightarrow> a = 0\<close>
@@ -1221,19 +1232,6 @@ class all_disjoint_pre_multiunit_sep_alg =
 
 class all_disjoint_pre_sep_alg =
   pre_sep_alg + all_disjoint_pre_perm_alg
-
-
-context perm_alg
-begin
-
-lemma noncancellative_res_implies_all_below_disjoint:
-  \<open>R = {(a,b,a+b)|a b::'a. a ## b} \<Longrightarrow>
-    AB = (\<lambda>c. {(a,b)|a b::'a. a ## c \<and> b ## c \<and> a + c = b + c \<and> a \<noteq> b}) \<Longrightarrow>
-    (a,b) \<in> AB c \<Longrightarrow> \<not> a ## b\<close>
-  nitpick[card 'a=2]
-  sorry
-
-end
 
 
 section \<open> Logic \<close>

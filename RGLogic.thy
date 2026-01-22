@@ -1,99 +1,207 @@
 theory RGLogic
-  imports Lang
+  imports SepAlgInstances Lang
 begin
 
-section \<open> Rely-Guarantee Separation Algebra \<close>
+section \<open> RG Logic Utils \<close>
+
+section \<open> rely/guarantee helpers \<close>
+
+abbreviation \<open>sswa r \<equiv> sp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+
+lemmas relyrel_trans = rel_times_trans[OF transp_equality transp_rtranclp]
+lemmas relyrel_mono = rel_times_mono[OF order.refl rtranclp_mono]
+
+
+subsection \<open> step properties \<close>
+
+lemma sp_rely_step:
+  \<open>r y y' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R rx) p (x, y) \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R (rx OO r)) p (x, y')\<close>
+  by (force simp add: sp_def)
+
+lemma sswa_step:
+  \<open>r y y' \<Longrightarrow>
+    sswa r p (x, y) \<Longrightarrow>
+    sswa r p (x, y')\<close>
+  by (simp add: sp_def, meson rtranclp.rtrancl_into_rtrancl)
+
+lemmas sswa_stepD = sswa_step[rotated]
+
+lemma wssa_step:
+  \<open>r y y' \<Longrightarrow>
+    wssa r p (x, y) \<Longrightarrow>
+    wssa r p (x, y')\<close>
+  by (simp add: wlp_def converse_rtranclp_into_rtranclp)
+
+lemmas wssa_stepD = wssa_step[rotated]
+
+subsection \<open> closure operator properties \<close>
+
+lemmas sswa_weaker = sp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemma sswa_trivial[intro]:
+  \<open>p x \<Longrightarrow> sswa r p x\<close>
+  by (simp add: sp_refl_relI)
+
+lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
+
+lemma wssa_trivial[dest]:
+  \<open>wssa r p x \<Longrightarrow> p x\<close>
+  by (drule wlp_refl_relD[rotated], simp)
+
+lemmas wssa_stronger = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
+
+lemmas rely_rel_wlp_impl_sp =
+  refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemmas wssa_stronger_strengthen =
+  transp_wlp_stronger_strengthen[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified,
+    OF _ relyrel_trans]
+
+lemma sswa_bot_rel_eq[simp]:
+  \<open>sswa \<bottom> p = p\<close>
+  by (clarsimp simp add: sp_def fun_eq_iff)
+    (metis (full_types) rtranclp_eq_eq rtranclp_reflclp sup_bot_left)
+
+lemma wssa_bot_rel_eq[simp]:
+  \<open>wssa \<bottom> p = p\<close>
+  by (clarsimp simp add: wlp_def fun_eq_iff)
+    (metis (full_types) rtranclp_eq_eq rtranclp_reflclp sup_bot_left)
+
+
+subsection \<open> absorption/pseduo-idempotence properties \<close>
+
+(*
+lemmas sswa_idem[simp] =
+  sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemmas wssa_idem[simp] =
+  wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+*)
+
+lemma sswa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(1) sp_relcomp)
+
+lemma wssa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (simp add: rel_le_rtranscp_relcompp_absorb(2) wlp_relcomp)
+
+lemma sswa_over_wssa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (wssa r2 p) = wssa r2 p\<close>
+  by (force simp add: relyrel_trans relyrel_mono sp_wlp_absorb)
+
+lemma wssa_over_sswa_eq[simp]:
+  \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (sswa r2 p) = sswa r2 p\<close>
+  by (simp add: relyrel_mono relyrel_trans wlp_sp_absorb)
+
+
+subsection \<open> semi-distributivity with sepconj-conj \<close>
+
+lemma wlp_rely_sepconj_conj_semidistrib_mono:
+  \<open>p' \<le> wlp ((=) \<times>\<^sub>R r) p \<Longrightarrow>
+    q' \<le> wlp ((=) \<times>\<^sub>R r) q \<Longrightarrow>
+    p' \<^emph>\<and> q' \<le> wlp ((=) \<times>\<^sub>R r) (p \<^emph>\<and> q)\<close>
+  by (fastforce simp add: wlp_def sepconj_conj_def le_fun_def)
+
+lemmas wlp_rely_sepconj_conj_semidistrib =
+  wlp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
+
+lemma sp_rely_sepconj_conj_semidistrib_mono:
+  \<open>sp ((=) \<times>\<^sub>R r) p \<le> p' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R r) q \<le> q' \<Longrightarrow>
+    sp ((=) \<times>\<^sub>R r) (p \<^emph>\<and> q) \<le> p' \<^emph>\<and> q'\<close>
+  by (fastforce simp add: sp_def sepconj_conj_def le_fun_def)
+
+lemmas sp_rely_sepconj_conj_semidistrib =
+  sp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
+
+subsection \<open> Interaction with pred-Times \<close>
+
+lemma wssa_of_pred_Times_eq[simp]:
+  \<open>wssa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P wlp r\<^sup>*\<^sup>* q)\<close>
+  by (force simp add: rel_times_def pred_times_def wlp_def split: prod.splits)
+
+lemma sp_rely_of_pred_Times_eq[simp]:
+  \<open>sswa r (p \<times>\<^sub>P q) = (p \<times>\<^sub>P sp r\<^sup>*\<^sup>* q)\<close>
+  by (force simp add: rel_times_def pred_times_def sp_def split: prod.splits)
+
+
+subsection \<open> Local and shared predicate lifting \<close>
+
+abbreviation(input) local_pred
+  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<L>\<close>)
+  where
+    \<open>\<L>(p) \<equiv> p \<circ> fst\<close>
+
+abbreviation(input) shared_pred
+  :: \<open>('b \<Rightarrow> bool) \<Rightarrow> ('a \<times> 'b \<Rightarrow> bool)\<close> (\<open>\<S>\<close>)
+  where
+    \<open>\<S>(p) \<equiv> p \<circ> snd\<close>
+
+lemma wssa_ignore_local[simp]:
+  \<open>wssa r (\<L> pl) = \<L> pl\<close>
+  by (fastforce simp add: wlp_def fun_eq_iff sepconj_conj_def)
+
+lemma sswa_ignore_local[simp]:
+  \<open>sswa r (\<L> pl) = \<L> pl\<close>
+  \<open>sswa r (\<L> pl \<^emph>\<and> q) = \<L> pl \<^emph>\<and> sswa r q\<close>
+  \<open>sswa r (p \<^emph>\<and> \<L> ql) = sswa r p \<^emph>\<and> \<L> ql\<close>
+  \<open>sswa r (\<L> pl \<sqinter> q) = \<L> pl \<sqinter> sswa r q\<close>
+  \<open>sswa r (p \<sqinter> \<L> ql) = sswa r p \<sqinter> \<L> ql\<close>
+  by (force simp add: sp_def fun_eq_iff sepconj_conj_def)+
+
+lemma wssa_over_shared:
+  \<open>wssa r (\<S> ps) = \<S> (wlp r\<^sup>*\<^sup>* ps)\<close>
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)
+
+lemma sswa_over_shared:
+  \<open>sswa r (\<S> ps) = \<S> (sp r\<^sup>*\<^sup>* ps)\<close>
+  by (force simp add: sp_def fun_eq_iff sepconj_conj_def)
+
+lemma wssa_semiignore_local:
+  \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
+  \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
+
+lemma wssa_ignore_local_when_shared:
+  \<open>wssa r (\<L> p \<^emph>\<and> \<S> q) = \<L> p \<^emph>\<and> wssa r (\<S> q)\<close>
+  \<open>wssa r (\<S> q \<^emph>\<and> \<L> p) = wssa r (\<S> q) \<^emph>\<and> \<L> p\<close>
+  by (clarsimp simp add: wlp_def fun_eq_iff sepconj_conj_def, metis rtranclp.rtrancl_refl)+
 
 text \<open>
-  Separation algebra instance for rely guarantee relations,
-  first proposed in Deny-Guarantee (TODO: proper cite).
+  The full law local ignore law is _not_ true for \<open>wssa\<close>, unlike the one for \<open>sswa\<close>.
+  Imagine the following situation:
+    State model: \<open>bool \<times> bool\<close>
+    Sep-algebra: \<open>R000, R011, R101, R111\<close>
+    Inputs:
+      \<open>q = {11, 00}\<close>
+      \<open>r = (0 \<leadsto> 1, 0 \<leadsto> 1)\<close>
+    Results:
+      \<open>wssa r q = {}\<close>
+      \<open>\<L> \<top> \<^emph>\<and> q = {11, 10, 00}\<close>
+      \<open>(\<L> pl \<^emph>\<and> wssa r q) = {}\<close>
+      \<open>wssa r (\<L> pl \<^emph>\<and> q) = {11, 10}\<close>
+    Here we observe that the outputs are not the same, because \<open>wssa\<close> only preserves
+    a \<^emph>\<open>subset\<close> of the initial predicate, and this subset might not be compatible
+    with the frame.
 \<close>
-datatype 'l rgsep = RGSep (rgrely: 'l) (rgguar: 'l)
+lemma sepconj_local_eq:
+  \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
+  by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
 
-lemma ex_rgsep_of_rely_guar_pred_iff:
-  \<open>(\<exists>a::'a rgsep. P (rgrely a) (rgguar a)) \<longleftrightarrow> (\<exists>ra ga. P ra ga)\<close>
-  by (metis rgsep.sel(1,2))
+lemma sepconj_shared_eq:
+  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
+  by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
 
-subsection \<open> sepalg instance \<close>
-
-instantiation rgsep :: (order) disjoint
-begin
-definition \<open>disjoint_rgsep (a::'a rgsep) b \<equiv> rgguar a \<le> rgrely b \<and> rgguar b \<le> rgrely a\<close>
-instance by standard
-end
-
-instantiation rgsep :: (lattice) plus
-begin
-definition \<open>plus_rgsep (a::'a rgsep) b \<equiv> RGSep (rgrely a \<sqinter> rgrely b) (rgguar a \<squnion> rgguar b)\<close>
-instance by standard
-end
-
-instance rgsep :: (lattice) pre_perm_alg
-  apply standard
-      apply (simp add: disjoint_rgsep_def plus_rgsep_def inf.assoc sup.assoc; fail)
-     apply (simp add: disjoint_rgsep_def plus_rgsep_def inf.commute sup.commute)+
-  done
-
-instance rgsep :: (lattice) positivity_law
-  apply standard
-  apply (clarsimp simp add: disjoint_rgsep_def plus_rgsep_def)
-  apply (metis rgsep.sel inf_antisym sup_antisym)
-  done
-
-instantiation rgsep :: (bounded_lattice) pre_multiunit_sep_alg
-begin
-definition \<open>unitof_rgsep (_::'a rgsep) \<equiv> RGSep \<top> \<bottom>::'a rgsep\<close>
-instance
-  by standard
-    (simp add: unitof_rgsep_def disjoint_rgsep_def plus_rgsep_def)+
-end
-
-instantiation rgsep :: (bounded_lattice) zero
-begin
-definition \<open>zero_rgsep \<equiv> RGSep \<top> \<bottom>::'a rgsep\<close>
-instance by standard
-end
-
-instance rgsep :: (bounded_lattice) pre_sep_alg
-  by standard
-    (simp add: zero_rgsep_def disjoint_rgsep_def plus_rgsep_def)+
-
-
-subsubsection \<open> Extended instances \<close>
-
-instance rgsep :: (lattice) dupcl_perm_alg
-  by standard
-    (simp add: plus_rgsep_def disjoint_rgsep_def)
-
-(* not strong_sep_pre_perm_alg *)
-
-instance rgsep :: (lattice) disjoint_parts_pre_perm_alg
-  by standard (simp add: disjoint_rgsep_def plus_rgsep_def)
-
-instance rgsep :: (lattice) trivial_selfdisjoint_pre_perm_alg
-  by standard (simp add: disjoint_rgsep_def plus_rgsep_def)
-
-instance rgsep :: (distrib_lattice) crosssplit_pre_perm_alg
-  apply standard
-  apply (case_tac a, case_tac b, case_tac c, case_tac d)
-  apply (clarsimp simp add: disjoint_rgsep_def plus_rgsep_def)
-  apply (subst ex_rgsep_of_rely_guar_pred_iff)+
-  apply clarsimp
-  apply (drule inf_crosssplit)
-  apply (drule sup_crosssplit)
-  apply clarsimp
-  apply blast (* slow-ish *)
-  done
-
-(* not a cancel_pre_perm_alg *)
-(* not a halving_pre_perm_alg *)
-
-instance rgsep :: (bounded_lattice) allcompatible_perm_alg
-  by standard
-    (metis zero_least trans_ge_le_is_compatible)
-
-(* not an all_disjoint_pre_perm_alg *)
-(* not a no_unit_pre_perm_alg *)
+lemma shared_sepconj_conj_eq:
+  \<open>(\<S> p \<^emph>\<and> q) = \<S> p \<sqinter> (\<top> \<^emph>\<and> q)\<close>
+  \<open>(q \<^emph>\<and> \<S> p) = \<S> p \<sqinter> (q \<^emph>\<and> \<top>)\<close>
+  by (force simp add: sepconj_conj_def fun_eq_iff)+
 
 
 section \<open> Definitions for the Program Logic \<close>

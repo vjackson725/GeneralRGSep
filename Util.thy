@@ -1055,6 +1055,10 @@ lemma rel_times_sup_distribR:
   \<open>ra \<times>\<^sub>R (rb \<squnion> rc) = (ra \<times>\<^sub>R rb) \<squnion> (ra \<times>\<^sub>R rc)\<close>
   by (force simp add: rel_times_def le_fun_def)
 
+lemma rel_times_sup_semidistrib:
+  \<open>ra \<times>\<^sub>R rb \<squnion> rc \<times>\<^sub>R rd \<le> (ra \<squnion> rc) \<times>\<^sub>R (rb \<squnion> rd)\<close>
+  by (force simp add: rel_times_def le_fun_def)
+
 lemma rel_times_inf_distribL:
   \<open>(ra \<sqinter> rb) \<times>\<^sub>R rc = (ra \<times>\<^sub>R rc) \<sqinter> (rb \<times>\<^sub>R rc)\<close>
   by (force simp add: rel_times_def le_fun_def)
