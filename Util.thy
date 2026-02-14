@@ -249,6 +249,10 @@ lemma rel_lift_apply[simp]:
   \<open>rel_lift p q a b = (p a \<and> q b)\<close>
   by (simp add: rel_lift_def)
 
+lemma rel_lift_mono:
+  \<open>p \<le> p' \<Longrightarrow> q \<le> q' \<Longrightarrow> rel_lift p q \<le> rel_lift p' q'\<close>
+  by (simp add: rel_lift_def le_fun_def)
+
 
 definition comp2 :: \<open>('b \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> 'c)\<close> (infixl \<open>\<circ>\<^sub>2\<close> 55) where
   \<open>r \<circ>\<^sub>2 f \<equiv> \<lambda>x y. r (f x) (f y)\<close>

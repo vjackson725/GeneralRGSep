@@ -2,11 +2,71 @@ theory SecLang
   imports Security
 begin
 
-section \<open> Security Programs \<close>
+
+subsection \<open> Pretty double-failure \<close>
 
 definition
-  \<open>nonfail_ff p \<equiv>
+  \<open>running2_pred p \<equiv>
     \<lambda>(((lx,flx), (ly,fly)), s). p ((lx,ly), s) \<and> flx = Running \<and> fly = Running\<close>
+
+definition
+  \<open>failure2_pred p \<equiv>
+    \<lambda>(((lx,flx), (ly,fly)), s). p ((lx,ly), s) \<and> flx = Failed \<and> fly = Failed\<close>
+
+lemma subpred_running2_pred_iff:
+  \<open>p \<le> running2_pred q \<longleftrightarrow> (\<exists>q'. q' \<le> q \<and> p = running2_pred q')\<close>
+  apply (clarsimp simp add: le_fun_def fun_eq_iff running2_pred_def)
+  apply (rule iffI)
+   apply (rule_tac x=\<open>\<lambda>((lsx, lsy), ss). p (((lsx, Running), (lsy, Running)), ss)\<close> in exI)
+   apply force
+  apply force
+  done
+
+lemma running2_pred_subpred_internalise:
+  \<open>(\<forall>p\<le>running2_pred P. \<Q> p) \<longleftrightarrow> (\<forall>p\<le>P. \<Q> (running2_pred p))\<close>
+  by (simp add: subpred_running2_pred_iff) blast
+
+lemma wssa_running2_pred_distrib:
+  \<open>wssa R (running2_pred p) = running2_pred (wssa R p)\<close>
+  by (force simp add: running2_pred_def wlp_def)
+
+lemma sswa_running2_pred_distrib:
+  \<open>sswa R (running2_pred p) = running2_pred (sswa R p)\<close>
+  by (force simp add: running2_pred_def sp_def)
+
+lemma any_shared_running2_pred_distrib:
+  \<open>any_shared (running2_pred p) = running2_pred (any_shared p)\<close>
+  by (force simp add: running2_pred_def)
+
+
+lemma running2_pred_mono[simp]:
+  \<open>running2_pred p \<le> running2_pred q \<longleftrightarrow> p \<le> q\<close>
+  by (force simp add: running2_pred_def)
+
+lemma running2_pred_sepconj_conj_distrib:
+  \<open>running2_pred p \<^emph>\<and> running2_pred q = running2_pred (p \<^emph>\<and> q)\<close>
+  by (force simp add: running2_pred_def sepconj_conj_apply)
+
+lemma failure2_implies_running2_iff[simp]:
+  \<open>failure2_pred p \<le> running2_pred q \<longleftrightarrow> \<top> \<le> - p\<close>
+  by (simp add: failure2_pred_def running2_pred_def le_fun_def all_fail_st_eq)
+
+
+abbreviation ff_rgsat_pretty
+  (\<open>_, _, _, _, _ \<turnstile>\<^sub>f\<^sub>f { _ } _ { _ }\<close> [55, 0, 0, 0, 0, 55, 55, 55] 56) where
+  \<open>R, G, I, F, T \<turnstile>\<^sub>f\<^sub>f { p } c { q } \<equiv>
+    rgsat c R G
+      (running2_pred p) (running2_pred q)
+      (running2_pred I) (running2_pred F)
+      T\<close>
+
+lemmas ff_rgsat_weaken =
+  rgsat_weaken[where
+    p'=\<open>running2_pred p'\<close> and q'=\<open>running2_pred q'\<close> and
+    I'=\<open>running2_pred I'\<close> and F'=\<open>running2_pred F'\<close> and
+    p=\<open>running2_pred p\<close> and q=\<open>running2_pred q\<close> and
+    I=\<open>running2_pred I\<close> and F=\<open>running2_pred F\<close> for p q I F p' q' I' F', simplified]
+
 
 
 subsection \<open> Await \<close>
@@ -46,10 +106,10 @@ abbreviation RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightar
     avoided. \<close>
 lemma rel_assert_quasireflp_steprel:
   fixes p :: \<open>('a \<times> 'a) \<times> ('b \<times> 'b) \<Rightarrow> bool\<close>
-  shows \<open>\<top> \<le> quasireflp_steprel (relassert_rel p - rel_liftR (- nonfail_ff \<top>))
+  shows \<open>\<top> \<le> quasireflp_steprel (relassert_rel p - rel_liftR (- running2_pred \<top>))
     \<longleftrightarrow> quasireflp (curry (p \<circ> exch4))\<close>
   by (force simp add: relassert_rel_def quasireflp_steprel_def sec_agree_exch4_def
-      sec_agree_def nonfail_ff_def reflp_on_def prepost_state_def' le_fun_def split: prod.splits)
+      sec_agree_def running2_pred_def reflp_on_def prepost_state_def' le_fun_def split: prod.splits)
 
 lemma rel_assert_symp_steprel:
   \<open>\<top> \<le> symp_steprel (relassert_rel p) \<longleftrightarrow> symp (curry (p \<circ> exch4))\<close>
@@ -68,14 +128,62 @@ definition output_rel
 lemmas output_rel_def' =
   relassert_rel_def[where p=\<open>\<bbbA>\<^sub>\<ddagger> h\<close> for h, simplified output_rel_def[symmetric]]
 
-definition \<open>Output h \<equiv> \<langle> output_rel h \<rangle>\<close>
+abbreviation \<open>Output h \<equiv> \<langle> output_rel h \<rangle>\<close>
 
 \<comment> \<open> TODO: pin down the exact condition\<close>
 lemma output_quasirefl_blocking_steprel:
-  \<open>nonfail_ff (\<bbbA>\<^sub>\<ddagger> h) \<le>
-    quasirefl_blocking_steprel (output_rel h - rel_liftR (- nonfail_ff \<top>))\<close>
+  \<open>running2_pred (\<bbbA>\<^sub>\<ddagger> h) \<le>
+    quasirefl_blocking_steprel (output_rel h - rel_liftR (- running2_pred \<top>))\<close>
   by (clarsimp simp add: output_rel_def' relassert_rel_def quasirefl_blocking_steprel_def
-      pred_lift_exch4_def exch4_def fun_eq_iff sec_agree_exch4_def' nonfail_ff_def)
+      pred_lift_exch4_def exch4_def fun_eq_iff sec_agree_exch4_def' running2_pred_def)
+
+lemma sp_output_rel_running2_pred_eq:
+  \<open>sp (output_rel h) (running2_pred p) = running2_pred (\<bbbA>\<^sub>\<ddagger> h \<sqinter> p) \<squnion> failure2_pred (- \<bbbA>\<^sub>\<ddagger> h \<sqinter> p)\<close>
+  by (force split: prod.splits simp add: sp_def output_rel_def' fun_eq_iff conj_disj_distribR
+      running2_pred_def failure2_pred_def)
+
+
+lemma rgsat_output:
+  assumes main:
+    \<open>wssa R p \<^emph>\<and> F \<le> \<bbbA>\<^sub>\<ddagger> h\<close>
+    \<open>rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>wssa R p \<le> I\<close>
+    and misc:
+    \<open>T RGSepAtom\<close>
+  shows
+    \<open>R, G, I, F, T \<turnstile>\<^sub>f\<^sub>f { wssa R p } Output h { wssa R p }\<close>
+  using misc
+proof (intro rgsat_atom[where p=\<open>running2_pred p\<close> and q=\<open>running2_pred (wssa R p)\<close>])
+  show \<open>running2_pred (wssa R p) \<le> wssa R (running2_pred p)\<close>
+    by (simp add: wssa_running2_pred_distrib)
+  show \<open>sswa R (running2_pred (wssa R p)) \<le> running2_pred (wssa R p)\<close>
+    by (simp add: sswa_running2_pred_distrib)
+
+  show \<open>\<forall>f\<le>running2_pred F.
+       sp (output_rel h) (wssa R (running2_pred p) \<^emph>\<and> f) \<le> running2_pred (wssa R p) \<^emph>\<and> any_shared f\<close>
+    using main(1)
+    apply (simp add: running2_pred_subpred_internalise wssa_running2_pred_distrib
+        running2_pred_sepconj_conj_distrib  sp_output_rel_running2_pred_eq
+        any_shared_running2_pred_distrib all_conj_distrib imp_conjR)
+    apply (rule conjI)
+     apply (simp add: le_infI2 self_implies_self_any_shared sepconj_conj_monoR; fail)
+    apply (simp add: shunt2[symmetric] atom_variant_compressed_frame(1))
+    done
+  show \<open>rel_image snd (rel_liftL (wssa R (running2_pred p) \<^emph>\<and> running2_pred F) \<sqinter> output_rel h) \<le> G\<close>
+    using main(1-2)
+    apply (simp add: wssa_running2_pred_distrib)
+    sledgehammer
+    sorry
+    apply (fastforce simp add: output_rel_def' running2_pred_def)
+    done
+
+  show \<open>wssa R (running2_pred p) \<le> running2_pred I\<close>
+    using main
+    by (simp add: wssa_running2_pred_rev_distrib sswa_running2_pred_rev_distrib)
+  show \<open>sswa R (running2_pred (wssa R p)) \<le> running2_pred I\<close>
+    using main
+    by (simp add: wssa_running2_pred_rev_distrib sswa_running2_pred_rev_distrib)
+qed simp+
 
 
 section \<open> Secure If-statement \<close>
@@ -181,6 +289,26 @@ lemma declassify_quasirefl_blocking_steprel:
   \<open>quasirefl_blocking_steprel (declassify_rel h) = \<bbbA>\<^sub>\<ddagger> h\<close>
   by (clarsimp simp add: declassify_rel_def' await_rel_def quasirefl_blocking_steprel_def
       sec_agree_exch4_def' exch4_def)
+
+
+lemma rgsat_declassify:
+  assumes
+    \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> \<bbbA>\<^sub>\<ddagger> h \<le> (p \<sqinter> \<bbbA>\<^sub>\<ddagger> h) \<^emph>\<and> any_shared f\<close>
+    \<open>rel_image snd (rel_liftL ((wssa R p \<^emph>\<and> F) \<sqinter> \<bbbA>\<^sub>\<ddagger> h) \<sqinter> (=)) \<le> G\<close>
+    \<open>wssa R p \<le> I\<close>
+    \<open>sswa R (p \<sqinter> \<bbbA>\<^sub>\<ddagger> h) \<le> I\<close>
+    \<open>T RGSepAtom\<close>
+  shows
+    \<open>R, G, I, F, T \<turnstile> { wssa R p } Declassify h { sswa R (p \<sqinter> \<bbbA>\<^sub>\<ddagger> h) }\<close>
+  using assms(3-)
+proof (intro rgsat_atom[OF order.refl order.refl])
+  show \<open>\<forall>f\<le>F. sp (declassify_rel h) (wssa R p \<^emph>\<and> f) \<le> (p \<sqinter> \<bbbA>\<^sub>\<ddagger> h) \<^emph>\<and> any_shared f\<close>
+    using assms(1)
+    by (clarsimp simp add: sp_def declassify_rel_def) blast
+  show \<open>rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> declassify_rel h) \<le> G\<close>
+    using assms(2)
+    by (force simp add: declassify_rel_def')
+qed simp+
 
 
 section \<open> Purely Relational \<close>

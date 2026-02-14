@@ -236,6 +236,14 @@ lemma any_shared_apply[simp]:
   \<open>any_shared p (ls, ss) = (\<exists>ss. p (ls, ss))\<close>
   by (simp add: any_shared_def)
 
+lemma self_implies_self_any_shared:
+  \<open>p \<le> any_shared p\<close>
+  by force
+
+lemma any_shared_idem[simp]:
+  \<open>any_shared (any_shared p) = any_shared p\<close>
+  by force
+
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 

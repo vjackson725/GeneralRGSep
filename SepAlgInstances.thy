@@ -1690,6 +1690,11 @@ lemma ex_fail_st_eq:
   \<open>Ex P \<longleftrightarrow> P Running \<or> P Failed\<close>
   by (metis (full_types) fail_st.exhaust)
 
+lemma fail_st_neq_iff[simp]:
+  \<open>a \<noteq> Failed \<longleftrightarrow> a = Running\<close>
+  \<open>a \<noteq> Running \<longleftrightarrow> a = Failed\<close>
+  by (cases a; simp)+
+
 
 subsection \<open> Algebra Instances \<close>
 
@@ -1846,6 +1851,11 @@ lemma plus_fail_st_eq[simp]:
   \<open>Failed + b = Failed\<close>
   \<open>a + Failed = Failed\<close>
   by (simp add: plus_fail_st_def)+
+
+lemma plus_fail_st_rev_iff[simp]:
+  \<open>a + b = Running \<longleftrightarrow> a = Running \<and> b = Running\<close>
+  \<open>a + b = Failed \<longleftrightarrow> a = Failed \<or> b = Failed\<close>
+  by (cases a; cases b; simp)+
 
 instantiation fail_st :: disjoint
 begin
