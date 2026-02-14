@@ -2,6 +2,25 @@ theory SoundnessExperimental
   imports "../../Soundness"
 begin
 
+lemma
+  \<open>\<exists>F'. (\<forall>f\<le>F'. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f) \<and>
+    (\<forall>F. (\<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f) \<longrightarrow> F \<le> F')\<close>
+  apply (rule_tac x=\<open>\<Squnion>{F. \<forall>f\<le>F. sp ar (p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f}\<close> in exI)
+  apply (rule conjI)
+    (* existence *)
+   apply (clarsimp simp add: le_fun_def sp_def sepconj_conj_def simp del: split_paired_All)
+   apply (rename_tac xa xb ss ls fs)
+   apply (drule spec, drule mp, blast)
+   apply (clarsimp simp del: split_paired_All)
+   apply (drule_tac x=\<open>(=) (fs, ss)\<close> in spec)
+   apply (clarsimp simp del: split_paired_All)
+   apply blast
+    (* maximal *)
+  sledgehammer
+
+  find_theorems \<open>_ \<le> Sup _ \<Longrightarrow> _\<close>
+  oops
+
 \<comment> \<open> Guar in the frame condition \<close>
 
 lemma

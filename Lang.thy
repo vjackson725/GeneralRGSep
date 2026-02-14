@@ -419,6 +419,9 @@ lemma await_rel_inject[simp]:
   \<open>await_rel p1 = await_rel p2 \<longleftrightarrow> p1 = p2\<close>
   by (force simp add: await_rel_def fun_eq_iff rel_lift_def)
 
+lemma sp_await_rel[simp]:
+  \<open>sp (await_rel p) = (\<sqinter>) p\<close>
+  by (force simp add: sp_def await_rel_def)
 
 subsection \<open> If-then-else \<close>
 

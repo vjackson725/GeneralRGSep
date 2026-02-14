@@ -2,6 +2,19 @@ theory SepLogicExperimental
   imports "../../SepLogic"
 begin
 
+(* hacky, but I just need to check the result. *)
+
+definition sepconj2 :: \<open>(_ \<Rightarrow> bool) \<Rightarrow> (_ \<Rightarrow> bool) \<Rightarrow> (_ \<Rightarrow> bool)\<close> (infixl \<open>\<^emph>2\<close> 88) where
+  \<open>P \<^emph>2 Q \<equiv> \<lambda>(XY, s). \<exists>X Y. X \<sqinter> Y = {} \<and> XY = X \<squnion> Y \<and> P (X, s) \<and> Q (Y, s)\<close>
+
+definition \<open>Own X \<equiv> \<lambda>(Y, s). X = Y\<close>
+
+definition \<open>Asst p \<equiv> \<lambda>(X, s). p s\<close>
+
+lemma
+  \<open>((Own X \<sqinter> Asst p) \<^emph>2 (Own Y \<sqinter> Asst q)) = (Own (X \<squnion> Y) \<sqinter> Asst (p \<sqinter> q)) \<sqinter> (\<lambda>_. X \<sqinter> Y = {})\<close>
+  by (force simp add: sepconj2_def fun_eq_iff Own_def Asst_def)
+
 
 text \<open> Cancellativity. \<close>
 

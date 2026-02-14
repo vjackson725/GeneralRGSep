@@ -37,30 +37,12 @@ lemma wssa_step:
 
 lemmas wssa_stepD = wssa_step[rotated]
 
-subsection \<open> closure operator properties \<close>
-
-lemmas sswa_weaker = sp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-
-lemma sswa_trivial[intro]:
-  \<open>p x \<Longrightarrow> sswa r p x\<close>
-  by (simp add: sp_refl_relI)
-
-lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
-
-lemma wssa_trivial[dest]:
-  \<open>wssa r p x \<Longrightarrow> p x\<close>
-  by (drule wlp_refl_relD[rotated], simp)
-
-lemmas wssa_stronger = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-
-lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
-
-lemmas rely_rel_wlp_impl_sp =
-  refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-
 lemmas wssa_stronger_strengthen =
   transp_wlp_stronger_strengthen[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified,
     OF _ relyrel_trans]
+
+lemmas rely_rel_wlp_impl_sp =
+  refl_rel_wlp_impl_sp[of \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> \<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
 
 lemma sswa_bot_rel_eq[simp]:
   \<open>sswa \<bottom> p = p\<close>
@@ -74,14 +56,6 @@ lemma wssa_bot_rel_eq[simp]:
 
 
 subsection \<open> absorption/pseduo-idempotence properties \<close>
-
-(*
-lemmas sswa_idem[simp] =
-  sp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-
-lemmas wssa_idem[simp] =
-  wlp_comp_rel[where ?r1.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> and ?r2.0=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
-*)
 
 lemma sswa_over_sswa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> sswa r1 (sswa r2 p) = sswa r2 p\<close>
@@ -98,6 +72,36 @@ lemma sswa_over_wssa_eq[simp]:
 lemma wssa_over_sswa_eq[simp]:
   \<open>r1 \<le> r2 \<Longrightarrow> wssa r1 (sswa r2 p) = sswa r2 p\<close>
   by (simp add: relyrel_mono relyrel_trans wlp_sp_absorb)
+
+
+subsection \<open> sswa closure / wssa interior \<close>
+
+paragraph \<open> sswa closure \<close>
+
+lemmas sswa_weaker = sp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemma sswa_trivial[intro]:
+  \<open>p x \<Longrightarrow> sswa r p x\<close>
+  by (simp add: sp_refl_relI)
+
+\<comment> \<open> sswa_idem \<close>
+thm sswa_over_sswa_eq[OF order.refl]
+
+lemmas sswa_rel_mono = sp_rel_mono[OF relyrel_mono]
+
+
+paragraph \<open> wssa interior \<close>
+
+lemmas wssa_stronger = wlp_refl_rel_le[where r=\<open>(=) \<times>\<^sub>R r\<^sup>*\<^sup>*\<close> for r, simplified]
+
+lemma wssa_trivial[dest]:
+  \<open>wssa r p x \<Longrightarrow> p x\<close>
+  by (drule wlp_refl_relD[rotated], simp)
+
+\<comment> \<open> wssa_idem \<close>
+thm wssa_over_wssa_eq[OF order.refl]
+
+lemmas wssa_rel_antimono = wlp_rel_antimono[OF relyrel_mono]
 
 
 subsection \<open> semi-distributivity with sepconj-conj \<close>
@@ -119,6 +123,15 @@ lemma sp_rely_sepconj_conj_semidistrib_mono:
 
 lemmas sp_rely_sepconj_conj_semidistrib =
   sp_rely_sepconj_conj_semidistrib_mono[OF order.refl order.refl]
+
+lemma sswa_eqpred_eq:
+  \<open>sswa R ((=) s) = ((=) (fst s)) \<times>\<^sub>P (sp R\<^sup>*\<^sup>* ((=) (snd s)))\<close>
+  by (force simp add: fun_eq_iff sp_def)
+
+lemma wssa_eqpred_eq:
+  \<open>wssa R ((=) s) = ((=) (fst s)) \<times>\<^sub>P (wlp R\<^sup>*\<^sup>* ((=) (snd s)))\<close>
+  by (force simp add: fun_eq_iff wlp_def)
+
 
 subsection \<open> Interaction with pred-Times \<close>
 
@@ -143,6 +156,17 @@ abbreviation(input) shared_pred
   where
     \<open>\<S>(p) \<equiv> p \<circ> snd\<close>
 
+lemma sepconj_local_eq:
+  \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
+  by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+lemma sepconj_shared_eq:
+  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
+  by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
+
+
+subsection \<open> wssa/sswa on local/shared pred \<close>
+
 lemma wssa_ignore_local[simp]:
   \<open>wssa r (\<L> pl) = \<L> pl\<close>
   by (fastforce simp add: wlp_def fun_eq_iff sepconj_conj_def)
@@ -163,16 +187,15 @@ lemma sswa_over_shared:
   \<open>sswa r (\<S> ps) = \<S> (sp r\<^sup>*\<^sup>* ps)\<close>
   by (force simp add: sp_def fun_eq_iff sepconj_conj_def)
 
-lemma wssa_semiignore_local:
-  \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
-  \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
-  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
-
 lemma wssa_ignore_local_when_shared:
   \<open>wssa r (\<L> p \<^emph>\<and> \<S> q) = \<L> p \<^emph>\<and> wssa r (\<S> q)\<close>
   \<open>wssa r (\<S> q \<^emph>\<and> \<L> p) = wssa r (\<S> q) \<^emph>\<and> \<L> p\<close>
   by (clarsimp simp add: wlp_def fun_eq_iff sepconj_conj_def, metis rtranclp.rtrancl_refl)+
 
+lemma wssa_semiignore_local:
+  \<open>\<L> pl \<^emph>\<and> wssa r q \<le> wssa r (\<L> pl \<^emph>\<and> q)\<close>
+  \<open>wssa r p \<^emph>\<and> \<L> ql \<le> wssa r (p \<^emph>\<and> \<L> ql)\<close>
+  by (force simp add: wlp_def fun_eq_iff sepconj_conj_def)+
 text \<open>
   The full law local ignore law is _not_ true for \<open>wssa\<close>, unlike the one for \<open>sswa\<close>.
   Imagine the following situation:
@@ -190,13 +213,6 @@ text \<open>
     a \<^emph>\<open>subset\<close> of the initial predicate, and this subset might not be compatible
     with the frame.
 \<close>
-lemma sepconj_local_eq:
-  \<open>\<L> p \<^emph>\<and> \<L> q = \<L> (p \<^emph> q)\<close>
-  by (simp add: sepconj_conj_def sepconj_def fun_eq_iff)
-
-lemma sepconj_shared_eq:
-  \<open>(\<S> p :: 'a::multiunit_sep_alg \<times> 'b \<Rightarrow> bool) \<^emph>\<and> \<S> q = \<S> (p \<sqinter> q)\<close>
-  by (force simp add: sepconj_conj_def sepconj_def fun_eq_iff)
 
 lemma shared_sepconj_conj_eq:
   \<open>(\<S> p \<^emph>\<and> q) = \<S> p \<sqinter> (\<top> \<^emph>\<and> q)\<close>

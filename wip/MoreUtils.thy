@@ -1,5 +1,5 @@
 theory MoreUtils
-  imports Main
+  imports "../Util"
 begin
 
 unbundle lattice_syntax
@@ -7,25 +7,6 @@ unbundle lattice_syntax
 
 context boolean_algebra
 begin
-
-definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<leadsto>" 60) where
-  "a \<leadsto> b \<equiv> -a \<squnion> b"
-
-lemma impl_shunt:
-  \<open>c \<sqinter> a \<le> b \<longleftrightarrow> c \<le> a \<leadsto> b\<close>
-  by (simp add: impl_def shunt1)
-
-lemma impl_shunt2:
-  \<open>-(a \<leadsto> b) \<le> c \<longleftrightarrow> a \<le> b \<squnion> c\<close>
-  by (simp add: impl_def shunt2)
-
-lemma impl_simps[simp]:
-  \<open>\<top> \<leadsto> b = b\<close>
-  \<open>\<bottom> \<leadsto> b = \<top>\<close>
-  \<open>a \<leadsto> \<bottom> = - a\<close>
-  \<open>a \<leadsto> \<top> = \<top>\<close>
-  \<open>a \<leadsto> a = \<top>\<close>
-  by (force simp add: impl_def)+
 
 definition bequiv :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<sim>" 60) where
   "a \<sim> b \<equiv> (a \<leadsto> b) \<sqinter> (b \<leadsto> a)"

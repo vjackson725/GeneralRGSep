@@ -2,17 +2,297 @@ theory AlgReinterpret
   imports "../Soundness"
 begin
 
-section \<open> Algebra Reinterpretation \<close>
-
 text \<open>
   Related to the generalised frame rule of:
     Thomas Dinsdale-Young, Lars Birkedal, Philippa Gardner, Matthew Parkinson, and Hongseok Yang.
     2013. Views: compositional reasoning for concurrent programs.
     POPL '13. \<^url>\<open>https://doi.org/10.1145/2429069.2429104\<close>
   and to the bounded morphic image of
-    (TODO: good cite)
+    (TODO: fill out cite)
     James Brotherston, Jules Villard. Parametric Completeness for Separation Theories.
 \<close>
+
+
+section \<open> Generalised Frame Rule \<close>
+
+definition
+  \<open>rel_image_rel rxy r \<equiv> \<lambda>y y'. \<exists>x x'. r x x' \<and> rxy x y \<and> rxy x' y'\<close>
+
+definition
+  \<open>pred_image_rel rxy p \<equiv> \<lambda>y. \<exists>x. rxy x y \<and> p x\<close>
+
+lemma pred_image_rel_apply[simp]:
+  \<open>pred_image_rel r p y = (\<exists>x. r x y \<and> p x)\<close>
+  by (simp add: pred_image_rel_def)
+
+
+definition
+  \<open>one_point_bkw_rel f \<equiv> \<lambda>sa sb. f ((=) sb) sa\<close>
+
+definition
+  \<open>one_point_fwd_rel f \<equiv> \<lambda>sa sb. f ((=) sa) sb\<close>
+
+subsection \<open> Step semantics \<close>
+
+\<comment> \<open> could be weakened to a complete Heyting algebra, but that's not in standard Isabelle/HOL. \<close>
+definition
+  \<open>frame_expand2 Fa Fb
+    (r :: 'la::pre_perm_alg \<times> 'sa \<Rightarrow> 'lb::pre_perm_alg \<times> 'sb \<Rightarrow> 'lat::complete_boolean_algebra) \<equiv>
+    \<lambda>(lsa, ssa) (lsb, ssb).
+      (\<Sqinter>fsa. \<bbbT> (Fa (fsa, ssa) \<and> lsa ## fsa) \<leadsto>
+        (\<Sqinter>fsb. \<bbbT> (Fb (fsb, ssb) \<and> lsb ## fsb) \<leadsto>
+          r (lsa + fsa, ssa) (lsb + fsb, ssb)))\<close>
+
+definition \<open>no_step_prop f sa sb \<equiv> (\<lambda>a. (\<forall>sb'. \<not> f a sb sb') \<longrightarrow> (\<forall>sa'. \<not> a sa sa'))\<close>
+definition \<open>step_prop f sa sb \<equiv> \<lambda>a. (\<exists>sb'. f a sb sb') \<longrightarrow> (\<exists>sa'. a sa sa')\<close>
+
+definition
+  \<open>frame_step_prop f Fa Fb \<equiv> \<lambda>(la,sa) (lb,sb) a.
+    \<forall>lb fb sb lb' sb' lfa' la fa sa sa'.
+      Fb (fb, sb) \<longrightarrow>
+      lb ## fb \<longrightarrow>
+      f a (lb + fb, sb) (lb' + fb, sb') \<longrightarrow>
+      Fa (fa, sa) \<longrightarrow>
+      a (la + fa, sa) (lfa', sa') \<longrightarrow>
+      (\<exists>la' fa. la' ## fa \<and> lfa' = la' + fa)\<close>
+
+lemma map_atom_no_step_then_no_plain_step:
+  fixes r :: \<open>'b \<Rightarrow> 'a \<Rightarrow> bool\<close>
+  assumes
+    \<open>(sb, map_atom f c) \<midarrow>/\<rightarrow>\<close>
+    \<open>all_atom_comm (no_step_prop f sa sb) c\<close>
+  shows \<open>(sa, c) \<midarrow>/\<rightarrow>\<close>
+  using assms
+  apply (induct c)
+        apply (simp; fail)
+       apply (simp add: all_conj_distrib map_atom_rev_iff all_act_iff; fail)
+      apply (simp add: all_conj_distrib map_atom_rev_iff all_act_iff; fail)
+     apply (simp add: all_conj_distrib map_atom_rev_iff all_act_iff; fail)
+    apply (simp add: all_conj_distrib map_atom_rev_iff all_act_iff; fail)
+   apply (simp add: rel_image_rel_def no_step_prop_def; fail)
+  apply (clarsimp simp add: all_conj_distrib; fail)
+  done
+
+
+lemma map_head_atom_step_then_plain_head_atom_step:
+  assumes induct_assms:
+    \<open>ab \<in># head_atoms (map_atom f c)\<close>
+    \<open>ab sb sb'\<close>
+    \<open>all_atom_comm (step_prop f sa sb) c\<close> 
+  shows
+    \<open>\<exists>aa sa'. ab = f aa \<and> aa sa sa'\<close>
+  using induct_assms
+proof (induct c arbitrary: ab sa sb sb')
+  case (Seq c1 c2)
+  show ?case
+    using Seq.prems
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply (frule(2) Seq.hyps(1))
+    apply clarsimp
+    done
+next
+  case (Par c1 c2)
+  show ?case
+    using Par.prems
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply (elim disjE)
+    sorry
+next
+  case (Endet c1 c2)
+  then show ?case
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply blast
+    done
+next
+  case (Atomic x)
+  then show ?case
+    by (force simp add: step_prop_def)
+next
+  case (Iter c)
+  show ?case
+    using Iter.prems
+    apply (clarsimp simp del: split_paired_All simp add: map_atom_rev_iff map_atom_rev_iff2)
+    sorry
+qed simp+
+
+
+lemma map_atom_then_some_plain_step:
+  fixes c :: \<open>'a comm\<close>
+    and sa :: 'a
+    and sb sb' :: 'b
+  assumes induct_assms:
+    \<open>(sb, map_atom f c) \<midarrow>\<alpha>\<rightarrow> (sb',  map_atom f c')\<close>
+    \<open>all_atom_comm (no_step_prop f sa sb) c\<close>
+    \<comment> \<open> we could fix \<open>sb'\<close> here too, but this choice would not be inductive later \<close>
+    \<open>all_atom_comm (step_prop f sa sb) c\<close> 
+  shows
+    \<open>\<exists>sa' c''.
+      (sb, map_atom f c) \<midarrow>\<alpha>\<rightarrow> (sb', map_atom f c'') \<and>
+      map_atom f c' = map_atom f c'' \<and>
+      (sa, c) \<midarrow>\<alpha>\<rightarrow> (sa', c'')\<close>
+  using induct_assms
+proof (induct c arbitrary: c' sa sb sb')
+  case (Seq c1 c2)
+  show ?case
+    using Seq.prems
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply (erule disjE, blast)
+    apply clarsimp
+    apply (frule(2) Seq.hyps(1))
+    apply clarsimp
+    apply (rename_tac sa' c1')
+    apply (rule exI, rule_tac x=\<open>c1' ;; c2\<close> in exI)
+    apply force
+    done
+next
+  case (Par c1 c2)
+  show ?case
+    using Par.prems
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply (elim disjE)
+      apply metis
+    subgoal sorry
+    subgoal sorry
+    sorry
+next
+  case (Endet c1 c2)
+  then show ?case
+    apply (clarsimp simp add: map_atom_rev_iff)
+    apply (elim disjE)
+         apply metis
+        apply metis
+    subgoal sorry
+    subgoal sorry
+    subgoal sorry
+    subgoal sorry
+    done
+next
+  case (Atomic x)
+  then show ?case
+    by (force simp add: map_atom_rev_iff step_prop_def)
+next
+  case (Iter c)
+  show ?case
+    using Iter.prems
+    apply (clarsimp simp del: split_paired_All simp add: map_atom_rev_iff map_atom_rev_iff2)
+    apply (elim disjE conjE)
+     apply (clarsimp simp del: split_paired_All)
+     apply (frule(1) map_atom_no_step_then_no_plain_step)
+     apply blast
+    apply clarsimp
+    apply (drule sym[of \<open>map_atom _ _\<close>])
+    apply (simp add: ex_disj_distrib conj_disj_distribL conj_disj_distribR)
+    apply (drule(2) Iter.hyps)
+    apply clarsimp
+    apply fastforce
+    done
+qed (clarsimp simp add: map_atom_rev_iff; metis)+
+
+
+subsection \<open> Rule \<close>
+
+lemma all_atom_comm_frame_expand2D:
+  \<open>Fb (fsb, snd sb) \<Longrightarrow>
+    fst sb ## fsb \<Longrightarrow>
+    Fa (fsa, snd sa) \<Longrightarrow>
+    fst sa ## fsa \<Longrightarrow>
+    all_atom_comm (frame_expand2 Fa Fb p sa sb) c \<Longrightarrow>
+    all_atom_comm (p (fst sa + fsa, snd sa) (fst sb + fsb, snd sb)) c\<close>
+  by (clarsimp simp del: split_paired_All simp add: all_atom_comm_def frame_expand2_def
+      impl_fun_iff disj_not2 split: prod.splits)
+
+lemma generalised_frame_rule:
+  fixes sa :: \<open>'la::pre_perm_alg \<times> 'sa\<close>
+    and sb :: \<open>'lb::pre_perm_alg \<times> 'sb\<close>
+    and c :: \<open>('la \<times> 'sa) comm\<close>
+    and Fa Ia :: \<open>'la \<times> 'sa \<Rightarrow> bool\<close>
+    and Ra Ga :: \<open>'sa \<Rightarrow> 'sa \<Rightarrow> bool\<close>
+    and Fb Ib :: \<open>'lb \<times> 'sb \<Rightarrow> bool\<close>
+    and Rb Gb :: \<open>'sb \<Rightarrow> 'sb \<Rightarrow> bool\<close>
+  assumes inductive_assms:
+    \<open>safe Ra Fa Ga Ia qa n c sa\<close>
+    \<open>\<forall>ssb'. Rb\<^sup>*\<^sup>* (snd sb) ssb' \<longrightarrow>
+      (\<forall>ssa'. Ra\<^sup>*\<^sup>* (snd sa) ssa' \<longrightarrow>
+        (qa (fst sa, ssa') \<longrightarrow> qb (fst sb, ssb')) \<and>
+        (Ia (fst sa, ssa') \<longrightarrow> Ib (fst sb, ssb')) \<and>
+        (\<forall>fsb. Fb (fsb, ssb') \<longrightarrow> fst sb ## fsb \<longrightarrow> (\<exists>fsa. Fa (fsa, ssa') \<and> fst sa ## fsa)) \<and>
+        (\<forall>ssb''.
+          Rb ssb' ssb'' \<longrightarrow>
+          (\<exists>ssa''. Ra ssa' ssa'')))\<close>
+    \<open>\<forall>sa'. ((=) \<times>\<^sub>R Ra\<^sup>*\<^sup>*) sa sa' \<longrightarrow>
+      (\<forall>sb'. ((=) \<times>\<^sub>R Rb\<^sup>*\<^sup>*) sb sb' \<longrightarrow>
+        all_atom_comm (frame_expand2 Fa Fb (no_step_prop f) sa' sb') c \<and>
+        all_atom_comm (frame_expand2 Fa Fb (step_prop f) sa' sb') c \<and>
+        all_atom_comm (frame_step_prop f Fa Fb sa' sb') c)\<close>
+  shows
+    \<open>safe Rb Fb Gb Ib qb n (map_atom f c) sb\<close>
+  using inductive_assms
+proof (induct arbitrary: sb rule: safe.inducts)
+  case (safeI c sa n)
+  show ?case
+    using safeI.prems
+    apply -
+    apply (rule safe.safeI)
+      (* Postcond *)
+       apply (cut_tac safeI.hyps(1))
+       apply (fastforce simp add: map_atom_rev_iff)
+      (* Inv *)
+      apply (cut_tac safeI.hyps(2))
+      apply fastforce
+      (* Rely *)
+     apply (rename_tac ssb')
+     apply (frule spec, drule mp[of \<open>Rb\<^sup>*\<^sup>* _ _\<close>], rule rtranclp.rtrancl_refl,
+        drule spec, drule mp[of \<open>Ra\<^sup>*\<^sup>* _ _\<close>], rule rtranclp.rtrancl_refl)
+     apply (elim exE conjE)
+     apply (frule spec, drule mp[of \<open>Rb _ _\<close>], assumption)
+     apply (elim exE conjE)
+     apply (rename_tac ssa')
+     apply (frule_tac sb=\<open>(fst sb, ssb')\<close> in safeI.hyps(4), assumption)
+       apply (metis (no_types, lifting) converse_rtranclp_into_rtranclp split_pairs)
+      apply (simp add: converse_rtranclp_into_rtranclp rel_times_apply; fail)
+     apply blast
+      (* Step *)
+    apply (rename_tac n' fsb \<alpha> lfsb' ssb' c'x)
+    apply (subgoal_tac \<open>\<exists>fsa. Fa (fsa, snd sa) \<and> fst sa ## fsa\<close>)
+     prefer 2
+     apply (metis rtranclp.rtrancl_refl)
+    apply (elim exE conjE)
+    apply (frule map_atom_step_preserved)
+    apply (clarsimp simp del: split_paired_All)
+    apply (rename_tac c')
+    apply (frule_tac sa=\<open>(fst sa + fsa, snd sa)\<close> in map_atom_then_some_plain_step)
+      apply (rule all_atom_comm_frame_expand2D[where Fa=Fa and Fb=Fb],
+        assumption, assumption, assumption, assumption)
+      apply (metis (full_types) rel_times_apply rtranclp.rtrancl_refl)
+     apply (rule all_atom_comm_frame_expand2D[where Fa=Fa and Fb=Fb],
+        assumption, assumption, assumption, assumption)
+     apply (metis (full_types) rel_times_apply rtranclp.rtrancl_refl)
+    apply (clarsimp simp del: split_paired_All)
+    apply (frule(3) safeI.hyps(5))
+    apply (clarsimp simp del: split_paired_All)
+    apply (rename_tac ssa' c'y lsa')
+    apply (rule conjI)
+      (** guar *)
+    subgoal sorry
+        (** inductive step *)
+    apply (erule opstep_act_cases)
+     apply (subgoal_tac \<open>ssa' = snd sa\<close>)
+      prefer 2
+      apply (metis opstep_tau_preserves_heap split_pairs)
+     apply (clarsimp simp del: split_paired_All)
+     apply (drule_tac x=sb in spec)
+     apply (meson opstep_preserves_all_atom_comm; fail)
+    apply (clarsimp simp del: split_paired_All)
+    apply (frule vis_step_impl_atom[where c=\<open>map_atom f c\<close>])
+    apply (clarsimp simp del: split_paired_All)
+    apply (frule_tac sa=\<open>(fst sa + fsa, snd sa)\<close> in map_head_atom_step_then_plain_head_atom_step, blast)
+     apply (rule all_atom_comm_frame_expand2D[where Fa=Fa and Fb=Fb],
+        assumption, assumption, assumption, assumption)
+     apply (simp add: rel_times_apply safeI.prems(2); fail)
+    apply (clarsimp simp del: split_paired_All)
+    sorry
+qed
+
 
 subsection \<open> Permission Algebra Homomorphisms \<close>
 
@@ -195,12 +475,6 @@ definition
   \<open>rel_preserve_rel (r :: 'b \<Rightarrow> 'a \<Rightarrow> bool) sa (a :: 'a \<Rightarrow> 'a \<Rightarrow> bool) \<equiv>
     \<forall>sb sb' y' y. r sb sa \<longrightarrow> a y y' \<longrightarrow> r sb y \<longrightarrow> r sb' y' \<longrightarrow> (\<exists>sa'. r sb' sa' \<and> a sa sa')\<close>
 
-
-definition
-  \<open>pred_image_rel rxy p \<equiv> \<lambda>y. \<exists>x. rxy x y \<and> p x\<close>
-
-definition
-  \<open>rel_image_rel rxy r \<equiv> \<lambda>x x'. \<exists>y y'. r y y' \<and> rxy x y \<and> rxy x' y'\<close>
 
 definition
   \<open>back_exists_prop r x a \<equiv> \<forall>y. r x y \<longrightarrow> (\<forall>y'. a y y' \<longrightarrow> (\<exists>x'. r x' y'))\<close>

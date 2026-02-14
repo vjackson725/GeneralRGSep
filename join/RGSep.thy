@@ -2,6 +2,46 @@ theory RGSep
   imports Semantics
 begin
 
+section \<open> Misc \<close>
+
+lemma tranclp_sup_under_tranclp_eq[simp]:
+  \<open>(a\<^sup>+\<^sup>+ \<squnion> b)\<^sup>+\<^sup>+ = (a \<squnion> b)\<^sup>+\<^sup>+\<close>
+  apply (clarsimp simp add: fun_eq_iff)
+  apply (rule iffI)
+   apply (rule tranclp_trans_induct[of \<open>a\<^sup>+\<^sup>+ \<squnion> b\<close> _ _ \<open>(a \<squnion> b)\<^sup>+\<^sup>+\<close>])
+     apply force
+    apply (metis predicate2D subrel_sup_tranclp(1-2) sup2E tranclp.r_into_trancl)
+   apply force
+  apply (rule tranclp_trans_induct[of \<open>a \<squnion> b\<close> _ _ \<open>(a\<^sup>+\<^sup>+ \<squnion> b)\<^sup>+\<^sup>+\<close>])
+    apply force
+   apply (metis predicate2D subrel_sup_tranclp(1-2) sup2E tranclp.r_into_trancl)
+  apply force
+  done
+
+lemma sup_tranclp_under_tranclp_eq[simp]:
+  \<open>(a \<squnion> b\<^sup>+\<^sup>+)\<^sup>+\<^sup>+ = (a \<squnion> b)\<^sup>+\<^sup>+\<close>
+  apply (clarsimp simp add: fun_eq_iff)
+  apply (rule iffI)
+   apply (rule tranclp_trans_induct[of \<open>a \<squnion> b\<^sup>+\<^sup>+\<close> _ _ \<open>(a \<squnion> b)\<^sup>+\<^sup>+\<close>])
+     apply force
+    apply (metis predicate2D subrel_sup_tranclp(1-2) sup2E tranclp.r_into_trancl)
+   apply force
+  apply (rule tranclp_trans_induct[of \<open>a \<squnion> b\<close> _ _ \<open>(a \<squnion> b\<^sup>+\<^sup>+)\<^sup>+\<^sup>+\<close>])
+    apply force
+   apply (metis predicate2D subrel_sup_tranclp(1-2) sup2E tranclp.r_into_trancl)
+  apply force
+  done
+
+lemma sup_rtranclp_under_rtranclp_eq[simp]:
+  \<open>(a \<squnion> b\<^sup>*\<^sup>*)\<^sup>*\<^sup>* = (a \<squnion> b)\<^sup>*\<^sup>*\<close>
+  \<open>(a\<^sup>*\<^sup>* \<squnion> b)\<^sup>*\<^sup>* = (a \<squnion> b)\<^sup>*\<^sup>*\<close>
+  by (metis rtranclp_idemp rtranclp_sup_rtranclp)+
+
+lemma rtranclp_unfold_left:
+  \<open>r\<^sup>*\<^sup>* = (=) \<squnion> (r OO r\<^sup>*\<^sup>*)\<close>
+  by (metis inf_sup_aci(5) reflclp_tranclp tranclp_unfold_left)
+
+
 section \<open> Algebraic Rely-Guarantee \<close>
 
 subsection \<open> Sup Algebra \<close>
@@ -43,8 +83,9 @@ instance ..
 end
 
 instance sup_jalg :: (bounded_semilattice_sup_bot) join_munital
-  by standard
-    (transfer, simp add: join_unitof_sup_jalg_def join_sup_jalg_def)
+  apply standard
+    apply (transfer, simp add: join_unitof_sup_jalg_def join_sup_jalg_def)+
+  done
 
 instantiation sup_jalg :: (\<open>{semilattice_sup, order_bot}\<close>) join_unit
 begin
@@ -95,7 +136,190 @@ instance sup_jalg :: (order_bot) order_bot
   by standard (transfer, simp)
 
 
+
+subsection \<open> Guar-State \<close>
+
+typedef 'a gst =
+  \<open>{(S::'a set, G::'a \<Rightarrow> 'a \<Rightarrow> bool). True}\<close>
+  by (rule exI[of _ \<open>({}, (=))\<close>]) force
+
+setup_lifting type_definition_gst
+
+lift_definition gst_guar :: \<open>'a gst \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)\<close> is \<open>snd\<close> .
+lift_definition gst_states :: \<open>'a gst \<Rightarrow> 'a set\<close> is fst .
+
+find_theorems stable
+
+definition \<open>st_stable R S \<equiv> \<forall>s\<in>S. \<forall>s'. R\<^sup>*\<^sup>* s s' \<longrightarrow> s' \<in> S\<close>
+
+lemma st_stable_rel_mono:
+  \<open>Rb\<^sup>*\<^sup>* \<le> Ra\<^sup>*\<^sup>* \<Longrightarrow> st_stable Ra S \<Longrightarrow> st_stable Rb S\<close>
+  by (force simp add: st_stable_def)
+
+lemma st_stable_set_infI[intro]:
+  \<open>st_stable R Sa \<Longrightarrow> st_stable R Sb \<Longrightarrow> st_stable R (Sa \<sqinter> Sb)\<close>
+  by (clarsimp simp add: st_stable_def)
+
+lemma st_stable_rel_sup_leftD[dest]:
+  \<open>st_stable (Rx \<squnion> Ry) S \<Longrightarrow> st_stable Rx S\<close>
+  by (clarsimp simp add: st_stable_def)
+    (metis predicate2D_conj subrel_sup_rtranclp(1))
+
+lemma st_stable_rel_sup_leftR[dest]:
+  \<open>st_stable (Rx \<squnion> Ry) S \<Longrightarrow> st_stable Ry S\<close>
+  by (clarsimp simp add: st_stable_def)
+    (metis predicate2D_conj subrel_sup_rtranclp(2))
+
+instantiation gst :: (type) join
+begin
+lift_definition join_gst :: \<open>'a gst \<Rightarrow> 'a gst \<Rightarrow> 'a gst \<Rightarrow> bool\<close> is
+  \<open>\<lambda>(Sa, Ga) (Sb, Gb) (Sc, Gc).
+      Ga \<squnion> Gb = Gc \<and>
+      (\<exists>Ga'\<le>Ga.
+        \<exists>Gb'\<le>Gb.
+          {s'|s' s. Ga'\<^sup>*\<^sup>* s s' \<and> s \<in> Sb} \<sqinter> {s'|s' s. Gb'\<^sup>*\<^sup>* s s' \<and> s \<in> Sa} = Sc)\<close> .
+instance ..
+end
+
+instance gst :: (type) join_alg
+  apply standard
+   apply (transfer)
+   apply (clarsimp simp add: inf.assoc[symmetric] sup.assoc[symmetric])
+   apply (rename_tac Sy Ga Sx Gb Gc Gd Ga' Gb' Gc' Gd')
+  sorry
+
+instance rgst :: (type) join_positive
+  by standard
+    (transfer, clarsimp)
+
+(* not join_functional *)
+(* not join_cancel *)
+(* not join_nounit *)
+
+instantiation rgst :: (type) join_unitof
+begin
+lift_definition join_unitof_rgst :: \<open>'a rgst \<Rightarrow> 'a rgst\<close> is
+  \<open>\<lambda>(P, R). (P, R)\<close>
+  by clarsimp
+instance ..
+end
+
+instance rgst :: (type) join_munital
+  by standard
+    (transfer, clarsimp)
+
+instantiation rgst :: (type) join_unit
+begin
+lift_definition join_unit_rgst :: \<open>'a rgst\<close> is
+  \<open>(\<bottom>, (=))\<close>
+  by clarsimp
+instance ..
+end
+
+(* no join_unital *)
+
+
+section \<open> RGSep \<close>
+
+abbreviation \<open>sswa r \<equiv> sp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+abbreviation \<open>wssa r \<equiv> wlp ((=) \<times>\<^sub>R r\<^sup>*\<^sup>*)\<close>
+
+lemmas relyrel_trans = rel_times_trans[OF transp_equality transp_rtranclp]
+lemmas relyrel_mono = rel_times_mono[OF order.refl rtranclp_mono]
+
+
+type_synonym ('a, 'b) rgsep_st = \<open>'a \<times> (('b \<Rightarrow> 'b \<Rightarrow> bool) sup_jalg \<times> 'b rgst)\<close>
+
+abbreviation local_pred
+  :: \<open>('a \<Rightarrow> bool) \<Rightarrow> ('a, 'b) rgsep_st \<Rightarrow> bool\<close> (\<open>\<L>\<close>)
+  where
+    \<open>\<L> p \<equiv> p \<circ> fst\<close>
+
+abbreviation shared_pred
+  :: \<open>('b \<Rightarrow> bool) \<Rightarrow> ('a, 'b) rgsep_st \<Rightarrow> bool\<close> (\<open>\<S>\<close>)
+  where
+    \<open>\<S> p \<equiv> ((\<le>) p) \<circ> rgst_states \<circ> snd \<circ> snd\<close>
+
+lift_definition mk_rgsep_alg_precond_lift
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        (('l, 's) rgsep_st \<Rightarrow> bool)\<close>
+  is
+    \<open>\<lambda>R G p (ls, (G', (S', R'))). p \<le> ((=) ls) \<times>\<^sub>P S' \<and> R \<le> R' \<and> G' \<le> G\<close> .
+
+lift_definition mk_rgsep_alg_postcond_lift
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        (('l, 's) rgsep_st \<Rightarrow> bool)\<close>
+  is
+    \<open>\<lambda>R G q (ls, (G', (S', R'))). ((=) ls) \<times>\<^sub>P S' \<le> q \<and> R \<le> R' \<and> G' \<le> G\<close> .
+
+lift_definition mk_rgsep_alg_atomrel
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+        ('l \<times> 's \<Rightarrow> 'l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+        (('l, 's) rgsep_st \<Rightarrow> ('l, 's) rgsep_st \<Rightarrow> bool)\<close>
+  is
+    \<open>\<lambda>Rx Gx ar (ls, (G, (P, R))) (ls', (G', (Q', R'))).
+      (\<exists>Q. sp ar ((=) ls \<times>\<^sub>P P) \<le> (=) ls' \<times>\<^sub>P Q \<and> Q' = sp R Q) \<and>
+      R' = R \<and>
+      G' = G\<close> .
+
+
+definition rgsep_semsat
+  :: \<open>('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+      ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l::join_alg \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      ('l \<times> 's) comm \<Rightarrow>
+      ('l \<times> 's \<Rightarrow> bool) \<Rightarrow>
+      bool\<close>
+  (\<open>_, _, _, _ \<Turnstile> { _ } _ { _ }\<close> [50,0,0,0,0,0,50] 50) where
+  \<open>R, G, F, I \<Turnstile> { p } c { q } \<equiv>
+    mk_rgsep_alg_postcond_lift R G F,
+    mk_rgsep_alg_precond_lift R G I \<Turnstile>
+    { mk_rgsep_alg_precond_lift R G p }
+      map_atom (mk_rgsep_alg_atomrel R G) c
+    { mk_rgsep_alg_postcond_lift R G q }\<close>
+
+lemma mk_rgsep_alg_pred_sswa_eq:
+  \<open>R \<le> R' \<Longrightarrow> mk_rgsep_alg_postcond_lift G R (sswa R p) \<le> mk_rgsep_alg_postcond_lift R G p\<close>
+  apply (clarsimp simp add: fun_eq_iff le_fun_def)
+  apply transfer
+  apply clarsimp
+  oops
+
+lemma mk_rgsep_alg_pred_sepconj_distrib:
+  \<open>mk_rgsep_alg_precond_lift G R (p \<^emph> q) =
+    mk_rgsep_alg_precond_lift G R p \<^emph> mk_rgsep_alg_precond_lift G R q\<close>
+  apply (clarsimp simp add: fun_eq_iff sepconj_def)
+  apply transfer
+  apply (clarsimp simp add: le_fun_def)
+  apply (intro iffI)
+   prefer 2
+   apply clarsimp
+  sledgehammer
+  sorry
+
+
+lemma rgsep_par:
+  \<open>(R \<squnion> Gb), Ga, (Ib \<^emph> F), Ia \<Turnstile> { pa } ca { qa } \<Longrightarrow>
+    (R \<squnion> Ga), Gb, (Ia \<^emph> F), Ib \<Turnstile> { pb } cb { qb } \<Longrightarrow>
+    R, (Ga \<squnion> Gb), F, (sswa (R \<squnion> Gb) Ia \<^emph> sswa (R \<squnion> Ga) Ib) \<Turnstile>
+      { pa \<^emph> pb } ca \<parallel> cb { sswa (R \<squnion> Gb) qa \<^emph> sswa (R \<squnion> Ga) qb }\<close>
+
+  apply (simp add: mk_rgsep_alg_pred_sepconj_distrib)
+  apply (rule semsat_weaken)
+  apply (rule semsat_par)
+
+
+
 subsection \<open> Stabilised Set \<close>
+
+\<comment> \<open> vj, 2026-01-31: messy... \<close>
 
 typedef 'a rgst =
   \<open>{(P::'a \<Rightarrow> bool, R::'a \<Rightarrow> 'a \<Rightarrow> bool, G::'a \<Rightarrow> 'a \<Rightarrow> bool).

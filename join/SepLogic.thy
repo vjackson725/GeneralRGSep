@@ -2,6 +2,130 @@ theory SepLogic
   imports JoinAlg
 begin
 
+section \<open> Separation Logic Predicates \<close>
+
+definition
+  \<open>join_closed p \<equiv> \<forall>a b. (\<exists>c. \<^bold>J a b c \<and> \<top> \<le> p c) \<longrightarrow> (\<forall>c. \<^bold>J a b c \<longrightarrow> \<top> \<le> p c)\<close>
+
+definition
+  \<open>join_closed2 p \<equiv> \<forall>a b c. \<^bold>J a b c  \<longrightarrow> p c \<le> \<Sqinter>{p c|c. \<^bold>J a b c}\<close>
+
+definition
+  \<open>join_closed3 p \<equiv> \<forall>a b x y. \<^bold>J a b x \<longrightarrow> \<^bold>J a b y \<longrightarrow> p x \<le> p y\<close>
+
+lemma
+  fixes p :: \<open>_ \<Rightarrow> 'l::complete_lattice\<close>
+  shows \<open>join_closed2 p \<longleftrightarrow> join_closed3 p\<close>
+  apply (clarsimp simp add: join_closed3_def join_closed2_def)
+  apply safe
+  apply (metis (mono_tags, lifting) le_Inf_iff mem_Collect_eq)
+  sledgehammer
+  sorry
+
+lemma join_closed_inf_iff[intro]:
+  fixes a b :: \<open>('s::join_alg \<Rightarrow> 'l::{order_top, semilattice_inf})\<close>
+  shows
+  \<open>join_closed a \<Longrightarrow> join_closed b \<Longrightarrow> join_closed (a \<sqinter> b)\<close>
+  by (simp add: join_closed_def, blast)
+
+lemma join_closed_top[simp]:
+  fixes a b :: \<open>('s::join_alg \<Rightarrow> 'l::order_top)\<close>
+  shows \<open>join_closed \<top>\<close>
+  by (simp add: join_closed_def)
+
+lemma join_closed_bot[simp]:
+  fixes a b :: \<open>('s::join_alg \<Rightarrow> 'l::{order_top, order_bot})\<close>
+  shows \<open>join_closed \<bottom>\<close>
+  by (simp add: join_closed_def)
+
+
+text \<open>
+  The key difference between functional and non-functional separation algebras is that,
+  if a separation logic predicates holds for one output, it must hold for all of them.
+\<close>
+typedef(overloaded) ('s::join_alg, 'l::order_top) slpred =
+  \<open>Collect (join_closed :: ('s \<Rightarrow> 'l) \<Rightarrow> bool)\<close>
+  unfolding join_closed_def
+  by fast
+
+setup_lifting type_definition_slpred
+
+subsection \<open> Inherited Instances \<close>
+
+subsubsection \<open> Definitions \<close>
+
+instantiation slpred :: (join_alg, order_top) ord
+begin
+lift_definition less_eq_slpred :: \<open>('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred \<Rightarrow> bool\<close> is
+  \<open>(\<le>)\<close> .
+lift_definition less_slpred :: \<open>('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred \<Rightarrow> bool\<close> is
+  \<open>(<)\<close> .
+instance ..
+end
+
+instantiation slpred :: (join_alg, order_top) top
+begin
+lift_definition top_slpred :: \<open>('a, 'b) slpred\<close> is \<open>\<top>\<close>
+  by fastforce
+instance ..
+end
+
+instantiation slpred :: (join_alg, \<open>{order_top, bot}\<close>) bot
+begin
+lift_definition bot_slpred :: \<open>('a, 'b) slpred\<close> is \<open>\<bottom>\<close>
+  by fastforce
+instance ..
+end
+
+instantiation slpred :: (join_alg, \<open>{order_top, semilattice_inf}\<close>) inf
+begin
+lift_definition inf_slpred :: \<open>('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred\<close> is
+  \<open>(\<sqinter>) :: ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'b)\<close>
+  by fastforce
+instance ..
+end
+
+instantiation slpred :: (join_alg, \<open>{order_top, complete_lattice}\<close>) sup
+begin
+lift_definition sup_slpred :: \<open>('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred \<Rightarrow> ('a, 'b) slpred\<close> is
+  \<open>\<lambda>a b::('a \<Rightarrow> 'b). \<Sqinter>{c. a \<squnion> b \<le> c \<and> join_closed c}\<close>
+  by (clarsimp simp add: join_closed_def le_INF_iff)
+    blast
+instance ..
+end
+
+
+subsubsection \<open> Laws \<close>
+
+instance slpred :: (join_alg, order_top) order
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, order_top) order_top
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, \<open>{order_top, order_bot}\<close>) order_bot
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, \<open>{order_top, complete_lattice}\<close>) semilattice_sup
+  by standard
+    (transfer, force simp add: le_Inf_iff Inf_lower)+
+
+instance slpred :: (join_alg, \<open>{order_top, semilattice_inf}\<close>) semilattice_inf
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, \<open>{order_top, complete_lattice}\<close>) lattice
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, \<open>{bounded_lattice, complete_lattice}\<close>) bounded_lattice
+  by standard (transfer, force)+
+
+instance slpred :: (join_alg, \<open>{order_top, complete_lattice, distrib_lattice}\<close>) distrib_lattice
+  apply standard
+  apply (transfer, simp add: sup_inf_distrib1)
+  sledgehammer
+  sorry
+
+
 (*
 text \<open>
   This file implements a hierarchy of typeclasses for resource algebras.

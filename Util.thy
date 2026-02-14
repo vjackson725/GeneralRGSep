@@ -2,10 +2,64 @@ theory Util
   imports Main
 begin
 
-text \<open> We extensively use lattice syntax for separation logic \<close>
+text \<open> A theory for helper lemmas and definitions. \<close>
+
+text \<open> We extensively use lattice syntax for separation logic assertions. \<close>
 unbundle lattice_syntax
 
-text \<open> Helper Lemmas \<close>
+definition top_embed :: \<open>'a::bounded_semilattice_inf_top \<Rightarrow> 'b::bounded_lattice\<close> (\<open>\<bbbT>\<close>) where
+  \<open>\<bbbT> b \<equiv> if b = \<top> then \<top> else \<bottom>\<close>
+
+lemma top_embed_bool_eq[simp]:
+  \<open>\<bbbT> True = \<top>\<close>
+  \<open>\<bbbT> False = \<bottom>\<close>
+  by (simp add: top_embed_def)+
+
+lemma bounds_embed_fun_apply[simp]:
+  \<open>(\<bbbT> f) x = \<bbbT> f\<close>
+  by (simp add: top_embed_def)
+
+lemma bounds_embed_to_bool_eq[simp]:
+  \<open>\<bbbT> a \<longleftrightarrow> (a = \<top>)\<close>
+  by (simp add: top_embed_def)
+
+
+context boolean_algebra
+begin
+
+definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<leadsto>" 60) where
+  "a \<leadsto> b \<equiv> -a \<squnion> b"
+
+lemma impl_shunt:
+  \<open>c \<sqinter> a \<le> b \<longleftrightarrow> c \<le> a \<leadsto> b\<close>
+  by (simp add: impl_def shunt1)
+
+lemma impl_shunt2:
+  \<open>-(a \<leadsto> b) \<le> c \<longleftrightarrow> a \<le> b \<squnion> c\<close>
+  by (simp add: impl_def shunt2)
+
+lemma impl_simps[simp]:
+  \<open>\<top> \<leadsto> b = b\<close>
+  \<open>\<bottom> \<leadsto> b = \<top>\<close>
+  \<open>a \<leadsto> \<bottom> = - a\<close>
+  \<open>a \<leadsto> \<top> = \<top>\<close>
+  \<open>a \<leadsto> a = \<top>\<close>
+  by (force simp add: impl_def)+
+
+end
+
+lemma impl_fun_apply[simp]:
+  \<open>(f \<leadsto> g) x = (f x \<leadsto> g x)\<close>
+  by (simp add: impl_def)
+
+lemma impl_bool_eq[simp]:
+  \<open>(a \<leadsto> b) = (a \<longrightarrow> b)\<close>
+  by (simp add: impl_def)
+
+lemma impl_fun_iff:
+  \<open>(f \<leadsto> g) = (\<lambda>x. f x \<leadsto> g x)\<close>
+  by (force simp add: impl_def)
+
 
 section \<open> Functional Programming \<close>
 
@@ -1101,6 +1155,23 @@ text \<open> strongest postcondition, by way of relations \<close>
 definition sp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)\<close> where
   \<open>sp r p \<equiv> \<lambda>y. (\<exists>x. r x y \<and> p x)\<close>
 
+lemma sp_as_post_state:
+  \<open>sp r p = post_state (r \<sqinter> rel_liftL p)\<close>
+  by (simp add: post_state_of_def sp_def)
+
+lemma sp_rtranclp_stabilityI:
+  \<open>sp r p \<le> p \<Longrightarrow> sp r\<^sup>*\<^sup>* p \<le> p\<close>
+  apply (clarsimp simp add: sp_def le_fun_def)
+  apply (drule rtranclp_induct[where P=\<open>\<lambda>y. ((\<forall>x x'. r x x' \<longrightarrow> p x \<longrightarrow> p x')) \<longrightarrow> p y\<close>]; blast)
+  done
+
+lemma sp_rtranclp_stability_iff:
+  \<open>sp r\<^sup>*\<^sup>* p \<le> p \<longleftrightarrow> sp r p \<le> p\<close>
+  apply (rule iffI)
+   apply (simp add: sp_def le_fun_def, blast)
+  apply (metis sp_rtranclp_stabilityI)
+  done
+
 lemma wlp_strongest_postcondition:
   \<open>sp r p = (LEAST q. rel_liftL p \<sqinter> r \<le> rel_liftR q)\<close>
   by (rule Least_equality[symmetric])
@@ -1113,6 +1184,10 @@ lemma sp_apply:
 text \<open> weakest liberal precondition, by way of relations \<close>
 definition wlp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool)\<close> where
   \<open>wlp r q \<equiv> \<lambda>x. (\<forall>y. r x y \<longrightarrow> q y)\<close>
+
+lemma wlp_as_pre_state:
+  \<open>wlp r q = - pre_state (r \<sqinter> - rel_liftR q)\<close>
+  by (force simp add: wlp_def pre_state_def rel_lift_def)
 
 lemma wlp_weakest_precondition:
   \<open>wlp r q = (GREATEST p. rel_liftL p \<sqinter> r \<le> rel_liftR q)\<close>

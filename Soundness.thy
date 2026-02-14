@@ -141,27 +141,6 @@ lemma opstep_act_cases:
     P\<close>
   by (metis (full_types) act.exhaust opstep_tau_preserves_heap)
 
-lemma all_atom_comm_opstep:
-  assumes
-    \<open>opstep \<alpha> (h, c) (h', c')\<close>
-    \<open>all_atom_comm p c\<close>
-  shows
-    \<open>all_atom_comm p c'\<close>
-proof -
-  { fix s s'
-    assume \<open>opstep \<alpha> s s'\<close>
-      and \<open>all_atom_comm p (snd s)\<close>
-    then have \<open>all_atom_comm p (snd s')\<close>
-      by (induct \<alpha> s s' rule: opstep.induct) (force split: if_splits)+
-  }
-  then show ?thesis
-    using assms
-    by (metis snd_conv)
-qed
-
-lemmas all_atom_comm_opstepD =
-  all_atom_comm_opstep[rotated]
-
 
 subsubsection \<open> adding parallel \<close>
 
@@ -601,8 +580,11 @@ lemma safe_atom:
     sswa R q \<le> I \<Longrightarrow>
     sswa R q \<le> q' \<Longrightarrow>
     safe R F G I q' n \<langle>ar\<rangle> s\<close>
-  by (rule safe_monoD[OF safe_atom' order.refl order.refl _ _ _ order.refl])
-    blast+
+  apply (rule safe_monoD[OF safe_atom'[where p=\<open>sswa R p\<close> and q=q] order.refl order.refl _ _ _ order.refl])
+      apply simp
+      apply (meson order_trans sepconj_conj_monoL sswa_weaker; fail)
+     apply auto
+  done
 
 
 subsection \<open> Safety of Sequencing \<close>

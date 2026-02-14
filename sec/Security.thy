@@ -1,5 +1,5 @@
  theory Security
-  imports Soundness
+  imports "../Soundness"
 begin
 
 
@@ -378,10 +378,6 @@ lemma quasireflp_steprel_preserves_quasireflp:
   by (clarsimp simp add: reflp_on_def prepost_state_def' quasireflp_steprel_def
       sp_def le_fun_def, metis)
 
-lemma lifted_atom_quasireflp_steprel:
-  \<open>\<top> \<le> quasireflp_steprel (liftR r \<circ>\<^sub>2 exch4)\<close>
-  by (force simp add: rel_times_def quasireflp_steprel_def split: prod.splits)
-
 
 definition
   \<open>quasireflp_head_atoms cc \<equiv> \<Sqinter>{quasireflp_steprel ar|ar. ar \<in># head_atoms cc}\<close>
@@ -443,6 +439,7 @@ definition
         Ex ((ar \<circ>\<^sub>2 (exch4 \<circ> \<Delta>)) sy) \<longrightarrow>
       Ex ((ar \<circ>\<^sub>2 exch4) (sx, sy)))) \<circ> exch4\<close>
 
+
 definition
   \<open>quasirefl_blocking_head_atoms cc \<equiv> \<Sqinter>{quasirefl_blocking_steprel ar|ar. ar \<in># head_atoms cc}\<close>
 
@@ -495,6 +492,18 @@ lemma quasirefl_blocking_doloops_head_atoms_simps[simp]:
   \<open>quasirefl_blocking_doloops_head_atoms (DO c OD) = quasirefl_blocking_head_atoms c \<sqinter> quasirefl_blocking_doloops_head_atoms c\<close>
   \<open>quasirefl_blocking_doloops_head_atoms \<langle>ar\<rangle> = \<top>\<close>
   by (clarsimp simp add: quasirefl_blocking_doloops_head_atoms_def; blast)+
+
+
+subsection \<open> Lemmas \<close>
+
+lemma lifted_atom_quasireflp_steprel:
+  \<open>\<top> \<le> quasireflp_steprel (liftR r \<circ>\<^sub>2 exch4)\<close>
+  by (force simp add: rel_times_def quasireflp_steprel_def split: prod.splits)
+
+lemma
+  \<open>\<top> \<le> quasirefl_blocking_steprel (liftR r \<circ>\<^sub>2 exch4)\<close>
+  sorry
+
 
 
 section \<open> GenRGSep Proof Security Lifting \<close>
@@ -1673,11 +1682,7 @@ lemma head_atomic_nostep_iff_state_not_in_head_guards:
 
 subsubsection \<open> The Key Lemmas \<close>
 
-lemma head_atomic_opstep_vis_aact:
-  \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow>
-    head_atomic (snd sc) \<Longrightarrow>
-    vis_aact (snd \<pi>\<alpha>)\<close>
-  by (induct _ sc sc' rule: aopstep_induct) fastforce+
+thm head_atomic_implies_all_steps_vis
 
 lemma same_initcomm_and_aact_then_same_fincomm:
   assumes
@@ -1710,7 +1715,7 @@ proof -
         apply simp
         apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
         apply (simp, metis snd_conv)
-        apply (metis head_atomic_opstep_vis_aact snd_conv)
+        apply (metis head_atomic_implies_all_steps_vis snd_conv)
         done
     qed fastforce+
   }
@@ -1774,7 +1779,7 @@ proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
      apply (simp add: vis_tau_aact_incompatible)
      apply (metis head_atomic_nostep_iff_state_not_in_head_guards pretty_no_aopstep_def)
     apply (simp add: vis_tau_aact_incompatible)
-    apply (metis head_atomic.simps(1) head_atomic_opstep_vis_aact not_tau_aact_iff split_pairs)
+    apply (metis head_atomic.simps(1) head_atomic_implies_all_steps_vis not_tau_aact_iff split_pairs)
     done
 next
   case (Iter c)
@@ -1787,10 +1792,11 @@ next
     apply (clarsimp simp add: vis_tau_aact_incompatible)
     apply (elim disjE conjE exE; simp)
      apply (metis two_steps_no_aopstep_then_no_double_aopstep)
-    apply (metis head_atomic_opstep_vis_aact not_tau_aact_iff snd_conv)
+    apply (metis head_atomic_implies_all_steps_vis not_tau_aact_iff snd_conv)
     done
 qed fastforce+
 
+(*
 definition secure_loop_states
   :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) \<times> ('l \<times> 's) \<Rightarrow> bool\<close>
   where
@@ -1836,7 +1842,7 @@ lemma aopstep_preserves_all_secure_loop_states:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow>
     all_secure_loop_states c \<le> all_secure_loop_states c'\<close>
   by (induct c arbitrary: \<pi>\<alpha> c') fastforce+
-
+*)
 
 lemma doublest_nostep_then_some_singlest_unliftC_nostep:
   assumes
@@ -1945,6 +1951,8 @@ next
 qed (fastforce split: prod.splits)+
 
 
+section \<open> Security \<close>
+
 text \<open>
   Like \<open>safe\<close>, but with an additional secure step condition.
 \<close>
@@ -2006,6 +2014,95 @@ inductive secure
     \<comment> \<open> conclude a step can be made \<close>
     secure R F G I q n c s\<close>
 
+lemma secure_postcondD[dest]:
+  \<open>secure R F G I q n c s \<Longrightarrow> c = Skip \<longrightarrow> q s\<close>
+  using secure.cases by blast
+
+lemma secure_invD[dest]:
+  \<open>secure R F G I q n c s \<Longrightarrow> I s\<close>
+  using secure.cases by blast
+
+lemma secure_suc_relyD:
+  \<open>secure R F G I q (Suc n) c s \<Longrightarrow> R (snd s) ss' \<Longrightarrow> secure R F G I q n c (fst s, ss')\<close>
+  by (erule secure.cases, simp)
+
+lemma secure_suc_stepD:
+  \<open>secure R F G I q (Suc n) c s \<Longrightarrow>
+    F (fs, snd s) \<Longrightarrow>
+    fst s ## fs \<Longrightarrow>
+    ((fst s + fs, snd s), c) \<midarrow>\<alpha>\<rightarrow> ((lfs', ss'), c') \<Longrightarrow>
+    (\<alpha> \<noteq> Tau \<longrightarrow> G (snd s) ss') \<and>
+    (\<exists>ls'.
+      ls' ## fs \<and> lfs' = ls' + fs \<and>
+      (\<alpha> = Tau \<longrightarrow> ls' = fst s) \<and>
+      secure R F G I q n c' (ls', ss'))\<close>
+  by (erule secure.cases, simp, blast)
+
+lemma secure_suc_securityD:
+  \<open>secure R F G I q (Suc n) c s \<Longrightarrow>
+    \<comment> \<open> the state is framed \<close>
+    F (fs, snd s) \<Longrightarrow>
+    fst s ## fs \<Longrightarrow>
+    sa = (fst s + fs, snd s) \<Longrightarrow>
+    exch4 sa = (sax, say) \<Longrightarrow>
+    \<comment> \<open> a paired-state step has two corresponding single-steps with the commands related
+          by unlifting. \<close>
+    (\<forall>sa' c' sax' say'.
+      (sa, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sa', c') \<longrightarrow>
+      exch4 sa' = (sax', say') \<longrightarrow>
+      (sax, unliftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', unliftC c') \<and>
+      (say, unliftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', unliftC c')) \<and>
+    \<comment> \<open> any two steps from the related initial states produce the same final command. \<close>
+    (\<forall>sax' say' cx' cy'.
+      (sax, unliftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
+      (say, unliftC c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
+      cx' = cy')\<close>
+  by (erule secure.cases, simp, metis)
+
+lemma secure_monoD:
+  \<open>secure R F G I q n c s \<Longrightarrow> 
+    R' \<le> R \<Longrightarrow> F' \<le> F \<Longrightarrow>
+    G \<le> G' \<Longrightarrow> I \<le> I' \<Longrightarrow>
+    q \<le> q' \<Longrightarrow> m \<le> n \<Longrightarrow>
+    secure R' F' G' I' q' m c s\<close>
+proof (induct arbitrary: m rule: secure.inducts)
+  case (secureI s ls ss c n)
+
+  obtain m' n' where m_splitting: \<open>m = 0 \<or> m = Suc m' \<and> n = Suc n' \<and> m' \<le> n'\<close>
+    using secureI.prems(6)
+    by (metis Suc_le_D Suc_le_eq less_Suc_eq_le not0_implies_Suc)
+
+  show ?case
+    using secureI.prems secureI.hyps(1-3)
+    apply -
+    apply (rule secure.secureI)
+      (* prod *)
+         apply blast
+      (* postcond *)
+        apply (metis predicate1D)
+      (* state invariant *)
+       apply (metis predicate1D)
+      (* rely *)
+      apply (cut_tac m_splitting)
+      apply (simp add: Suc_leq_iff, elim conjE)
+      apply (frule secureI.hyps(5); blast)
+      (* step *)
+     apply (cut_tac m_splitting)
+     apply (simp add: Suc_leq_iff, elim conjE)
+     apply (frule secureI.hyps(6), blast, force, force)
+     apply clarsimp
+     apply (rule conjI, blast)
+     apply metis
+      (* security *)
+    apply (cut_tac m_splitting)
+    apply (simp add: Suc_leq_iff, elim conjE)
+    apply (frule secureI.hyps(7); simp)
+    apply blast
+    done
+qed
+
+lemmas secure_mono_sucD =
+  secure_monoD[OF _ order.refl order.refl order.refl order.refl order.refl le_SucI[OF order.refl]]
 
 theorem safety_implies_security:
   fixes n :: nat
@@ -2152,5 +2249,6 @@ proof (induct rule: safe.induct)
       by (blast dest: same_initcomm_and_aact_then_same_fincomm)
   qed
 qed
+
 
 end

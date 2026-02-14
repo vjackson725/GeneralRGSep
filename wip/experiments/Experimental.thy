@@ -1,5 +1,5 @@
 theory Experimental
-  imports "../Util"
+  imports "../../Util"
 begin
 
 lemma refinement_atomic_condition1:
