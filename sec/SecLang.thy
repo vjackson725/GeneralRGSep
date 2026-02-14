@@ -5,7 +5,8 @@ begin
 section \<open> Security Programs \<close>
 
 definition
-  \<open>nonfail_ff p \<equiv> \<lambda>(l, ((sx,flx), (sy,fly))). p (l,(sx,sy)) \<and> flx = Running \<and> fly = Running\<close>
+  \<open>nonfail_ff p \<equiv>
+    \<lambda>(((lx,flx), (ly,fly)), s). p ((lx,ly), s) \<and> flx = Running \<and> fly = Running\<close>
 
 
 subsection \<open> Await \<close>
@@ -30,15 +31,15 @@ subsection \<open> Relational Assertion \<close>
 
 definition relassert_rel
   :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow>
-      (('l, 's \<times> fail_st) rgstate \<Rightarrow> ('l, 's \<times> fail_st) rgstate \<Rightarrow> bool)\<close>
+      (('l \<times> fail_st, 's) rgstate \<Rightarrow> ('l \<times> fail_st, 's) rgstate \<Rightarrow> bool)\<close>
   where
   \<open>relassert_rel p \<equiv>
-    \<lambda>(l, ((sx,flx), (sy,fly))) (l', (sx',flx'), (sy',fly')).
-      l' = l \<and> sx' = sx \<and> sy' = sy \<and>
-        ((p (l,(sx,sy)) \<or> flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
-          flx = Running \<and> fly = Running \<and> \<not> p (l,(sx,sy)) \<and> flx' = Failed \<and> fly' = Failed)\<close>
+    \<lambda>(((lx,flx), (ly,fly)), s) (((lx',flx'), (ly',fly')), s').
+      lx' = lx \<and> ly' = ly \<and> s' = s \<and>
+        ((p ((lx,ly),s) \<or> flx = Failed \<or> fly = Failed) \<and> flx' = flx \<and> fly' = fly \<or>
+          flx = Running \<and> fly = Running \<and> \<not> p ((lx,ly), s) \<and> flx' = Failed \<and> fly' = Failed)\<close>
 
-abbreviation RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> ('l, 's \<times> fail_st) rgstate comm\<close> where
+abbreviation RelAssert :: \<open>(('l, 's) rgstate \<Rightarrow> bool) \<Rightarrow> ('l \<times> fail_st, 's) rgstate comm\<close> where
   \<open>RelAssert p \<equiv> \<langle> relassert_rel p \<rangle>\<close>
 
 \<comment> \<open> We subtract off the post-states where the program crashes, as we assume these will always be
@@ -60,7 +61,7 @@ subsection \<open> Output \<close>
 
 definition output_rel
   :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow>
-        (('l, 's \<times> fail_st) rgstate \<Rightarrow> ('l, 's \<times> fail_st) rgstate \<Rightarrow> bool)\<close>
+        (('l \<times> fail_st, 's) rgstate \<Rightarrow> ('l \<times> fail_st, 's) rgstate \<Rightarrow> bool)\<close>
   where
     \<open>output_rel h \<equiv> relassert_rel (\<bbbA>\<^sub>\<ddagger> h)\<close>
 
