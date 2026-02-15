@@ -3,6 +3,27 @@ theory SecLang
 begin
 
 
+lemma pre_state_eq_eq[simp]:
+  \<open>pre_state (=) = \<top>\<close>
+  by (simp add: le_fun_def pre_state_eq_changedom_and_refl sup_shunt)
+
+lemma any_shared_pred_times_top_eq[simp]:
+  \<open>any_shared (p \<times>\<^sub>P \<top>) = p \<times>\<^sub>P \<top>\<close>
+  by (fastforce simp add: any_shared_def)
+
+lemma sepconj_conj_unit_right[simp]:
+  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
+  shows \<open>p \<^emph>\<and> (emp \<times>\<^sub>P \<top>) = p\<close>
+  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
+    (metis sepadd_unit_right unitof_disjoint2 unitof_is_sepadd_unit)
+
+lemma sepconj_conj_unit_left[simp]:
+  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
+  shows \<open>(emp \<times>\<^sub>P \<top>) \<^emph>\<and> p = p\<close>
+  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
+    (metis sepadd_unit_def unitof_disjoint unitof_is_sepadd_unit)
+
+
 subsection \<open> Pretty double-failure \<close>
 
 definition
@@ -37,7 +58,6 @@ lemma sswa_running2_pred_distrib:
 lemma any_shared_running2_pred_distrib:
   \<open>any_shared (running2_pred p) = running2_pred (any_shared p)\<close>
   by (force simp add: running2_pred_def)
-
 
 lemma running2_pred_mono[simp]:
   \<open>running2_pred p \<le> running2_pred q \<longleftrightarrow> p \<le> q\<close>
@@ -171,18 +191,16 @@ proof (intro rgsat_atom[where p=\<open>running2_pred p\<close> and q=\<open>runn
     done
   show \<open>rel_image snd (rel_liftL (wssa R (running2_pred p) \<^emph>\<and> running2_pred F) \<sqinter> output_rel h) \<le> G\<close>
     using main(1-2)
-    apply (simp add: wssa_running2_pred_distrib)
-    sledgehammer
-    sorry
-    apply (fastforce simp add: output_rel_def' running2_pred_def)
+    apply (simp add: wssa_running2_pred_distrib running2_pred_sepconj_conj_distrib output_rel_def')
+    apply (force simp add: running2_pred_def le_fun_def)
     done
 
   show \<open>wssa R (running2_pred p) \<le> running2_pred I\<close>
     using main
-    by (simp add: wssa_running2_pred_rev_distrib sswa_running2_pred_rev_distrib)
+    by (simp add: wssa_running2_pred_distrib)
   show \<open>sswa R (running2_pred (wssa R p)) \<le> running2_pred I\<close>
     using main
-    by (simp add: wssa_running2_pred_rev_distrib sswa_running2_pred_rev_distrib)
+    by (simp add: sswa_running2_pred_distrib)
 qed simp+
 
 
@@ -309,6 +327,16 @@ proof (intro rgsat_atom[OF order.refl order.refl])
     using assms(2)
     by (force simp add: declassify_rel_def')
 qed simp+
+
+lemma declassify_as_assume_helper:
+  \<open>\<forall>f\<le>emp \<times>\<^sub>P \<top>. (\<top> \<^emph>\<and> f) \<sqinter> \<bbbA>\<^sub>\<ddagger> h \<le> \<bbbA>\<^sub>\<ddagger> h \<^emph>\<and> any_shared f\<close>
+  apply (clarsimp simp add: le_fun_def emp_def sepconj_conj_def)
+  apply (metis sepadd_unit_right)
+  done
+
+lemmas declassify_as_assume =
+  rgsat_declassify[where R=\<open>(=)\<close> and p=\<open>\<top>\<close> and h=\<open>h :: ('l::multiunit_sep_alg \<times> 's) \<Rightarrow> bool\<close>
+                    and I=\<open>\<top>\<close> and F=\<open>emp \<times>\<^sub>P \<top>\<close> for h, simplified, OF declassify_as_assume_helper]
 
 
 section \<open> Purely Relational \<close>

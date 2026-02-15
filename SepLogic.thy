@@ -543,6 +543,9 @@ lemma unitof_is_unitR2[simp]: \<open>b ## unitof a \<Longrightarrow> b + unitof 
 lemma unitof_is_sepadd_unit: \<open>sepadd_unit (unitof a)\<close>
   by fastforce
 
+lemma sepadd_unit_then_eq_unitof: \<open>sepadd_unit a \<Longrightarrow> unitof a = a\<close>
+  by fastforce
+
 lemma unitof_idem[simp]: \<open>unitof (unitof a) = unitof a\<close>
   by (metis unitof_disjoint unitof_is_unit unitof_is_unitR2)
 
