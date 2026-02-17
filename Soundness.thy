@@ -173,25 +173,59 @@ lemma map_atom_step_preserved:
   done
 
 
-subsubsection \<open> iteraction with all_atom_comm \<close>
+subsubsection \<open> iteraction with subcommand collectors \<close>
 
-lemma opstep_preserves_all_atom_comm:
-  assumes
-    \<open>opstep \<alpha> (h, c) (h', c')\<close>
-    \<open>all_atom_comm p c\<close>
-  shows \<open>all_atom_comm p c'\<close>
+\<comment> \<open> set, not msets, as loops increase the atoms. \<close>
+lemma opstep_subcomm_atoms_set_mono:
+  fixes s :: 's
+    and c :: \<open>'s comm\<close>
+  assumes  \<open>(s, c) \<midarrow>\<alpha>\<rightarrow> (s', c')\<close>
+  shows \<open>set_mset (subcomm_atoms c') \<subseteq> set_mset (subcomm_atoms c)\<close>
 proof -
-  { fix s s'
-    have \<open>opstep \<alpha> s s' \<Longrightarrow> all_atom_comm p (snd s) \<Longrightarrow> all_atom_comm p (snd s')\<close>
-      by (induct \<alpha> s s' arbitrary: h' rule: opstep.induct)
-        (force split: if_splits)+
+  { fix sc sc' :: \<open>'s \<times> 's comm\<close>
+    have \<open>opstep \<alpha> sc sc' \<Longrightarrow> set_mset (subcomm_atoms (snd sc')) \<subseteq> set_mset (subcomm_atoms (snd sc))\<close>
+      by (induct \<alpha> sc sc' rule: opstep.induct) fastforce+
   }
   then show ?thesis
     using assms
     by (metis snd_conv)
 qed
 
-lemmas rev_opstep_preserves_all_atom_comm = opstep_preserves_all_atom_comm[rotated]
+lemma opstep_preserves_all_atom_comm:
+  \<open>opstep \<alpha> (h, c) (h', c') \<Longrightarrow> all_atoms p c \<le> all_atoms p c'\<close>
+  using opstep_subcomm_atoms_set_mono
+  by (force intro: Inf_mono simp add: all_atoms_def)
+
+lemmas opstep_preserves_all_atom_comm_rev = opstep_preserves_all_atom_comm[rotated]
+
+lemma opstep_preserves_all_loops_all_head_atoms:
+  \<open>opstep \<alpha> (h, c) (h', c') \<Longrightarrow> all_loops (all_head_atoms p) c \<le> all_loops (all_head_atoms p) c'\<close>
+  apply (induct c arbitrary: \<alpha> c')
+        apply force
+       apply (fastforce dest: inf_mono)
+      apply clarsimp
+      apply (elim disjE)
+        apply force
+       apply (metis all_loops_simps(5) inf_mono order_eq_refl)
+      apply (metis all_loops_simps(5) inf_mono order_eq_refl)
+     apply force
+    apply clarsimp
+    apply (elim disjE)
+         apply force
+        apply force
+       apply (metis all_loops_simps(4) inf_mono order_eq_refl)
+      apply (metis all_loops_simps(4) inf_mono order_eq_refl)
+     apply (blast dest: le_infI1)
+    apply (blast dest: le_infI2)
+   apply force
+  apply clarsimp
+  apply (elim disjE)
+   apply force
+  apply (force dest: le_infI2)
+  done
+
+lemmas opstep_preserves_all_loops_all_atoms_rev =
+  opstep_preserves_all_loops_all_head_atoms[rotated]
 
 
 subsection \<open> Opstep rules for defined programs \<close>
