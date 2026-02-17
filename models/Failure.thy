@@ -2,14 +2,10 @@ theory Failure
   imports "../Soundness"
 begin
 
+
+section \<open> Util \<close>
+
 (* TODO: move *)
-
-lemma non_dependent_all_concl_extract:
-  \<open>p x \<Longrightarrow> (\<forall>x. p x \<longrightarrow> q \<and> r x) \<longleftrightarrow> (\<forall>x. p x \<longrightarrow> r x) \<and> q\<close>
-  \<open>p x \<Longrightarrow> (\<forall>x. p x \<longrightarrow> r x \<and> q) \<longleftrightarrow> (\<forall>x. p x \<longrightarrow> r x) \<and> q\<close>
-  by blast+
-  
-
 
 lemma comp_inf_distrib:
   \<open>(a \<sqinter> b) \<circ> f = (a \<circ> f) \<sqinter> (b \<circ> f)\<close>
@@ -44,6 +40,10 @@ lemma (in order_bot) disj_leq_bot_iff[simp]:
   \<open>a \<le> b \<or> a \<le> \<bottom> \<longleftrightarrow> a \<le> b\<close>
   by (metis bot.extremum order_eq_iff)+
 
+
+section \<open> Helper Lemmas \<close>
+
+subsection \<open> State Capture \<close>
 
 definition capture_fst (\<open>\<lceil> _ \<rceil>\<^sub>1\<close> [0] 999) where
   \<open>\<lceil> f \<rceil>\<^sub>1 \<equiv> \<lambda>(a,b). f a (a,b)\<close>
@@ -81,8 +81,6 @@ notation(input) capture_snd (\<open>\<lceil> _ \<rceil>\<^sub>\<S>\<close> [0] 9
 abbreviation (in pre_perm_alg)
   \<open>all_disjoint_res \<equiv> \<lambda>a::'a. \<forall>b. \<not> a ## b\<close>
 
-
-section \<open> Helper Lemmas \<close>
 
 subsection \<open> Value at Location \<close>
 
@@ -165,7 +163,7 @@ lemma comp_ppABC_to_ppACB_comp_le_ppABC_to_ppACB_iff[simp]:
   by (force simp add: le_fun_def)
 
 
-subsection \<open> Failure \<close>
+section \<open> Failure \<close>
 
 subsection \<open> Definitions \<close>
 
@@ -175,7 +173,24 @@ abbreviation
 abbreviation
   \<open>failure_pred p \<equiv> (p \<times>\<^sub>P (=) Failed) \<circ> ppABC_to_ppACB\<close>
 
-\<comment> \<open> These two only work because the fail_st resources are duplicable, i.e. \<open>a + a = a\<close>. \<close>
+
+lemma nofailure_pred_Inf_distrib:
+  \<open>P \<noteq> {} \<Longrightarrow> nofailure_pred (Inf P) = Inf (nofailure_pred ` P)\<close>
+  by (fastforce simp add: fun_eq_iff sepconj_conj_def)
+
+lemma nofailure_pred_inf_distrib:
+  \<open>nofailure_pred (pa \<sqinter> pb) = nofailure_pred pa \<sqinter> nofailure_pred pb\<close>
+  by (fastforce simp add: fun_eq_iff sepconj_conj_def)
+
+lemma nofailure_pred_Sup_semidistrib:
+  \<open>nofailure_pred (Sup P) = Sup (nofailure_pred ` P)\<close>
+  by (fastforce simp add: fun_eq_iff sepconj_conj_def)
+
+lemma nofailure_pred_disj_distrib:
+  \<open>nofailure_pred (pa \<squnion> pb) = nofailure_pred pa \<squnion> nofailure_pred pb\<close>
+  by (force simp add: fun_eq_iff sepconj_conj_def)
+
+\<comment> \<open> These two work because the fail_st resources are duplicable, i.e. \<open>a + a = a\<close>. \<close>
 lemma nofailure_pred_sepconj_conj_distrib:
   \<open>nofailure_pred (pa \<^emph>\<and> pb) = nofailure_pred pa \<^emph>\<and> nofailure_pred pb\<close>
   using plus_fail_st_def
