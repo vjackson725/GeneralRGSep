@@ -214,32 +214,48 @@ lemma less_eq_comm_leftD:
 
 subsection \<open> Head Commands \<close>
 
-fun head_comms :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
-  \<open>head_comms Skip = {# Skip #}\<close>
-| \<open>head_comms (ca ;; cb) = add_mset (ca ;; cb) (head_comms ca)\<close>
-| \<open>head_comms (ca \<parallel> cb) = add_mset (ca \<parallel> cb) (head_comms ca + head_comms cb)\<close>
-| \<open>head_comms (ca \<^bold>\<sqinter> cb) = {# ca \<^bold>\<sqinter> cb #}\<close>
-| \<open>head_comms (ca \<^bold>\<box> cb) = add_mset (ca \<^bold>\<box> cb) (head_comms ca + head_comms cb)\<close>
-| \<open>head_comms \<langle>ar\<rangle> = {# \<langle>ar\<rangle> #}\<close>
-| \<open>head_comms (DO c OD) = add_mset (DO c OD) (head_comms c)\<close>
+fun head_subcomms :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
+  \<open>head_subcomms Skip = {# Skip #}\<close>
+| \<open>head_subcomms (ca ;; cb) = add_mset (ca ;; cb) (head_subcomms ca)\<close>
+| \<open>head_subcomms (ca \<parallel> cb) = add_mset (ca \<parallel> cb) (head_subcomms ca + head_subcomms cb)\<close>
+| \<open>head_subcomms (ca \<^bold>\<sqinter> cb) = {# ca \<^bold>\<sqinter> cb #}\<close>
+| \<open>head_subcomms (ca \<^bold>\<box> cb) = add_mset (ca \<^bold>\<box> cb) (head_subcomms ca + head_subcomms cb)\<close>
+| \<open>head_subcomms \<langle>ar\<rangle> = {# \<langle>ar\<rangle> #}\<close>
+| \<open>head_subcomms (DO c OD) = add_mset (DO c OD) (head_subcomms c)\<close>
 
 lemma heads_subcomm_original:
-  \<open>\<forall>c'\<in>#head_comms c. c' \<le> c\<close>
+  \<open>\<forall>c'\<in>#head_subcomms c. c' \<le> c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
 
 lemma heads_refl:
-  \<open>c \<in># head_comms c\<close>
+  \<open>c \<in># head_subcomms c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
 
-lemma head_comms_subset_subcomms:
-  \<open>head_comms c \<subseteq># subcomms c\<close>
+lemma head_subcomms_subset_subcomms:
+  \<open>head_subcomms c \<subseteq># subcomms c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
 
+subsection \<open> all head subcommands \<close>
 
-section \<open> Atomic Subcommands \<close>
+definition \<open>all_head_subcomms p c \<equiv> \<Sqinter>(p ` set_mset (head_subcomms c))\<close>
+
+lemmas all_head_subcomms_simps[simp] =
+  head_subcomms.simps[THEN arg_cong[where f=\<open>\<lambda>x. \<Sqinter>(p ` set_mset x)\<close> for p::\<open>_ \<Rightarrow> _::complete_lattice\<close>],
+    simplified all_head_subcomms_def[symmetric],
+    simplified, simplified image_Un Inf_union_distrib inf.assoc[symmetric],
+    simplified all_head_subcomms_def[symmetric]]
+
+lemma all_subcomms_implies_all_head_subcomms:
+  \<open>all_subcomms p c \<le> all_head_subcomms p c\<close>
+  unfolding all_subcomms_def all_head_subcomms_def
+  using head_subcomms_subset_subcomms
+  by (force intro: INF_mono dest: set_mset_mono)
+
+
+subsection \<open> Atomic Subcommands \<close>
 
 definition
   \<open>subcomm_atoms c \<equiv>
@@ -323,20 +339,16 @@ lemma all_loops_simps[simp]:
 subsection \<open> Head Atoms \<close>
 
 definition \<open>head_atoms c \<equiv>
-  image_mset (\<lambda>c'. THE a. \<langle>a\<rangle> = c') (filter_mset (\<lambda>c'. \<exists>a. c' = \<langle>a\<rangle>) (head_comms c))\<close>
+  image_mset (\<lambda>c'. THE a. \<langle>a\<rangle> = c') (filter_mset (\<lambda>c'. \<exists>a. c' = \<langle>a\<rangle>) (head_subcomms c))\<close>
 
-lemma head_atoms_eq[simp]:
-  \<open>head_atoms Skip = {#}\<close>
-  \<open>head_atoms (ca ;; cb) = head_atoms ca\<close>
-  \<open>head_atoms (ca \<parallel> cb) = (head_atoms ca + head_atoms cb)\<close>
-  \<open>head_atoms (ca \<^bold>\<sqinter> cb) = {#}\<close>
-  \<open>head_atoms (ca \<^bold>\<box> cb) = (head_atoms ca + head_atoms cb)\<close>
-  \<open>head_atoms \<langle>a\<rangle> = {# a #}\<close>
-  \<open>head_atoms (DO c OD) = head_atoms c\<close>
-  by (simp add: head_atoms_def)+
+lemmas head_atoms_simps[simp] =
+  head_subcomms.simps[
+    THEN arg_cong[where f=\<open>\<lambda>x. image_mset (\<lambda>c'. THE a. \<langle>a\<rangle> = c') (filter_mset (\<lambda>c'. \<exists>a. c' = \<langle>a\<rangle>) x)\<close>],
+    simplified head_atoms_def[symmetric], simplified,
+    simplified head_atoms_def[symmetric]]
 
 lemmas image_mset_head_atoms =
-  head_atoms_eq[THEN arg_cong[of _ _ \<open>image_mset _\<close>],
+  head_atoms_simps[THEN arg_cong[of _ _ \<open>image_mset _\<close>],
     simplified image_mset_empty image_mset_union,
     of f for f]
 
@@ -349,39 +361,45 @@ lemma head_atoms_eq_atoms_of_heads:
   \<open>head_atoms c =
     image_mset (\<lambda>c'. THE ar. c' = \<langle>ar\<rangle>)
       (filter_mset (\<lambda>c'. \<exists>ar. c' = \<langle>ar\<rangle>)
-        (head_comms c))\<close>
+        (head_subcomms c))\<close>
   by (induct c) simp+
 
 
 subsubsection \<open> All Head Atoms \<close>
 
-definition all_head_atoms :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
-  \<open>all_head_atoms f c \<equiv> \<Sqinter>{f a|a. \<langle>a\<rangle> \<in># head_comms c}\<close>
+definition \<open>all_head_atoms p c \<equiv> \<Sqinter>(p ` set_mset (head_atoms c))\<close>
 
-lemma all_head_atoms_simps[simp]:
-  \<open>all_head_atoms f Skip = \<top>\<close>
-  \<open>all_head_atoms f (c1 ;; c2) = all_head_atoms f c1\<close>
-  \<open>all_head_atoms f (c1 \<^bold>\<sqinter> c2) = \<top>\<close>
-  \<open>all_head_atoms f (c1 \<^bold>\<box> c2) = all_head_atoms f c1 \<sqinter> all_head_atoms f c2\<close>
-  \<open>all_head_atoms f (c1 \<parallel> c2) = all_head_atoms f c1 \<sqinter> all_head_atoms f c2\<close>
-  \<open>all_head_atoms f (DO c OD) = all_head_atoms f c\<close>
-  \<open>all_head_atoms f (Atomic ar) =  f ar\<close>
-  by (simp add: all_head_atoms_def all_conj_distrib conj_disj_distribL ex_disj_distrib
-      Collect_disj_eq Inf_union_distrib; fail)+
+lemmas all_head_atoms_simps[simp] =
+  head_atoms_simps[THEN arg_cong[where f=\<open>\<lambda>x. \<Sqinter>(p ` set_mset x)\<close> for p::\<open>_ \<Rightarrow> _::complete_lattice\<close>],
+    simplified all_head_atoms_def[symmetric],
+    simplified, simplified image_Un Inf_union_distrib,
+    simplified all_head_atoms_def[symmetric]]
 
 lemma all_atoms_implies_all_head_atoms:
   \<open>all_atoms f c \<le> all_head_atoms f c\<close>
+  using head_atoms_subseteq_subcomm_atoms
   apply (simp add: all_atoms_def all_head_atoms_def)
   apply (rule Inf_mono)
-  apply clarsimp
-  apply (metis order.refl heads_subcomm_original less_eq_comm_def)
+  apply (fastforce dest: mset_subset_eqD)
   done
+
+
+subsection \<open> Any Head Atom \<close>
+
+definition
+  \<open>any_head_atom p c \<equiv> \<Squnion>(p ` set_mset (head_atoms c))\<close>
+
+lemmas any_head_atom_simps[simp] =
+  head_atoms_simps[THEN arg_cong[where f=\<open>\<lambda>x. \<Squnion>(p ` set_mset x)\<close> for p::\<open>_ \<Rightarrow> _::complete_lattice\<close>],
+    simplified any_head_atom_def[symmetric],
+    simplified, simplified image_Un Sup_union_distrib,
+    simplified any_head_atom_def[symmetric]]
 
 
 subsection \<open> All Head Loops \<close>
 
 definition all_head_loops :: \<open>('s comm \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
-  \<open>all_head_loops f c \<equiv> \<Sqinter>{f c'|c'. DO c' OD \<in># head_comms c}\<close>
+  \<open>all_head_loops f c \<equiv> \<Sqinter>{f c'|c'. DO c' OD \<in># head_subcomms c}\<close>
 
 lemma all_head_loops_simps[simp]:
   \<open>all_head_loops f Skip = \<top>\<close>

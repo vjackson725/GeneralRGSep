@@ -51,11 +51,11 @@ lemma all_act_eq[simp]:
   by blast+
 
 lemma all_act_iff:
-  \<open>(\<forall>\<alpha>. p \<alpha>) \<longleftrightarrow> p Tau \<and> p Vis\<close>
+  \<open>All p \<longleftrightarrow> p Tau \<and> p Vis\<close>
   by (metis act_not_eq_iff(1))
 
 lemma ex_act_iff:
-  \<open>(\<exists>\<alpha>. p \<alpha>) \<longleftrightarrow> p Tau \<or> p Vis\<close>
+  \<open>Ex p \<longleftrightarrow> p Tau \<or> p Vis\<close>
   by (metis act_not_eq_iff(2))
 
 
@@ -95,8 +95,16 @@ paragraph \<open> Pretty operational semantics \<close>
 abbreviation pretty_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightarrow> _\<close> (\<open>_ \<midarrow>(_)\<rightarrow> _\<close> [60,0,60] 60) where
   \<open>sc \<midarrow>\<alpha>\<rightarrow> msc' \<equiv> opstep \<alpha> sc msc'\<close>
 
-abbreviation pretty_no_opstep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<close> [60] 60) where
+definition pretty_no_opstep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<close> [60] 60) where
   \<open>sc \<midarrow>/\<rightarrow> \<equiv> \<forall>\<alpha> sc'. \<not> opstep \<alpha> sc sc'\<close>
+
+lemma opstep_simp_loop[simp]:
+  \<open>opstep \<alpha> (s, DO c OD) sc' \<longleftrightarrow>
+    \<alpha> = Tau \<and> (s, c) \<midarrow>/\<rightarrow> \<and> sc' = (s, Skip) \<or>
+    (\<exists>s' c'. opstep \<alpha> (s, c) (s', c') \<and> sc' = (s', c' ;; DO c OD))\<close>
+  by (simp add: pretty_no_opstep_def)
+
+declare opstep.simps(6)[simp del]
 
 
 subsection \<open> Lemmas about opstep \<close>
@@ -155,7 +163,7 @@ lemma opstep_parallel_rightD:
 
 subsubsection \<open> Interaction with map_comm \<close>
 
-lemma map_atom_step_preserved:
+lemma opstep_preserves_map_atom:
   \<open>(s, map_atom f c) \<midarrow>\<alpha>\<rightarrow> (s', cx') \<Longrightarrow> \<exists>c'. cx' = map_atom f c'\<close>
   apply (induct c arbitrary: cx')
         apply force
@@ -251,7 +259,7 @@ lemma opstep_WhileLoop_iff[simp]:
   \<open>opstep \<alpha> (h, WhileLoop p c) s' \<longleftrightarrow>
     \<alpha> \<noteq> Tau \<and> p h \<and> s' = (h, (Skip ;; c) ;; DO Await p ;; c OD) \<or>
     \<alpha> = Tau \<and> \<not> p h \<and> s' = (h, Skip)\<close>
-  by (force simp add: WhileLoop_def await_rel_def pre_state_def)
+  by (force simp add: WhileLoop_def await_rel_def pre_state_def pretty_no_opstep_def)
 
 
 section \<open> Safe \<close>

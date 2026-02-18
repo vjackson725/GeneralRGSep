@@ -31,7 +31,7 @@ definition
     \<lambda>(((lx,flx), (ly,fly)), s). p ((lx,ly), s) \<and> flx = Running \<and> fly = Running\<close>
 
 definition
-  \<open>failure2_pred p \<equiv>
+  \<open>failed2_pred p \<equiv>
     \<lambda>(((lx,flx), (ly,fly)), s). p ((lx,ly), s) \<and> flx = Failed \<and> fly = Failed\<close>
 
 lemma subpred_running2_pred_iff:
@@ -68,8 +68,8 @@ lemma running2_pred_sepconj_conj_distrib:
   by (force simp add: running2_pred_def sepconj_conj_apply)
 
 lemma failure2_implies_running2_iff[simp]:
-  \<open>failure2_pred p \<le> running2_pred q \<longleftrightarrow> \<top> \<le> - p\<close>
-  by (simp add: failure2_pred_def running2_pred_def le_fun_def all_fail_st_eq)
+  \<open>failed2_pred p \<le> running2_pred q \<longleftrightarrow> \<top> \<le> - p\<close>
+  by (simp add: failed2_pred_def running2_pred_def le_fun_def all_fail_st_eq)
 
 
 abbreviation ff_rgsat_pretty
@@ -158,9 +158,9 @@ lemma output_quasirefl_blocking_steprel:
       pred_lift_exch4_def exch4_def fun_eq_iff sec_agree_exch4_def' running2_pred_def)
 
 lemma sp_output_rel_running2_pred_eq:
-  \<open>sp (output_rel h) (running2_pred p) = running2_pred (\<bbbA>\<^sub>\<ddagger> h \<sqinter> p) \<squnion> failure2_pred (- \<bbbA>\<^sub>\<ddagger> h \<sqinter> p)\<close>
+  \<open>sp (output_rel h) (running2_pred p) = running2_pred (\<bbbA>\<^sub>\<ddagger> h \<sqinter> p) \<squnion> failed2_pred (- \<bbbA>\<^sub>\<ddagger> h \<sqinter> p)\<close>
   by (force split: prod.splits simp add: sp_def output_rel_def' fun_eq_iff conj_disj_distribR
-      running2_pred_def failure2_pred_def)
+      running2_pred_def failed2_pred_def)
 
 
 lemma rgsat_output:

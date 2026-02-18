@@ -750,7 +750,7 @@ lemma not_vis_aact_iff[simp]:
   \<open>\<not> vis_aact \<pi>\<alpha> \<longleftrightarrow> tau_aact \<pi>\<alpha>\<close>
   using not_tau_aact_iff by blast
 
-lemma vis_tau_aact_incompatible:
+lemma vis_tau_aact_incompatible[simp]:
   \<open>vis_aact \<alpha> \<Longrightarrow> tau_aact \<alpha> = False\<close>
   \<open>tau_aact \<alpha> \<Longrightarrow> vis_aact \<alpha> = False\<close>
   by (simp add: tau_aact_def vis_aact_def)+
@@ -846,7 +846,7 @@ lemma pretty_no_aopstep_simps[simp]:
   \<open>(s, ca \<parallel> cb) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> (cb \<noteq> Skip \<or> ca \<noteq> Skip) \<and> (s, ca) \<midarrow>/\<rightarrow>\<^sub>a \<and> (s, cb) \<midarrow>/\<rightarrow>\<^sub>a\<close>
   \<open>(s, DO c OD) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> False\<close>
   \<open>(s, \<langle> ar \<rangle>) \<midarrow>/\<rightarrow>\<^sub>a \<longleftrightarrow> (\<nexists>s'. ar s s')\<close>
-  by (fastforce simp add: pretty_no_aopstep_def all_conj_distrib)+
+  by (simp add: pretty_no_aopstep_def all_act_iff all_conj_distrib; fastforce)+
 
 
 subsubsection \<open> aopstep lemmas \<close>
@@ -943,12 +943,12 @@ lemma no_opstep_then_no_aopstep:
 proof (induct c)
   case (Endet ca cb)
   then show ?case
-    by (simp, metis (full_types) act.distinct(1))
+    by (simp add: pretty_no_opstep_def, metis (full_types) act.distinct(1))
 next
   case (Iter ar)
   then show ?case
-    by (simp, metis (full_types) act.distinct(1))
-qed (clarsimp; blast)+
+    by (simp add: pretty_no_opstep_def, metis (full_types) act.distinct(1))
+qed (simp add: pretty_no_opstep_def; blast)+
 
 lemma opstep_then_aopstep:
   \<open>sc \<midarrow>\<alpha>\<rightarrow> sc' \<Longrightarrow> \<exists>\<pi>. sc \<midarrow>(\<pi>, \<alpha>)\<rightarrow>\<^sub>a sc'\<close>
@@ -969,7 +969,7 @@ qed force+
 
 lemma no_aopstep_then_no_opstep:
   \<open>(s, c) \<midarrow>/\<rightarrow>\<^sub>a \<Longrightarrow> (s, c) \<midarrow>/\<rightarrow>\<close>
-  by (meson pretty_no_aopstep_def opstep_then_aopstep)
+  by (meson pretty_no_aopstep_def opstep_then_aopstep pretty_no_opstep_def)
 
 lemma aopstep_then_opstep:
   \<open>sc \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<Longrightarrow> sc \<midarrow>snd \<pi>\<alpha>\<rightarrow> sc'\<close>
@@ -986,7 +986,7 @@ next
     using opstep_then_aopstep
     apply (cases \<open>snd \<pi>\<alpha>\<close>; simp)
      apply (clarsimp simp add: pretty_no_aopstep_def)
-     apply (metis prod.exhaust opstep_then_aopstep)
+     apply (metis prod.exhaust opstep_then_aopstep pretty_no_opstep_def)
     apply fastforce
     done
 qed force+
@@ -1359,33 +1359,17 @@ lemma head_atomic_implies_all_steps_vis:
 
 subsection \<open> Security Determinism \<close>
 
-definition
-  \<open>head_guards \<equiv> image_mset pre_state \<circ> head_atoms\<close>
-
-lemmas head_guards_eq[simp] =
-  image_mset_head_atoms[where f=pre_state,
-    simplified head_guards_def[symmetric] o_apply[symmetric, of _ head_atoms]]
-
+abbreviation \<open>any_head_guard \<equiv> any_head_atom pre_state\<close>
 
 fun branch_determ :: \<open>('l \<times> 's) comm \<Rightarrow> ('l, 's) secstate \<Rightarrow> bool\<close> where
   \<open>branch_determ (ca \<^bold>\<box> cb) = (
     (\<lambda>_. head_atomic ca) \<sqinter>
     (\<lambda>_. head_atomic cb) \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot>)\<close>
-| \<open>branch_determ (DO c OD) = (
-    (\<lambda>_. head_atomic c) \<sqinter>
-    \<bbbA> (\<Squnion>(set_mset (head_guards c))))\<close>
+    - \<lblot> any_head_guard ca \<bar> any_head_guard cb \<rblot> \<sqinter>
+    - \<lblot> any_head_guard cb \<bar> any_head_guard ca \<rblot>)\<close>
+| \<open>branch_determ (DO c OD) = ((\<lambda>_. head_atomic c) \<sqinter> \<bbbA> (any_head_guard c))\<close>
 | \<open>branch_determ (ca \<^bold>\<sqinter> cb) = (\<lambda>_. False)\<close>
 | \<open>branch_determ c = (\<lambda>_. True)\<close>
-
-lemma
-  \<open>pa \<sqinter> pb = \<bottom> \<Longrightarrow>
-    - \<lblot> pa \<bar> pb \<rblot> \<sqinter> - \<lblot> pb \<bar> pa \<rblot> \<le> \<bbbA> pa \<sqinter> \<bbbA> pb\<close>
-  apply (simp add: sec_agree_def le_fun_def fun_eq_iff)
-  nitpick
-  oops
-
 
 lemma branch_determ_symp:
   \<open>symp (curry (branch_determ c))\<close>
@@ -1397,68 +1381,11 @@ lemma head_atom_equivalence_helper:
   by (fastforce simp add: pre_state_def)
 
 
-definition
-  \<open>head_branch_determ c \<equiv> \<Sqinter>{branch_determ c'|c'. c' \<in># head_comms c}\<close>
+abbreviation
+  \<open>head_branch_determ \<equiv> all_head_subcomms branch_determ\<close>
 
-lemma head_branch_determ_eq[simp]:
-  \<open>head_branch_determ Skip = \<top>\<close>
-  \<open>head_branch_determ (ca ;; cb) = head_branch_determ ca\<close>
-  \<open>head_branch_determ (ca \<^bold>\<sqinter> cb) = \<bottom>\<close>
-  \<open>head_branch_determ \<langle>ra\<rangle> = \<top>\<close>
-  \<open>head_branch_determ (ca \<parallel> cb) = head_branch_determ ca \<sqinter> head_branch_determ cb\<close>
-  \<open>head_branch_determ (ca \<^bold>\<box> cb) =
-    (\<lambda>_. head_atomic ca) \<sqinter>
-    (\<lambda>_. head_atomic cb) \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot> \<sqinter>
-    head_branch_determ ca \<sqinter>
-    head_branch_determ cb\<close>
-  \<open>head_branch_determ (DO c OD) =
-    (\<lambda>_. head_atomic c) \<sqinter>
-    \<bbbA> (\<Squnion>(set_mset (head_guards c))) \<sqinter>
-    head_branch_determ c\<close>
-  by (clarsimp simp add: head_branch_determ_def conj_disj_distribL
-      ex_disj_distrib Collect_disj_eq; blast)+
-
-lemma head_branch_determ_implies_branch_determ:
-  \<open>head_branch_determ c s \<Longrightarrow> branch_determ c s\<close>
-  using heads_refl
-  by (force simp add: head_branch_determ_def)
-
-
-definition
-  \<open>all_branch_determ c \<equiv> \<Sqinter>{branch_determ c'|c'. c' \<le> c}\<close>
-
-lemma all_branch_determ_eq[simp]:
-  \<open>all_branch_determ Skip = \<top>\<close>
-  \<open>all_branch_determ (ca ;; cb) = all_branch_determ ca \<sqinter> all_branch_determ cb\<close>
-  \<open>all_branch_determ (ca \<^bold>\<sqinter> cb) = \<bottom>\<close>
-  \<open>all_branch_determ \<langle>ra\<rangle> = \<top>\<close>
-  \<open>all_branch_determ (ca \<parallel> cb) = all_branch_determ ca \<sqinter> all_branch_determ cb\<close>
-  \<open>all_branch_determ (ca \<^bold>\<box> cb) =
-    (\<lambda>_. head_atomic ca) \<sqinter>
-    (\<lambda>_. head_atomic cb) \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards ca)) \<bar> \<Squnion>(set_mset (head_guards cb)) \<rblot> \<sqinter>
-    - \<lblot> \<Squnion>(set_mset (head_guards cb)) \<bar> \<Squnion>(set_mset (head_guards ca)) \<rblot> \<sqinter>
-    all_branch_determ ca \<sqinter>
-    all_branch_determ cb\<close>
-  \<open>all_branch_determ (DO c OD) =
-    (\<lambda>_. head_atomic c) \<sqinter>
-    (\<lambda>_. head_atomic c) \<sqinter>
-    \<bbbA> (\<Squnion>(set_mset (head_guards c))) \<sqinter>
-    all_branch_determ c\<close>
-  by (clarsimp simp add: all_branch_determ_def conj_disj_distribL
-      ex_disj_distrib Collect_disj_eq; blast)+
-
-lemma all_branch_determ_implies_head_branch_determ:
-  \<open>all_branch_determ c s \<Longrightarrow> head_branch_determ c s\<close>
-  by (clarsimp simp add: all_branch_determ_def head_branch_determ_def,
-      metis heads_subcomm_original)
-
-lemma all_branch_determ_implies_branch_determ:
-  \<open>all_branch_determ c s \<Longrightarrow> branch_determ c s\<close>
-  by (clarsimp simp add: all_branch_determ_def, blast)
-
+abbreviation
+  \<open>all_branch_determ \<equiv> all_subcomms branch_determ\<close>
 
 lemma aopstep_preserves_all_branch_determ:
   \<open>(s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (s', c') \<Longrightarrow> all_branch_determ c \<le> all_branch_determ c'\<close>
@@ -1497,9 +1424,7 @@ qed fastforce+
 subsubsection \<open> Sec. Determ. Lemmas \<close>
 
 lemma state_in_head_guards_then_aopstep_exists:
-  \<open>(\<exists>p\<in>#head_guards c. p s) \<Longrightarrow>
-    \<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<and> vis_aact (snd \<pi>\<alpha>)\<close>
-  unfolding head_guards_def
+  \<open>any_head_guard c s \<Longrightarrow> \<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc' \<and> vis_aact (snd \<pi>\<alpha>)\<close>
 proof (induct c)
   case (Seq c1 c2)
   then show ?case
@@ -1516,35 +1441,25 @@ qed (clarsimp simp add: pre_state_def; blast)+
 
 lemma state_not_in_head_guards_then_no_aopstep:
   \<open>head_atomic c \<Longrightarrow>
-    \<forall>p\<in>#head_guards c. \<not> p s \<Longrightarrow>
+    \<not> any_head_guard c s \<Longrightarrow>
     (s, c) \<midarrow>/\<rightarrow>\<^sub>a \<close>
-proof (induct c)
-  case (Seq c1 c2)
-  then show ?case
-    by (simp add: head_guards_def, metis head_atomic.simps(1))
-next
-  case (Par c1 c2)
-  then show ?case
-    by (simp add: head_guards_def ball_Un, metis head_atomic.simps(1))
-next
-  case (Endet c1 c2)
-  then show ?case
-    by (simp add: head_guards_def ball_Un, metis head_atomic.simps(1))
-next
-  case (Iter c)
-  then show ?case
-    by (metis head_atomic.simps(7))
-qed (simp add: head_guards_def pre_state_def)+
+  by (induct c)
+    (clarsimp simp add: pre_state_def; meson head_atomic.simps(1))+
 
 lemma state_not_in_head_guards_iff_not_nostep:
-  \<open>head_atomic c \<Longrightarrow> (\<exists>p\<in>#head_guards c. p s) \<longleftrightarrow> (\<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc')\<close>
+  \<open>head_atomic c \<Longrightarrow> any_head_guard c s \<longleftrightarrow> (\<exists>\<pi>\<alpha> sc'. (s, c) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a sc')\<close>
   by (metis state_in_head_guards_then_aopstep_exists
       state_not_in_head_guards_then_no_aopstep pretty_no_aopstep_def)
 
-lemma head_atomic_nostep_iff_state_not_in_head_guards:
-  \<open>head_atomic c \<Longrightarrow> (\<forall>p\<in>#head_guards c. \<not> p s) \<longleftrightarrow> (s, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
+lemma head_atomic_then_state_not_in_head_guards_iff_no_aopstep:
+  \<open>head_atomic c \<Longrightarrow> \<not> any_head_guard c s \<longleftrightarrow> (s, c) \<midarrow>/\<rightarrow>\<^sub>a\<close>
   using state_not_in_head_guards_iff_not_nostep pretty_no_aopstep_def
   by metis
+
+lemma head_atomic_then_state_not_in_head_guards_iff_no_opstep:
+  \<open>head_atomic c \<Longrightarrow> \<not> any_head_guard c s \<longleftrightarrow> (s, c) \<midarrow>/\<rightarrow>\<close>
+  by (metis head_atomic_then_state_not_in_head_guards_iff_no_aopstep no_aopstep_then_no_opstep
+      no_opstep_then_no_aopstep)
 
 
 subsubsection \<open> The Key Lemmas \<close>
@@ -1568,12 +1483,11 @@ proof -
     proof (induct _ sc sc' arbitrary: sy sy' cy' rule: aopstep_induct)
       case (Endet \<pi>\<alpha> sx ca cb sc')
       then show ?case
-        apply simp
+        apply (clarsimp simp add: head_atomic_then_state_not_in_head_guards_iff_no_aopstep)
         apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-         apply (clarsimp simp add: vis_tau_aact_incompatible
-            head_atomic_nostep_iff_state_not_in_head_guards)
-         apply (metis pretty_no_aopstep_def split_pairs2 vis_tau_aact_eq(3))
-        apply (clarsimp simp add: head_atomic_nostep_iff_state_not_in_head_guards)
+         apply clarsimp
+         apply (metis pretty_no_aopstep_def split_pairs state_not_in_head_guards_iff_not_nostep)
+        apply clarsimp
         apply (metis head_atomic_implies_all_steps_vis split_pairs tau_aact_def vis_tau_aact_eq(3))
         done
     next
@@ -1643,10 +1557,10 @@ proof (induct c arbitrary: sx sy sx' sy' c' \<pi>\<alpha>)
   case (Endet c1 c2)
   then show ?case
     apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-     apply (clarsimp simp add: vis_tau_aact_incompatible
-        head_atomic_nostep_iff_state_not_in_head_guards)
-     apply (metis Endet.hyps(1,2) head_atomic.simps(1) pretty_no_aopstep_def)
-    apply (simp add: vis_tau_aact_incompatible)
+     apply (clarsimp simp add: head_atomic_then_state_not_in_head_guards_iff_no_aopstep)
+     apply (metis Endet.hyps(1,2) head_atomic_then_state_not_in_head_guards_iff_no_aopstep
+        pretty_no_aopstep_def)
+    apply clarsimp
     apply (metis head_atomic.simps(1) head_atomic_implies_all_steps_vis not_tau_aact_iff split_pairs)
     done
 next
@@ -1654,11 +1568,10 @@ next
   show ?case
     using Iter.prems
     apply (case_tac \<open>vis_aact (snd \<pi>\<alpha>)\<close>)
-     apply (clarsimp simp add: vis_tau_aact_incompatible)
-    
+     apply clarsimp
      apply (drule(2) Iter.hyps)
      apply force
-    apply (clarsimp simp add: vis_tau_aact_incompatible)
+    apply clarsimp
     apply (elim disjE conjE exE; simp)
      apply (metis two_steps_no_aopstep_then_no_double_aopstep)
     apply (metis head_atomic_implies_all_steps_vis not_tau_aact_iff snd_conv)
@@ -2037,7 +1950,8 @@ proof (induct rule: safe.induct)
       using exch4_two_apply s_eq safeI.hyps(2) safeI.prems(3) assms2(2,3)
       by (clarsimp simp add: le_fun_def all_conj_distrib sepconj_conjI)
     moreover then have \<open>head_branch_determ (unliftC cc) ((lsx + fst f, ssx), (lsy + snd f, ssy))\<close>
-      by (simp add: all_branch_determ_implies_head_branch_determ)
+      using all_subcomms_implies_all_head_subcomms
+      by blast
     moreover obtain \<pi> where equiv_aopstep:
       \<open>((ls + f, ss), cc) \<midarrow>(\<pi>, \<alpha>)\<rightarrow>\<^sub>a ((lsf', ss'), cc')\<close>
       using assms2 opstep_then_aopstep
@@ -2102,13 +2016,12 @@ proof (induct rule: safe.induct)
     have \<open>all_branch_determ (unliftC cc) (sax, say)\<close>
       using s_eq safeI.hyps(2) safeI.prems(3) assms2(2-5)
       by (metis (no_types, lifting) comp_def predicate1D sepconj_conjI)
-    then have \<open>head_branch_determ (unliftC cc) (sax, say)\<close>
-      by (simp add: all_branch_determ_implies_head_branch_determ)
     then show
       \<open>\<forall>sax' say' cx' cy'.
         (sax, unliftC cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (sax', cx') \<longrightarrow>
         (say, unliftC cc) \<midarrow>\<pi>\<alpha>\<rightarrow>\<^sub>a (say', cy') \<longrightarrow>
         cx' = cy'\<close>
+      using all_subcomms_implies_all_head_subcomms
       by (blast dest: same_initcomm_and_aact_then_same_fincomm)
   qed
 qed
