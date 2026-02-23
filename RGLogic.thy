@@ -261,9 +261,10 @@ datatype rgsep_rule =
   RGSepDisj |
   RGSepConj
 
+\<comment> \<open> This does not integrate the guarantee test into the steprel. \<close>
 lemma
   \<open>(\<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> sp ((=) \<times>\<^sub>R G) f) \<Longrightarrow>
-    rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G\<close>
+    rel_image snd (pretest (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G\<close>
   apply (clarsimp simp add: le_fun_def sp_def sepconj_conj_def wlp_def)
   apply (drule spec, drule mp, force)
   apply (rename_tac ss ss' ls lfs' fs)
@@ -333,7 +334,7 @@ inductive rgsat ::
     \<comment> \<open> step \<close>
     \<forall>f\<le>F. sp ar (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     \<comment> \<open> guarantee condition \<close>
-    rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
+    rel_image snd (pretest (wssa R p \<^emph>\<and> F) \<sqinter> ar) \<le> G \<Longrightarrow>
     \<comment> \<open> misc \<close>
     wssa R p \<le> I \<Longrightarrow>
     sswa R q \<le> I \<Longrightarrow>
@@ -512,7 +513,7 @@ subsection \<open> Await \<close>
 
 lemma rgsat_await:
   assumes framed_step: \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> p' \<le> q \<^emph>\<and> any_shared f\<close>
-    and guar: \<open>rel_image snd (rel_liftL ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
+    and guar: \<open>rel_image snd (pretest ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
     and stinv:
     \<open>wssa R p \<le> I\<close>
     \<open>sswa R q \<le> I\<close>
@@ -522,13 +523,13 @@ lemma rgsat_await:
   using assms
   unfolding await_rel_def
   by (intro rgsat_atom[where p=p and q=q])
-      (simp add: rel_liftL_conj_distrib inf.assoc)+
+      (simp add: pretest_conj_distrib inf.assoc)+
 
 text \<open> Specialise the rule to the strongest \<open>q\<close> \<close>
 lemma rgsat_await':
   assumes framed_step:
     \<open>\<forall>f\<le>F. (wssa R p \<^emph>\<and> f) \<sqinter> p' \<le> (wssa R p \<sqinter> p') \<^emph>\<and> any_shared f\<close>
-    and guar: \<open>rel_image snd (rel_liftL ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
+    and guar: \<open>rel_image snd (pretest ((wssa R p \<^emph>\<and> F) \<sqinter> p') \<sqinter> (=)) \<le> G\<close>
     and stinv:
     \<open>wssa R p \<le> I\<close>
     \<open>sswa R (wssa R p \<sqinter> p') \<le> I\<close>
@@ -565,7 +566,7 @@ lemma rgsat_if_then_else:
     \<open>R, G, Ia, F, T \<turnstile> { sswa R (sswa R p \<sqinter> pp) } ctt { qa }\<close>
     \<open>R, G, Ib, F, T \<turnstile> { sswa R (sswa R p \<sqinter> -pp) } cff { qb }\<close>
     and misc_assms:
-    \<open>rel_liftL (sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
+    \<open>pretest (sswa R p \<^emph>\<and> F) \<sqinter> (=) \<le> \<top> \<times>\<^sub>R G\<close>
     \<open>sswa R p \<le> I\<close>
     \<open>Ia \<le> I\<close>
     \<open>Ib \<le> I\<close>
@@ -587,7 +588,7 @@ proof (intro
     using misc_assms assms(1) tt_guard_frame_cond
     apply (intro rgsat_await'[where R=R and p=\<open>sswa R p\<close>, simplified])
         apply blast
-       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois pretest_conj_eq; fail)
       apply blast
      apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
     apply blast
@@ -599,7 +600,7 @@ proof (intro
     using ff_guard_frame_cond misc_assms assms
     apply (intro rgsat_await'[where R=R and p=\<open>sswa R p\<close>, simplified])
         apply blast
-       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois rel_liftL_conj_eq; fail)
+       apply (simp add: inf_sup_aci(2,3) le_infI2 rel_image_snd_galois pretest_conj_eq; fail)
       apply blast
      apply (metis order.refl inf_sup_ord(1) wlp_weaker_iff_sp_stronger wssa_over_sswa_eq)
     apply blast
@@ -626,7 +627,7 @@ subsection \<open> WhileLoop \<close>
 
 lemma rgsat_while:
   assumes
-    \<open>rel_image snd (rel_liftL ((sswa R ii \<^emph>\<and> F) \<sqinter> px) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (pretest ((sswa R ii \<^emph>\<and> F) \<sqinter> px) \<sqinter> (=)) \<le> G\<close>
     \<open>\<forall>f\<le>F. (sswa R ii \<^emph>\<and> f) \<sqinter> px \<le> (sswa R ii \<sqinter> px) \<^emph>\<and> any_shared f\<close>
     \<open>sswa R (sswa R ii \<sqinter> px) \<le> sswa R ii\<close>
     \<open>sswa R ii \<le> I\<close>
@@ -645,7 +646,7 @@ lemma rgsat_while:
   by (intro rgsat_iter[where i=ii and I=I,
         OF rgsat_seq[where I=I and Ia=I and Ib=I and pp=\<open>sswa R (sswa R ii \<sqinter> px)\<close>,
           OF rgsat_atom[where p=\<open>sswa R ii\<close> and q=\<open>sswa R ii \<sqinter> px\<close>]]])
-    (simp add: await_rel_def inf_assoc rel_liftL_conj_distrib; fail)+
+    (simp add: await_rel_def inf_assoc pretest_conj_distrib; fail)+
 
 
 section \<open> Atom Variants \<close>
@@ -667,8 +668,8 @@ text \<open>
 lemma atom_variant_pointwise_frame:
     \<open>(\<forall>f\<le>F. p \<^emph>\<and> f \<le> ap) \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> p \<^emph>\<and> (=) f \<le> ap)\<close>
     \<open>(\<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longleftrightarrow> (\<forall>f. F f \<longrightarrow> sp aq (p \<^emph>\<and> (=) f) \<le> q \<^emph>\<and> (=) f)\<close>
-    \<open>(\<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow>
-      (\<forall>f. F f \<longrightarrow> rel_liftL (p \<^emph>\<and> (=) f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
+    \<open>(\<forall>f\<le>F. pretest (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow>
+      (\<forall>f. F f \<longrightarrow> pretest (p \<^emph>\<and> (=) f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g)\<close>
     apply (clarsimp simp add: le_fun_def sepconj_conj_def, metis)
    apply (rule order.antisym)
     apply (clarsimp simp add: le_fun_def; fail)
@@ -683,7 +684,7 @@ text \<open>
 lemma atom_variant_compressed_frame:
     \<open>(\<forall>f\<le>F. p \<^emph>\<and> f \<le> ap) \<longleftrightarrow> p \<^emph>\<and> F \<le> ap\<close>
     \<open>(\<forall>f\<le>F. sp aq (p \<^emph>\<and> f) \<le> q \<^emph>\<and> f) \<longrightarrow> (sp aq (p \<^emph>\<and> F) \<le> q \<^emph>\<and> F)\<close>
-    \<open>(\<forall>f\<le>F. rel_liftL (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow> rel_liftL (p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g\<close>
+    \<open>(\<forall>f\<le>F. pretest (p \<^emph>\<and> f) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g) \<longleftrightarrow> pretest (p \<^emph>\<and> F) \<sqinter> aq \<le> \<top> \<times>\<^sub>R g\<close>
     apply (clarsimp simp add: le_fun_def sepconj_conj_def; fast)
    apply (clarsimp simp add: le_fun_def sepconj_conj_def sp_def imp_conjL imp_ex_conjL; fail)
   apply (rule order.antisym; simp add: le_fun_def sepconj_conj_def imp_conjL imp_ex_conjL; metis)
@@ -714,19 +715,19 @@ lemma Sup_sepconjConj_framest_equiv_sepconjConj_frame:
   done
 
 lemma guar_rel_collapse_frames:
-  \<open>\<Squnion>{rel_liftL (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} = rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> aq\<close>
+  \<open>\<Squnion>{pretest (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} = pretest (wssa R p \<^emph>\<and> F) \<sqinter> aq\<close>
 proof -
-  have \<open>\<Squnion>{rel_liftL (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} =
-    \<Squnion>((\<lambda>x. rel_liftL x \<sqinter> aq) ` {wssa R p \<^emph>\<and> f|f. f \<le> F})\<close>
+  have \<open>\<Squnion>{pretest (wssa R p \<^emph>\<and> f) \<sqinter> aq|f. f \<le> F} =
+    \<Squnion>((\<lambda>x. pretest x \<sqinter> aq) ` {wssa R p \<^emph>\<and> f|f. f \<le> F})\<close>
     by (clarsimp simp add: image_def, blast)
-  also have \<open>... = rel_liftL (\<Squnion>{wssa R p \<^emph>\<and> f|f. f \<le> F}) \<sqinter> aq\<close>
+  also have \<open>... = pretest (\<Squnion>{wssa R p \<^emph>\<and> f|f. f \<le> F}) \<sqinter> aq\<close>
     by (simp add: fun_eq_iff)
   ultimately show ?thesis
     by (simp add: Sup_sepconjConj_framest_equiv_sepconjConj_frame)
 qed
 
 lemma guar_combine:
-  \<open>(rel_liftL p \<sqinter> ar) \<squnion> (rel_liftL (p \<^emph>\<and> F) \<sqinter> ar) = rel_liftL (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar\<close>
-  by (simp add: inf_sup_distrib2 rel_liftL_disj_distrib)
+  \<open>(pretest p \<sqinter> ar) \<squnion> (pretest (p \<^emph>\<and> F) \<sqinter> ar) = pretest (p \<squnion> p \<^emph>\<and> F) \<sqinter> ar\<close>
+  by (simp add: inf_sup_distrib2 pretest_disj_distrib)
 
 end

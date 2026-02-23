@@ -49,8 +49,25 @@ lemma map_atom_rev_iff:
 
 lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
 
+lemma map_atom_neq_Skip_iff[simp]:
+  \<open>map_atom f c \<noteq> Skip \<longleftrightarrow> c \<noteq> Skip\<close>
+  by (induct c) simp+
+
 lemma map_atom_fusion[simp]:
   \<open>map_atom f (map_atom g c) = map_atom (f \<circ> g) c\<close>
+  by (induct c) simp+
+
+lemma map_atom_inj_eq_iff_eq:
+  \<open>inj f \<Longrightarrow> map_atom f ca = map_atom f cb \<longleftrightarrow> ca = cb\<close>
+proof (induct ca arbitrary: cb)
+  case (Atomic x)
+  then show ?case
+    by (clarsimp simp add: map_atom_rev_iff2)
+      (metis injD)
+qed (simp add: map_atom_rev_iff2; fast)+
+
+lemma map_atom_id_eq[simp]:
+  \<open>map_atom id c = c\<close>
   by (induct c) simp+
 
 
@@ -224,7 +241,7 @@ fun head_subcomms :: \<open>'s comm \<Rightarrow> 's comm multiset\<close> where
 | \<open>head_subcomms (DO c OD) = add_mset (DO c OD) (head_subcomms c)\<close>
 
 lemma heads_subcomm_original:
-  \<open>\<forall>c'\<in>#head_subcomms c. c' \<le> c\<close>
+  \<open>\<forall>c'\<in>#head_subcomms c. c' \<in># subcomms c\<close>
   by (induct c)
     (force simp add: subset_mset.add_increasing2 subset_mset.add_mono)+
 
@@ -387,7 +404,8 @@ lemma all_atoms_implies_all_head_atoms:
 subsection \<open> Any Head Atom \<close>
 
 definition
-  \<open>any_head_atom p c \<equiv> \<Squnion>(p ` set_mset (head_atoms c))\<close>
+  \<open>any_head_atom (p :: _ \<Rightarrow> 'l::complete_lattice) c \<equiv>
+    \<Squnion>(p ` set_mset (head_atoms c))\<close>
 
 lemmas any_head_atom_simps[simp] =
   head_atoms_simps[THEN arg_cong[where f=\<open>\<lambda>x. \<Squnion>(p ` set_mset x)\<close> for p::\<open>_ \<Rightarrow> _::complete_lattice\<close>],
@@ -424,33 +442,33 @@ lemma all_loops_implies_all_head_loops:
 subsection \<open> Atom Headed \<close>
 
 text \<open>
-  A predicate to determine if every executable subcommand in this command is an atom.
-  (As opposed to a command like \<open>Skip; c\<close>.) Note that a do-loop is also a head,
-  as when the loop's subcommand is blocked, it can reduce itself.
+  A syntactic check for stability (inability to make tau moves) on every state.
 
-  Note that this is not just an application of \<open>all_head_comm\<close> as that includes all programs
-  that contain the 'principal' heads containing.
+  A predicate to determine if the directly executed subcommand is an atom.
+  (As opposed to a command like \<open>Skip; c\<close>.)
+  Note that a do-loop is also an executable head,
+  as when the loop's subcommand is blocked, it can reduce itself.
 \<close>
-fun head_atomic :: \<open>'s comm \<Rightarrow> bool\<close> where
-  \<open>head_atomic Skip = False\<close>
-| \<open>head_atomic (ca ;; cb) = head_atomic ca\<close>
-| \<open>head_atomic (ca \<parallel> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
+fun head_atomic where
+  \<open>head_atomic Skip = True\<close>
+| \<open>head_atomic (ca ;; cb) = (ca \<noteq> Skip \<and> head_atomic ca)\<close>
+| \<open>head_atomic (ca \<parallel> cb) = ((ca \<noteq> Skip \<or> cb \<noteq> Skip) \<and> head_atomic ca \<and> head_atomic cb)\<close>
+| \<open>head_atomic (ca \<^bold>\<box> cb) = ((ca \<noteq> Skip \<and> cb \<noteq> Skip) \<and> head_atomic ca \<and> head_atomic cb)\<close>
 | \<open>head_atomic (ca \<^bold>\<sqinter> cb) = False\<close>
-| \<open>head_atomic (ca \<^bold>\<box> cb) = (head_atomic ca \<and> head_atomic cb)\<close>
 | \<open>head_atomic \<langle>ar\<rangle> = True\<close>
-| \<open>head_atomic (DO c OD) = False\<close>
+| \<open>head_atomic (DO c OD) = (All (any_head_atom pre_state c) \<and> head_atomic c)\<close>
 
 
 section \<open> Specific Commands \<close>
 
 subsection \<open> Await \<close>
 
-definition \<open>await_rel p \<equiv> rel_liftL p \<sqinter> (=)\<close>
+definition \<open>await_rel p \<equiv> pretest p \<sqinter> (=)\<close>
 abbreviation \<open>Await p \<equiv> Atomic (await_rel p)\<close>
 
 lemma await_rel_inject[simp]:
   \<open>await_rel p1 = await_rel p2 \<longleftrightarrow> p1 = p2\<close>
-  by (force simp add: await_rel_def fun_eq_iff rel_lift_def)
+  by (force simp add: await_rel_def fun_eq_iff pretest_def)
 
 lemma sp_await_rel[simp]:
   \<open>sp (await_rel p) = (\<sqinter>) p\<close>
