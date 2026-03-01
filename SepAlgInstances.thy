@@ -898,10 +898,6 @@ definition zero_fun :: \<open>('a \<Rightarrow> 'b)\<close> where
   \<open>zero_fun \<equiv> \<lambda>x. 0\<close>
 declare zero_fun_def[simp]
 
-definition bot_fun :: \<open>('a \<Rightarrow> 'b)\<close> where
-  \<open>bot_fun \<equiv> \<lambda>x. 0\<close>
-declare bot_fun_def[simp]
-
 instance
   by standard
     (fastforce simp add: fun_eq_iff less_eq_sepadd_fun_eq2)+
@@ -1131,7 +1127,7 @@ instance discr :: (boolean_algebra) boolean_algebra
   by standard (transfer, simp add: diff_eq)+
 
 
-section \<open> Fractional FPermissions \<close>
+section \<open> Fractional Permissions \<close>
 
 typedef(overloaded) ('a::\<open>{linordered_semiring,zero_less_one}\<close>) fperm =
   \<open>{x. (0::'a) < x \<and> x \<le> 1}\<close>

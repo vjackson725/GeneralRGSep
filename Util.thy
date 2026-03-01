@@ -30,38 +30,67 @@ lemma top_embed_to_bool_eq[simp]:
 context boolean_algebra
 begin
 
-definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<leadsto>" 60) where
-  "a \<leadsto> b \<equiv> -a \<squnion> b"
+definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<rightarrow>" 60) where
+  "a \<rightarrow> b \<equiv> -a \<squnion> b"
+
+lemma not_impl_eq[simp]:
+  \<open>- (a \<rightarrow> b) = a \<sqinter> - b\<close>
+  by (simp add: impl_def)
 
 lemma impl_shunt:
-  \<open>c \<sqinter> a \<le> b \<longleftrightarrow> c \<le> a \<leadsto> b\<close>
+  \<open>c \<sqinter> a \<le> b \<longleftrightarrow> c \<le> a \<rightarrow> b\<close>
   by (simp add: impl_def shunt1)
 
-lemma impl_shunt2:
-  \<open>-(a \<leadsto> b) \<le> c \<longleftrightarrow> a \<le> b \<squnion> c\<close>
-  by (simp add: impl_def shunt2)
-
 lemma impl_simps[simp]:
-  \<open>\<top> \<leadsto> b = b\<close>
-  \<open>\<bottom> \<leadsto> b = \<top>\<close>
-  \<open>a \<leadsto> \<bottom> = - a\<close>
-  \<open>a \<leadsto> \<top> = \<top>\<close>
-  \<open>a \<leadsto> a = \<top>\<close>
+  \<open>\<top> \<rightarrow> b = b\<close>
+  \<open>\<bottom> \<rightarrow> b = \<top>\<close>
+  \<open>a \<rightarrow> \<bottom> = - a\<close>
+  \<open>a \<rightarrow> \<top> = \<top>\<close>
+  \<open>a \<rightarrow> a = \<top>\<close>
   by (force simp add: impl_def)+
+
+
+definition latiff :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<leftrightarrow>" 60) where
+  "a \<leftrightarrow> b \<equiv> (-a \<squnion> b) \<sqinter> (a \<squnion> -b)"
+
+lemma latiff_simps[simp]:
+  \<open>a \<leftrightarrow> a = \<top>\<close>
+  \<open>\<bottom> \<leftrightarrow> a = -a\<close>
+  \<open>a \<leftrightarrow> \<bottom> = -a\<close>
+  \<open>\<top> \<leftrightarrow> a = a\<close>
+  \<open>a \<leftrightarrow> \<top> = a\<close>
+  by (clarsimp simp add: latiff_def)+
+
+lemma latiff_on_not[simp]:
+  \<open>- a \<leftrightarrow> - b = a \<leftrightarrow> b\<close>
+  by (simp add: latiff_def local.inf.commute)
 
 end
 
+
 lemma impl_fun_apply[simp]:
-  \<open>(f \<leadsto> g) x = (f x \<leadsto> g x)\<close>
+  \<open>(f \<rightarrow> g) x = (f x \<rightarrow> g x)\<close>
   by (simp add: impl_def)
 
 lemma impl_bool_eq[simp]:
-  \<open>(a \<leadsto> b) = (a \<longrightarrow> b)\<close>
+  \<open>(a \<rightarrow> b) = (a \<longrightarrow> b)\<close>
   by (simp add: impl_def)
 
 lemma impl_fun_iff:
-  \<open>(f \<leadsto> g) = (\<lambda>x. f x \<leadsto> g x)\<close>
+  \<open>(f \<rightarrow> g) = (\<lambda>x. f x \<rightarrow> g x)\<close>
   by (force simp add: impl_def)
+
+lemma latiff_fun_apply[simp]:
+  \<open>(f \<leftrightarrow> g) x = (f x \<leftrightarrow> g x)\<close>
+  by (simp add: latiff_def)
+
+lemma latiff_bool_apply[simp]:
+  \<open>(a \<leftrightarrow> b) = (a \<longleftrightarrow> b)\<close>
+  by (force simp add: latiff_def)
+
+lemma All_bot_iff[simp]:
+  \<open>All \<bottom> \<longleftrightarrow> \<bottom>\<close>
+  by simp
 
 
 section \<open> Functional Programming \<close>
@@ -72,6 +101,7 @@ declare flip_def[simp]
 
 lemma le_fun_eta[simp]: \<open>(\<lambda>x. a) \<le> (\<lambda>x. b) \<longleftrightarrow> a \<le> b\<close>
   by (simp add: le_fun_def)
+
 
 section \<open> Logic \<close>
 
@@ -188,6 +218,7 @@ lemma plus_right_snd_accum[simp]:
   shows \<open>(xy +\<^sub>R y) +\<^sub>R y' = xy +\<^sub>R (y + y')\<close>
   by (cases xy, simp add: add.assoc)
 
+
 section \<open> Lists \<close>
 
 lemma upt_add_eq_append:
@@ -251,8 +282,13 @@ lemma minus_comp_distrib:
   by (simp add: fun_eq_iff)
 
 lemma impl_comp_distrib:
-  \<open>(a \<leadsto> b) \<circ> f = (a \<circ> f) \<leadsto> (b \<circ> f)\<close>
+  \<open>(a \<rightarrow> b) \<circ> f = (a \<circ> f) \<rightarrow> (b \<circ> f)\<close>
   by (simp add: fun_eq_iff)
+
+lemma comp_Inf_distrib:
+  \<open>\<Sqinter>A \<circ> f = \<Sqinter>((\<lambda>a. a \<circ> f) ` A)\<close>
+  by (clarsimp simp add: fun_eq_iff image_def Inf_fun_def)
+    metis
 
 
 lemma top_comp_surj_eq[simp]:
@@ -262,6 +298,10 @@ lemma top_comp_surj_eq[simp]:
 lemma All_comp_surj_iff[simp]:
   \<open>surj f \<Longrightarrow> All (p \<circ> f) \<longleftrightarrow> All p\<close>
   by (metis UNIV_I comp_apply f_inv_into_f)
+
+lemma comp_fun_mono:
+  \<open>a \<le> b \<Longrightarrow> a \<circ> f \<le> b \<circ> f\<close>
+  by (simp add: le_fun_def)
 
 
 section \<open> Predicates \<close>
@@ -326,6 +366,10 @@ lemma comp2_exchange:
   \<open>bij f \<Longrightarrow> ra \<circ>\<^sub>2 f = rb \<longleftrightarrow> ra = rb \<circ>\<^sub>2 inv f\<close>
   by (simp add: fun_eq_iff, metis bij_inv_eq_iff)
 
+lemma comp2_raw_id_eq[simp]:
+  \<open>r \<circ>\<^sub>2 (\<lambda>x. x) = r\<close>
+  by fastforce
+
 
 definition rel_image :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool)\<close> where
   \<open>rel_image f r \<equiv> \<lambda>x x'. \<exists>y y'. r y y' \<and> x = f y \<and> x' = f y'\<close>
@@ -357,6 +401,33 @@ lemmas prepost_state_def' =
 definition \<open>pre_change_state r \<equiv> \<lambda>a. \<exists>b. r a b \<and> a \<noteq> b\<close>
 definition \<open>post_change_state r \<equiv> \<lambda>b. \<exists>a. r a b \<and> a \<noteq> b\<close>
 definition \<open>change_state \<equiv> pre_change_state \<squnion> post_change_state\<close>
+
+definition \<open>univ_states r s \<equiv> \<not> pre_state (- r) s\<close>
+
+
+lemma pre_state_top_eq[simp]:
+  \<open>pre_state \<top> = \<top>\<close>
+  by (force simp add: pre_state_def fun_eq_iff)
+
+lemma pre_state_bot_eq[simp]:
+  \<open>pre_state \<bottom> = \<bottom>\<close>
+  by (force simp add: pre_state_def fun_eq_iff)
+
+lemma pre_state_eq_eq[simp]:
+  \<open>pre_state (=) = \<top>\<close>
+  by (force simp add: pre_state_def fun_eq_iff)
+
+lemma univ_states_eq:
+  \<open>univ_states r = (\<lambda>a. All (r a))\<close>
+  by (simp add: univ_states_def pre_state_def fun_eq_iff)
+
+lemma not_univ_states_eq[simp]:
+  \<open>- univ_states r = pre_state (- r)\<close>
+  by (force simp add: univ_states_def pre_state_def fun_eq_iff)
+
+lemma univ_states_inf_distrib:
+  \<open>univ_states (a \<sqinter> b) = univ_states a \<sqinter> univ_states b\<close>
+  by (simp add: fun_eq_iff univ_states_eq) blast
 
 
 subsubsection \<open> rel liftings / projs \<close>

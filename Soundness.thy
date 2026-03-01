@@ -79,6 +79,8 @@ abbreviation pretty_opstep :: \<open>_ \<Rightarrow> _ \<Rightarrow> _ \<Rightar
 definition pretty_no_opstep :: \<open>_ \<Rightarrow> bool\<close> (\<open>_ \<midarrow>'/\<rightarrow>\<close> [60] 60) where
   \<open>sc \<midarrow>/\<rightarrow> \<equiv> \<forall>\<alpha> sc'. \<not> opstep \<alpha> sc sc'\<close>
 
+abbreviation \<open>\<B> c s \<equiv> (s, c) \<midarrow>/\<rightarrow>\<close>
+
 lemma opstep_simp_loop[simp]:
   \<open>opstep \<alpha> (s, DO c OD) sc' \<longleftrightarrow>
     \<alpha> = Tau \<and> (s, c) \<midarrow>/\<rightarrow> \<and> sc' = (s, Skip) \<or>
@@ -113,10 +115,8 @@ proof -
 qed
 
 lemma vis_step_impl_atom:
-  assumes
-    \<open>(s, c) \<midarrow>Vis\<rightarrow> (s', c')\<close>
-  shows
-    \<open>\<exists>ar. ar \<in># head_atoms c \<and> ar s s'\<close>
+  assumes \<open>(s, c) \<midarrow>Vis\<rightarrow> (s', c')\<close>
+  shows \<open>\<exists>ar. ar \<in># head_atoms c \<and> ar s s'\<close>
 proof -
   { fix \<alpha> sc sc'
     have
@@ -141,6 +141,23 @@ lemma opstep_act_cases:
   by (metis (full_types) act.exhaust opstep_tau_preserves_state)
 
 
+text \<open>
+  It would be nice if a tau-move happening did not depend on the state.
+  However, this is not the case, as do loops may exit based on whether the subcommand is blocked
+  or not. This exit produced a tau-step.
+\<close>
+lemma tau_opstep_state_irrelevant:
+  \<comment> \<open> False because of do loops \<close>
+  \<open>sc \<midarrow>\<alpha>\<rightarrow> sc' \<Longrightarrow>
+    \<alpha> = Tau \<Longrightarrow>
+    (sx, snd sc) \<midarrow>\<alpha>\<rightarrow> (sx, snd sc')\<close>
+proof (induct _ sc sc' arbitrary: sx rule: opstep_induct)
+  case (DoLoop l\<alpha> s c sc')
+  then show ?case
+    (* This subgoal fails *)
+    oops
+
+
 subsubsection \<open> adding parallel \<close>
 
 lemma opstep_parallel_leftD:
@@ -160,15 +177,23 @@ lemma opstep_preserves_map_atom:
         apply force
        apply clarsimp
        apply (metis map_atom.simps(2))
-      apply clarsimp
-      apply (elim disjE, metis; metis map_atom.simps(3))
-     apply force
+      apply (clarsimp simp add: map_atom_rev_iff)
+      apply (metis (full_types) map_atom.simps(1,3))
+     apply clarsimp
+     apply (elim disjE; blast?; metis map_atom.simps(5))
     apply clarsimp
-    apply (elim disjE; blast?; metis map_atom.simps(5))
-   apply clarsimp
-   apply (metis map_atom.simps(1))
+    apply (elim disjE)
+         apply force
+        apply force
+       apply (metis map_atom_rev_iff(5))
+      apply (metis map_atom_rev_iff(5))
+     apply force
+    apply force
+   apply (simp add: map_atom_rev_iff2; fail)
   apply clarsimp
-  apply (metis map_atom.simps(1,2,7))
+  apply (elim disjE)
+   apply (metis map_atom.simps(1))
+  apply (metis map_atom_rev_iff2(2,6))
   done
 
 

@@ -49,6 +49,7 @@ lemma map_atom_rev_iff:
 
 lemmas map_atom_rev_iff2 = map_atom_rev_iff[THEN trans[OF eq_commute]]
 
+
 lemma map_atom_neq_Skip_iff[simp]:
   \<open>map_atom f c \<noteq> Skip \<longleftrightarrow> c \<noteq> Skip\<close>
   by (induct c) simp+
@@ -69,6 +70,10 @@ qed (simp add: map_atom_rev_iff2; fast)+
 lemma map_atom_id_eq[simp]:
   \<open>map_atom id c = c\<close>
   by (induct c) simp+
+
+lemma map_atom_raw_id_eq[simp]:
+  \<open>map_atom (\<lambda>x. x) c = c\<close>
+  by (metis comp_id fun.map_ident map_atom_id_eq)
 
 
 subsubsection \<open> Subcommands \<close>
@@ -159,7 +164,7 @@ lemma subcomms_strict_no_loops:
   using subcomms_strict_irrefl subcomms_strict_trans by blast
 
 
-subsubsection \<open> All Subcommands Conjunctive Image \<close>
+subsubsection \<open> All Subcommands \<close>
 
 definition all_subcomms :: \<open>('s comm \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
   \<open>all_subcomms f c \<equiv> \<Sqinter>(f ` set_mset (subcomms c))\<close>
@@ -298,7 +303,7 @@ subsubsection \<open> All atom commands predicate \<close>
 text \<open> Predicate to ensure atomic actions have a given property \<close>
 
 definition all_atoms :: \<open>(('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow> 'l::complete_lattice) \<Rightarrow> 's comm \<Rightarrow> 'l\<close> where
-  \<open>all_atoms f c \<equiv> \<Sqinter>{f a|a. \<langle>a\<rangle> \<in># subcomms c}\<close>
+  \<open>all_atoms f c \<equiv> \<Sqinter>{f a|a. a \<in># subcomm_atoms c}\<close>
 
 lemma all_atoms_simps[simp]:
   \<open>all_atoms P Skip = \<top>\<close>
@@ -334,6 +339,12 @@ lemma all_atoms_top_eq[simp]:
   \<open>all_atoms \<top> c\<close>
   unfolding all_atoms_def
   by force
+
+lemma all_atoms_then_holds_of_atom:
+  \<open>all_atoms p c s \<Longrightarrow>
+    r \<in># subcomm_atoms c \<Longrightarrow>
+    p r s\<close>
+  by (simp add: all_atoms_def) blast
 
 
 subsection \<open> All Loops \<close>
@@ -381,6 +392,12 @@ lemma head_atoms_eq_atoms_of_heads:
         (head_subcomms c))\<close>
   by (induct c) simp+
 
+lemma all_atoms_then_holds_of_head_atom:
+  \<open>all_atoms p c s \<Longrightarrow>
+    r \<in># head_atoms c \<Longrightarrow>
+    p r s\<close>
+  by (metis all_atoms_then_holds_of_atom head_atoms_subseteq_subcomm_atoms mset_subset_eqD)
+
 
 subsubsection \<open> All Head Atoms \<close>
 
@@ -399,6 +416,12 @@ lemma all_atoms_implies_all_head_atoms:
   apply (rule Inf_mono)
   apply (fastforce dest: mset_subset_eqD)
   done
+
+lemma all_head_atoms_then_holds_of_head_atom:
+  \<open>all_head_atoms p c \<Longrightarrow>
+    r \<in># head_atoms c \<Longrightarrow>
+    p r\<close>
+  by (simp add: all_head_atoms_def)
 
 
 subsection \<open> Any Head Atom \<close>

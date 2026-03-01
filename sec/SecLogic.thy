@@ -24,7 +24,7 @@ abbreviation lift_pred ("\<lblot> _ \<rblot>" [0]) where
 lemmas lift_pred_def = pred_times_def[of p p for p]
 
 
-subsubsection \<open> Lemmas \<close>
+subsubsection \<open> Predicate Lifting Lemmas \<close>
 
 lemma lift_pred_sup_semidistrib:
   \<open>\<lblot>p\<rblot> \<squnion> \<lblot>q\<rblot> \<le> \<lblot>p \<squnion> q\<rblot>\<close>
@@ -92,10 +92,18 @@ text \<open>
 Here I mean "relation\<^emph>\<open>al\<close>" as "on pairs" and "relation" as functions of two arguments to \<^typ>\<open>bool\<close>.
 \<close>
 
+abbreviation(input) lift_rels (\<open>\<lblot> _ \<bar> _ \<rblot>\<^sub>R\<close>) where
+  \<open>\<lblot> ra \<bar> rb \<rblot>\<^sub>R \<equiv> ra \<times>\<^sub>R rb\<close>
+
 abbreviation lift_rel (\<open>\<lblot> _ \<rblot>\<^sub>R\<close>) where
   \<open>\<lblot> r \<rblot>\<^sub>R \<equiv> r \<times>\<^sub>R r\<close>
 
 lemmas lift_rel_def = rel_times_def[of r r for r]
+
+
+lemma pre_state_lift_rel_eq[simp]:
+  \<open>pre_state \<lblot> r \<rblot>\<^sub>R = \<lblot> pre_state r \<rblot>\<close>
+  by (simp add: fun_eq_iff pre_state_def)
 
 
 subsection \<open> Command Lifting \<close>
@@ -116,10 +124,48 @@ definition unlift_pred :: \<open>('a \<times> 'a \<Rightarrow> bool) \<Rightarro
   \<open>unlift_pred p \<equiv> p \<circ> \<Delta>\<close>
 
 
+lemma unlift_pred_bot_eq[simp]:
+  \<open>unlift_pred \<bottom> = \<bottom>\<close>
+  by (simp add: unlift_pred_def fun_eq_iff)
+
+lemma unlift_pred_top_eq[simp]:
+  \<open>unlift_pred \<top> = \<top>\<close>
+  by (simp add: unlift_pred_def fun_eq_iff)
+
+lemma unlift_lift_eq[simp]:
+  \<open>unlift_pred \<lblot> p \<rblot> = p\<close>
+  by (simp add: unlift_pred_def fun_eq_iff)
+
+
 subsection \<open> Unlifting Relations \<close>
 
-definition unlift_rel :: \<open>('a \<times> 'a \<Rightarrow> 'a \<times> 'a \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool)\<close> where
-  \<open>unlift_rel r \<equiv> r \<circ>\<^sub>2 \<Delta>\<close>
+definition unlift_rel :: \<open>('a \<times> 'a \<Rightarrow> 'b \<times> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> 'b \<Rightarrow> bool)\<close> where
+  \<open>unlift_rel r \<equiv> \<lambda>x y. r (\<Delta> x) (\<Delta> y)\<close>
+
+
+lemma unlift_rel_bot_eq[simp]:
+  \<open>unlift_rel \<bottom> = \<bottom>\<close>
+  by (simp add: unlift_rel_def fun_eq_iff)
+
+lemma unlift_rel_KFalse_eq[simp]:
+  \<open>unlift_rel (\<lambda>_ _. False) = \<bottom>\<close>
+  by (simp add: unlift_rel_def fun_eq_iff)
+
+lemma unlift_rel_top_eq[simp]:
+  \<open>unlift_rel \<top> = \<top>\<close>
+  by (simp add: unlift_rel_def fun_eq_iff)
+
+lemma unlift_rel_KTrue_eq[simp]:
+  \<open>unlift_rel (\<lambda>_ _. True) = \<top>\<close>
+  by (simp add: unlift_rel_def fun_eq_iff)
+
+lemma unlift_rel_eqrel_eq[simp]:
+  \<open>unlift_rel (=) = (=)\<close>
+  by (simp add: unlift_rel_def fun_eq_iff)
+
+lemma pre_state_unlift_rel_then_unlift_pred_pre_state:
+  \<open>pre_state (unlift_rel r) \<le> unlift_pred (pre_state r)\<close>
+  by (force simp add: le_fun_def pre_state_def unlift_pred_def unlift_rel_def)
 
 
 section \<open> Information-Flow Notions on Relations \<close>
@@ -139,18 +185,27 @@ This is a healthiness condition: a good info-flow relation should satisfy this e
 \<close>
 
 definition
-  \<open>quasirefl_preserv ar \<equiv> \<lambda>(ax, ay).
-    \<forall>ax' ay'. ar (ax, ay) (ax', ay') \<longrightarrow> ar (\<Delta> ax) (\<Delta> ax') \<and> ar (\<Delta> ay) (\<Delta> ay')\<close>
+  \<open>quasirefl_preserv r \<equiv> univ_states (r \<rightarrow> \<lblot> unlift_rel r \<rblot>\<^sub>R)\<close>
 
+lemma quasirefl_preserv_eq:
+  \<open>quasirefl_preserv r = (\<lambda>(ax, ay).
+    \<forall>ax' ay'. r (ax, ay) (ax', ay') \<longrightarrow> r (\<Delta> ax) (\<Delta> ax') \<and> r (\<Delta> ay) (\<Delta> ay'))\<close>
+  by (simp add: quasirefl_preserv_def pre_state_def unlift_rel_def fun_eq_iff univ_states_def)
 
 lemma quasirefl_preserv_preserves_quasireflp:
   \<open>p \<le> quasirefl_preserv r \<Longrightarrow>
     quasireflp (curry p) \<Longrightarrow> quasireflp (curry (sp r p))\<close>
-  by (simp add: quasirefl_preserv_def quasireflp_iff sp_def le_fun_def) blast
+  by (simp add: quasirefl_preserv_eq quasireflp_iff sp_def le_fun_def) blast
 
 lemma quasirefl_preserv_lift_rel:
   \<open>\<top> \<le> quasirefl_preserv \<lblot> r \<rblot>\<^sub>R\<close>
-  by (force simp add: rel_times_def quasirefl_preserv_def split: prod.splits)
+  by (force simp add: rel_times_def quasirefl_preserv_eq split: prod.splits)
+
+lemma quasirefl_preserv_then_prestate_prod_eq:
+  \<open>\<top> \<le> quasirefl_preserv r \<circ> \<Delta> \<Longrightarrow>
+    pre_state \<lblot> unlift_rel r \<rblot>\<^sub>R = \<lblot> unlift_pred (pre_state r) \<rblot>\<close>
+  by (simp add: fun_eq_iff le_fun_def unlift_rel_def unlift_pred_def pre_state_def
+      quasirefl_preserv_eq) blast
 
 
 subsection \<open> Symmetry Preserving Relations \<close>
@@ -162,29 +217,44 @@ is still quasireflexive after taking the strongest postcondition.
 This is a healthiness condition: a good info-flow relation should satisfy this everywhere.
 \<close>
 
+definition exchange :: \<open>'a \<times> 'b \<Rightarrow> 'b \<times> 'a\<close> (\<open>\<^bold>X\<close>) where
+  \<open>\<^bold>X \<equiv> \<lambda>(a,b). (b,a)\<close>
+
+lemma exchange_apply[simp]: \<open>\<^bold>X (a, b) = (b, a)\<close>
+  by (simp add: exchange_def)
+
+
 definition
-  \<open>sym_preserv r \<equiv> \<lambda>(sx, sy).
-    (\<forall>sx' sy'. r (sx,sy) (sx',sy') \<longrightarrow> r (sy,sx) (sy',sx')) \<and>
-    (\<forall>sx' sy'. r (sy,sx) (sy',sx') \<longrightarrow> r (sx,sy) (sx',sy'))\<close>
+  \<open>sym_preserv r \<equiv> univ_states (r \<leftrightarrow> (r \<circ>\<^sub>2 \<^bold>X))\<close>
+
+lemma sym_preserv_eq:
+  \<open>sym_preserv r = (\<lambda>(sx, sy).
+    (\<forall>sx' sy'. r (sx,sy) (sx',sy') \<longleftrightarrow> r (sy,sx) (sy',sx')))\<close>
+  by (simp add: sym_preserv_def fun_eq_iff pre_state_def exchange_def univ_states_def)
 
 
 lemma symp_prestate_preserves_symp_fwd:
   \<open>p \<le> sym_preserv r \<Longrightarrow> symp (curry p) \<Longrightarrow> symp (curry (sp r p))\<close>
-  by (fastforce simp add: sym_preserv_def symp_def sp_def)
+  by (fastforce simp add: sym_preserv_eq symp_def sp_def)
 
 lemma sym_preserv_lift_rel:
   \<open>\<top> \<le> sym_preserv \<lblot> r \<rblot>\<^sub>R\<close>
-  by (clarsimp simp add: sym_preserv_def)
+  by (force simp add: sym_preserv_eq)
 
 
 subsection \<open> Quasi-reflexive and Symmetric Closed States \<close>
 
-definition
-  \<open>quasireflcl_states p \<equiv> \<lambda>(sx, sy). p (sx, sy) \<longrightarrow> p (sx, sx) \<and> p (sy, sy)\<close>
+definition \<open>quasireflcl_states p \<equiv> p \<rightarrow> \<lblot> p \<circ> \<Delta> \<rblot>\<close>
+definition \<open>symcl_states p \<equiv> p \<leftrightarrow> (p \<circ> \<^bold>X)\<close>
 
-definition
-  \<open>symcl_states p \<equiv> \<lambda>(sx, sy). (p (sx, sy) \<longrightarrow> p (sy, sx)) \<and> (p (sy, sx) \<longrightarrow> p (sx, sy))\<close>
 
+lemma quasireflcl_states_eq:
+  \<open>quasireflcl_states p = (\<lambda>(x,y). p (x, y) \<longrightarrow> p (x, x) \<and> p (y, y))\<close>
+  by (simp add: quasireflcl_states_def fun_eq_iff)
+
+lemma symcl_states_eq:
+  \<open>symcl_states p = (\<lambda>(x,y). p (x, y) \<longleftrightarrow> p (y, x))\<close>
+  by (simp add: symcl_states_def fun_eq_iff)
 
 lemma quasireflcl_states_sec_agree_eq[simp]:
   \<open>quasireflcl_states (\<bbbA> f) = \<top>\<close>
@@ -194,12 +264,9 @@ lemma quasireflcl_states_neg_sec_agree_eq[simp]:
   \<open>quasireflcl_states (- \<bbbA> f) = \<bbbA> f\<close>
   by (force simp add: quasireflcl_states_def sec_agree_def)
 
-
-lemma sympp_states_of_not_eq[simp]:
+lemma symcl_states_of_not_eq[simp]:
   \<open>symcl_states (- p) = symcl_states p\<close>
-  by (force simp add: symcl_states_def)
-
-
+  by (simp add: fun_eq_iff symcl_states_def)
 
 
 subsection \<open> Non-Revealing \<close>
@@ -210,12 +277,26 @@ about those states. In essence, the relation restricted to those states is defin
 the steps on the same-pair states.
 \<close>
 
-definition
-  \<open>nonrevealing a q \<equiv> \<lambda>(sx, sy).
-    (\<forall>sx' sy'. q (sx', sy') \<longrightarrow>
-      (a (\<Delta> sx) (\<Delta> sx') \<and> a (\<Delta> sy) (\<Delta> sy') \<longleftrightarrow> a (sx, sy) (sx', sy')))\<close>
-
+definition \<open>nonrevealing r \<equiv> univ_states (\<lblot> unlift_rel r \<rblot>\<^sub>R \<rightarrow> r)\<close>
 abbreviation \<open>revealing \<equiv> - nonrevealing\<close>
+
+lemma nonrevealing_eq:
+  \<open>nonrevealing r = (\<lambda>(sx, sy).
+    \<forall>sx' sy'. r (\<Delta> sx) (\<Delta> sx') \<and> r (\<Delta> sy) (\<Delta> sy') \<longrightarrow> r (sx, sy) (sx', sy'))\<close>
+  by (simp add: nonrevealing_def univ_states_eq fun_eq_iff unlift_rel_def)
+
+lemma revealing_alt_eq:
+  \<open>revealing r = pre_state (\<lblot> unlift_rel r \<rblot>\<^sub>R \<sqinter> -r)\<close>
+  by (simp add: nonrevealing_def)
+
+
+lemma nonrevealing_of_bot_eq[simp]:
+  \<open>nonrevealing \<bottom> = \<top>\<close>
+  by (simp add: fun_eq_iff nonrevealing_eq)
+
+lemma nonrevealing_of_eqrel_eq[simp]:
+  \<open>nonrevealing (=) = \<top>\<close>
+  by (simp add: fun_eq_iff nonrevealing_eq)
 
 
 text \<open>
@@ -224,21 +305,18 @@ On steps starting in non-relational states, the atomic step acts
 \<^emph>\<open>as if\<close> it were a product relation. Thus it does not leak information.
 \<close>
 
-theorem nonrevealing_iff_step_is_lift_reling:
-  \<open>p \<le> nonrevealing r q \<longleftrightarrow>
-    \<lblot> unlift_rel r \<rblot>\<^sub>R \<sqinter> predrel p q = r \<sqinter> predrel p q\<close>
-  by (clarsimp simp add: nonrevealing_def unlift_rel_def le_fun_def fun_eq_iff) blast
+theorem nonrevealing_top_eq:
+  \<open>nonrevealing r = univ_states (\<lblot> unlift_rel r \<rblot>\<^sub>R \<rightarrow> r)\<close>
+  by (simp add: nonrevealing_eq unlift_rel_def univ_states_def pre_state_def fun_eq_iff)
 
 lemma nonrevealing_rel_conj_merge:
   \<open>nonrevealing a q \<sqinter> nonrevealing b q \<le> nonrevealing (a \<sqinter> b) q\<close>
-  by (simp add: nonrevealing_def) blast
+  by (simp add: nonrevealing_eq) blast
 
 lemma quasireflp_preserv_then_nonrevealing_iff:
-  \<open>quasirefl_preserv a (sx, sy) \<Longrightarrow>
-    nonrevealing a q (sx, sy) \<longleftrightarrow>
-      (\<forall>sx' sy'. q (sx', sy') \<longrightarrow>
-        (a (\<Delta> sx) (\<Delta> sx') \<and> a (\<Delta> sy) (\<Delta> sy') \<longleftrightarrow> a (sx, sy) (sx', sy')))\<close>
-  by (simp add: quasirefl_preserv_def nonrevealing_def)
+  \<open>quasirefl_preserv r \<sqinter> nonrevealing r = univ_states (\<lblot> unlift_rel r \<rblot>\<^sub>R \<leftrightarrow> r)\<close>
+  by (simp add: quasirefl_preserv_def nonrevealing_def latiff_def univ_states_inf_distrib
+      impl_def inf_commute sup_commute)
 
 
 section \<open> Same State Non-relational \<close>
@@ -249,8 +327,17 @@ This is another healthiness condition.
 \<close>
 
 definition
-  \<open>same_state_nonrevealing r \<equiv> \<top> \<le> nonrevealing r \<top> \<circ> \<Delta>\<close>
+  \<open>same_state_nonrevealing r \<equiv> \<top> \<le> nonrevealing r \<circ> \<Delta>\<close>
 
+lemma same_state_nonrevealing_iff:
+  \<open>same_state_nonrevealing r \<longleftrightarrow>
+    (\<forall>s sx' sy'. r (s, s) (sx', sx') \<and> r (s, s) (sy', sy') \<longrightarrow> r (s, s) (sx', sy'))\<close>
+  by (simp add: same_state_nonrevealing_def nonrevealing_eq quasirefl_preserv_eq le_fun_def)
+
+lemma same_state_nonrevealing_iff_eqn:
+  \<open>same_state_nonrevealing r \<longleftrightarrow> \<lblot> unlift_rel r \<rblot>\<^sub>R \<sqinter> pretest (case_prod (=)) \<le> r\<close>
+  by (simp add: same_state_nonrevealing_def nonrevealing_def quasirefl_preserv_def
+      le_fun_def fun_eq_iff univ_states_eq)
 
 lemma same_state_nonrevealing_conjI:
   \<open>same_state_nonrevealing ra \<Longrightarrow> same_state_nonrevealing rb \<Longrightarrow>
@@ -260,7 +347,7 @@ lemma same_state_nonrevealing_conjI:
 
 lemma same_state_nonrevealing_lift_rel:
   \<open>same_state_nonrevealing \<lblot> r \<rblot>\<^sub>R\<close>
-  by (clarsimp simp add: same_state_nonrevealing_def nonrevealing_def)
+  by (clarsimp simp add: same_state_nonrevealing_def nonrevealing_eq)
 
 
 section \<open> Non-declassifying \<close>
@@ -276,20 +363,25 @@ existence of two self-state paired steps from that same initial state.
 This rules out the paired-state relation blocking when the two self-paired states may proceed.
 \<close>
 
-definition
-  \<open>nondeclassifying r \<equiv> \<lambda>(sx, sy).
-    (Ex (r (sx, sy)) \<longleftrightarrow> (\<exists>sx'. r (\<Delta> sx) (\<Delta> sx')) \<and> (\<exists>sy'. r (\<Delta> sy) (\<Delta> sy')))\<close>
-
+definition \<open>nondeclassifying r \<equiv> \<lblot> unlift_pred (pre_state r) \<rblot> \<rightarrow> pre_state r\<close>
 abbreviation \<open>declassifying \<equiv> - nondeclassifying\<close>
 
-
-lemma nonrevealing_implies_nondeclassifying:
-  \<open>nonrevealing a \<top> \<le> nondeclassifying a\<close>
-  by (simp add: nonrevealing_def nondeclassifying_def, blast)
+lemma nondeclassifying_eq:
+  \<open>nondeclassifying r = (\<lambda>(sx, sy).
+    Ex (r (\<Delta> sx)) \<longrightarrow> Ex (r (\<Delta> sy)) \<longrightarrow> Ex (r (sx, sy)))\<close>
+  by (simp add: nondeclassifying_def unlift_pred_def pre_state_def fun_eq_iff) blast
 
 lemma nondeclassifying_rel_times:
   \<open>nondeclassifying \<lblot> r \<rblot>\<^sub>R = \<top>\<close>
   by (simp add: nondeclassifying_def fun_eq_iff)
+
+lemma nondeclassifying_of_bot_eq[simp]:
+  \<open>nondeclassifying \<bottom> = \<top>\<close>
+  by (simp add: fun_eq_iff nondeclassifying_def)
+
+lemma nondeclassifying_of_eqrel_eq[simp]:
+  \<open>nondeclassifying (=) = \<top>\<close>
+  by (simp add: fun_eq_iff nondeclassifying_def)
 
 
 subsection \<open> Enabled Splitting \<close>
@@ -308,40 +400,55 @@ to non-declassification and non-revelation.
 
 definition
   \<open>enabled_split r \<equiv> \<lambda>(sx, sy).
-    (\<exists>s'. r (sx, sy) s') \<longrightarrow> (\<exists>s'. r (\<Delta> sx) (\<Delta> s')) \<and> (\<exists>s'. r (\<Delta> sy) (\<Delta> s'))\<close>
+    Ex (r (sx, sy)) \<longrightarrow> Ex (r (\<Delta> sx)) \<and> Ex (r (\<Delta> sy))\<close>
 
+
+lemma enabled_split_iff_enabled_le_product_enabled_pred:
+    \<open>p \<le> enabled_split r \<longleftrightarrow>
+      pre_state r \<sqinter> p \<le> \<lblot> unlift_pred (pre_state r) \<rblot> \<sqinter> p\<close>
+  by (simp add: enabled_split_def unlift_pred_def pre_state_def le_fun_def) blast
 
 lemma enabled_split_iff_enabled_le_enabled_product_rel:
-  \<open>p \<le> enabled_split r \<longleftrightarrow>
-    pre_state r \<sqinter> p \<le> pre_state \<lblot> unlift_rel r \<rblot>\<^sub>R \<sqinter> p\<close>
-  by (clarsimp simp add: enabled_split_def unlift_rel_def pre_state_def le_fun_def)
+  assumes \<open>p \<le> quasirefl_preserv r\<close>
+  shows
+    \<open>p \<le> enabled_split r \<longleftrightarrow>
+      pre_state r \<sqinter> p \<le> pre_state \<lblot> unlift_rel r \<rblot>\<^sub>R \<sqinter> p\<close>
+  using assms
+  by (simp add: enabled_split_def unlift_rel_def quasirefl_preserv_eq pre_state_def le_fun_def)
     blast
 
 lemma quasirefl_preserv_implies_rel_split:
   \<open>quasirefl_preserv \<le> enabled_split\<close>
-  by (simp add: quasirefl_preserv_def enabled_split_def le_fun_def) blast
-
-lemma nondeclassifying_implies_rel_split:
-  \<open>nondeclassifying \<le> enabled_split\<close>
-  by (simp add: nondeclassifying_def enabled_split_def le_fun_def)
-
-lemma quasirefl_preserv_or_nondeclassifying_implies_rel_split:
-  \<open>quasirefl_preserv \<squnion> nondeclassifying \<le> enabled_split\<close>
-  by (simp add: quasirefl_preserv_def nondeclassifying_def enabled_split_def le_fun_def)
-    blast
+  by (simp add: quasirefl_preserv_eq enabled_split_def le_fun_def) blast
 
 
 subsection \<open> Secure Relations \<close>
 
 text \<open> A relation is secure when it is either declassifying or non-revealing. \<close>
 
-definition \<open>secure_rel a \<equiv> declassifying a \<sqinter> enabled_split a \<squnion> nonrevealing a \<top>\<close>
+definition \<open>secure_rel a \<equiv> declassifying a \<squnion> nonrevealing a\<close>
 
+lemma secure_rel_eq:
+  \<open>secure_rel r = (\<lambda>(x,y).
+    (\<exists>xa' xb'. r (\<Delta> x) (xa', xb')) \<and>
+      (\<exists>ya' yb'. r (\<Delta> y) (ya', yb')) \<and>
+      (\<forall>x' y'. \<not> r (x, y) (x', y')) \<or>
+    (\<forall>x' y'. r (\<Delta> x) (\<Delta> x') \<and> r (\<Delta> y) (\<Delta> y') \<longrightarrow> r (x, y) (x', y')))\<close>
+  by (simp add: secure_rel_def nondeclassifying_eq nonrevealing_eq fun_eq_iff)
+    blast
 
 lemma secure_rel_relconj_distrib:
   \<open>secure_rel a \<sqinter> secure_rel b \<le> secure_rel (a \<sqinter> b)\<close>
-  by (clarsimp simp add: secure_rel_def nondeclassifying_def nonrevealing_def enabled_split_def)
-    metis
+  by (clarsimp simp add: secure_rel_def nondeclassifying_def nonrevealing_eq enabled_split_def
+      pre_state_def unlift_pred_def) blast
+
+lemma secure_rel_of_bot_eq[simp]:
+  \<open>secure_rel \<bottom> = \<top>\<close>
+  by (simp add: secure_rel_def fun_eq_iff)
+
+lemma secure_rel_of_eqrel_eq[simp]:
+  \<open>secure_rel (=) = \<top>\<close>
+  by (simp add: secure_rel_def fun_eq_iff)
 
 
 section \<open> Security Reasoning for RGSep States and Relations \<close>
@@ -453,6 +560,38 @@ lemma exch4_bij[simp]:
   \<open>bij \<ddagger>\<close>
   by (simp add: bijI)
 
+lemma top_pred_comp2_exch4_eq[simp]:
+  \<open>(\<top> \<circ> \<ddagger>) = \<top>\<close>
+  by (simp add: fun_eq_iff)
+
+lemma top_rel_comp2_exch4_eq[simp]:
+  \<open>(\<top> \<circ>\<^sub>2 \<ddagger>) = \<top>\<close>
+  by (simp add: fun_eq_iff)
+
+lemma bot_pred_comp2_exch4_eq[simp]:
+  \<open>(\<bottom> \<circ> \<ddagger>) = \<bottom>\<close>
+  by (simp add: fun_eq_iff)
+
+lemma bot_rel_comp2_exch4_eq[simp]:
+  \<open>(\<bottom> \<circ>\<^sub>2 \<ddagger>) = \<bottom>\<close>
+  by (simp add: fun_eq_iff)
+
+lemma eqrel_comp2_exch4_eq[simp]:
+  \<open>((=) \<circ>\<^sub>2 \<ddagger>) = (=)\<close>
+  by (simp add: fun_eq_iff)
+
+lemma all_imp_exch4_rel_iff_all_exch4_imp_rel:
+  \<open>(\<forall>r. P r \<longrightarrow> Q (r \<circ>\<^sub>2 \<ddagger>)) \<longleftrightarrow> (\<forall>r. P (r \<circ>\<^sub>2 \<ddagger>) \<longrightarrow> Q r)\<close>
+  by (metis comp2_fusion comp2_id exch4_comp_idem)
+
+lemma top_le_comp_exch4_iff[simp]:
+  \<open>\<top> \<le> p \<circ> \<ddagger> \<longleftrightarrow> \<top> \<le> p\<close>
+  by (simp add: leq_exch4_shunt)
+
+lemma comp2_exch4_leq_shunt:
+  \<open>a \<circ>\<^sub>2 \<ddagger> \<le> b \<longleftrightarrow> a \<le> b \<circ>\<^sub>2 \<ddagger>\<close>
+  by (simp add: le_fun_def) blast
+
 
 subsection \<open> Exchanged Predicate Lifting \<close>
 
@@ -475,6 +614,10 @@ lemma lift_preds_exch4_apply_pair:
 
 lemma lift_preds_exch4_apply_four:
   \<open>\<lblot> p \<bar> q \<rblot>\<^sub>\<ddagger> ((a, b), (c, d)) = \<lblot> p \<bar> q \<rblot> ((a, c), (b, d))\<close>
+  by (simp add: lift_preds_exch4_def exch4_def)
+
+lemma lift_preds_exch4_apply:
+  \<open>\<lblot> p \<bar> q \<rblot>\<^sub>\<ddagger> ((a, b), (c, d)) \<longleftrightarrow> p (a,c) \<and> q (b,d)\<close>
   by (simp add: lift_preds_exch4_def exch4_def)
 
 lemma lift_pred_exch4_mono:
@@ -548,7 +691,7 @@ subsection \<open> Exchanged Relation Lifting \<close>
 definition lift_rel_exch4 (\<open>\<lblot> _ \<rblot>\<^sub>R\<^sub>\<ddagger>\<close>) where
   \<open>\<lblot> r \<rblot>\<^sub>R\<^sub>\<ddagger> \<equiv> \<lblot> r \<rblot>\<^sub>R \<circ>\<^sub>2 \<ddagger>\<close>
 
-lemmas lift_rel_exch4_def2 = lift_rel_exch4_def[simplified lift_rel_def]
+lemmas lift_rel_exch4_eq = lift_rel_exch4_def[simplified lift_rel_def]
 
 lemma lift_rel_exch4_apply[simp]:
   \<open>lift_rel_exch4 r ((ax,ay),(bx,by)) ((ax',ay'),(bx',by')) =
@@ -569,7 +712,7 @@ subsection \<open> Exchanged Agreement \<close>
 definition sec_agree_exch4 :: \<open>('l \<times> 's \<Rightarrow> 'v) \<Rightarrow> ('l \<times> 'l) \<times> ('s \<times> 's) \<Rightarrow> bool\<close> (\<open>\<bbbA>\<^sub>\<ddagger>\<close>) where
   \<open>\<bbbA>\<^sub>\<ddagger> h \<equiv> \<bbbA> h \<circ> exch4\<close>
 
-lemmas sec_agree_exch4_def2 = sec_agree_exch4_def[simplified sec_agree_def]
+lemmas sec_agree_exch4_eq = sec_agree_exch4_def[simplified sec_agree_def]
 
 lemma sec_agree_exch4_exch4_eq[simp]:
   \<open>\<bbbA>\<^sub>\<ddagger> h (\<ddagger> s) = \<bbbA> h s\<close>
@@ -593,7 +736,7 @@ lemmas lift_comm_exch4_rev_iff[simp] =
 lemma comm_lift_exch4_eq_iff[simp]:
   \<open>lift_comm_exch4 ca = lift_comm_exch4 cb \<longleftrightarrow> ca = cb\<close>
   apply (rule map_atom_inj_eq_iff_eq)
-  apply (simp add: inj_def lift_rel_exch4_def2 fun_eq_iff)
+  apply (simp add: inj_def lift_rel_exch4_eq fun_eq_iff)
   apply blast
   done
 
@@ -603,11 +746,11 @@ subsection \<open> Exchanged Unlifting \<close>
 definition unlift_rel_exch4 (\<open>unlift'_rel\<^sub>\<ddagger>\<close>) where
   \<open>unlift_rel\<^sub>\<ddagger> r \<equiv> unlift_rel (r \<circ>\<^sub>2 \<ddagger>)\<close>
 
-lemmas unlift_rel_exch4_def2 = unlift_rel_exch4_def[simplified unlift_rel_def]
+lemmas unlift_rel_exch4_eq = unlift_rel_exch4_def[simplified unlift_rel_def comp2_def]
 
 lemma unlift_lift_rel_exch4_eq[simp]:
   \<open>unlift_rel\<^sub>\<ddagger> \<circ> lift_rel_exch4 = id\<close>
-  by (simp add: unlift_rel_exch4_def2 fun_eq_iff)
+  by (simp add: unlift_rel_exch4_eq fun_eq_iff)
 
 
 abbreviation unlift_comm_exch4 :: \<open>(('l \<times> 'l) \<times> ('s \<times> 's)) comm \<Rightarrow> ('l \<times> 's) comm\<close> where
@@ -617,7 +760,7 @@ lemma unlift_comm_exch4_eq:
   \<open>unlift_comm_exch4 = map_atom (\<lambda>ar. ar \<circ>\<^sub>2 (\<ddagger> \<circ> \<Delta>))\<close>
   apply (clarsimp simp add: fun_eq_iff)
   apply (rule arg_cong2[where f=map_atom, OF _ refl])
-  apply (simp add: unlift_rel_exch4_def2 fun_eq_iff)
+  apply (simp add: unlift_rel_exch4_eq fun_eq_iff)
   done
 
 lemmas unlift_comm_exch4_simps[simp] = map_atom.simps[of unlift_rel_exch4]
@@ -632,49 +775,49 @@ subsection \<open> Exchanged Info-flow Properties \<close>
 definition quasirefl_preserv_exch4 (\<open>quasirefl'_preserv\<^sub>\<ddagger>\<close>) where
   \<open>quasirefl_preserv\<^sub>\<ddagger> ar \<equiv> quasirefl_preserv (ar \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas quasirefl_preserv_exch4_def2 =
-  quasirefl_preserv_exch4_def[simplified quasirefl_preserv_def comp2_apply]
+lemmas quasirefl_preserv_exch4_eq =
+  quasirefl_preserv_exch4_def[simplified quasirefl_preserv_eq comp2_apply]
 
 
 definition sym_preserv_exch4 (\<open>sym'_preserv\<^sub>\<ddagger>\<close>) where
   \<open>sym_preserv\<^sub>\<ddagger> ar \<equiv> sym_preserv (ar \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas sym_preserv_exch4_def2 =
-  sym_preserv_exch4_def[simplified sym_preserv_def]
+lemmas sym_preserv_exch4_eq =
+  sym_preserv_exch4_def[simplified sym_preserv_eq]
 
 
 definition quasireflcl_states_exch4 (\<open>quasireflcl'_states\<^sub>\<ddagger>\<close>) where
   \<open>quasireflcl_states\<^sub>\<ddagger> p \<equiv> quasireflcl_states (p \<circ> \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas quasireflcl_states_exch4_def2 =
-  quasireflcl_states_exch4_def[simplified quasireflcl_states_def]
+lemmas quasireflcl_states_exch4_eq =
+  quasireflcl_states_exch4_def[simplified quasireflcl_states_eq comp_apply]
 
 
 definition symcl_states_exch4 (\<open>symcl'_states\<^sub>\<ddagger>\<close>) where
   \<open>symcl_states\<^sub>\<ddagger> p \<equiv> symcl_states (p \<circ> \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas symcl_states_exch4_def2 =
+lemmas symcl_states_exch4_eq =
   symcl_states_exch4_def[simplified symcl_states_def]
 
 
 definition nonrevealing_exch4 (\<open>nonrevealing\<^sub>\<ddagger>\<close>) where
-  \<open>nonrevealing\<^sub>\<ddagger> r q \<equiv> nonrevealing (r \<circ>\<^sub>2 \<ddagger>) (q \<circ> \<ddagger>) \<circ> \<ddagger>\<close>
+  \<open>nonrevealing\<^sub>\<ddagger> r \<equiv> nonrevealing (r \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas nonrevealing_exch4_def2 =
-  nonrevealing_exch4_def[simplified nonrevealing_def comp2_apply]
+lemmas nonrevealing_exch4_eq =
+  nonrevealing_exch4_def[simplified nonrevealing_eq comp2_apply]
 
 
 definition same_state_nonrevealing_exch4 (\<open>same'_state'_nonrevealing\<^sub>\<ddagger>\<close>) where
-  \<open>same_state_nonrevealing\<^sub>\<ddagger> r \<equiv> \<top> \<le> nonrevealing (r \<circ>\<^sub>2 \<ddagger>) \<top> \<circ> \<Delta>\<close>
+  \<open>same_state_nonrevealing\<^sub>\<ddagger> r \<equiv> \<top> \<le> nonrevealing (r \<circ>\<^sub>2 \<ddagger>) \<circ> \<Delta>\<close>
 
-lemmas same_state_nonrevealing_exch4_def2 =
+lemmas same_state_nonrevealing_exch4_eq =
   same_state_nonrevealing_exch4_def[simplified same_state_nonrevealing_def]
 
 
 definition nondeclassifying_exch4 (\<open>nondeclassifying\<^sub>\<ddagger>\<close>) where
   \<open>nondeclassifying\<^sub>\<ddagger> r \<equiv> nondeclassifying (r \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas nondeclassifying_exch4_def2 =
+lemmas nondeclassifying_exch4_eq =
   nondeclassifying_exch4_def[simplified nondeclassifying_def comp2_apply]
 
 abbreviation declassifying_exch4 (\<open>declassifying\<^sub>\<ddagger>\<close>) where
@@ -684,19 +827,19 @@ abbreviation declassifying_exch4 (\<open>declassifying\<^sub>\<ddagger>\<close>)
 definition enabled_split_exch4 (\<open>enabled'_split\<^sub>\<ddagger>\<close>) where
   \<open>enabled_split\<^sub>\<ddagger> r \<equiv> enabled_split (r \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas enabled_split_exch4_def2 =
+lemmas enabled_split_exch4_eq =
   enabled_split_exch4_def[simplified enabled_split_def comp2_apply]
 
 
 definition secure_rel_exch4 (\<open>secure'_rel\<^sub>\<ddagger>\<close>) where
   \<open>secure_rel\<^sub>\<ddagger> r \<equiv> secure_rel (r \<circ>\<^sub>2 \<ddagger>) \<circ> \<ddagger>\<close>
 
-lemmas secure_rel_exch4_def2 =
+lemmas secure_rel_exch4_eq2 =
   secure_rel_exch4_def[simplified secure_rel_def]
 
 lemma secure_rel_exch4_eq:
-  \<open>secure_rel\<^sub>\<ddagger> a \<equiv> declassifying\<^sub>\<ddagger> a \<sqinter> enabled_split\<^sub>\<ddagger> a \<squnion> nonrevealing\<^sub>\<ddagger> a \<top>\<close>
-  by (simp add: secure_rel_exch4_def2 nondeclassifying_exch4_def
+  \<open>secure_rel\<^sub>\<ddagger> a \<equiv> declassifying\<^sub>\<ddagger> a \<squnion> nonrevealing\<^sub>\<ddagger> a\<close>
+  by (simp add: secure_rel_exch4_eq2 nondeclassifying_exch4_def
       nonrevealing_exch4_def enabled_split_exch4_def
       comp_inf_distrib comp_sup_distrib comp_neg_distrib)
 
@@ -705,19 +848,27 @@ subsubsection \<open> Lemmas \<close>
 
 lemma quasireflcl_states_exch4_sec_agree_exch4_eq[simp]:
   \<open>quasireflcl_states\<^sub>\<ddagger> (\<bbbA>\<^sub>\<ddagger> f) = \<top>\<close>
-  by (force simp add: quasireflcl_states_exch4_def2 sec_agree_def)
+  by (force simp add: quasireflcl_states_exch4_eq sec_agree_def)
 
 lemma quasireflcl_states_exch4_neg_sec_agree_exch4_eq[simp]:
   \<open>quasireflcl_states\<^sub>\<ddagger> (- \<bbbA>\<^sub>\<ddagger> f) = \<bbbA>\<^sub>\<ddagger> f\<close>
-  by (clarsimp simp add: quasireflcl_states_exch4_def2 sec_agree_exch4_def2)
+  by (clarsimp simp add: quasireflcl_states_exch4_eq sec_agree_exch4_eq)
 
 lemma sympp_states_exch4_neg_eq[simp]:
   \<open>symcl_states\<^sub>\<ddagger> (- p) = symcl_states\<^sub>\<ddagger> p\<close>
-  by (force simp add: symcl_states_exch4_def2)
+  by (force simp add: symcl_states_exch4_eq)
 
 lemma sympp_states_exch4_sec_agree_exch4_eq[simp]:
   \<open>symcl_states\<^sub>\<ddagger> (\<bbbA>\<^sub>\<ddagger> f) = \<top>\<close>
-  by (force simp add: symcl_states_exch4_def2 sec_agree_def)
+  by (force simp add: symcl_states_exch4_eq sec_agree_def)
+
+lemma secure_rel_exch4_bot_eq[simp]:
+  \<open>secure_rel\<^sub>\<ddagger> \<bottom> = \<top>\<close>
+  by (clarsimp simp add: fun_eq_iff secure_rel_exch4_def)
+
+lemma secure_rel_exch4_eqrel_eq[simp]:
+  \<open>secure_rel\<^sub>\<ddagger> (=) = \<top>\<close>
+  by (clarsimp simp add: fun_eq_iff secure_rel_exch4_def)
 
 
 end

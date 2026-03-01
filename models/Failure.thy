@@ -5,20 +5,6 @@ begin
 
 section \<open> Util \<close>
 
-(* TODO: move *)
-
-lemma comp_inf_distrib:
-  \<open>(a \<sqinter> b) \<circ> f = (a \<circ> f) \<sqinter> (b \<circ> f)\<close>
-  by force
-
-lemma comp_sup_distrib:
-  \<open>(a \<squnion> b) \<circ> f = (a \<circ> f) \<squnion> (b \<circ> f)\<close>
-  by force
-
-lemma option_ex_split:
-  \<open>(case mx of Some x \<Rightarrow> p x | None \<Rightarrow> q) \<longleftrightarrow> (\<exists>x. mx = Some x \<and> p x) \<or> mx = None \<and> q\<close>
-  by (metis case_option_disj_iff)
-
 lemma pred_times_le_iff:
   \<open>p \<times>\<^sub>P q \<le> p' \<times>\<^sub>P q' \<longleftrightarrow> p \<le> p' \<and> q \<le> q' \<or> p \<le> \<bottom> \<or> q \<le> \<bottom>\<close>
   by (force simp add: pred_times_def le_fun_def)
@@ -257,7 +243,7 @@ lemmas Assert_def = assert_rel_def
 lemma rgsat_assert:
   assumes
     \<open>wssa R p \<^emph>\<and> F \<le> pa\<close>
-    \<open>rel_image snd (rel_liftL (wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (pretest (wssa R p \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     \<open>wssa R p \<le> I\<close>
     \<open>T RGSepAtom\<close>
   shows
@@ -274,10 +260,11 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred p\<close> and q=\<open>wss
     apply metis
     done
 
-  show \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred p) \<^emph>\<and> nofailure_pred F) \<sqinter> assert_rel pa) \<le> G\<close>
+  show \<open>rel_image snd (pretest (wssa R (nofailure_pred p) \<^emph>\<and> nofailure_pred F) \<sqinter> assert_rel pa) \<le> G\<close>
     using assms(2)
-    by (fastforce simp add: assert_rel_def nofailure_pred_sepconj_conj_distrib[symmetric]
-        wssa_comp_ppABC_to_ppACB_distrib)
+    by (clarsimp simp add: assert_rel_def nofailure_pred_sepconj_conj_distrib[symmetric]
+        wssa_comp_ppABC_to_ppACB_distrib le_fun_def)
+      blast
 qed (simp add: wssa_comp_ppABC_to_ppACB_distrib sswa_comp_ppABC_to_ppACB_distrib pred_times_le_iff)+
 
 lemma frame_expanding_iff:
@@ -288,7 +275,7 @@ lemma frame_expanding_iff:
 lemma rgsat_assert2:
   assumes
     \<open>wssa R (p \<sqinter> pa) \<^emph>\<and> F \<le> pa\<close>
-    \<open>rel_image snd (rel_liftL (wssa R (p \<sqinter> pa) \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
+    \<open>rel_image snd (pretest (wssa R (p \<sqinter> pa) \<^emph>\<and> F) \<sqinter> (=)) \<le> G\<close>
     \<open>wssa R (p \<sqinter> pa) \<le> I\<close>
     \<open>T RGSepAtom\<close>
   shows
