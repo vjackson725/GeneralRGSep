@@ -1,5 +1,5 @@
 theory Heap
-  imports Failure Stack
+  imports Failure
 begin
 
 
@@ -46,10 +46,10 @@ lemma heap_upd_eq_singleton_plus_heap_iff:
 section \<open> Heap Predicates \<close>
 
 definition points_to :: \<open>'a \<Rightarrow> 'b \<Rightarrow> ('a \<rightharpoonup> 'b) \<Rightarrow> bool\<close> (infix \<open>\<^bold>\<mapsto>\<close> 90) where
-  \<open>\varho \<^bold>\<mapsto> x \<equiv> (=) [p \<mapsto> x]\<close>
+  \<open>\<rho> \<^bold>\<mapsto> x \<equiv> (=) [\<rho> \<mapsto> x]\<close>
 
-definition val_at_heap :: \<open>'a \<Rightarrow> ('v \<Rightarrow> bool) \<Rightarrow> ('a \<rightharpoonup> 'v) \<Rightarrow> bool\<close> (\<open>\<^bold>@\<^sub>\<H>\<close>) where
-  \<open>\<^bold>@\<^sub>\<H> pt p \<equiv> \<lambda>h. \<forall>v. h pt = Some v \<longrightarrow> p v\<close>
+definition val_at_heap :: \<open>'a \<Rightarrow> ('v \<Rightarrow> bool) \<Rightarrow> ('a \<rightharpoonup> 'v) \<Rightarrow> bool\<close> (\<open>\<^bold>@\<^sub>H\<close>) where
+  \<open>\<^bold>@\<^sub>H pt p \<equiv> \<lambda>h. \<forall>v. h pt = Some v \<longrightarrow> p v\<close>
 
 
 section \<open> Heap Commands \<close>
@@ -84,7 +84,7 @@ lemma rgsat_heap_read:
   defines\<open>precond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e ss) \<rceil>\<^sub>\<S> \<sqinter> \<S> ((\<lambda>ss. p (ss(x := u2v (e ss)))) \<sqinter> \<^bold>@ x ((=) X))\<close>
   defines \<open>postcond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e (ss(x := X))) \<rceil>\<^sub>\<S> \<sqinter> \<S> p\<close>
   defines \<open>frame_post :: (('a \<rightharpoonup> 'v) \<times> ('x \<Rightarrow> 'u) \<Rightarrow> bool) \<equiv>
-    \<lceil>\<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt (\<lambda>vf. p (ss(x := u2v (e ss))) \<longrightarrow> p (ss(x := u2v (e ss + vf))) )) \<rceil>\<^sub>\<S>\<close>
+    \<lceil>\<lambda>ss. \<L> (\<^bold>@\<^sub>H pt (\<lambda>vf. p (ss(x := u2v (e ss))) \<longrightarrow> p (ss(x := u2v (e ss + vf))) )) \<rceil>\<^sub>\<S>\<close>
   assumes
     \<open>heap_read_G \<le> G\<close>
     \<open>wssa R precond \<le> I\<close>
@@ -174,7 +174,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     unfolding any_shared_def precond_def postcond_def
     by simp
 
-  show \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred precond) \<^emph>\<and>
+  show \<open>rel_image snd (pretest (wssa R (nofailure_pred precond) \<^emph>\<and>
           nofailure_pred F) \<sqinter> heap_read_rel u2v x pt) \<le> G\<close>
     using assms(5)
     unfolding heap_read_G_def precond_def
@@ -204,7 +204,7 @@ lemma rgsat_heap_update:
   defines \<open>precond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e ss) \<rceil>\<^sub>\<S> \<sqinter> \<S> p\<close>
     and \<open>postcond \<equiv> \<lceil> \<lambda>ss. \<L> (pt \<^bold>\<mapsto> e' (e ss) ss) \<rceil>\<^sub>\<S> \<sqinter> \<S> p\<close>
     and \<open>frame_post \<equiv>
-          \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt (\<lambda>vf. e' (e ss) ss ## vf \<and> e' (e ss + vf) ss = e' (e ss) ss + vf)) \<rceil>\<^sub>\<S>\<close>
+          \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>H pt (\<lambda>vf. e' (e ss) ss ## vf \<and> e' (e ss + vf) ss = e' (e ss) ss + vf)) \<rceil>\<^sub>\<S>\<close>
   assumes
     \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> frame_post\<close>
     \<open>(=) \<le> G\<close>
@@ -306,7 +306,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by clarsimp
 
   show
-    \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
+    \<open>rel_image snd (pretest (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
       heap_upd_rel pt e') \<le> G\<close>
     using assms(5)
     unfolding precond_def  heap_upd_rel_def
@@ -347,7 +347,7 @@ lemma rgsat_heap_alloc:
     \<open>wssa R precond \<le> I\<close>
     \<open>sswa R postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
-    and frame_cond: \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>\<H> pt \<bottom>)\<close>
+    and frame_cond: \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>H pt \<bottom>)\<close>
     and the_ptr_Ptr_inv: \<open>\<And>a. the_ptr (Ptr a) = a\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R precond } HeapAlloc Ptr x e { sswa R postcond }\<close>
@@ -365,7 +365,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by (clarsimp simp add: fun_eq_iff heap_alloc_rel_def all_conj_distrib)
 
   have
-    \<open>(F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>\<H> pt \<bottom>)) =
+    \<open>(F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<L> (\<Squnion>pt. \<^bold>@\<^sub>H pt \<bottom>)) =
       (\<forall>f\<le>F. sp (heap_alloc_rel Ptr x e) (nofailure_pred (wssa R precond \<^emph>\<and> f)) \<le> nofailure_pred \<top>)\<close>
     apply (clarsimp simp add: sp_def sepconj_conj_apply septract_conj_def le_fun_def
         imp_conjL imp_ex_conjL)
@@ -425,7 +425,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by simp
 
   show
-    \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
+    \<open>rel_image snd (pretest (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
       heap_alloc_rel Ptr x e) \<le> G\<close>
     using assms(3) frame_cond
     unfolding heap_alloc_rel_def precond_def
@@ -469,7 +469,7 @@ lemma rgsat_heap_free:
     \<open>sswa R postcond \<le> I\<close>
     \<open>T RGSepAtom\<close>
     and frame_cond:
-    \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>\<close>
+    \<open>F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>H pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>\<close>
   shows
     \<open>R, G, I, F, T \<turnstile>\<^sub>f { wssa R precond } HeapFree pt { sswa R postcond }\<close>
   using assms
@@ -495,7 +495,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
           sp (heap_free_rel pt) (wssa R (nofailure_pred precond) \<^emph>\<and> f) \<le>
             nofailure_pred postcond \<^emph>\<and> any_shared f\<close>
 
-  have \<open>\<top> = (F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>\<H> pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>)\<close>
+  have \<open>\<top> = (F \<sqinter> (wssa R precond \<midarrow>\<odot>\<^sub>\<and> \<top>) \<le> \<lceil> \<lambda>ss. \<L> (\<^bold>@\<^sub>H pt ((#/#) (e ss))) \<rceil>\<^sub>\<S>)\<close>
     using frame_cond
     by simp
   also have \<open>... = ?frame2\<close>
@@ -535,7 +535,7 @@ proof (intro rgsat_atom[where p=\<open>nofailure_pred precond\<close> and q=\<op
     by simp
 
   show
-    \<open>rel_image snd (rel_liftL (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
+    \<open>rel_image snd (pretest (wssa R (nofailure_pred precond) \<^emph>\<and> nofailure_pred F) \<sqinter>
       heap_free_rel pt) \<le> G\<close>
     using assms(3)
     by (fastforce simp add: heap_free_rel_def)
@@ -583,7 +583,7 @@ lemma top_write_heap_avoiding_iff_all_disjoint_perm:
   by (force simp add: heap_avoiding_def points_to_dom_upcl_def le_fun_def)
 
 lemma free_old_frame_cond_equiv:
-  \<open>- \<L> (\<Squnion>v. pt \<^bold>\<mapsto>\<^sup>\<Up> v) = \<L> (\<^bold>@\<^sub>\<H> pt \<bottom>)\<close>
+  \<open>- \<L> (\<Squnion>v. pt \<^bold>\<mapsto>\<^sup>\<Up> v) = \<L> (\<^bold>@\<^sub>H pt \<bottom>)\<close>
   by (clarsimp simp add: fun_eq_iff points_to_dom_upcl_def val_at_heap_def)
 
 end
