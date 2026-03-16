@@ -29,9 +29,6 @@ lift_definition SVars :: \<open>'x set \<Rightarrow> (('x, 'v) store \<Rightarro
   \<open>\<lambda>X (Xa, sa). X = Xa\<close> .
 
 
-definition
-  \<open>\<close>
-
 subsection \<open> Instances \<close>
 
 instantiation store :: (type, type) disjoint
