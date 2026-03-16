@@ -3,6 +3,113 @@ theory SepAlgInstancesExperimental
 begin
 
 
+
+section \<open> Freezable Set \<close>
+
+text \<open>
+  Sets that are merged with union when the flag is false (non-frozen),
+  but cannot be merged once the flag is true (frozen).
+\<close>
+
+typedef 'a freeze_set =
+  \<open>UNIV :: ('a set \<times> bool) set\<close>
+  by blast
+
+setup_lifting type_definition_freeze_set
+
+
+instantiation freeze_set :: (type) disjoint
+begin
+lift_definition disjoint_freeze_set :: \<open>'a freeze_set \<Rightarrow> 'a freeze_set \<Rightarrow> bool\<close> is
+  \<open>\<lambda>(X, bx) (Y, by). bx = by \<and> (bx \<and> by \<longrightarrow> X = Y)\<close> .
+instance ..
+end
+
+instantiation freeze_set :: (type) plus
+begin
+lift_definition plus_freeze_set :: \<open>'a freeze_set \<Rightarrow> 'a freeze_set \<Rightarrow> 'a freeze_set\<close> is
+  \<open>\<lambda>(X, bx) (Y, by). (X \<union> Y, bx \<and> by)\<close> .
+instance ..
+end
+lift_definition the_freeze_set :: \<open>'a freeze_set \<Rightarrow> 'a set\<close> is fst .
+lift_definition is_frozen :: \<open>'a freeze_set \<Rightarrow> bool\<close> is snd .
+
+
+instance freeze_set :: (type) pre_perm_alg
+  by standard
+    (transfer, clarsimp; meson sup.assoc sup.commute; fail)+
+
+lemma freeze_set_noncancellative:
+  fixes a b c :: \<open>'a freeze_set\<close>
+  shows \<open>a ## c \<Longrightarrow> b ## c \<Longrightarrow> (a + c = b + c) = (a = b)\<close>
+  apply transfer
+  apply clarsimp
+  nitpick[card 'a=1]
+  oops
+
+lemma frozen_set_cancellative:
+  \<open>((p \<circ> the_freeze_set) \<sqinter> is_frozen) \<^emph> ((q \<circ> the_freeze_set) \<sqinter> is_frozen) =
+    ((p \<sqinter> q \<circ> the_freeze_set) \<sqinter> is_frozen)\<close>
+  apply (clarsimp simp add: fun_eq_iff sepconj_def)
+  apply transfer
+  apply clarsimp
+  apply force
+  done
+
+
+section \<open> Store as a Resource \<close>
+
+typedef(overloaded) ('x, 'v) store_res =
+  \<open>(UNIV :: 'x set set) \<times> (UNIV :: ('x \<Rightarrow> 'v) set)\<close>
+  by blast
+
+setup_lifting type_definition_store_res
+
+
+instantiation store_res :: (type, type) disjoint
+begin
+lift_definition disjoint_store_res :: \<open>('x, 'v) store_res \<Rightarrow> ('x, 'v) store_res \<Rightarrow> bool\<close> is
+  \<open>\<lambda>(X, sx) (Y, sy). X \<inter> Y = {} \<and> sx = sy\<close> .
+instance ..
+end
+
+instantiation store_res :: (type, type) plus
+begin
+lift_definition plus_store_res :: \<open>('x, 'v) store_res \<Rightarrow> ('x, 'v) store_res \<Rightarrow> ('x, 'v) store_res\<close> is
+  \<open>\<lambda>(X, sx) (Y, sy). (X \<union> Y, sx)\<close>
+  by simp
+instance ..
+end
+
+instance store_res :: (type, type) pre_perm_alg
+  by standard
+    (transfer, clarsimp, blast)+
+
+instance store_res :: (type, type) cancel_pre_perm_alg
+  by standard
+    (transfer, clarsimp, blast)+
+
+lift_definition StoreVars :: \<open>'x set \<Rightarrow> ('x, 'v) store_res \<Rightarrow> bool\<close> is
+  \<open>\<lambda>X (Y,_). X = Y\<close> .
+
+lift_definition StorePred :: \<open>(('x \<Rightarrow> 'v) \<Rightarrow> bool) \<Rightarrow> ('x, 'v) store_res \<Rightarrow> bool\<close> is
+  \<open>\<lambda>p (_,s). p s\<close> .
+
+lemma \<open>StoreVars X \<^emph> StoreVars Y = StoreVars (X \<union> Y) \<sqinter> (\<lambda>_. X \<inter> Y = {})\<close>
+  apply (simp add: sepconj_def fun_eq_iff)
+  apply transfer
+  apply clarsimp
+  apply blast
+  done
+
+lemma \<open>StorePred p \<^emph> StorePred q = StorePred (p \<sqinter> q)\<close>
+  apply (simp add: sepconj_def fun_eq_iff)
+  apply transfer
+  apply clarsimp
+  apply blast
+  done
+
+
 section \<open> Error Resources #2 \<close>
 
 text \<open>
