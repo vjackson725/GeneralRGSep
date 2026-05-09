@@ -30,7 +30,7 @@ lemma framed_atom_unlift_helper:
   \<open>\<forall>f\<le>F. sp (unlift_rel\<^sub>\<ddagger> ara) (wssa R p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f \<Longrightarrow>
     All (quasirefl_preserv\<^sub>\<ddagger> ara) \<Longrightarrow>
     \<forall>f\<le>\<lblot> F \<rblot>\<^sub>\<ddagger>. sp ara (\<lblot> wssa R p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> f) \<le> \<lblot> q \<rblot>\<^sub>\<ddagger> \<^emph>\<and> any_shared f\<close>
-  unfolding quasirefl_preserv_exch4_def2 any_shared_def
+  unfolding unlift_rel_exch4_eq any_shared_def quasirefl_preserv_exch4_eq
   apply (clarsimp simp add: sepconj_conj_apply sp_apply le_fun_def)
   apply (rename_tac lfx' lfy' ssx' ssy' ssx ssy lsx lsy fx fy)
   apply (frule_tac x=\<open>(=) (fx, ssx)\<close> in spec, drule mp[of _ \<open>_ unlift_rel\<^sub>\<ddagger>\<close>])
@@ -38,7 +38,7 @@ lemma framed_atom_unlift_helper:
   apply (drule_tac x=\<open>(=) (fy, ssy)\<close> in spec, drule mp[of _ \<open>_ unlift_rel\<^sub>\<ddagger>\<close>])
    apply (simp add: le_fun_def lift_pred_exch4_def; fail)
   apply (clarsimp simp add: sp_def le_fun_def sepconj_conj_apply imp_ex_conjL lift_pred_exch4_def
-      unlift_rel_exch4_def2 imp_conjL)
+      unlift_rel_exch4_eq imp_conjL)
   apply metis
   done
 
@@ -47,7 +47,7 @@ lemma atom_lift_guar_helper:
     All (quasirefl_preserv\<^sub>\<ddagger> ara) \<Longrightarrow>
     rel_image snd (pretest (\<lblot> wssa R p \<rblot>\<^sub>\<ddagger> \<^emph>\<and> \<lblot> F \<rblot>\<^sub>\<ddagger>) \<sqinter> ara) \<le> G \<times>\<^sub>R G\<close>
   apply (clarsimp simp add: le_fun_def sepconj_conj_apply imp_ex_conjL imp_conjL
-      all_conj_distrib lift_pred_exch4_def quasirefl_preserv_exch4_def2)
+      all_conj_distrib lift_pred_exch4_def quasirefl_preserv_exch4_eq)
   apply metis
   done
 
@@ -205,8 +205,8 @@ next
       (* guar *)
        apply (simp add: lift_pred_exch4_sepconj_conj_distrib[symmetric])
        apply (clarsimp simp del: split_paired_All simp add: le_fun_def lift_preds_exch4_apply
-        unlift_rel_exch4_def2 imp_ex_conjL)
-       apply (simp add: quasirefl_preserv_exch4_def2)
+        unlift_rel_exch4_eq imp_ex_conjL)
+       apply (simp add: quasirefl_preserv_exch4_eq)
        apply (meson; fail)
       (* inv pre + post *)
       apply (simp add: lift_pred_exch4_mono; fail)
@@ -1176,6 +1176,13 @@ lemma subrel_eqrel_then_secure_rel_exch4_eq[simp]:
   by (simp add: secure_rel_exch4_def comp2_exch4_leq_shunt)
 
 thm induced_staterel_tau_same_state_nonrevealing
+
+
+lemma subrel_eqrel_nondeclassifying_then_nonrevealingp[simp]:
+  \<open>r \<le> (=) \<Longrightarrow> nondeclassifying r = \<top> \<Longrightarrow> nonrevealing r = \<top>\<close>
+  apply (clarsimp simp add: nonrevealing_eq nondeclassifying_eq fun_eq_iff le_fun_def)
+  apply metis
+  done
 
 
 subsection \<open> Security \<close>

@@ -2030,17 +2030,92 @@ instance neversep :: (boolean_algebra) boolean_algebra
 section \<open> Exclusive \<close>
 
 text \<open> Exclusive ownership of the resource. \<close>
+
 type_synonym 'a excl = \<open>'a neversep option\<close>
+
+abbreviation \<open>the_excl a \<equiv> the_neversep (the a)\<close>
 
 lemma excl_disjoint_iff[simp]:
   fixes a b :: \<open>'a excl\<close>
   shows
   \<open>a ## b \<longleftrightarrow>
     a = None \<and> b = None \<or>
-    (\<exists>v. a = Some (NeverSep v)) \<and> b = None \<or>
-    a = None \<and> (\<exists>v. b = Some (NeverSep v))\<close>
-  by (metis disjoint_neversep_def disjoint_option_def2 option.exhaust the_neversep_inverse)
+    (\<exists>v. a = Some v) \<and> b = None \<or>
+    a = None \<and> (\<exists>v. b = Some v)\<close>
+  by (clarsimp simp add: disjoint_option_def split: option.splits)
 
+(*
+typedef 'a excl = \<open>UNIV :: 'a option set\<close>
+  morphisms excl_rep Excl
+  by blast
+
+setup_lifting type_definition_excl
+
+abbreviation \<open>the_excl a \<equiv> the (excl_rep a)\<close>
+
+instantiation excl :: (type) plus
+begin
+lift_definition plus_excl :: \<open>'a excl \<Rightarrow> 'a excl \<Rightarrow> 'a excl\<close> is
+  \<open>\<lambda>a b. if a = None then b else a\<close> .
+instance by standard
+end
+
+instantiation excl :: (type) disjoint
+begin
+lift_definition disjoint_excl :: \<open>'a excl \<Rightarrow> 'a excl \<Rightarrow> bool\<close> is
+  \<open>\<lambda>a b. a = None \<or> b = None\<close> .
+instance by standard
+end
+
+instance excl :: (type) pre_perm_alg
+  by standard (transfer, force)+
+
+instance excl :: (type) positivity_law
+  by standard (transfer, clarsimp split: if_splits)
+
+
+subsection \<open> Extended instances \<close>
+
+(* not pre_multiunit_sep_alg *)
+(* not pre_sep_alg *)
+
+instance excl :: (type) dupcl_perm_alg
+  by standard (transfer, clarsimp split: if_splits)
+
+instance excl :: (type) strong_sep_pre_perm_alg
+  by standard
+    (simp add: sepadd_unit_def, transfer, clarsimp split: if_splits)
+
+instance excl :: (type) disjoint_parts_pre_perm_alg
+  by standard (transfer, clarsimp split: if_splits)
+
+instance excl :: (type) trivial_selfdisjoint_pre_perm_alg
+  by standard (transfer, clarsimp split: if_splits)
+
+instance excl :: (type) crosssplit_pre_perm_alg
+  by standard 
+    (transfer, clarsimp split: if_splits; blast)
+
+instance excl :: (type) cancel_pre_perm_alg
+  by standard (transfer, clarsimp split: if_splits; blast)
+
+(* not halving_pre_perm_alg *)
+
+(* not all_disjoint_pre_perm_alg *)
+
+(* not allcompatible_perm_alg *)
+
+(* not no_unit_pre_perm_alg *)
+
+lemma excl_disjoint_iff[simp]:
+  fixes a b :: \<open>'a excl\<close>
+  shows
+  \<open>a ## b \<longleftrightarrow>
+    excl_rep a = None \<and> excl_rep b = None \<or>
+    (\<exists>v. excl_rep a = Some v) \<and> excl_rep b = None \<or>
+    excl_rep a = None \<and> (\<exists>v. excl_rep b = Some v)\<close>
+  by transfer force
+*)
 
 section \<open> Bibliography \<close>
 

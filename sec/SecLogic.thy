@@ -392,10 +392,6 @@ then a step can be taken from the same-pair states.
 
 This is a very weak notion, already implied by quasi-reflexive preservation.
 (Which we have already set as a healthiness condition.)
-
-However, the concept is interesting because it is also implied by
-non-declassification, whereas quasi-reflexive preservation is unrelated
-to non-declassification and non-revelation.
 \<close>
 
 definition
