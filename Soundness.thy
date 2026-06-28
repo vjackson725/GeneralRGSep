@@ -1055,21 +1055,25 @@ proof (induct n arbitrary: ca cb sla slb ss)
   note safe_suc2 = safe_sucD[OF Suc.prems(2), simplified fst_conv snd_conv]
 
   show ?case
-  proof (rule safeI; fast?; (intro conjI)?; (simp only: fst_conv snd_conv)?)
+  proof (rule safeI; (intro conjI)?; fast?)
     show \<open>(sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib) (sla + slb, ss)\<close>
       using Suc.prems(3) safe_suc1(2) safe_suc2(2)
       by (simp del: sup_apply,
           metis Suc.prems(1,2) safe_then_state_inv sepconj_conjI sswa_trivial)
   next
     fix m ss'
-    assume r_step: \<open>R ss ss'\<close>
+
+    assume \<open>R (snd (sla + slb, ss)) ss'\<close>
+    then have r_step: \<open>R ss ss'\<close>
+      by simp
+
     presume m_eq_n: \<open>Suc m = Suc n\<close>
 
     show
       \<open>safe R F (Ga \<squnion> Gb)
         (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib)
         (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb)
-        m (ca \<parallel> cb) (sla + slb, ss')\<close>
+        m (ca \<parallel> cb) (fst (sla + slb, ss), ss')\<close>
       using r_step m_eq_n Suc.prems(1-3)
       apply (simp del: sup_apply)
       apply (intro Suc.hyps)
@@ -1079,9 +1083,9 @@ proof (induct n arbitrary: ca cb sla slb ss)
       done
   next
     fix m \<alpha> c' sf slf' ss'
-    assume assms2:
+    presume assms2:
       \<open>sla + slb ## sf\<close>
-      \<open>opstep \<alpha> ((sla + slb + sf, ss), ca \<parallel> cb) ((slf', ss'), c')\<close>
+      \<open>opstep \<alpha> ((fst (sla + slb, ss) + sf, snd (sla + slb, ss)), ca \<parallel> cb) ((slf', ss'), c')\<close>
       \<open>F (sf, ss)\<close>
 
     presume m_eq_n:
@@ -1099,7 +1103,7 @@ proof (induct n arbitrary: ca cb sla slb ss)
       using Suc.prems(1-2) assms2(1,3)
       by (metis disjoint_parts(1-2) safe_then_state_inv sepconj_conjI sup1CI)+
 
-    show \<open>\<alpha> \<noteq> Tau \<longrightarrow> (Ga \<squnion> Gb) ss ss'\<close>
+    show \<open>\<alpha> \<noteq> Tau \<longrightarrow> (Ga \<squnion> Gb) (snd (sla + slb, ss)) ss'\<close>
       using Suc.prems(2,3) assms2 disjoint_parts framed_invs safe_suc1(1,2)
       by (clarsimp simp del: sup_apply)
         (metis act.simps(2) disjoint_add_left_commute disjoint_add_left_commute2 disjoint_add_swap_lr2
@@ -1108,7 +1112,7 @@ proof (induct n arbitrary: ca cb sla slb ss)
     show \<open>\<exists>sl'.
             sl' ## sf \<and>
             slf' = sl' + sf \<and>
-            (\<alpha> = Tau \<longrightarrow> sl' = sla + slb) \<and>
+            (\<alpha> = Tau \<longrightarrow> sl' = fst (sla + slb, ss)) \<and>
             safe R F (Ga \<squnion> Gb)
               (sswa (R \<squnion> Gb) Ia \<^emph>\<and> sswa (R \<squnion> Ga) Ib)
               (sswa (R \<squnion> Gb) qa \<^emph>\<and> sswa (R \<squnion> Ga) qb)

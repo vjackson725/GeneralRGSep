@@ -1391,14 +1391,21 @@ lemma wlp_Sup_determ:
   assumes \<open>All (deterministic r)\<close>
     and \<open>P \<noteq> {}\<close>
   shows \<open>wlp r (\<Squnion>P) = \<Squnion>(wlp r ` P)\<close>
-proof (rule order.antisym; auto simp add: wlp_def)
-  fix x
-  assume \<open>\<forall>y. r x y \<longrightarrow> (\<exists>px\<in>P. px y)\<close>
-  then obtain px where \<open>r x \<le> px\<close> \<open>px \<in> P\<close>
-    using assms unfolding deterministic_def
-    by (metis ex_in_conv predicate1I)
-  then show \<open>\<exists>f\<in>P. \<forall>y. r x y \<longrightarrow> f y\<close>
-    by blast
+proof (rule order.antisym)
+  {
+    fix x
+    assume \<open>\<forall>y. r x y \<longrightarrow> (\<exists>px\<in>P. px y)\<close>
+    then obtain px where \<open>r x \<le> px\<close> \<open>px \<in> P\<close>
+      using assms unfolding deterministic_def
+      by (metis ex_in_conv predicate1I)
+    then have \<open>\<exists>f\<in>P. \<forall>y. r x y \<longrightarrow> f y\<close>
+      by blast
+  }
+  then show \<open>wlp r (\<Squnion> P) \<le> \<Squnion> (wlp r ` P)\<close>
+    by (force simp add: wlp_def)
+next
+  show \<open>\<Squnion> (wlp r ` P) \<le> wlp r (\<Squnion> P)\<close>
+    by (force simp add: wlp_def)
 qed
 
 paragraph \<open> wlp relation properties \<close>
