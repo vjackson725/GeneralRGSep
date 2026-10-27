@@ -1300,7 +1300,6 @@ proof -
     by (fastforce simp add: changedom_def dest: r_into_rtranclp[of r])
 qed
 
-
 text \<open> strongest postcondition, by way of relations \<close>
 definition sp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)\<close> where
   \<open>sp r p \<equiv> \<lambda>y. (\<exists>x. r x y \<and> p x)\<close>
@@ -1666,5 +1665,29 @@ lemma ex_list_length_iff_ex_nat:
   \<open>(\<exists>xs. P (length xs)) \<longleftrightarrow> (\<exists>n. P n)\<close>
   by (metis (mono_tags) Ex_list_of_length)
 *)
+
+definition
+  \<open>rel_skip \<equiv> (\<lambda>s s'. s' = s)\<close>
+
+lemmas rel_skip_apply[simp] = rel_skip_def[THEN meta_eq_to_obj_eq, OF ext, OF ext]
+
+
+lemma assert_condition:
+  \<open>(\<forall>q. wlp r q = p \<sqinter> q) \<Longrightarrow> r = pretest p \<sqinter> rel_skip \<squnion> pretest (-p) \<sqinter> \<top>\<close>
+  apply (clarsimp simp add: wlp_def fun_eq_iff rel_skip_def disj_not2)
+  apply (rename_tac s s')
+  apply (rule iffI)
+   apply (drule_tac x=\<open>(=) s\<close> in spec, blast)
+  apply blast
+  done
+
+lemma assume_condition:
+  \<open>(\<forall>q. wlp r q = -p \<squnion> q) \<Longrightarrow> r = pretest p \<sqinter> rel_skip \<squnion> pretest (-p) \<sqinter> \<bottom>\<close>
+  apply (clarsimp simp add: wlp_def fun_eq_iff rel_skip_def)
+  apply (rename_tac s s')
+  apply (rule iffI)
+   apply fastforce
+  apply blast
+  done
 
 end

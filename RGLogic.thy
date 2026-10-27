@@ -493,7 +493,7 @@ text \<open>
 lemma rgsat_postcond_implies_stateinv:
   assumes \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>
   shows \<open>q \<le> I\<close>
-  nitpick[card 'a=1, card 'b=1]
+  nitpick[card 'a=1, card 'b=1, expect=genuine]
   oops
 
 text \<open>
@@ -619,7 +619,7 @@ qed simp+
 \<comment> \<open> Unfortunately, \<open>b\<close> and \<open>-b\<close> have to be separately shown to be stable. \<close>
 lemma await_post_stable_neg_guard:
   \<open>sswa R p' \<le> p' \<Longrightarrow> sswa R (sswa R p \<sqinter> -p') = sswa R p \<sqinter> -p'\<close>
-  nitpick[card 'a=1, card 'b=2]
+  nitpick[card 'a=1, card 'b=2, expect=genuine]
   oops
 
 
@@ -652,7 +652,7 @@ lemma rgsat_while:
 section \<open> Atom Variants \<close>
 
 text \<open>
-  For the atom rule, show we don't need to conj with the atom-precondition
+  For the atom ruleic, show we don't need to conj with the atom-precondition
   in the sp assumption.
 \<close>
 lemma atom_pre_conj_unecessary:
@@ -695,7 +695,7 @@ lemma atom_variant_compressed_frame2_nequiv:
   shows
     \<open>sp aq (wssa r p \<^emph>\<and> F) \<le> q \<^emph>\<and> any_shared F \<longrightarrow>
       (\<forall>f\<le>F. sp aq (wssa r p \<^emph>\<and> f) \<le> q \<^emph>\<and> any_shared f)\<close>
-  nitpick[card 'l=2, card 's=1]
+  nitpick[card 'l=2, card 's=1, expect=genuine]
   oops
 
 lemma Sup_sepconjConj_framest_equiv_sepconjConj_frame:
