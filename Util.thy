@@ -10,25 +10,12 @@ unbundle lattice_syntax
 
 section \<open> Boolean Algebras and Logical Lattices \<close>
 
-definition top_embed :: \<open>'a::bounded_semilattice_inf_top \<Rightarrow> 'b::bounded_lattice\<close> (\<open>\<bbbT>\<close>) where
-  \<open>\<bbbT> b \<equiv> if b = \<top> then \<top> else \<bottom>\<close>
-
-lemma top_embed_bool_eq[simp]:
-  \<open>\<bbbT> True = \<top>\<close>
-  \<open>\<bbbT> False = \<bottom>\<close>
-  by (simp add: top_embed_def)+
-
-lemma top_embed_fun_apply[simp]:
-  \<open>(\<bbbT> f) x = \<bbbT> f\<close>
-  by (simp add: top_embed_def)
-
-lemma top_embed_to_bool_eq[simp]:
-  \<open>\<bbbT> a \<longleftrightarrow> (a = \<top>)\<close>
-  by (simp add: top_embed_def)
-
-
 context boolean_algebra
 begin
+
+lemma implication_then_inf_neg_false:
+  \<open>a \<le> b \<Longrightarrow> a \<sqinter> - b = \<bottom>\<close>
+  by (simp add: inf_shunt)
 
 definition impl :: "'a \<Rightarrow> 'a \<Rightarrow> 'a" (infixr "\<rightarrow>" 60) where
   "a \<rightarrow> b \<equiv> -a \<squnion> b"
@@ -95,10 +82,6 @@ lemma All_bot_iff[simp]:
 
 section \<open> Functional Programming \<close>
 
-definition flip :: \<open>('a \<Rightarrow> 'b \<Rightarrow> 'c) \<Rightarrow> ('b \<Rightarrow> 'a \<Rightarrow> 'c)\<close> where
-  \<open>flip f a b \<equiv> f b a\<close>
-declare flip_def[simp]
-
 lemma le_fun_eta[simp]: \<open>(\<lambda>x. a) \<le> (\<lambda>x. b) \<longleftrightarrow> a \<le> b\<close>
   by (simp add: le_fun_def)
 
@@ -108,23 +91,10 @@ section \<open> Logic \<close>
 lemmas conj_left_mp[simp] =
   SMT.verit_bool_simplify(7)
   arg_cong[where f=\<open>\<lambda>x. x \<and> R\<close> for R, OF SMT.verit_bool_simplify(7), simplified conj_assoc]
+
 lemmas conj_right_mp[simp] =
   SMT.verit_bool_simplify(8)
   arg_cong[where f=\<open>\<lambda>x. x \<and> R\<close> for R, OF SMT.verit_bool_simplify(8), simplified conj_assoc]
-
-lemma strong_imp_conj_iff: "(P \<Longrightarrow> R) \<Longrightarrow> ((Q \<longrightarrow> R) \<and> P) = P"
-  by blast
-
-lemma conj_imp_distribR:
-  \<open>(p \<longrightarrow> q) \<and> r \<longleftrightarrow> (\<not> p \<and> r) \<or> (q \<and> r)\<close>
-  by force
-
-lemma conj_imp_distribL:
-  \<open>p \<and> (q \<longrightarrow> r) \<longleftrightarrow> (p \<and> \<not> q) \<or> (p \<and> r)\<close>
-  by force
-
-lemma if_eq_disj_cases: \<open>(A \<longrightarrow> B) \<and> (\<not> A \<longrightarrow> C) \<longleftrightarrow> (A \<and> B) \<or> (\<not> A \<and> C)\<close>
-  by blast
 
 lemma imp_impL[simp]: \<open>(A \<longrightarrow> B) \<longrightarrow> C \<longleftrightarrow> (\<not> A \<longrightarrow> C) \<and> (B \<longrightarrow> C)\<close>
   by blast
@@ -369,6 +339,18 @@ lemma comp2_exchange:
 lemma comp2_raw_id_eq[simp]:
   \<open>r \<circ>\<^sub>2 (\<lambda>x. x) = r\<close>
   by fastforce
+
+lemma comp2_surj_then_inj:
+  \<open>surj f \<Longrightarrow> inj (\<lambda>a. a \<circ>\<^sub>2 f)\<close>
+  apply (clarsimp simp add: surj_def inj_def comp2_def fun_eq_iff)
+  apply metis
+  done
+
+lemma comp2_inj_then_surj:
+  \<open>inj f \<Longrightarrow> surj (\<lambda>a. a \<circ>\<^sub>2 f)\<close>
+  using choice[where Q=\<open>(\<lambda>(x,y) fx. Q x y fx) :: _ \<times> _ \<Rightarrow> _\<close> for Q, simplified]
+  apply (fastforce simp add: surj_def inj_def comp2_def fun_eq_iff)
+  done
 
 
 definition rel_image :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> ('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> 'b \<Rightarrow> bool)\<close> where
@@ -964,12 +946,14 @@ section \<open> Groups \<close>
 
 lemmas eq_diff_eq_comm =
   HOL.trans[OF eq_diff_eq, OF arg_cong[where f=\<open>\<lambda>x. x = y\<close> for y], OF add.commute]
-thm eq_diff_eq
+
 
 section \<open> Arithmetic \<close>
 
-(* It feels like Isabelle/HOL is missing a theory of non-abelian ordered monoids.
-   An example of an instance of such an algebra is traces.
+(*
+  I did not find a theory of non-abelian ordered monoids in the Isabelle/HOL libraries,
+  though it seems like it would be useful. An example of an instance of such an algebra
+  is traces.
 *)
 lemma prefixcl_weak_canonical_plusD:
   fixes a1 a2 :: \<open>'a :: {order,monoid_add}\<close>
@@ -978,13 +962,6 @@ lemma prefixcl_weak_canonical_plusD:
   shows \<open>a1 \<le> a1 + a2\<close>
   using assms
   by (metis add.right_neutral)
-
-lemma ex_times_k_iff:
-  fixes a :: \<open>'a :: division_ring\<close>
-  assumes \<open>k \<noteq> 0\<close>
-  shows \<open>(\<exists>x. a = x * k \<and> P x) \<longleftrightarrow> P (a / k)\<close>
-  using assms
-  by (metis eq_divide_eq)
 
 lemma max_eq_k_iff:
   fixes a b :: \<open>'a :: linorder\<close>
@@ -996,32 +973,6 @@ lemma min_eq_k_iff:
   shows \<open>(min a b = k) = (a = k \<and> k \<le> b \<or> k \<le> a \<and> b = k)\<close>
   by (simp add: eq_iff min_le_iff_disj)
 
-lemma field_All_mult_inverse_iff:
-  fixes x k :: \<open>'a :: field\<close>
-  shows \<open>k \<noteq> 0 \<Longrightarrow> (\<forall>y. x = y * k \<longrightarrow> P y) \<longleftrightarrow> P (x / k)\<close>
-  by fastforce
-
-lemma zero_less_plus_positive:
-  fixes a b :: \<open>'a :: {order,monoid_add}\<close>
-  shows \<open>0 < a + b \<Longrightarrow> 0 \<le> a \<Longrightarrow> 0 \<le> b \<Longrightarrow> 0 < a \<or> 0 < b\<close>
-  by force
-
-lemma linordered_field_min_bounded_divide_by:
-  fixes x k :: \<open>'a :: linordered_field\<close>
-  shows \<open>1 \<le> i \<Longrightarrow> i < k \<Longrightarrow> 0 \<le> x \<Longrightarrow> x \<le> i \<Longrightarrow> min i (x / k) = x / k\<close>
-  by (metis leD le_divide_eq_1 min.absorb2 nle_le order_trans)
-
-lemmas min_absorb_plus_divide_left =
-  min.absorb2[OF
-    order.trans[OF
-      add_mono[OF
-        frac_le[of _ _ 1, simplified, OF _ order.refl] order.refl]], rotated 2]
-lemmas min_absorb_plus_divide_right =
-  min.absorb2[OF
-    order.trans[OF
-      add_mono[OF
-        order.refl frac_le[of _ _ 1, simplified, OF _ order.refl]]], rotated 2]
-
 lemma ordered_ab_group_add_ge0_le_iff_add:
   fixes a b :: \<open>'a :: ordered_ab_group_add\<close>
   shows \<open>(a \<le> b) = (\<exists>c\<ge>0. b = a + c)\<close>
@@ -1031,49 +982,6 @@ lemma linordered_semidom_ge0_le_iff_add:
   fixes a b :: \<open>'a :: linordered_semidom\<close>
   shows \<open>(a \<le> b) = (\<exists>c\<ge>0. b = a + c)\<close>
   by (metis le_add_diff_inverse le_add_same_cancel1)
-
-lemma pos_eq_neg_iff_zero:
-  fixes x y z :: \<open>'a :: linordered_field\<close>
-  shows
-    \<open>0 \<le> x \<Longrightarrow> 0 \<le> z \<Longrightarrow> x = - z \<longleftrightarrow> x = 0 \<and> z = 0\<close>
-    \<open>0 \<le> x \<Longrightarrow> 0 \<le> y \<Longrightarrow> 0 \<le> z \<Longrightarrow> x + y = - z \<longleftrightarrow> x = 0 \<and> y = 0 \<and> z = 0\<close>
-  by fastforce+
-
-lemma min_mult_extract_right_mult_right:
-  fixes p x y :: \<open>_ :: linordered_field\<close>
-  shows
-    \<open>0 < p \<Longrightarrow> min x (y * p) = min (x/p) y * p\<close>
-    \<open>0 > p \<Longrightarrow> min x (y * p) = max (x/p) y * p\<close>
-  by (simp add: min_def pos_divide_le_eq max_mult_distrib_right)+
-
-lemma max_mult_extract_right_mult_right:
-  fixes p x y :: \<open>_ :: linordered_field\<close>
-  shows
-    \<open>0 < p \<Longrightarrow> max x (y * p) = max (x/p) y * p\<close>
-    \<open>0 > p \<Longrightarrow> max x (y * p) = min (x/p) y * p\<close>
-  by (simp add: max_def pos_divide_le_eq min_mult_distrib_right)+
-
-lemma min_mult_extract_left_mult_right:
-  fixes p x y :: \<open>_ :: linordered_field\<close>
-  shows
-    \<open>0 < p \<Longrightarrow> min x (p * y) = p * min (x/p) y\<close>
-    \<open>0 > p \<Longrightarrow> min x (p * y) = p * max (x/p) y\<close>
-  by (metis min_mult_extract_right_mult_right mult.commute)+
-
-lemma max_mult_extract_right_mult_left:
-  fixes p x y :: \<open>_ :: linordered_field\<close>
-  shows
-    \<open>0 < p \<Longrightarrow> max x (p * y) = p * max (x/p) y\<close>
-    \<open>0 > p \<Longrightarrow> max x (p * y) = p * min (x/p) y\<close>
-  by (metis max_mult_extract_right_mult_right mult.commute)+
-
-lemma ordered_comm_monoid_add_add_min_assoc:
-  fixes x y z k :: \<open>'a :: ordered_comm_monoid_add\<close>
-  assumes \<open>x \<ge> 0\<close> \<open>z \<ge> 0\<close>
-  shows \<open>min k (min k (x + y) + z) = min k (x + min k (y + z))\<close>
-  using assms
-  by (clarsimp simp add: min_def add.commute add.left_commute add_increasing add_increasing2 eq_iff,
-      metis add.assoc add_increasing2)
 
 lemma le_Suc_iff0: \<open>m \<le> Suc n \<longleftrightarrow> m = 0 \<or> (\<exists>m'. m = Suc m' \<and> m' \<le> n)\<close>
   by presburger
@@ -1097,28 +1005,6 @@ lemma suc_eq_plus_iff:
   by presburger
 
 lemmas suc_eq_plus_iff2 = trans[OF eq_commute suc_eq_plus_iff]
-
-
-section \<open> Sequencing Algebra \<close>
-
-text \<open> Note this is a subalgebra of a relation algebra. \<close>
-
-class seq =
-  fixes seq :: \<open>'a \<Rightarrow> 'a \<Rightarrow> 'a\<close> (infixr \<open>\<triangleright>\<close> 110)
-
-class skip =
-  fixes skip :: 'a (\<open>SKIP\<close>)
-
-class monoid_seq = seq + skip +
-  assumes seq_assoc[algebra_simps, algebra_split_simps]: \<open>(a \<triangleright> b) \<triangleright> c = a \<triangleright> (b \<triangleright> c)\<close>
-    and add_skip_left[simp]: \<open>SKIP \<triangleright> a = a\<close>
-    and add_skip_right[simp]: \<open>a \<triangleright> SKIP = a\<close>
-begin
-
-sublocale monoid seq skip
-  by standard (simp add: seq_assoc)+
-
-end
 
 
 section \<open> Times \<close>
@@ -1229,7 +1115,7 @@ lemma rel_times_mono_right:
 
 lemma Times_singleton[simp]:
   \<open>{x} \<times> B = Pair x ` B\<close>
-  \<open>A \<times> {y} = flip Pair y ` A\<close>
+  \<open>A \<times> {y} = (\<lambda>x. Pair x y) ` A\<close>
   by force+
 
 lemma rel_image_fst_galois:
@@ -1280,25 +1166,6 @@ section \<open> Relations + Relations as Programs \<close>
 
 definition \<open>deterministic r \<equiv> \<lambda>x. \<forall>y1 y2. r x y1 \<longrightarrow> r x y2 \<longrightarrow> y1 = y2\<close>
 
-definition \<open>changes r \<equiv> \<lambda>x y. r x y \<and> y \<noteq> x\<close>
-abbreviation \<open>changedom r \<equiv> \<lambda>x. \<exists>y. changes r x y\<close>
-lemmas changedom_def = changes_def
-
-lemma pre_state_eq_changedom_and_refl:
-  \<open>pre_state r = (changedom r) \<squnion> (\<lambda>x. r x x)\<close>
-  by (force simp add: changedom_def pre_state_def)
-  
-
-lemma changedom_rtranclp[simp]:
-  \<open>changedom (r\<^sup>*\<^sup>*) = changedom r\<close>
-proof -
-  { fix x y
-    assume \<open>r\<^sup>*\<^sup>* x y\<close> \<open>y \<noteq> x\<close>
-    then have \<open>\<exists>y. r x y \<and> y \<noteq> x\<close>
-      by (induct rule: rtranclp_induct) blast+
-  } then show ?thesis
-    by (fastforce simp add: changedom_def dest: r_into_rtranclp[of r])
-qed
 
 text \<open> strongest postcondition, by way of relations \<close>
 definition sp :: \<open>('a \<Rightarrow> 'b \<Rightarrow> bool) \<Rightarrow> ('a \<Rightarrow> bool) \<Rightarrow> ('b \<Rightarrow> bool)\<close> where
@@ -1606,88 +1473,5 @@ lemma wlp_sp_absorb:
   \<open>reflp r1 \<Longrightarrow> transp r2 \<Longrightarrow> r1 \<le> r2 \<Longrightarrow> wlp r1 (sp r2 p) = sp r2 p\<close>
   by (rule order.antisym; simp add: wlp_sp_weak_absorb wlp_refl_rel_le)
 
-
-\<comment> \<open> TODO: move \<close>
-
-abbreviation map_suml :: \<open>('a \<Rightarrow> 'b) \<Rightarrow> 'a + 'c \<Rightarrow> 'b + 'c\<close> where
-  \<open>map_suml f \<equiv> map_sum f (\<lambda>x. x)\<close>
-
-abbreviation map_sumr :: \<open>('b \<Rightarrow> 'c) \<Rightarrow> 'a + 'b \<Rightarrow> 'a + 'c\<close> where
-  \<open>map_sumr f \<equiv> map_sum (\<lambda>x. x) f\<close>
-
-lemma add_leq_Suc0_iff:
-  \<open>x + y \<le> Suc 0 \<longleftrightarrow> x \<le> Suc 0 \<and> y = 0 \<or> x = 0 \<and> y \<le> Suc 0\<close>
-  by force
-
-lemma sum_leq_Suc0_iff:
-  \<open>finite A \<Longrightarrow>
-    sum f A \<le> Suc 0 \<longleftrightarrow> (\<forall>x\<in>A. f x = 0) \<or> (\<exists>x\<in>A. f x = Suc 0 \<and> (\<forall>y\<in>A. y \<noteq> x \<longrightarrow> f y = 0))\<close>
-  apply (induct rule: finite.induct)
-   apply force
-  apply (case_tac \<open>a \<in> A\<close>)
-   apply (frule mk_disjoint_insert, clarsimp simp add: sum.insert_remove; fail)
-  apply (auto simp add: sum.insert_remove conj_disj_distribL le_Suc_eq add_is_1)
-  done
-
-lemma iff_extract_agreement:
-  \<open>(P \<Longrightarrow> X) \<Longrightarrow> (Q \<Longrightarrow> X) \<Longrightarrow> P = Q \<longleftrightarrow> (X \<longrightarrow> P = Q)\<close>
-  by blast
-
-(*
-subsection \<open> Sublist \<close>
-
-inductive sublist :: \<open>'a list \<Rightarrow> 'a list \<Rightarrow> bool\<close> (infix \<open>\<preceq>\<^sub>l\<close> 55) where
-  sublist_nil[intro!]: \<open>[] \<preceq>\<^sub>l xs\<close>
-| sublist_cons[intro!]: \<open>ys' = x # ys \<Longrightarrow> xs \<preceq>\<^sub>l ys \<Longrightarrow> x # xs \<preceq>\<^sub>l ys'\<close>
-
-inductive_cases sublist_nilE[elim!]: \<open>[] \<preceq>\<^sub>l xs\<close>
-inductive_cases sublist_consE[elim]: \<open>x # xs \<preceq>\<^sub>l ys'\<close>
-
-lemma sublist_iff[simp]:
-  \<open>[] \<preceq>\<^sub>l xs\<close>
-  \<open>x # xs \<preceq>\<^sub>l ys' \<longleftrightarrow> (\<exists>ys. ys' = x # ys \<and> xs \<preceq>\<^sub>l ys)\<close>
-  by force+
-
-lemma sublist_refl[intro]: \<open>xs \<preceq>\<^sub>l xs\<close>
-  by (induct xs) blast+
-
-lemma sublist_trans[trans]: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l zs \<Longrightarrow> xs \<preceq>\<^sub>l zs\<close>
-  by (induct xs arbitrary: ys zs) force+
-
-lemma sublist_antisym: \<open>xs \<preceq>\<^sub>l ys \<Longrightarrow> ys \<preceq>\<^sub>l xs \<Longrightarrow> xs = ys\<close>
-  by (induct xs arbitrary: ys) (force elim: sublist.cases)+
-
-lemma sublist_iff_append:
-  \<open>xs \<preceq>\<^sub>l ys \<longleftrightarrow> (\<exists>zs. ys = xs @ zs)\<close>
-  by (induct xs arbitrary: ys) force+
-
-lemma ex_list_length_iff_ex_nat:
-  \<open>(\<exists>xs. P (length xs)) \<longleftrightarrow> (\<exists>n. P n)\<close>
-  by (metis (mono_tags) Ex_list_of_length)
-*)
-
-definition
-  \<open>rel_skip \<equiv> (\<lambda>s s'. s' = s)\<close>
-
-lemmas rel_skip_apply[simp] = rel_skip_def[THEN meta_eq_to_obj_eq, OF ext, OF ext]
-
-
-lemma assert_condition:
-  \<open>(\<forall>q. wlp r q = p \<sqinter> q) \<Longrightarrow> r = pretest p \<sqinter> rel_skip \<squnion> pretest (-p) \<sqinter> \<top>\<close>
-  apply (clarsimp simp add: wlp_def fun_eq_iff rel_skip_def disj_not2)
-  apply (rename_tac s s')
-  apply (rule iffI)
-   apply (drule_tac x=\<open>(=) s\<close> in spec, blast)
-  apply blast
-  done
-
-lemma assume_condition:
-  \<open>(\<forall>q. wlp r q = -p \<squnion> q) \<Longrightarrow> r = pretest p \<sqinter> rel_skip \<squnion> pretest (-p) \<sqinter> \<bottom>\<close>
-  apply (clarsimp simp add: wlp_def fun_eq_iff rel_skip_def)
-  apply (rename_tac s s')
-  apply (rule iffI)
-   apply fastforce
-  apply blast
-  done
 
 end

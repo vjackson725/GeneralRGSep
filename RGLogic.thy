@@ -244,6 +244,10 @@ lemma any_shared_idem[simp]:
   \<open>any_shared (any_shared p) = any_shared p\<close>
   by force
 
+lemma any_shared_pred_times_top_eq[simp]:
+  \<open>any_shared (p \<times>\<^sub>P \<top>) = p \<times>\<^sub>P \<top>\<close>
+  by (fastforce simp add: any_shared_def)
+
 
 section \<open> Rely-Guarantee Separation Logic \<close>
 
@@ -272,9 +276,9 @@ lemma
   apply (drule spec2, drule spec2, drule mp, force)
   apply (drule spec2, drule mp, fast, drule mp, fast)
   apply clarsimp
+  nitpick [card 'a=1, card 'b=2, expect]
   oops
 
-(* TODO: reverse F I *)
 inductive rgsat ::
   \<open>('l::pre_perm_alg \<times> 's) comm \<Rightarrow>
     ('s \<Rightarrow> 's \<Rightarrow> bool) \<Rightarrow>

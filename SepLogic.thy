@@ -1558,7 +1558,6 @@ lemma sepconj_conj_distrib_eqpred:
 
 subsection \<open> Intuitionistic \<close>
 
-(* TODO: rename intuitionistic to bring it in line with the seplogic jungle paper *)
 definition intuitionistic :: \<open>('a \<Rightarrow> bool) \<Rightarrow> bool\<close> where
   \<open>intuitionistic P \<equiv> \<forall>h h'. h \<preceq> h' \<longrightarrow> P h \<longrightarrow> P h'\<close>
 

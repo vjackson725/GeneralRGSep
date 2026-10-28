@@ -13,7 +13,7 @@ section \<open> Relational Security Logic \<close>
 
 subsection \<open> Relational Predicate Lifting \<close>
 
-\<comment> \<open> The same a \<open>pred_times\<close>, but this syntax is nicer for relational reasoning. \<close>
+\<comment> \<open> The same as \<open>pred_times\<close>, but this syntax is nicer for relational reasoning. \<close>
 
 abbreviation(input) lift_preds ("\<lblot> _ \<bar> _ \<rblot>" [0,0]) where
   \<open>\<lblot> p \<bar> q \<rblot> \<equiv> p \<times>\<^sub>P q\<close>

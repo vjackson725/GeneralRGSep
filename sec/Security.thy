@@ -2,25 +2,6 @@
   imports SecLogic
 begin
 
-(* TODO: move *)
-
-lemma subcomms_map_atom_distrib:
-  \<open>subcomms (map_atom f c) = image_mset (map_atom f) (subcomms c)\<close>
-  by (induct c) simp+
-
-lemma comp2_surj_then_inj:
-  \<open>surj f \<Longrightarrow> inj (\<lambda>a. a \<circ>\<^sub>2 f)\<close>
-  apply (clarsimp simp add: surj_def inj_def comp2_def fun_eq_iff)
-  apply metis
-  done
-
-lemma comp2_inj_then_surj:
-  \<open>inj f \<Longrightarrow> surj (\<lambda>a. a \<circ>\<^sub>2 f)\<close>
-  using choice[where Q=\<open>(\<lambda>(x,y) fx. Q x y fx) :: _ \<times> _ \<Rightarrow> _\<close> for Q, simplified]
-  apply (fastforce simp add: surj_def inj_def comp2_def fun_eq_iff)
-  done
-
-
 section \<open> Proof Lifting to Paired-State Setting \<close>
 
 subsection \<open> Helpers \<close>
@@ -71,7 +52,8 @@ lemma cancellative'_lift_helper:
 
 subsection \<open> Main Lifting Theorem\<close>
 
-(* TODO: Try to tighten up the qrefl side condition. *)
+(* NB: It would be nice to tighten up the qrefl side condition. *)
+
 lemma genrgsep_proof_pairedst_lift:
   assumes
     \<open>R, G, I, F, T \<turnstile> { p } c { q }\<close>

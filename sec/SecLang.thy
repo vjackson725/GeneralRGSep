@@ -2,39 +2,6 @@ theory SecLang
   imports SecLogic
 begin
 
-section \<open> Helpers \<close>
-
-text \<open> TODO: move \<close>
-
-lemma implication_then_inf_neg_false:
-  fixes p q :: \<open>'a :: boolean_algebra\<close>
-  shows \<open>p \<le> q \<Longrightarrow> p \<sqinter> - q = \<bottom>\<close>
-  by (simp add: inf_shunt)
-
-lemma any_shared_pred_times_top_eq[simp]:
-  \<open>any_shared (p \<times>\<^sub>P \<top>) = p \<times>\<^sub>P \<top>\<close>
-  by (fastforce simp add: any_shared_def)
-
-lemma sepconj_conj_unit_right[simp]:
-  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
-  shows \<open>p \<^emph>\<and> (emp \<times>\<^sub>P \<top>) = p\<close>
-  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
-    (metis sepadd_unit_right unitof_disjoint2 unitof_is_sepadd_unit)
-
-lemma sepconj_conj_unit_left[simp]:
-  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
-  shows \<open>(emp \<times>\<^sub>P \<top>) \<^emph>\<and> p = p\<close>
-  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
-    (metis sepadd_unit_def unitof_disjoint unitof_is_sepadd_unit)
-
-lemma conj_eqpred_neq_simp[simp]:
-  \<open>x \<noteq> y \<Longrightarrow> (=) x \<sqinter> (=) y = \<bottom>\<close>
-  by (simp add: fun_eq_iff)
-
-
-section \<open> Healthiness Predicate Transformers \<close>
-
-
 section \<open> Predicate-lifting Await \<close>
 
 text \<open> Predicate-lifting await is always quasirefl preserving \<close>
@@ -46,9 +13,6 @@ lemma quasirefl_states_await:
 lemma quasirefl_states_exch4_await:
   \<open>quasirefl_preserv\<^sub>\<ddagger> (await_rel p) = quasireflcl_states\<^sub>\<ddagger> p\<close>
   by (simp add: quasirefl_preserv_exch4_eq await_rel_def quasireflcl_states_exch4_eq fun_eq_iff)
-
-
-text \<open> and symmetry preserving. \<close>
 
 lemma sym_preserv_await:
   \<open>sym_preserv (await_rel p) = symcl_states p\<close>
@@ -186,7 +150,6 @@ abbreviation RelAssert
 
 subsubsection \<open> Healthiness Properties \<close>
 
-text \<open> Relassert is quasi-reflexivity preserving when TODO \<close>
 lemma relassert_quasireflp_steprel:
   fixes p :: \<open>('a, 'b) rgsep_secstate \<Rightarrow> bool\<close>
   shows
@@ -197,8 +160,6 @@ lemma relassert_quasireflp_steprel:
         failed2_pred \<top>\<close>
   by (clarsimp simp add: relassert_rel_def quasirefl_preserv_exch4_eq quasireflcl_states_exch4_eq
       fun_eq_iff all_fail_st_eq all_conj_distrib)
-
-text \<open> It is symmetry preserving when TODO \<close>
 
 lemma relassert_sym_preserv_eq:
   \<open>sym_preserv\<^sub>\<ddagger> (relassert_rel p) =

@@ -122,6 +122,10 @@ lemma subcomms_antisym:
   apply (metis in_subcomms_then_le_size order_less_asym)
   done
 
+lemma subcomms_map_atom_distrib:
+  \<open>subcomms (map_atom f c) = image_mset (map_atom f) (subcomms c)\<close>
+  by (induct c) simp+
+
 
 definition \<open>subcomms_strict c = subcomms c - {#c#}\<close>
 

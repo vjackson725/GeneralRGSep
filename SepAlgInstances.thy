@@ -222,6 +222,19 @@ lemma sepconj_conj_monoR:
   by (force simp add: sepconj_conj_def)
 
 
+lemma sepconj_conj_unit_right[simp]:
+  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
+  shows \<open>p \<^emph>\<and> (emp \<times>\<^sub>P \<top>) = p\<close>
+  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
+    (metis sepadd_unit_right unitof_disjoint2 unitof_is_sepadd_unit)
+
+lemma sepconj_conj_unit_left[simp]:
+  fixes p  :: \<open>'l::multiunit_sep_alg \<times> 's \<Rightarrow> bool\<close>
+  shows \<open>(emp \<times>\<^sub>P \<top>) \<^emph>\<and> p = p\<close>
+  by (clarsimp simp add: sepconj_conj_def emp_def fun_eq_iff)
+    (metis sepadd_unit_def unitof_disjoint unitof_is_sepadd_unit)
+
+
 subsubsection \<open> Sepimp-imp \<close>
 
 definition sepimp_conj
